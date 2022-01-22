@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AssimpNet" Version="4.1.0" />
+    <PackageReference Include="FbxParser" Version="2.0.0" />
+    <PackageReference Include="GlmSharp" Version="0.9.8" />
+    <PackageReference Include="OpenTK" Version="4.6.7" />
+    <PackageReference Include="StbImageLib" Version="2.22.3" />
+    <PackageReference Include="StbImageNET" Version="2.26.2" />
+    <PackageReference Include="StbImageSharp" Version="2.27.8" />
+    <PackageReference Include="StbSharp" Version="0.7.2.38" />
+  </ItemGroup>
+
+</Project>
