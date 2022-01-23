@@ -9,7 +9,7 @@ namespace LiteEngine.Core
 {
     public class Mesh
     {
-        public Mesh(List<Vertex> vertices, List<int> indices, List<Texture> textures)
+        public Mesh(List<Vertex> vertices, List<int> indices, Material textures)
         {
             this.vertices = vertices;
             this.indices = indices;
@@ -47,7 +47,7 @@ namespace LiteEngine.Core
 
         List<Vertex>? vertices = null;
         List<int>? indices = null;
-        List<Texture>? textures = null;
+        Material? textures = null;
         int Vao;
         int Vbo;
         int Ebo;
@@ -55,7 +55,6 @@ namespace LiteEngine.Core
         {
             foreach(var texture in textures)
             {
-
                 GL.BindTexture(TextureTarget.Texture2D, texture.Id);
 
             }

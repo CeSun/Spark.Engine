@@ -21,7 +21,7 @@ namespace LiteEngine.Core
             var scene = context.ImportFile(path);
             InitSkeleton(scene);
             InitMesh(scene);
-            Console.WriteLine(0);
+
         }
         private void InitSkeleton(Scene scene)
         {
@@ -72,7 +72,7 @@ namespace LiteEngine.Core
             {
                 List<Vertex> vertex = new List<Vertex>();
                 List<int> indices = new List<int>();
-                List<Texture> textures = new List<Texture>();
+                Material material = new Material();
                 for (int i = 0; i < aiMesh.VertexCount; i++)
                 {
                     vertex.Add(new Vertex { 
@@ -88,20 +88,18 @@ namespace LiteEngine.Core
                         indices.Add(indice);
                     }
                 }
-                var material = scene.Materials[aiMesh.MaterialIndex];
-                material.GetMaterialTextureCount(TextureType.Diffuse);
+                var aiMaterial = scene.Materials[aiMesh.MaterialIndex];
+                aiMaterial.GetMaterialTextureCount(TextureType.Diffuse);
                 TextureType[] types = new TextureType[] { TextureType.Diffuse , TextureType.Specular , TextureType.Normals , TextureType.Height };
-
-                foreach(var type in types)
+                foreach (var type in types)
                 {
-                    foreach (var aiTexture in material.GetMaterialTextures(type))
+                    foreach (var aiTexture in aiMaterial.GetMaterialTextures(type))
                     {
-                        Console.WriteLine($"{type}:{aiTexture.FilePath}");
                         var texture =  Texture.Load(aiTexture.FilePath);
-                        textures.Add(texture);
+                        material.Add(texture);
                     }
                 }
-                var mesh = new Mesh(vertex, indices, textures);
+                var mesh = new Mesh(vertex, indices, material);
                 meshes.Add(mesh);
             }
         }
