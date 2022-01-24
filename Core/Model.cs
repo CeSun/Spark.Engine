@@ -21,8 +21,8 @@ namespace LiteEngine.Core
             var scene = context.ImportFile(path);
             InitSkeleton(scene);
             InitMesh(scene);
-            Console.WriteLine(0);
         }
+
         private void InitSkeleton(Scene scene)
         {
             if (skeleton == null)  // 该模型内无骨骼，从模型信息内创建骨骼
@@ -140,8 +140,6 @@ namespace LiteEngine.Core
         public vec3 Normal;
         public vec2 TexCoords;
     }
-
-   
 
 }
 namespace GlmSharp {
