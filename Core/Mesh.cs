@@ -1,7 +1,9 @@
 ﻿using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -21,24 +23,21 @@ namespace LiteEngine.Core
                 Ebo = GL.GenBuffer();
                 GL.BindVertexArray(Vao);
                 GL.BindBuffer(BufferTarget.ArrayBuffer, Vbo);
-                var array = vertices.ToArray();
-                fixed (Vertex* v = &array[0])
+                fixed (Vertex* v = &CollectionsMarshal.AsSpan(vertices)[0])
                 {
                     GL.BufferData(BufferTarget.ArrayBuffer, vertices.Count * sizeof(Vertex), (IntPtr)v, BufferUsageHint.StaticDraw);
-
                 }
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, Ebo);
-                var indicesArray = indices.ToArray();
-                fixed (int* i = &indicesArray[0])
+                fixed (int* i = &CollectionsMarshal.AsSpan(indices)[0])
                 {
                     GL.BufferData(BufferTarget.ElementArrayBuffer, vertices.Count * sizeof(int), (IntPtr)i, BufferUsageHint.StaticDraw);
                 }
                 GL.EnableVertexAttribArray(0);
                 GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, sizeof(Vertex), 0 );
                 GL.EnableVertexAttribArray(1);
-                GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, sizeof(Vertex), sizeof(GlmSharp.vec3));
+                GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, sizeof(Vertex), sizeof(Vector3));
                 GL.EnableVertexAttribArray(2);
-                GL.VertexAttribPointer(2, 1, VertexAttribPointerType.Float, false, sizeof(Vertex), sizeof(GlmSharp.vec3) * 2);
+                GL.VertexAttribPointer(2, 1, VertexAttribPointerType.Float, false, sizeof(Vertex), sizeof(Vector3) * 2);
             }
             GL.BindVertexArray(0);
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);

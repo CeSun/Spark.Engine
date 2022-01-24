@@ -6,13 +6,8 @@ using System.Threading.Tasks;
 
 namespace LiteEngine.Core
 {
-    public class Material: List<Texture>
+    public class Camera: GameObject
     {
-        public Material()
-        {
 
-        }
-        public Shader? Shader { get; set; }
-        
     }
 }

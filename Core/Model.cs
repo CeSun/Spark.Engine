@@ -1,5 +1,5 @@
 ﻿using Assimp;
-using GlmSharp;
+using OpenTK.Mathematics;
 using System.Runtime.InteropServices;
 
 namespace LiteEngine.Core
@@ -23,30 +23,29 @@ namespace LiteEngine.Core
             InitMesh(scene);
 
         }
-        private void InitSkeleton(Scene scene)
+        private void InitSkeleton(Assimp.Scene scene)
         {
             if (skeleton == null)  // 该模型内无骨骼，从模型信息内创建骨骼
             {
-                skeleton = new Skeleton();
                 ProcessNode(scene.RootNode, (parentNode, currentNode) =>
                 {
                     var bone = new BoneNode()
                     {
                         Name = currentNode.Name,
                         Parent = null,
-                        LocalTransform = Tools.Cast2GlmMat4(currentNode.Transform),
+                        LocalTransform = Tools.Cast2Matrix4(currentNode.Transform),
                     };
-                    // 把骨骼加到
-                    if (skeleton.Bones.ContainsKey(bone.Name))
-                        throw new Exception($"【{bone.Name}】骨骼重复");
-                    skeleton.Bones[bone.Name] = bone;
-                    if (parentNode == null)
+                    if (skeleton == null)
                     {
-                        // 如果跟节点是空的, 那么就把当前节点作为根节点
-                        skeleton.Root = bone;
+                        // 如果骨骼是空的，那么创建骨骼
+                        skeleton = new Skeleton(bone);
                     }
                     else
                     {
+                        // 把骨骼加到
+                        if (skeleton.Bones.ContainsKey(bone.Name))
+                            throw new Exception($"【{bone.Name}】骨骼重复");
+                        skeleton.Bones[bone.Name] = bone;
                         // 如果跟节点不是空的, 找到父节点，把自己加进去
                         var parent = skeleton.Bones.GetValueOrDefault(parentNode.Name);
                         if (parent == null)
@@ -66,7 +65,7 @@ namespace LiteEngine.Core
                 ProcessNode(child, action);
             }
         }
-        private void InitMesh(Scene scene)
+        private void InitMesh(Assimp.Scene scene)
         {
             foreach(var aiMesh in scene.Meshes)
             {
@@ -76,9 +75,9 @@ namespace LiteEngine.Core
                 for (int i = 0; i < aiMesh.VertexCount; i++)
                 {
                     vertex.Add(new Vertex { 
-                        Position = new vec3 { x = aiMesh.Vertices[i].X, y = aiMesh.Vertices[i].Y, z = aiMesh.Vertices[i].Z },
-                        Normal = new vec3 { x = aiMesh.Normals[i].X, y = aiMesh.Normals[i].Y, z = aiMesh.Normals[i].Z },
-                        TexCoords = new vec2 { x = aiMesh.TextureCoordinateChannels[0][i].X, y = aiMesh.TextureCoordinateChannels[0][i].Y}
+                        Position = new Vector3 { X = aiMesh.Vertices[i].X, Y = aiMesh.Vertices[i].Y, Z = aiMesh.Vertices[i].Z },
+                        Normal = new Vector3 { X = aiMesh.Normals[i].X, Y= aiMesh.Normals[i].Y, Z = aiMesh.Normals[i].Z },
+                        TexCoords = new Vector2 { X = aiMesh.TextureCoordinateChannels[0][i].X, Y = aiMesh.TextureCoordinateChannels[0][i].Y}
                     });
                 }
                 foreach(var face in aiMesh.Faces)
@@ -110,6 +109,10 @@ namespace LiteEngine.Core
 
     public class Skeleton
     {
+        public Skeleton(BoneNode root)
+        {
+            Root = root;
+        }
         public BoneNode Root { get; set; }
         public Dictionary<string, BoneNode> Bones { get => _Bones; }
         private Dictionary<string, BoneNode> _Bones = new Dictionary<string, BoneNode>();
@@ -122,7 +125,7 @@ namespace LiteEngine.Core
         // 父节点
         public BoneNode? Parent;
         // 本地矩阵
-        public mat4 LocalTransform;
+        public Matrix4 LocalTransform;
         // 子节点
         public List<BoneNode> Childern {
             get { return _Childern; }
@@ -134,37 +137,38 @@ namespace LiteEngine.Core
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct Vertex 
     {
-        public vec3 Position;
-        public vec3 Normal;
-        public vec2 TexCoords;
+        public Vector3 Position;
+        public Vector3 Normal;
+        public Vector2 TexCoords;
     }
 
    
 
 }
-namespace GlmSharp {
+namespace OpenTK.Mathematics
+{
     public class Tools 
     {
-        static public mat4 Cast2GlmMat4(Assimp.Matrix4x4 mat)
+        static public Matrix4 Cast2Matrix4(Assimp.Matrix4x4 mat)
         {
-            return new mat4
+            return new Matrix4
             {
-                m00 = mat.A1,
-                m01 = mat.A2,
-                m02 = mat.A3,
-                m03 = mat.A4,
-                m10 = mat.B1,
-                m11 = mat.B2,
-                m12 = mat.B3,
-                m13 = mat.B4,
-                m20 = mat.C1,
-                m21 = mat.C2,
-                m22 = mat.C3,
-                m23 = mat.C4,
-                m30 = mat.D1,
-                m31 = mat.D2,
-                m32 = mat.D3,
-                m33 = mat.D4,
+                M11 = mat.A1,
+                M12 = mat.A2,
+                M13 = mat.A3,
+                M14 = mat.A4,
+                M21 = mat.B1,
+                M22 = mat.B2,
+                M23 = mat.B3,
+                M24 = mat.B4,
+                M31 = mat.C1,
+                M32 = mat.C2,
+                M33 = mat.C3,
+                M34 = mat.C4,
+                M41 = mat.D1,
+                M42 = mat.D2,
+                M43 = mat.D3,
+                M44 = mat.C4,
             };
         }
 

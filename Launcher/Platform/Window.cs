@@ -9,22 +9,15 @@ namespace Launcher.Platform
 {
     public class Window : GameWindow
     {
-        private readonly float[] _vertices =
-        {
-            -0.5f, -0.5f, 0.0f, // Bottom-left vertex
-             0.5f, -0.5f, 0.0f, // Bottom-right vertex
-             0.0f,  0.5f, 0.0f  // Top vertex
-        };
-        private int _vertexBufferObject;
-
-        private int _vertexArrayObject;
-
-
-        public Window() : base(GameWindowSettings.Default, new NativeWindowSettings() {
+        public Window() : base(
+            GameWindowSettings.Default, 
+            new NativeWindowSettings() {
                 Size = new Vector2i(800, 600),
-                Title = "Test",
-                Flags = ContextFlags.ForwardCompatible, })
+                Title = "LiteEngine",
+                Flags = ContextFlags.ForwardCompatible, 
+            })
         {
+
         }
 
         protected override void OnLoad()
@@ -38,20 +31,15 @@ namespace Launcher.Platform
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
-
             GL.Clear(ClearBufferMask.ColorBufferBit);
-
             model.Draw(e.Time);
-
             SwapBuffers();
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
             base.OnUpdateFrame(e);
-
             var input = KeyboardState;
-
             if (input.IsKeyDown(Keys.Escape))
             {
                 Close();
@@ -66,8 +54,6 @@ namespace Launcher.Platform
 
         protected override void OnUnload()
         {
-          
-
             base.OnUnload();
         }
     }
