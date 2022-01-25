@@ -30,6 +30,21 @@ namespace LiteEngine.Core
         // 父节点
         public GameObject? Parent;
 
+        public Matrix4 Transform { 
+            get {
+                var rotation = Matrix4.CreateFromQuaternion(LocalRotation);
+                var translate = Matrix4.CreateTranslation(LocalPosition);
+                var scale = Matrix4.CreateScale(LocalScale);
+                var result = rotation * translate * scale;
+                if (Parent != null)
+                {
+                    result = Parent.Transform * result;
+                }
+                return result;    
+            } 
+        }
+
+
     }
 
 }

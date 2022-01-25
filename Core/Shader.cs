@@ -17,34 +17,38 @@ namespace LiteEngine.Core
             var shader = ShaderPool.GetValueOrDefault((vertShaderPath, fragShaderPath));
             if (shader == null)
             {
-                shader = new Shader();
-                var VertId = CreateShader(vertShaderPath, ShaderType.VertexShader);
-                var FragId = CreateShader(fragShaderPath, ShaderType.FragmentShader);
-                var programId = LinkProgram(VertId, FragId);
-                shader.ProgramId = programId;
-                GL.GetProgram(programId, GetProgramParameterName.ActiveUniforms, out var nums);
-                for(var i = 0; i < nums; i++)
-                {
-                    var key = GL.GetActiveUniform(programId, i, out _, out _);
-                    var location = GL.GetUniformLocation(programId, key);
-                    shader.UniformLocations.Add(key, location);
-                }
+                shader = LoadShaderFromSource(File.ReadAllText(vertShaderPath), File.ReadAllText(fragShaderPath));
                 ShaderPool.Add((vertShaderPath, fragShaderPath), shader);
             }
             return shader;
         }
 
-        private static int CreateShader(string path, ShaderType type)
+        public static Shader LoadShaderFromSource(string vertShaderSource, string fragShaderSource)
         {
-            var program = File.ReadAllText(path);
+            var shader = new Shader();
+            var VertId = CreateShader(vertShaderSource, ShaderType.VertexShader);
+            var FragId = CreateShader(fragShaderSource, ShaderType.FragmentShader);
+            var programId = LinkProgram(VertId, FragId);
+            shader.ProgramId = programId;
+            GL.GetProgram(programId, GetProgramParameterName.ActiveUniforms, out var nums);
+            for (var i = 0; i < nums; i++)
+            {
+                var key = GL.GetActiveUniform(programId, i, out _, out _);
+                var location = GL.GetUniformLocation(programId, key);
+                shader.UniformLocations.Add(key, location);
+            }
+            return shader;
+        }
+        private static int CreateShader(string source, ShaderType type)
+        {
             var id = GL.CreateShader(type);
-            GL.ShaderSource(id, program);
+            GL.ShaderSource(id, source);
             GL.CompileShader(id);
             GL.GetShader(id, ShaderParameter.CompileStatus, out var status);
             if (status != (int)(All.True))
             {
                 var error = GL.GetShaderInfoLog(id);
-                throw new Exception($"shader:{path}, error:{error}");
+                throw new Exception($"shader, error:{error}");
             }
             return id;
         }

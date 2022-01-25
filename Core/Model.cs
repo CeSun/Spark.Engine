@@ -112,6 +112,7 @@ namespace LiteEngine.Core
         public Skeleton(BoneNode root)
         {
             Root = root;
+            Bones[root.Name] = root;
         }
         public BoneNode Root { get; set; }
         public Dictionary<string, BoneNode> Bones { get => _Bones; }
