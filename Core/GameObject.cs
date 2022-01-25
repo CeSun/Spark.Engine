@@ -44,6 +44,10 @@ namespace LiteEngine.Core
             } 
         }
 
+        public virtual void Draw(double delta)
+        {
+
+        }
 
     }
 

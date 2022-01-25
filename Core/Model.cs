@@ -4,9 +4,9 @@ using System.Runtime.InteropServices;
 
 namespace LiteEngine.Core
 {
-    public class Model
+    public class Model : GameObject
     {
-        public void Draw(double deltaTime)
+        public override void Draw(double deltaTime)
         {
             foreach(var mesh in meshes)
             {

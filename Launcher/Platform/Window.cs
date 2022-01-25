@@ -23,8 +23,6 @@ namespace Launcher.Platform
         protected override void OnLoad()
         {
             base.OnLoad();
-            model = new Model();
-            model.LoadModel(@"C:\Users\cesun\Desktop\CSO2\LEET\leet.FBX");
             GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         }
         Model model;
@@ -32,7 +30,7 @@ namespace Launcher.Platform
         {
             base.OnRenderFrame(e);
             GL.Clear(ClearBufferMask.ColorBufferBit);
-            model.Draw(e.Time);
+            Scene.Current.Draw(e.Time);
             SwapBuffers();
         }
 

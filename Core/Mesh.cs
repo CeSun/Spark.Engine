@@ -44,9 +44,9 @@ namespace LiteEngine.Core
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
         }
 
-        List<Vertex>? vertices = null;
-        List<int>? indices = null;
-        Material? textures = null;
+        List<Vertex> vertices;
+        List<int> indices;
+        Material textures;
         int Vao;
         int Vbo;
         int Ebo;

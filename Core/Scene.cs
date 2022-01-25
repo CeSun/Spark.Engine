@@ -39,5 +39,19 @@ namespace LiteEngine.Core
         private static Scene _Default = new Scene();
 
 
+        public void Draw(double delta)
+        {
+            Draw(Root, delta);
+        }
+
+        private static void Draw(GameObject obj, double delta)
+        {
+            obj.Draw(delta);
+            foreach(var o in obj.Childern)
+            {
+                Draw(o, delta);
+            }
+        }
+
     }
 }
