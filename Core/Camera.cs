@@ -15,21 +15,21 @@ namespace LiteEngine.Core
         public Camera()
         {
             Nearest = 0.01f;
-            Furthest = 100.0f;
-            Fov = (float)(Math.PI / 180f * 75f);
+            Furthest = 1000.0f;
+            Fov = (float)((Math.PI / 180) * 60f);
             Parent = Scene.Current.Root;
         }
         public Matrix4 ViewMat
         {
-            get
-            {
+            get  {
                 var transform = Transform;
-                var Up = new Vector4 { X = 0, Y = 1, Z = 0, W = 1 } * transform ;
-                var Target =new Vector4 { X = 0, Y = 0, Z = 1, W = 1 } * transform;
+                var Up = new Vector4 { X = 0, Y = 1, Z = 0, W = 1 } * transform;
+                var Target = new Vector4 { X = 0, Y = 0, Z = 1, W = 1 } * transform;
                 var Eye = new Vector4 { X = 0, Y = 0, Z = 0, W = 1 } * transform;
                 Up = Up - Eye;
                 return Matrix4.LookAt(new Vector3 { X = Eye.X, Y = Eye.Y, Z = Eye.Z }, new Vector3 { X = Target.X, Y = Target.Y, Z = Target.Z }, new Vector3 { X = Up.X, Y = Up.Y, Z = Up.Z });
             }
+       
         }
 
         public Matrix4 PerspectiveMat

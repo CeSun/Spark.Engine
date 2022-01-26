@@ -24,12 +24,13 @@ namespace Launcher.Platform
         {
             base.OnLoad();
             GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            GL.Enable(EnableCap.DepthTest);
         }
         Model model;
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
-            GL.Clear(ClearBufferMask.ColorBufferBit);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             Scene.Current.Draw(e.Time);
             SwapBuffers();
         }
@@ -42,6 +43,38 @@ namespace Launcher.Platform
             {
                 Close();
             }
+            Vector3 direction = Vector3.Zero;
+            if (input.IsKeyDown(Keys.A) || input.IsKeyDown(Keys.D))
+            {
+                if (input.IsKeyDown(Keys.A))
+                {
+                    direction.X = 1;
+                }
+                if (input.IsKeyDown(Keys.D))
+                {
+                    direction.X = -1;
+                }
+
+            }
+            if (input.IsKeyDown(Keys.W) || input.IsKeyDown(Keys.S))
+            {
+                if (input.IsKeyDown(Keys.W))
+                {
+                    direction.Z = 1;
+                }
+
+                if (input.IsKeyDown(Keys.S))
+                {
+                    direction.Z = -1;
+                }
+            }
+            if (direction.Length == 0)
+                return;
+            direction.Normalize();
+            var T = Camera.Current.Transform.ClearTranslation().ClearScale();
+            var distance =  new Vector4(direction, 1.0f) * T;
+            distance *= (float)e.Time * 5.0F;
+            Camera.Current.LocalPosition += new Vector3(distance.X, distance.Y, distance.Z);
         }
 
         protected override void OnResize(ResizeEventArgs e)
@@ -49,7 +82,18 @@ namespace Launcher.Platform
             base.OnResize(e);
             GL.Viewport(0, 0, Size.X, Size.Y);
         }
+        protected override void OnMouseMove(MouseMoveEventArgs e)
+        {
+            base.OnMouseMove(e);
+            var mouseX = MousePosition.X - MouseLastPosition.X;
+            var mouseY = MousePosition.Y - MouseLastPosition.Y;
+            Camera.Current.LocalRotation *= Quaternion.FromEulerAngles((float)(mouseY * 0.01), (float)(mouseX * -0.01), 0 );
+            MouseLastPosition = MousePosition;
 
+        }
+
+
+        private Vector2 MouseLastPosition;
         protected override void OnUnload()
         {
             base.OnUnload();
