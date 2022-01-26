@@ -9,13 +9,13 @@ using System.Threading.Tasks;
 
 namespace LiteEngine.Core
 {
-    public class Mesh
+    public class Mesh: RenderComponent
     {
         public Mesh(List<Vertex> vertices, List<int> indices, Material textures)
         {
             this.vertices = vertices;
             this.indices = indices;
-            this.textures = textures;
+            this.material = textures;
             unsafe
             {
                 Vao = GL.GenVertexArray();
@@ -46,17 +46,26 @@ namespace LiteEngine.Core
 
         List<Vertex> vertices;
         List<int> indices;
-        Material textures;
+        Material material;
         int Vao;
         int Vbo;
         int Ebo;
-        public void Draw(double deltaTime)
+        public override void Draw(double deltaTime)
         {
-            foreach(var texture in textures)
-            {
-                GL.BindTexture(TextureTarget.Texture2D, texture.Id);
+            if (material.Shader == null)
+                throw new Exception("123");
+            if (Owner == null)
+                throw new Exception("123");
 
-            }
+            material.Shader?.Use();
+            material.Shader?.SetMatrix4("model", Owner.Transform);
+            material.Shader?.SetMatrix4("view", Camera.Current.ViewMat);
+            material.Shader?.SetMatrix4("projection", Camera.Current.PerspectiveMat);
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, material[0].Id);
+            GL.BindVertexArray(Vao);
+            GL.DrawElements(PrimitiveType.Triangles, indices.Count, DrawElementsType.UnsignedInt, 0);
+            GL.BindVertexArray(0);
         }
     }
 }

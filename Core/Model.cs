@@ -8,10 +8,7 @@ namespace LiteEngine.Core
     {
         public override void Draw(double deltaTime)
         {
-            foreach(var mesh in meshes)
-            {
-                mesh.Draw(deltaTime);
-            }
+            base.Draw(deltaTime);
         }
 
         private delegate void ProcessNodeAction(Node parent, Node Current);
@@ -71,7 +68,7 @@ namespace LiteEngine.Core
             {
                 List<Vertex> vertex = new List<Vertex>();
                 List<int> indices = new List<int>();
-                Material material = new Material();
+                Material material = new Material() { Shader = Shader.Default };
                 for (int i = 0; i < aiMesh.VertexCount; i++)
                 {
                     vertex.Add(new Vertex { 
@@ -99,12 +96,11 @@ namespace LiteEngine.Core
                     }
                 }
                 var mesh = new Mesh(vertex, indices, material);
-                meshes.Add(mesh);
+                mesh.Owner = this;
             }
         }
         Skeleton? skeleton;
 
-        List<Mesh> meshes = new List<Mesh>();
     }
 
     public class Skeleton

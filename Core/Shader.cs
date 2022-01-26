@@ -126,5 +126,53 @@ namespace LiteEngine.Core
         private int ProgramId;
 
         private Dictionary<string, int> UniformLocations = new Dictionary<string, int>();
+
+        public static Shader Default
+        {
+            get
+            {
+                if (_Default == null)
+                {
+
+                    var shader = Shader.LoadShaderFromSource(vertShader, fragShder);
+                    _Default = shader;
+                    return shader;
+                }
+                return _Default;
+            }
+        }
+        private static Shader? _Default;
+
+        static string vertShader =
+@"#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec2 aTexCoord;
+
+out vec2 TexCoord;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+void main()
+{
+    gl_Position = projection * view * model * vec4(aPos, 1.0f);
+    TexCoord = vec2(aTexCoord.x, 1.0 - aTexCoord.y);
+}
+";
+
+        static string fragShder =
+        @"#version 330 core
+out vec4 FragColor;
+
+in vec2 TexCoord;
+
+uniform sampler2D texture1;
+
+void main()
+{
+    FragColor = texture(texture1, TexCoord);
+}
+";
     }
 }
