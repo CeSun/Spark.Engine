@@ -27,6 +27,7 @@ namespace LiteEngine.Core
                 var Up = new Vector4 { X = 0, Y = 1, Z = 0, W = 1 } * transform ;
                 var Target =new Vector4 { X = 0, Y = 0, Z = 1, W = 1 } * transform;
                 var Eye = new Vector4 { X = 0, Y = 0, Z = 0, W = 1 } * transform;
+                Up = Up - Eye;
                 return Matrix4.LookAt(new Vector3 { X = Eye.X, Y = Eye.Y, Z = Eye.Z }, new Vector3 { X = Target.X, Y = Target.Y, Z = Target.Z }, new Vector3 { X = Up.X, Y = Up.Y, Z = Up.Z });
             }
         }
