@@ -11,7 +11,7 @@ window.Load += () =>
     model.LoadModel(@"tr_leet\leet.FBX");
     model.Parent = Scene.Current.Root;
     var f = Camera.Current;
-    f.LocalPosition = new Vector3 {X= 0, Y = 20, Z = 20 };
+    f.LocalPosition = new Vector3(-0.2840664F, -21.135677F, 83.46451F);
     f.LocalRotation = Quaternion.FromEulerAngles((float)Math.PI / 6.0f, -1 * (float)Math.PI, 0);
     var r = f.LocalRotation.ToEulerAngles();
     var texture = Texture.Load(@"tr_leet\texture\leet_hand.tga");

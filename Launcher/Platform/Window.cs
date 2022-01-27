@@ -4,11 +4,15 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Mathematics;
 using LiteEngine.Core;
+using OpenTK.Windowing.Common.Input;
+using OpenTK.ImGui;
+using ImGuiNET;
 
 namespace Launcher.Platform
 {
     public class Window : GameWindow
     {
+        ImGuiController _controller;
         public Window() : base(
             GameWindowSettings.Default, 
             new NativeWindowSettings() {
@@ -17,9 +21,9 @@ namespace Launcher.Platform
                 Flags = ContextFlags.ForwardCompatible, 
             })
         {
-
+            _controller = new ImGuiController(ClientSize.X, ClientSize.Y);
         }
-
+        
         protected override void OnLoad()
         {
             base.OnLoad();
@@ -29,9 +33,15 @@ namespace Launcher.Platform
         Model model;
         protected override void OnRenderFrame(FrameEventArgs e)
         {
+            GL.Enable(EnableCap.DepthTest);
             base.OnRenderFrame(e);
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            _controller.Update(this, (float)e.Time);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
             Scene.Current.Draw(e.Time);
+
+            ImGui.ShowDemoWindow();
+            _controller.Render();
+
             SwapBuffers();
         }
 
@@ -42,6 +52,10 @@ namespace Launcher.Platform
             if (input.IsKeyDown(Keys.Escape))
             {
                 Close();
+            }
+            if (input.IsKeyPressed(Keys.P))
+            {
+                Console.WriteLine($"Camera: {Camera.Current.LocalPosition}");
             }
             Vector3 direction = Vector3.Zero;
             if (input.IsKeyDown(Keys.A) || input.IsKeyDown(Keys.D))
@@ -73,27 +87,45 @@ namespace Launcher.Platform
             direction.Normalize();
             var T = Camera.Current.Transform.ClearTranslation().ClearScale();
             var distance =  new Vector4(direction, 1.0f) * T;
-            distance *= (float)e.Time * 5.0F;
+            distance *= (float)e.Time * 10.0F;
             Camera.Current.LocalPosition += new Vector3(distance.X, distance.Y, distance.Z);
         }
 
         protected override void OnResize(ResizeEventArgs e)
         {
             base.OnResize(e);
-            GL.Viewport(0, 0, Size.X, Size.Y);
+            GL.Viewport(0, 0, Size.X, Size.Y); 
+            _controller.WindowResized(ClientSize.X, ClientSize.Y);
         }
         protected override void OnMouseMove(MouseMoveEventArgs e)
         {
             base.OnMouseMove(e);
-            var mouseX = MousePosition.X - MouseLastPosition.X;
-            var mouseY = MousePosition.Y - MouseLastPosition.Y;
-            Camera.Current.LocalRotation *= Quaternion.FromEulerAngles((float)(mouseY * 0.01), (float)(mouseX * -0.01), 0 );
-            MouseLastPosition = MousePosition;
+            if (MouseState.IsButtonDown(MouseButton.Left))
+            {
+                CursorVisible = false;
+                var mouseX = e.DeltaX;
+                var mouseY = e.DeltaY;
+                Camera.Current.LocalRotation *= Quaternion.FromEulerAngles((float)(mouseY * 0.01), (float)(mouseX * -0.01), 0);
+            }
+            else
+            {
+                CursorVisible = true;
+            }
 
         }
+        protected override void OnTextInput(TextInputEventArgs e)
+        {
+            base.OnTextInput(e);
+            _controller.PressChar((char)e.Unicode);
+        }
 
+        protected override void OnMouseWheel(MouseWheelEventArgs e)
+        {
+            base.OnMouseWheel(e);
 
-        private Vector2 MouseLastPosition;
+            _controller.MouseScroll(e.Offset);
+        }
+
         protected override void OnUnload()
         {
             base.OnUnload();
