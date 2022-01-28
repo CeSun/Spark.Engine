@@ -11,16 +11,21 @@ namespace LiteEngine.Core
     {
 
         public string Name { get; set; }
-
+        static int objIdIter = 0;
         public GameObject(string name)
         {
+            var id = objIdIter++;
             Childern = new List<GameObject>();
             Components = new List<Component>();
             LocalScale = Vector3.One;
             LocalRotation = Quaternion.FromEulerAngles(0, 0, 0);
             Parent = null;
-            Name = name;
+            Name =  $"{name}(obj{id})";
+            Layer = RenderLayer.Layer1;
         }
+
+        public RenderLayer Layer { get; set; }
+
 
         // 相对父级位置
         public Vector3 LocalPosition { get; set; }

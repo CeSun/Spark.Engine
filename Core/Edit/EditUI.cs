@@ -67,7 +67,12 @@ namespace LiteEngine.Core.Edit
                 ImGui.Text($"Postion: {selectItem.LocalPosition.X.ToString("f3")},{selectItem.LocalPosition.Y.ToString("f3")},{selectItem.LocalPosition.Z.ToString("f3")}");
                 ImGui.Text($"Rotation: {selectItem.LocalRotation.X.ToString("f3")},{selectItem.LocalRotation.Y.ToString("f3")},{selectItem.LocalRotation.Z.ToString("f3")}");
                 ImGui.Text($"Scale: {selectItem.LocalScale.X.ToString("f3")},{selectItem.LocalScale.Y.ToString("f3")},{selectItem.LocalScale.Z.ToString("f3")}");
+                ImGui.Text($"Layer: {selectItem.Layer}");
 
+                if (selectItem is Camera camera)
+                {
+                    ImGui.Text($"RenderLayer: {camera.Layers}");
+                }
 
                 ImGui.NewLine();
 

@@ -5,15 +5,16 @@ using LiteEngine.Core;
 using LiteEngine.Core.Edit;
 using OpenTK.Mathematics;
 using System.Text.Unicode;
-
+using OpenTK.Graphics.OpenGL4;
 
 Window window = new Window();
 window.Load += () =>
 {
-   var model = new Model();
+    var model = new Model();
     model.LoadModel(@"tr_leet\leet.FBX");
     model.Parent = Scene.Current.Root;
     var f = Camera.Current;
+    f.Layers = (uint)RenderLayer.Layer1;
     f.LocalPosition = new Vector3(-0.2840664F, -21.135677F, 83.46451F);
     f.LocalRotation = Quaternion.FromEulerAngles((float)Math.PI / 6.0f, -1 * (float)Math.PI, 0);
     var r = f.LocalRotation.ToEulerAngles();
@@ -34,7 +35,10 @@ window.Load += () =>
         }, matrial);
     var obj = new GameObject("test") { Parent = Scene.Current.Root };
     mesh.Owner = obj;
+    obj.Layer = RenderLayer.Layer2;
     Scene.Current.UI = new EditUI();
+    var camera = new Camera { Layers = (uint)RenderLayer.Layer2, ClearFlag = ClearBufferMask.DepthBufferBit, Index = 2 };
+    camera.Parent = Scene.Current.Root;
 };
 
 window.Run();

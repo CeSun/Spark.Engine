@@ -46,21 +46,29 @@ namespace LiteEngine.Core
 
         private static Scene _Default = new Scene();
 
-
+        Dictionary<int, Camera> mpCamera = new Dictionary<int, Camera>();
         public void Draw(double delta)
         {
-            Draw(Root, delta);
-            UI?.Draw(delta);
+            mpCamera.Clear();
+            GetCamera(Root);
+            var mp = mpCamera.OrderBy(p => p.Key).ToDictionary(p => p.Key, o => o.Value);
+            foreach (var (index, camera) in mp)
+            {
+                camera.DrawScene(delta);
+            }
+            UI.Draw(delta);
         }
 
-        private static void Draw(GameObject obj, double delta)
+        private void GetCamera(GameObject obj)
         {
-            if (obj == null)
-                return;
-            obj.Draw(delta);
-            foreach(var o in obj.Childern)
+            if (obj is Camera)
             {
-                Draw(o, delta);
+                var camera = (Camera)obj;
+                mpCamera.Add(camera.Index, camera);
+            }
+            foreach (var o in obj.Childern)
+            {
+                GetCamera(o);
             }
         }
 
