@@ -10,11 +10,19 @@ namespace LiteEngine.Core
     {
         public Scene()
         {
-            Root = new GameObject();
+            Root = new GameObject("Root");
+            UI = new UI();
         }
 
         // 场景根节点
         public GameObject Root { get; set; }
+
+        public UI UI
+        {
+            get;
+            set;
+        }
+
 
         // 默认场景
         public static Scene Default
@@ -42,10 +50,13 @@ namespace LiteEngine.Core
         public void Draw(double delta)
         {
             Draw(Root, delta);
+            UI?.Draw(delta);
         }
 
         private static void Draw(GameObject obj, double delta)
         {
+            if (obj == null)
+                return;
             obj.Draw(delta);
             foreach(var o in obj.Childern)
             {

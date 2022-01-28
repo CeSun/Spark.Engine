@@ -12,18 +12,18 @@ namespace  LiteEngine.Core
 {
     public class UI
     {
-        public void Init()
+        public virtual void Init()
         {
 
         }
 
-        public void Update()
+        public virtual void Update()
         {
            
         }
-        public void Draw(float deltaTime)
-        {
 
+        public virtual void Draw(double deltaTime)
+        {
 
         }
     }

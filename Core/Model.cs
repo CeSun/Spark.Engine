@@ -6,6 +6,10 @@ namespace LiteEngine.Core
 {
     public class Model : GameObject
     {
+        public Model () : base("Model")
+        {
+
+        }
         public override void Draw(double deltaTime)
         {
             base.Draw(deltaTime);

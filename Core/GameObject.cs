@@ -9,13 +9,17 @@ namespace LiteEngine.Core
 {
     public class GameObject
     {
-        public GameObject()
+
+        public string Name { get; set; }
+
+        public GameObject(string name)
         {
             Childern = new List<GameObject>();
             Components = new List<Component>();
             LocalScale = Vector3.One;
             LocalRotation = Quaternion.FromEulerAngles(0, 0, 0);
             Parent = null;
+            Name = name;
         }
 
         // 相对父级位置

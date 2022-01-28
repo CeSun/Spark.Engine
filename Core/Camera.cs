@@ -12,7 +12,7 @@ namespace LiteEngine.Core
         public static Camera Current { get => _camera; }
         private static Camera _camera = new Camera();
 
-        public Camera()
+        public Camera() : base("Camera")
         {
             Nearest = 0.01f;
             Furthest = 1000.0f;
@@ -36,7 +36,7 @@ namespace LiteEngine.Core
         {
             get
             {
-                return Matrix4.CreatePerspectiveFieldOfView(Fov, 800.0f/600, Nearest, Furthest);
+                return Matrix4.CreatePerspectiveFieldOfView(Fov, Game.Instance.GameSize.X/(float)Game.Instance.GameSize.Y, Nearest, Furthest);
             }
         }
 
