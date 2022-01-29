@@ -82,6 +82,8 @@ namespace Launcher.Platform
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
             base.OnUpdateFrame(e);
+            Game.Instance.Tick();
+
             var input = KeyboardState;
             if (input.IsKeyDown(Keys.Escape))
             {

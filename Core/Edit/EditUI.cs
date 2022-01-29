@@ -22,14 +22,11 @@ namespace LiteEngine.Core.Edit
 
         private  void VisitSub(GameObject obj)
         {
-            if (obj.Childern.Count > 0)
+            if (obj.ChildernCount > 0)
             {
                 if (ImGui.TreeNode(obj.Name))
                 {
-                    foreach (var item in obj.Childern)
-                    {
-                        VisitSub(item);
-                    }
+                    obj.Foreach(item => VisitSub(item));
                     ImGui.TreePop();
                 }
             }
@@ -75,11 +72,7 @@ namespace LiteEngine.Core.Edit
                 }
 
                 ImGui.NewLine();
-
-                foreach(var com in selectItem.Components)
-                {
-                    ImGui.Selectable(com.GetType().Name);
-                }
+                selectItem.ForeachComponent(com => ImGui.Selectable(com.GetType().Name));
             }
 
             ImGui.End();

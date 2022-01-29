@@ -53,6 +53,10 @@ namespace LiteEngine.Core
             return id;
         }
 
+        public bool Has(string name)
+        {
+            return UniformLocations.ContainsKey(name);
+        }
         private static int LinkProgram(int vertShader, int fragShader)
         {
             var id = GL.CreateProgram();

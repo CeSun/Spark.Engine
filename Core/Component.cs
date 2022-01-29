@@ -16,13 +16,13 @@ namespace LiteEngine.Core
                     return;
                 if (_Owner != null)
                 {
-                    _Owner.Components.Remove(this);
+                    _Owner.RemoveComponent(this);
                     _Owner = null;
                 }
                 _Owner = value;
                 if (_Owner != null)
                 {
-                    _Owner.Components.Add(this);
+                    _Owner.AddComponent(this);
                 }
             }
         }

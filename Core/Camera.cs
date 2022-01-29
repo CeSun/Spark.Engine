@@ -49,10 +49,7 @@ namespace LiteEngine.Core
             {
                 obj.Draw(delta);
             }
-            foreach (var o in obj.Childern)
-            {
-                Draw_(o, delta);
-            }
+            obj.Foreach(o => Draw_(o, delta));
         }
         public int Index { get; set; }
         public Matrix4 ViewMat
@@ -81,6 +78,7 @@ namespace LiteEngine.Core
         public float Fov { get; set; }
     }
 
+    [Flags]
     public enum RenderLayer
     {
         Layer1 = (1 << 0),

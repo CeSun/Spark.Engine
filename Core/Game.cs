@@ -27,6 +27,10 @@ namespace LiteEngine.Core
             Scene.Current.Draw(deltaTime);
         }
 
+        public void Tick()
+        {
+            Scene.Current.Tick();
+        }
         public void Update()
         {
 

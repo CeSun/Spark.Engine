@@ -59,10 +59,22 @@ namespace LiteEngine.Core
             if (Owner == null)
                 throw new Exception("123");
 
-            material.Shader?.Use();
-            material.Shader?.SetMatrix4("model", Owner.Transform);
-            material.Shader?.SetMatrix4("view", Camera.Current.ViewMat);
-            material.Shader?.SetMatrix4("projection", Camera.Current.PerspectiveMat);
+            if (material.Shader != null)
+            {
+                material.Shader.Use();
+                if (material.Shader.Has("model"))
+                {
+                    material.Shader.SetMatrix4("model", Owner.Transform);
+                }
+                if (material.Shader.Has("view"))
+                {
+                    material.Shader.SetMatrix4("view", Camera.Current.ViewMat);
+                }
+                if (material.Shader.Has("projection"))
+                {
+                    material.Shader.SetMatrix4("projection", Camera.Current.PerspectiveMat);
+                }
+            }
 
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, material[0].Id);

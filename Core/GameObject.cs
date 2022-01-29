@@ -16,7 +16,11 @@ namespace LiteEngine.Core
         {
             var id = objIdIter++;
             Childern = new List<GameObject>();
+            TmpAddChildern = new List<GameObject>();
+            TmpDelChildern = new List<GameObject>();
             Components = new List<Component>();
+            DelComponents = new List<Component>();
+            AddComponents = new List<Component>();
             LocalScale = Vector3.One;
             LocalRotation = Quaternion.FromEulerAngles(0, 0, 0);
             Parent = null;
@@ -31,7 +35,36 @@ namespace LiteEngine.Core
         public Vector3 LocalPosition { get; set; }
 
         // 组件们
-        public List<Component> Components { get; set; }
+        private List<Component> Components { get; set; }
+        private List<Component> DelComponents { get; set; }
+        private List<Component> AddComponents { get; set; }
+
+
+        public void AddComponent(Component com)
+        {
+            AddComponents.Add(com);
+        }
+
+
+        public void RemoveComponent(Component com)
+        {
+            DelComponents.Add(com);
+        }
+
+
+        public delegate void ComponentForeachDelegate(Component obj);
+
+        public void ForeachComponent(ComponentForeachDelegate action)
+        {
+            foreach (var child in Components)
+            {
+                if (child != null)
+                {
+                    action(child);
+                }
+            }
+        }
+
 
         // 相对父级旋转
         public Quaternion LocalRotation { get; set; }
@@ -40,7 +73,25 @@ namespace LiteEngine.Core
         public Vector3 LocalScale { get; set; }
 
         // 子节点
-        public List<GameObject> Childern;
+        protected List<GameObject> Childern;
+        // 子节点
+        protected List<GameObject> TmpAddChildern;
+        protected List<GameObject> TmpDelChildern;
+
+        public int ChildernCount { get => Childern.Count; }
+
+        public delegate void GameObjectForeachDelegate(GameObject obj);
+
+        public void Foreach(GameObjectForeachDelegate action)
+        {
+            foreach(var child in Childern)
+            {
+                if(child != null)
+                {
+                    action(child);
+                }
+            }
+        }
 
         // 父节点
         public GameObject? Parent {
@@ -50,13 +101,13 @@ namespace LiteEngine.Core
                     return;
                 if (_Parent != null)
                 {
-                    _Parent.Childern.Remove(this);
+                    _Parent.TmpDelChildern.Add(this);
                     _Parent = null;
                 }
                 _Parent = value;
                 if (_Parent != null)
                 {
-                    _Parent.Childern.Add(this);
+                    _Parent.TmpAddChildern.Add(this);
                 }
             }
         }
@@ -91,6 +142,34 @@ namespace LiteEngine.Core
         public virtual void Tick()
         {
             Components.ForEach(com => com.Tick());
+            foreach (var addChild in TmpAddChildern)
+            {
+                Childern.Add(addChild);
+            }
+            foreach (var delChild in TmpDelChildern)
+            {
+                Childern.Remove(delChild);
+            }
+            TmpAddChildern.Clear();
+            TmpDelChildern.Clear();
+
+            foreach(var com in Components)
+            {
+                com.Tick();
+            }
+
+            foreach(var com in AddComponents)
+            {
+
+                Components.Add(com);
+            }
+            foreach (var com in DelComponents)
+            {
+                Components.Remove(com);
+            }
+
+            AddComponents.Clear();
+            DelComponents.Clear();
         }
 
     }

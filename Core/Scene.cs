@@ -59,6 +59,16 @@ namespace LiteEngine.Core
             UI.Draw(delta);
         }
 
+        public void Tick()
+        {
+            ObjTick(Root);
+        }
+
+        public void ObjTick(GameObject gameObject)
+        {
+            gameObject.Tick();
+            gameObject.Foreach(obj => ObjTick(obj));
+        }
         private void GetCamera(GameObject obj)
         {
             if (obj is Camera)
@@ -66,10 +76,7 @@ namespace LiteEngine.Core
                 var camera = (Camera)obj;
                 mpCamera.Add(camera.Index, camera);
             }
-            foreach (var o in obj.Childern)
-            {
-                GetCamera(o);
-            }
+            obj.Foreach(o => GetCamera(o));
         }
 
     }
