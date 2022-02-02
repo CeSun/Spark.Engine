@@ -38,6 +38,8 @@ namespace LiteEngine.Core
             return texture;
         }
 
+        public static Texture Create(int texid) => new Texture { _Id = texid };
+
         static Dictionary<string, Texture> TexturePool = new Dictionary<string, Texture>();
 
 

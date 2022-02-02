@@ -68,11 +68,11 @@ namespace LiteEngine.Core
                 }
                 if (material.Shader.Has("view"))
                 {
-                    material.Shader.SetMatrix4("view", Camera.Current.ViewMat);
+                    material.Shader.SetMatrix4("view", Camera.CurrentDrawCamera.ViewMat);
                 }
                 if (material.Shader.Has("projection"))
                 {
-                    material.Shader.SetMatrix4("projection", Camera.Current.PerspectiveMat);
+                    material.Shader.SetMatrix4("projection", Camera.CurrentDrawCamera.PerspectiveMat);
                 }
             }
 

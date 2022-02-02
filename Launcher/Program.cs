@@ -14,12 +14,18 @@ window.Load += () =>
     model.LoadModel(@"tr_leet\leet.FBX");
     model.Parent = Scene.Current.Root;
     var f = Camera.Current;
-    f.Layers = (uint)RenderLayer.Layer1;
     f.LocalPosition = new Vector3(-0.2840664F, -21.135677F, 83.46451F);
-    f.LocalRotation = Quaternion.FromEulerAngles((float)Math.PI / 6.0f, -1 * (float)Math.PI, 0);
+    f.LocalRotation = Quaternion.FromEulerAngles(0f, -1 * (float)Math.PI, 0);
     var r = f.LocalRotation.ToEulerAngles();
     var texture = Texture.Load(@"tr_leet\texture\leet_hand.tga");
-    var matrial = new Material() { texture};
+    var camera = new Camera(RenderTarget.Texture);
+    camera.Parent = Scene.Current.Root;
+    camera.ClearColor = Color4.Red;
+    camera.ClearFlag = ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit;
+    camera.Index = 1;
+    if (camera.OutputTeture == null)
+        throw new Exception("error");
+    var matrial = new Material() { camera.OutputTeture};
     matrial.Shader = Shader.Default;
     matrial.Shader.Use();
     matrial.Shader.SetInt("texture1", 0);
@@ -35,10 +41,6 @@ window.Load += () =>
         }, matrial);
     var obj = new GameObject("test") { Parent = Scene.Current.Root };
     mesh.Owner = obj;
-    obj.Layer = RenderLayer.Layer2;
-    Scene.Current.UI = new EditUI();
-    var camera = new Camera { Layers = (uint)RenderLayer.Layer2, ClearFlag = ClearBufferMask.DepthBufferBit, Index = 2 };
-    camera.Parent = Scene.Current.Root;
 };
 
 window.Run();
