@@ -10,7 +10,7 @@ namespace LiteEngine.Core
 {
     public class Camera : GameObject
     {
-        public static Camera Current { get => _camera; }
+        public static Camera Current { get => _camera; set => _camera = value; }
         private static Camera _camera = new Camera();
 
         public RenderTarget Target { get; private set; }

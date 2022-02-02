@@ -56,9 +56,12 @@ namespace LiteEngine.Core
             {
                 camera.DrawScene(delta);
             }
-            // UI.Draw(delta);
         }
 
+        public void DrawUI(double delta)
+        {
+            UI.Draw(delta);
+        }
         public void Tick()
         {
             ObjTick(Root);

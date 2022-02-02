@@ -10,6 +10,12 @@ namespace LiteEngine.Core.Edit
 {
     public class EditUI :UI
     {
+        public EditUI(Texture texture)
+        {
+            renderTexture = texture;
+        }
+
+        Texture renderTexture;
         public override void Init()
         {
 
@@ -87,7 +93,7 @@ namespace LiteEngine.Core.Edit
             ImGui.Begin("Game", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.UnsavedDocument);
             ImGui.SetWindowPos(new System.Numerics.Vector2(width, 0));
             ImGui.SetWindowSize(new System.Numerics.Vector2(Game.Instance.Size.X - 2 * width, height));
-            ImGui.Image((IntPtr)Game.Instance.GameFboId, new System.Numerics.Vector2(Game.Instance.Size.X - 2 * width - 15, (int)(height - 40)), new System.Numerics.Vector2 (0,1), new System.Numerics.Vector2(1, 0));
+            ImGui.Image((IntPtr)renderTexture.Id, new System.Numerics.Vector2(Game.Instance.Size.X - 2 * width - 15, (int)(height - 40)), new System.Numerics.Vector2 (0,1), new System.Numerics.Vector2(1, 0));
 
             ImGui.End();
             Game.Instance.GameSize = new Vector2i(Game.Instance.Size.X - 2 * width - 15, (int)(height - 40));

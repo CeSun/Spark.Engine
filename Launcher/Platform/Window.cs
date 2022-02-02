@@ -23,6 +23,7 @@ namespace Launcher.Platform
         {
             Game.Instance.Size = ClientSize;
             ImGuiController = new ImGuiController(this);
+            ImGui.StyleColorsLight();
         }
         
         protected override void OnLoad()
@@ -36,7 +37,10 @@ namespace Launcher.Platform
             base.OnRenderFrame(e);
             GL.Enable(EnableCap.DepthTest);
             Game.Instance.Draw(e.Time);
+            GL.ClearColor(Color4.Black);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             ImGuiController.Update(this, (float)e.Time);
+            Game.Instance.DrawUI(e.Time);
             ImGuiController.Render();
             SwapBuffers();
 
