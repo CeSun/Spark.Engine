@@ -51,7 +51,7 @@ namespace LiteEngine.Core.Edit
             var width = Game.Instance.Size.X / 4;
             var height = (int)(Game.Instance.Size.Y * 0.7);
 
-            ImGui.Begin("Scene", ImGuiWindowFlags.NoResize| ImGuiWindowFlags.NoMove | ImGuiWindowFlags.UnsavedDocument);
+            ImGui.Begin("Scene", ImGuiWindowFlags.NoResize| ImGuiWindowFlags.NoMove | ImGuiWindowFlags.UnsavedDocument | ImGuiWindowFlags.NoCollapse);
             ImGui.SetWindowPos(new System.Numerics.Vector2(0, 0));
             ImGui.SetWindowSize(new System.Numerics.Vector2(width, height));
             
@@ -59,7 +59,7 @@ namespace LiteEngine.Core.Edit
             ImGui.End();
 
 
-            ImGui.Begin("Property", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.UnsavedDocument);
+            ImGui.Begin("Property", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.UnsavedDocument | ImGuiWindowFlags.NoCollapse);
             ImGui.SetWindowPos(new System.Numerics.Vector2(Game.Instance.Size.X  - width, 0));
             ImGui.SetWindowSize(new System.Numerics.Vector2(width, height));
 
@@ -84,13 +84,13 @@ namespace LiteEngine.Core.Edit
             ImGui.End();
 
 
-            ImGui.Begin("Resource", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.UnsavedDocument);
+            ImGui.Begin("Resource", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.UnsavedDocument | ImGuiWindowFlags.NoCollapse);
             ImGui.SetWindowPos(new System.Numerics.Vector2(0, height));
             ImGui.SetWindowSize(new System.Numerics.Vector2(Game.Instance.Size.X,  Game.Instance.Size.Y - height));
           
             ImGui.End();
 
-            ImGui.Begin("Game", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.UnsavedDocument);
+            ImGui.Begin("Game", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.UnsavedDocument | ImGuiWindowFlags.NoCollapse);
             ImGui.SetWindowPos(new System.Numerics.Vector2(width, 0));
             ImGui.SetWindowSize(new System.Numerics.Vector2(Game.Instance.Size.X - 2 * width, height));
             ImGui.Image((IntPtr)renderTexture.Id, new System.Numerics.Vector2(Game.Instance.Size.X - 2 * width - 15, (int)(height - 40)), new System.Numerics.Vector2 (0,1), new System.Numerics.Vector2(1, 0));

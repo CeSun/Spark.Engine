@@ -43,8 +43,6 @@ namespace Launcher.Platform
             Game.Instance.DrawUI(e.Time);
             ImGuiController.Render();
             SwapBuffers();
-
-
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e)

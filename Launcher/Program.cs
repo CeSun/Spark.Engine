@@ -28,7 +28,7 @@ window.Load += () =>
     Camera.Current = camera;
     if (camera.OutputTeture == null)
         throw new Exception("error");
-    var matrial = new Material() { camera.OutputTeture};
+    /*var matrial = new Material() { camera.OutputTeture};
     matrial.Shader = Shader.Default;
     matrial.Shader.Use();
     matrial.Shader.SetInt("texture1", 0);
@@ -43,7 +43,7 @@ window.Load += () =>
             0, 1, 3, 1, 2, 3
         }, matrial);
     var obj = new GameObject("test") { Parent = Scene.Current.Root };
-    mesh.Owner = obj;
+    mesh.Owner = obj;*/
     Scene.Current.UI = new EditUI(camera.OutputTeture);
 };
 

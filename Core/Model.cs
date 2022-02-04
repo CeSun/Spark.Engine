@@ -1,6 +1,7 @@
 ﻿using Assimp;
 using OpenTK.Mathematics;
 using System.Runtime.InteropServices;
+using Quaternion = OpenTK.Mathematics.Quaternion;
 
 namespace LiteEngine.Core
 {
@@ -22,7 +23,36 @@ namespace LiteEngine.Core
             var scene = context.ImportFile(path);
             InitSkeleton(scene);
             InitMesh(scene);
+            InitAnnimation(scene);
 
+        }
+
+        // 先仅仅支持一下蒙皮骨骼动画吧
+        private void InitAnnimation(Assimp.Scene scene)
+        {
+            Console.WriteLine($"{scene.AnimationCount}");
+            foreach(var anim in scene.Animations)
+            {
+                Animation animation = new Animation(anim.Name, anim.DurationInTicks);
+                var mp = animation.Nodes;
+                foreach (var channel in anim.NodeAnimationChannels)
+                {
+                    var animationNode = new AnimationNode(channel.NodeName);
+                    foreach(var pos in channel.PositionKeys)
+                    {
+                        animationNode.PositionKeys.Add(new AnimationNodeKey<Vector3> { Time = pos.Time, Value = new Vector3(pos.Value.X, pos.Value.Y, pos.Value.Z) });
+                    }
+                    foreach(var scale in channel.ScalingKeys)
+                    {
+                        animationNode.ScaleKeys.Add(new AnimationNodeKey<Vector3> { Time = scale.Time, Value = new Vector3(scale.Value.X, scale.Value.Y, scale.Value.Z) });
+                    }
+                    foreach (var rotation in channel.RotationKeys)
+                    {
+                        animationNode.RotationKeys.Add(new AnimationNodeKey<Quaternion> { Time = rotation.Time, Value = new Quaternion(rotation.Value.X, rotation.Value.Y, rotation.Value.Z, rotation.Value.W) });
+                    }
+                    mp.Add(animationNode.Name, animationNode);
+                }
+            }
         }
         private void InitSkeleton(Assimp.Scene scene)
         {
