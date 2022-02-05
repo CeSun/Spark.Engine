@@ -14,11 +14,11 @@ namespace Launcher.Platform
     {
         ImGuiController ImGuiController;
         public Window() : base(
-            GameWindowSettings.Default, 
+            new GameWindowSettings { RenderFrequency = 0.0f, UpdateFrequency = 100.0f, IsMultiThreaded = false}, 
             new NativeWindowSettings() {
                 Size = new Vector2i(800, 600),
                 Title = "LiteEngine",
-                Flags = ContextFlags.ForwardCompatible, 
+                Flags = ContextFlags.ForwardCompatible
             })
         {
             Game.Instance.Size = ClientSize;
@@ -49,7 +49,6 @@ namespace Launcher.Platform
         {
             base.OnUpdateFrame(e);
             Game.Instance.Tick();
-
             var input = KeyboardState;
             if (input.IsKeyDown(Keys.Escape))
             {
