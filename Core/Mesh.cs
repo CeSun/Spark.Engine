@@ -38,6 +38,10 @@ namespace LiteEngine.Core
                 GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, sizeof(Vertex), sizeof(Vector3));
                 GL.EnableVertexAttribArray(2);
                 GL.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, sizeof(Vertex), sizeof(Vector3) * 2);
+                GL.EnableVertexAttribArray(3);
+                GL.VertexAttribPointer(3, 4, VertexAttribPointerType.Int, false, sizeof(Vertex), sizeof(Vector3) * 2 + sizeof(Vector2));
+                GL.EnableVertexAttribArray(4);
+                GL.VertexAttribPointer(4, 4, VertexAttribPointerType.Float, false, sizeof(Vertex), sizeof(Vector3) * 2 + sizeof(Vector2) + sizeof(Vector4i));
             }
             GL.BindVertexArray(0);
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);

@@ -220,22 +220,8 @@ namespace LiteEngine.Core
         public Vector3 Position;
         public Vector3 Normal;
         public Vector2 TexCoords;
-        public int BoneNum;
-
-        public int Weight1;
-        public int Weight2;
-        public int Weight3;
-        public int Weight4;
-
-        public Matrix4 OffsetTransform1;
-        public Matrix4 OffsetTransform2;
-        public Matrix4 OffsetTransform3;
-        public Matrix4 OffsetTransform4;
-
-        public Matrix4 AnimationTransform1;
-        public Matrix4 AnimationTransform2;
-        public Matrix4 AnimationTransform3;
-        public Matrix4 AnimationTransform4;
+        public Vector4i Bones;
+        public Vector4 Weights;
     }
 
    
