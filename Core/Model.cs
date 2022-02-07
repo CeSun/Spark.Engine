@@ -9,7 +9,7 @@ namespace LiteEngine.Core
     {
         public Model () : base("Model")
         {
-
+            Animations = new Dictionary<string, Animation> ();
         }
         public override void Draw(double deltaTime)
         {
@@ -24,7 +24,7 @@ namespace LiteEngine.Core
             InitSkeleton(scene);
             InitMesh(scene);
             InitAnnimation(scene);
-
+            Skeleton?.ProcessMat();
         }
 
         // 先仅仅支持一下蒙皮骨骼动画吧
@@ -52,8 +52,12 @@ namespace LiteEngine.Core
                     }
                     mp.Add(animationNode.Name, animationNode);
                 }
+                Animations.Add(animation.Name, animation);
             }
         }
+
+        public Dictionary<string, Animation> Animations { get; set; }
+
         private void InitSkeleton(Assimp.Scene scene)
         {
             if (skeleton == null)  // 该模型内无骨骼，从模型信息内创建骨骼
@@ -76,6 +80,7 @@ namespace LiteEngine.Core
                         // 把骨骼加到
                         if (skeleton.Bones.ContainsKey(bone.Name))
                             throw new Exception($"【{bone.Name}】骨骼重复");
+                        bone.Id = skeleton.Bones.Count;
                         skeleton.Bones[bone.Name] = bone;
                         // 如果跟节点不是空的, 找到父节点，把自己加进去
                         var parent = skeleton.Bones.GetValueOrDefault(parentNode.Name);
@@ -100,12 +105,12 @@ namespace LiteEngine.Core
         {
             foreach(var aiMesh in scene.Meshes)
             {
-                List<Vertex> vertex = new List<Vertex>();
+                List<Vertex> vertexs = new List<Vertex>();
                 List<int> indices = new List<int>();
                 Material material = new Material() { Shader = Shader.Default };
                 for (int i = 0; i < aiMesh.VertexCount; i++)
                 {
-                    vertex.Add(new Vertex { 
+                    vertexs.Add(new Vertex { 
                         Position = new Vector3 { X = aiMesh.Vertices[i].X, Y = aiMesh.Vertices[i].Y, Z = aiMesh.Vertices[i].Z },
                         Normal = new Vector3 { X = aiMesh.Normals[i].X, Y= aiMesh.Normals[i].Y, Z = aiMesh.Normals[i].Z },
                         TexCoords = new Vector2 { X = aiMesh.TextureCoordinateChannels[0][i].X, Y = aiMesh.TextureCoordinateChannels[0][i].Y}
@@ -129,11 +134,28 @@ namespace LiteEngine.Core
                         material.Add(texture);
                     }
                 }
-                var mesh = new Mesh(vertex, indices, material);
+                foreach(var aiBone in aiMesh.Bones)
+                {
+                    if (Skeleton == null)
+                        throw new Exception("没有骨骼！");
+                    if (Skeleton.Bones.TryGetValue(aiBone.Name, out var bone))
+                    {
+                        bone.OffsetTransform = Tools.Cast2Matrix4(aiBone.OffsetMatrix);
+                    }
+                    else
+                    {
+                        throw new Exception($"没有找到这个骨头！{aiBone.Name}");
+                    }
+
+                    // bone.
+                }
+                var mesh = new Mesh(vertexs, indices, material);
                 mesh.Owner = this;
             }
         }
         Skeleton? skeleton;
+
+        public Skeleton? Skeleton { get => skeleton; set => skeleton = value; }
 
     }
 
@@ -142,26 +164,53 @@ namespace LiteEngine.Core
         public Skeleton(BoneNode root)
         {
             Root = root;
+            root.Id = Bones.Count;
             Bones[root.Name] = root;
+
         }
         public BoneNode Root { get; set; }
         public Dictionary<string, BoneNode> Bones { get => _Bones; }
         private Dictionary<string, BoneNode> _Bones = new Dictionary<string, BoneNode>();
 
+        public Matrix4[]? BoneOffsetMat;
+        public Matrix4[]? BoneAnimationMat;
+
+        public void ProcessMat()
+        {
+            BoneOffsetMat = new Matrix4[_Bones.Count];
+            foreach(var (_, bone) in Bones)
+            {
+                BoneOffsetMat[bone.Id] = bone.OffsetTransform;
+            }
+            BoneAnimationMat = new Matrix4[_Bones.Count];
+        }
+
+
+
     }
     public class BoneNode
     {
+        public int Id;
         // 骨骼名字
         public string Name = "";
         // 父节点
         public BoneNode? Parent;
         // 本地矩阵
         public Matrix4 LocalTransform;
+        // 顶点转换到骨骼空间的矩阵
+        public Matrix4 OffsetTransform;
         // 子节点
         public List<BoneNode> Childern {
             get { return _Childern; }
         }
         private List<BoneNode> _Childern = new List<BoneNode>();
+
+        public BoneNode()
+        {
+            Parent = null;
+            LocalTransform = Matrix4.Identity;
+            OffsetTransform = Matrix4.Identity;
+        }
 
     }
 
@@ -171,6 +220,22 @@ namespace LiteEngine.Core
         public Vector3 Position;
         public Vector3 Normal;
         public Vector2 TexCoords;
+        public int BoneNum;
+
+        public int Weight1;
+        public int Weight2;
+        public int Weight3;
+        public int Weight4;
+
+        public Matrix4 OffsetTransform1;
+        public Matrix4 OffsetTransform2;
+        public Matrix4 OffsetTransform3;
+        public Matrix4 OffsetTransform4;
+
+        public Matrix4 AnimationTransform1;
+        public Matrix4 AnimationTransform2;
+        public Matrix4 AnimationTransform3;
+        public Matrix4 AnimationTransform4;
     }
 
    

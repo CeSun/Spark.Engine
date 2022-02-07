@@ -74,7 +74,16 @@ namespace LiteEngine.Core
                 {
                     material.Shader.SetMatrix4("projection", Camera.CurrentDrawCamera.PerspectiveMat);
                 }
+                if (Owner is Model model)
+                {
+                    if (model.Skeleton != null && model.Skeleton.BoneOffsetMat != null && model.Skeleton.BoneAnimationMat != null)
+                    {
+                        material.Shader.SetMatrix4Vector("OffsetMat", model.Skeleton.BoneOffsetMat);
+                        material.Shader.SetMatrix4Vector("AnimationMat", model.Skeleton.BoneAnimationMat);
+                    }
+                }
             }
+            
 
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, material[0].Id);

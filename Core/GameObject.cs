@@ -40,13 +40,13 @@ namespace LiteEngine.Core
         private List<Component> AddComponents { get; set; }
 
 
-        public void AddComponent(Component com)
+        internal void AddComponent(Component com)
         {
             AddComponents.Add(com);
         }
 
 
-        public void RemoveComponent(Component com)
+        internal void RemoveComponent(Component com)
         {
             DelComponents.Add(com);
         }

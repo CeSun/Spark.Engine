@@ -12,7 +12,11 @@ window.Load += () =>
 {
     var model = new Model();
     model.LoadModel(@"tr_leet\leet.FBX");
+    model.LoadModel(@"tr_leet\Animation\walk_zero.FBX");
     model.Parent = Scene.Current.Root;
+    if (model.Skeleton == null)
+        throw new Exception("模型没有骨骼");
+    new AnimationController(model.Skeleton).Owner = model;
     var f = Camera.Current;
     f.LocalPosition = new Vector3(-0.2840664F, -21.135677F, 83.46451F);
     f.LocalRotation = Quaternion.FromEulerAngles(0f, -1 * (float)Math.PI, 0);
@@ -45,6 +49,7 @@ window.Load += () =>
     var obj = new GameObject("test") { Parent = Scene.Current.Root };
     mesh.Owner = obj;*/
     Scene.Current.UI = new EditUI(camera.OutputTeture);
+
 };
 
 window.Run();

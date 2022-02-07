@@ -17,12 +17,15 @@ namespace LiteEngine.Core
                 if (_Owner != null)
                 {
                     _Owner.RemoveComponent(this);
+                    var oldOwener = _Owner;
                     _Owner = null;
+                    OnRemoved(oldOwener);
                 }
                 _Owner = value;
                 if (_Owner != null)
                 {
                     _Owner.AddComponent(this);
+                    OnAttached(_Owner);
                 }
             }
         }
@@ -31,6 +34,15 @@ namespace LiteEngine.Core
         {
 
         }
+        public virtual void OnRemoved(GameObject? OldOwner)
+        {
+
+        }
+        public virtual void OnAttached(GameObject? Owner)
+        {
+
+        }
+
     }
 
 
