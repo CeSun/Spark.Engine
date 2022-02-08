@@ -57,9 +57,9 @@ namespace LiteEngine.Core
         {
             if(bone.Parent != null)
             {
-                return bone.LocalTransform * ProcessNode(bone.Parent);
+                return bone.OffsetTransform * ProcessNode(bone.Parent);
             }
-            return bone.LocalTransform;
+            return bone.OffsetTransform;
         }
     }
 }

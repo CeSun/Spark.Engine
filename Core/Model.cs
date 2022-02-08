@@ -105,6 +105,7 @@ namespace LiteEngine.Core
         {
             foreach(var aiMesh in scene.Meshes)
             {
+                Dictionary<int, int> mp = new Dictionary<int, int>();
                 List<Vertex> vertexs = new List<Vertex>();
                 List<int> indices = new List<int>();
                 Material material = new Material() { Shader = Shader.Default };
@@ -141,12 +142,21 @@ namespace LiteEngine.Core
                     if (Skeleton.Bones.TryGetValue(aiBone.Name, out var bone))
                     {
                         bone.OffsetTransform = Tools.Cast2Matrix4(aiBone.OffsetMatrix);
+                        foreach (var weight in aiBone.VertexWeights)
+                        {
+                            var index = mp.GetValueOrDefault(weight.VertexID);
+                            var vertex = vertexs[weight.VertexID];
+                            vertex.Bones[index] = bone.Id;
+                            vertex.Weights[index] = weight.Weight;
+                            vertexs[weight.VertexID] = vertex;
+                            mp[weight.VertexID] = index + 1;
+                        }
                     }
                     else
                     {
                         throw new Exception($"没有找到这个骨头！{aiBone.Name}");
                     }
-
+                   
                     // bone.
                 }
                 var mesh = new Mesh(vertexs, indices, material);
@@ -180,7 +190,7 @@ namespace LiteEngine.Core
             BoneOffsetMat = new Matrix4[_Bones.Count];
             foreach(var (_, bone) in Bones)
             {
-                BoneOffsetMat[bone.Id] = bone.OffsetTransform;
+                BoneOffsetMat[bone.Id] = bone.LocalTransform;
             }
             BoneAnimationMat = new Matrix4[_Bones.Count];
         }

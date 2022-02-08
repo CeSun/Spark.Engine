@@ -182,11 +182,10 @@ void main()
     vec4 pos = vec4(0.0);
     for(int i = 0; i < 4; i ++)
     {
-        vec4 localPos = vec4(aPos, 1.0) * OffsetMat[Bones[i]] * AnimationMat[Bones[i]] * Weights[Bones[i]];
+        vec4 localPos = vec4(aPos, 1.0) * OffsetMat[Bones[i]] * AnimationMat[Bones[i]] * Weights[i];
         pos = pos + localPos;
     }
     gl_Position = vec4(aPos, 1.0) * model * view * projection;
-    // gl_Position = vec4(aPos, 1.0);
     TexCoord = vec2(aTexCoord.x, 1.0 - aTexCoord.y);
 }
 ";
@@ -202,6 +201,7 @@ uniform sampler2D texture1;
 void main()
 {
     FragColor = texture(texture1, TexCoord);
+   // FragColor = TestPos;
 }
 ";
     }
