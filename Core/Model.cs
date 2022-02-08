@@ -237,7 +237,7 @@ namespace LiteEngine.Core
         public BoneNode()
         {
             Parent = null;
-            LocalTransform = Matrix4.Identity;
+            LocalTransform = Matrix4.Zero;
             OffsetTransform = Matrix4.Identity;
         }
 

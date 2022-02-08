@@ -19,7 +19,7 @@ namespace LiteEngine.Core
         {
             Nearest = 0.01f;
             Furthest = 1000.0f;
-            Fov = (float)((Math.PI / 180) * 60f);
+            Fov = (float)((Math.PI / 180) * 75f);
             Parent = Scene.Current.Root;
 
             Layers = uint.MaxValue;

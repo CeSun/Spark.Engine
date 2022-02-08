@@ -24,14 +24,13 @@ window.Load += () =>
     var texture = Texture.Load(@"tr_leet\texture\leet_hand.tga");
     f.Parent = null;
 
-    var camera = new Camera(RenderTarget.Texture);
+    var camera = new Camera();
     camera.Parent = Scene.Current.Root;
     camera.ClearColor = Color4.Red;
+   
     camera.ClearFlag = ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit;
     camera.Index = 1;
     Camera.Current = camera;
-    if (camera.OutputTeture == null)
-        throw new Exception("error");
     /*var matrial = new Material() { camera.OutputTeture};
     matrial.Shader = Shader.Default;
     matrial.Shader.Use();
@@ -48,7 +47,7 @@ window.Load += () =>
         }, matrial);
     var obj = new GameObject("test") { Parent = Scene.Current.Root };
     mesh.Owner = obj;*/
-    Scene.Current.UI = new EditUI(camera.OutputTeture);
+    // Scene.Current.UI = new EditUI(camera.OutputTeture);
 
 };
 
