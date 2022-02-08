@@ -28,6 +28,8 @@ namespace LiteEngine.Core
                 }
 
                 Skeleton = model.Skeleton;
+                
+        /*
                 if (Skeleton != null && Skeleton.BoneAnimationMat != null)
                 {
                     foreach(var (_, bone) in Skeleton.Bones)
@@ -35,7 +37,7 @@ namespace LiteEngine.Core
                         Skeleton.BoneAnimationMat[bone.Id] = ProcessNode(bone);
                     }
                 }
-
+        */
             }
 
         }
@@ -53,13 +55,25 @@ namespace LiteEngine.Core
 
         }
 
-        public Matrix4 ProcessNode(BoneNode bone)
+        /*
+    public Matrix4 ProcessNode(BoneNode bone)
+    {
+        if (Skeleton == null)
+            throw new Exception("ProcessNode");
+        if (Skeleton.BoneOffsetMat == null)
+            throw new Exception("ProcessNode");
+        if (Skeleton.BoneAnimationMat == null)
+            throw new Exception("ProcessNode");
+        if (bone.Parent != null)
         {
-            if(bone.Parent != null)
-            {
-                return bone.LocalTransform * ProcessNode(bone.Parent);
-            }
-            return bone.LocalTransform;
+            Skeleton.BoneOffsetMat[bone.Id] = bone.LocalTransform * ProcessNode(bone.Parent);
+            Skeleton.BoneAnimationMat[bone.Id] = bone.OffsetTransform * Skeleton.BoneOffsetMat[bone.Id] ;
+            return Skeleton.BoneOffsetMat[bone.Id];
         }
+        Skeleton.BoneOffsetMat[bone.Id] = bone.LocalTransform;
+        Skeleton.BoneAnimationMat[bone.Id] = bone.OffsetTransform * Skeleton.BoneOffsetMat[bone.Id];
+        return Skeleton.BoneOffsetMat[bone.Id];
+    }
+        */
     }
 }

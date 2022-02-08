@@ -127,7 +127,7 @@ namespace LiteEngine.Core
                 {
                     float* matrix4 = (float*)matrix4s_ptr;
                     var local = GL.GetUniformLocation(ProgramId, name);
-                    GL.UniformMatrix4(local, matrix4s.Length, false, matrix4);
+                    GL.Uniform1(local, matrix4s.Length * 4 * 4, matrix4);
                 }
             }
         }
@@ -162,47 +162,39 @@ namespace LiteEngine.Core
         private static Shader? _Default;
 
         static string vertShader =
-@"#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNomal;
-layout (location = 2) in vec2 aTexCoord;
-layout (location = 3) in int[4] Bones;
-layout (location = 4) in vec4 Weights;
+        @"#version 330 core
+        layout (location = 0) in vec3 aPos;
+        layout (location = 1) in vec3 aNomal;
+        layout (location = 2) in vec2 aTexCoord;
+        layout (location = 3) in int Bones[4];
+        layout (location = 4) in float Weights[4];
 
-out vec2 TexCoord;
+        out vec2 TexCoord;
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-uniform mat4 OffsetMat[100];
-uniform mat4 AnimationMat[100];
+        uniform mat4 model;
+        uniform mat4 view;
+        uniform mat4 projection;
 
-void main()
-{ 
-    vec4 pos = vec4(0.0);
-    for(int i = 0; i < 4; i ++)
-    {
-        vec4 localPos = vec4(aPos, 1.0) * OffsetMat[Bones[i]] * AnimationMat[Bones[i]] * Weights[Bones[i]];
-        pos = pos + localPos;
-    }
-    gl_Position = vec4(aPos, 1.0) * model * view * projection;
-    // gl_Position = vec4(aPos, 1.0);
-    TexCoord = vec2(aTexCoord.x, 1.0 - aTexCoord.y);
-}
+        void main()
+        { 
+            vec4 pos = vec4(0.0);
+            gl_Position = vec4(aPos, 1.0) * model * view * projection;
+            TexCoord = vec2(aTexCoord.x, 1.0 - aTexCoord.y);
+        }
 ";
 
         static string fragShder =
-        @"#version 330 core
-out vec4 FragColor;
+        @"  #version 330 core
+            out vec4 FragColor;
 
-in vec2 TexCoord;
+            in vec2 TexCoord;
 
-uniform sampler2D texture1;
+            uniform sampler2D texture1;
 
-void main()
-{
-    FragColor = texture(texture1, TexCoord);
-}
+            void main()
+            {
+                FragColor = texture(texture1, TexCoord);
+            }
 ";
     }
 }

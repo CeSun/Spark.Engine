@@ -17,18 +17,23 @@ namespace LiteEngine.Core
         }
 
         private delegate void ProcessNodeAction(Node parent, Node Current);
-        public void LoadModel(string path)
+        public void LoadModel(string path, Skeleton skeleton = null)
         {
             AssimpContext context = new AssimpContext();
             var scene = context.ImportFile(path);
-            InitSkeleton(scene);
+            if (skeleton == null)
+                // 加载骨骼
+                InitSkeleton(scene);
+            else
+                Skeleton = skeleton;
+            // 加载网格
             InitMesh(scene);
-            InitAnnimation(scene);
-            Skeleton?.ProcessMat();
+            // 加载动画
+            InitAnimation(scene);
         }
 
         // 先仅仅支持一下蒙皮骨骼动画吧
-        private void InitAnnimation(Assimp.Scene scene)
+        private void InitAnimation(Assimp.Scene scene)
         {
             Console.WriteLine($"{scene.AnimationCount}");
             foreach(var anim in scene.Animations)
@@ -62,6 +67,9 @@ namespace LiteEngine.Core
         {
             if (skeleton == null)  // 该模型内无骨骼，从模型信息内创建骨骼
             {
+                BoneNode? Root = null;
+                Dictionary<string, BoneNode> Bones = new Dictionary<string, BoneNode>();
+                // 递归查找骨骼
                 ProcessNode(scene.RootNode, (parentNode, currentNode) =>
                 {
                     var bone = new BoneNode()
@@ -69,27 +77,28 @@ namespace LiteEngine.Core
                         Name = currentNode.Name,
                         Parent = null,
                         LocalTransform = Tools.Cast2Matrix4(currentNode.Transform),
+                        Id = Bones.Count,
                     };
-                    if (skeleton == null)
+                    if (Root == null)
+                        Root = bone;
+                    // 把骨骼加到
+                    if (Bones.ContainsKey(bone.Name))
+                        throw new Exception($"【{bone.Name}】骨骼重复");
+                    Bones.Add(bone.Name, bone);
+                    // 如果跟节点不是空的, 找到父节点，把自己加进去
+                    if (parentNode != null)
                     {
-                        // 如果骨骼是空的，那么创建骨骼
-                        skeleton = new Skeleton(bone);
-                    }
-                    else
-                    {
-                        // 把骨骼加到
-                        if (skeleton.Bones.ContainsKey(bone.Name))
-                            throw new Exception($"【{bone.Name}】骨骼重复");
-                        bone.Id = skeleton.Bones.Count;
-                        skeleton.Bones[bone.Name] = bone;
-                        // 如果跟节点不是空的, 找到父节点，把自己加进去
-                        var parent = skeleton.Bones.GetValueOrDefault(parentNode.Name);
+                        var parent = Bones.GetValueOrDefault(parentNode.Name);
                         if (parent == null)
                             throw new Exception($"【{bone.Name}】的父骨骼没找到！");
                         bone.Parent = parent;
                         parent.Childern.Add(bone);
                     }
                 });
+                if (Root == null)
+                    throw new Exception("没有找到骨骼");
+                // 构建骨骼
+                Skeleton = new Skeleton(Root, Bones);
             }
             // todo 检查骨骼，检查两次骨骼是否一致，不一致就抛异常 
         }
@@ -130,7 +139,7 @@ namespace LiteEngine.Core
                 {
                     foreach (var aiTexture in aiMaterial.GetMaterialTextures(type))
                     {
-                        var texture =  Texture.Load(aiTexture.FilePath);
+                        var texture = Texture.Load(aiTexture.FilePath);
                         material.Add(texture);
                     }
                 }
@@ -141,13 +150,12 @@ namespace LiteEngine.Core
                     if (Skeleton.Bones.TryGetValue(aiBone.Name, out var bone))
                     {
                         bone.OffsetTransform = Tools.Cast2Matrix4(aiBone.OffsetMatrix);
+                        
                     }
                     else
                     {
                         throw new Exception($"没有找到这个骨头！{aiBone.Name}");
                     }
-
-                    // bone.
                 }
                 var mesh = new Mesh(vertexs, indices, material);
                 mesh.Owner = this;
@@ -161,32 +169,40 @@ namespace LiteEngine.Core
 
     public class Skeleton
     {
-        public Skeleton(BoneNode root)
+        public Skeleton(BoneNode root, Dictionary<string, BoneNode> bones)
         {
             Root = root;
-            root.Id = Bones.Count;
-            Bones[root.Name] = root;
-
+            _Bones = bones;
+            Transform = new Matrix4[bones.Count];
+            ProcessMat();
         }
         public BoneNode Root { get; set; }
         public Dictionary<string, BoneNode> Bones { get => _Bones; }
         private Dictionary<string, BoneNode> _Bones = new Dictionary<string, BoneNode>();
-
-        public Matrix4[]? BoneOffsetMat;
-        public Matrix4[]? BoneAnimationMat;
-
-        public void ProcessMat()
+        public Matrix4[] Transform;
+       
+        private void ProcessMat()
         {
-            BoneOffsetMat = new Matrix4[_Bones.Count];
-            foreach(var (_, bone) in Bones)
-            {
-                BoneOffsetMat[bone.Id] = bone.OffsetTransform;
-            }
-            BoneAnimationMat = new Matrix4[_Bones.Count];
+            ProcessNode(Root, node => {
+                Matrix4 mat = Matrix4.Identity;
+                if (node.Parent != null)
+                {
+                    mat = node.Parent.MiddleTransform;
+                }
+                node.MiddleTransform = node.LocalTransform * mat;
+                Transform[node.Id] = node.OffsetTransform * node.MiddleTransform;
+            });
         }
 
+        private void ProcessNode(BoneNode bone, Action<BoneNode> action)
+        {
+            action(bone);
 
-
+            foreach(var child in bone.Childern)
+            {
+                ProcessNode(child, action);
+            }
+        }
     }
     public class BoneNode
     {
@@ -199,6 +215,8 @@ namespace LiteEngine.Core
         public Matrix4 LocalTransform;
         // 顶点转换到骨骼空间的矩阵
         public Matrix4 OffsetTransform;
+        public Matrix4 MiddleTransform;
+
         // 子节点
         public List<BoneNode> Childern {
             get { return _Childern; }

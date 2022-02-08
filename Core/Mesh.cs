@@ -80,11 +80,12 @@ namespace LiteEngine.Core
                 }
                 if (Owner is Model model)
                 {
+                    /*
                     if (model.Skeleton != null && model.Skeleton.BoneOffsetMat != null && model.Skeleton.BoneAnimationMat != null)
                     {
-                        material.Shader.SetMatrix4Vector("OffsetMat", model.Skeleton.BoneOffsetMat);
-                        material.Shader.SetMatrix4Vector("AnimationMat", model.Skeleton.BoneAnimationMat);
-                    }
+                        // material.Shader.SetMatrix4Vector("OffsetMat", model.Skeleton.BoneAnimationMat);
+                        // material.Shader.SetMatrix4Vector("AnimationMat", model.Skeleton.BoneAnimationMat);
+                    }*/
                 }
             }
             
