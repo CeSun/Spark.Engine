@@ -258,32 +258,32 @@ namespace LiteEngine.Core
 }
 namespace OpenTK.Mathematics
 {
+   
     public class Tools 
     {
-        static public Matrix4 Cast2Matrix4(Assimp.Matrix4x4 mat)
+        static public Matrix4 Cast2Matrix4(Matrix4x4 mat)
         {
             return new Matrix4
             {
                 M11 = mat.A1,
-                M12 = mat.A2,
-                M13 = mat.A3,
-                M14 = mat.A4,
-                M21 = mat.B1,
+                M12 = mat.B1,
+                M13 = mat.C1,
+                M14 = mat.D1,
+                M21 = mat.A2,
                 M22 = mat.B2,
-                M23 = mat.B3,
-                M24 = mat.B4,
-                M31 = mat.C1,
-                M32 = mat.C2,
+                M23 = mat.C2,
+                M24 = mat.D2,
+                M31 = mat.A3,
+                M32 = mat.B3,
                 M33 = mat.C3,
-                M34 = mat.C4,
-                M41 = mat.D1,
-                M42 = mat.D2,
-                M43 = mat.D3,
-                M44 = mat.C4,
+                M34 = mat.D3,
+                M41 = mat.A4,
+                M42 = mat.B4,
+                M43 = mat.C4,
+                M44 = mat.D4,
             };
         }
 
     }
-
 
 }
