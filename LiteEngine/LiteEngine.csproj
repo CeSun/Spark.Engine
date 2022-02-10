@@ -8,11 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AssimpNet" Version="5.0.0-beta1" />
     <PackageReference Include="OpenTK" Version="5.0.0-pre.6" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Core\Tools\" />
   </ItemGroup>
 
 </Project>
