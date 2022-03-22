@@ -4,10 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LiteEngine.Core
+namespace LiteEngine.Core.Actors;
+public class Pawn: Actor
 {
-    public class Material : Dictionary<string, Texture>
-    {
 
-    }
 }

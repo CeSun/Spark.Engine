@@ -4,10 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LiteEngine.Core.Components
+namespace LiteEngine.Core.Actors;
+public class Character : Pawn
 {
-    public class Component
-    {
 
-    }
 }
