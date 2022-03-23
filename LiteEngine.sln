@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiteEngine", "LiteEngine\LiteEngine.csproj", "{FE479E48-4F34-42B7-A006-2A8D7DB6C22D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LiteEngine", "LiteEngine\LiteEngine.csproj", "{FE479E48-4F34-42B7-A006-2A8D7DB6C22D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

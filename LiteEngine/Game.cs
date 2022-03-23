@@ -8,27 +8,22 @@ using OpenTK.Graphics.OpenGL;
 
     
 namespace LiteEngine;
-public class Game
+public class Engine
 {
-    static Game _Instance = new Game();
-    public static Game Instance { get { return _Instance; } }
+    static Engine _Instance = new Engine();
+    public static Engine Instance { get { return _Instance; } }
 
     public void Update(float deltaTime)
     {
-
+    
     }
     public void Render()
     {
-
+        
     }
     public void Init()
     {
 
-    }
-
-    public T Create<T>() where T : new()
-    {
-        return new T();
     }
 
     public void Fini()

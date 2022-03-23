@@ -28,5 +28,5 @@ public class Component
         this._Parent = parent;
     }
 
-    public Game GameInstance { get => Game.Instance; }
+    public Engine EngineInstance { get => Engine.Instance; }
 }
