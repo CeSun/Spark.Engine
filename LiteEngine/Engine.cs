@@ -5,9 +5,8 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using LiteEngine.Sdk;
+using Silk.NET.OpenGL;
 
-
-    
 namespace LiteEngine;
 public class Engine
 {
@@ -17,8 +16,8 @@ public class Engine
 #pragma warning disable CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑声明为可以为 null。
     IGame GameDll;
     IGameUI GameUIDll;
+    public GL Gl { get; private set; }
 #pragma warning restore CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑声明为可以为 null。
-
 
     public void Update(float deltaTime)
     {
@@ -27,12 +26,15 @@ public class Engine
     }
     public void Render()
     {
+        Gl.Clear(ClearBufferMask.ColorBufferBit);
         GameDll.OnRender();
         GameUIDll.OnRender();
     }
 
-    public void Init()
+    public void Init(Silk.NET.OpenGL.GL gl)
     {
+        Gl = gl;
+        Gl.ClearColor(0.2f, 0.3f, 0.2f, 1.0f);
         LoadGameDll();
         GameDll.OnInit();
         GameUIDll.OnInit();
@@ -51,29 +53,8 @@ public class Engine
     /// <exception cref="Exception"></exception>
     public void LoadGameDll()
     {
-        Console.WriteLine(Directory.GetCurrentDirectory());
-       var gamedll = Assembly.LoadFrom("./Game.dll");
-       var types = gamedll.GetTypes();
-        foreach (var type in types)
-        {
-            if (typeof(IGame).IsAssignableFrom(type))
-            {
-                GameDll = (IGame)gamedll.CreateInstance(type.FullName);
-            }
-            if (typeof(IGameUI).IsAssignableFrom(type))
-            {
-                GameUIDll = (IGameUI)gamedll.CreateInstance(type.FullName);
-            }
-        }
-
-        if (GameDll == null)
-        {
-            throw new Exception("Game.dll 中缺少 继承自LiteEngine.Sdk.IGame接口的类！");
-        }
-        if (GameUIDll == null)
-        {
-            throw new Exception("Game.dll 中缺少 继承自LiteEngine.Sdk.IGameui接口的类！");
-        }
+        GameDll = new Game.FPSGame();
+        GameUIDll = new Game.GameUI();
     }
 
 

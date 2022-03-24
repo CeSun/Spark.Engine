@@ -1,7 +1,7 @@
 ﻿using LiteEngine.Sdk;
 
 namespace Game;
-internal class FPSGame : IGame
+public class FPSGame : IGame
 {
     public void OnFini()
     {

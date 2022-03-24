@@ -7,10 +7,11 @@
 	  <OutputPath>../Build</OutputPath>
 	  <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 	  <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+	  <OutputType>Library</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LiteEngine\LiteEngine.csproj" />
+    <ProjectReference Include="..\Sdk\Sdk.csproj" />
   </ItemGroup>
     
 </Project>

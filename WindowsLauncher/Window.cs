@@ -14,6 +14,7 @@ public class Window
         options.Title = "LiteEngine - Desktop";
         options.UpdatesPerSecond = 60;
         options.FramesPerSecond = 0;
+        options.ShouldSwapAutomatically = true;
         window = Silk.NET.Windowing.Window.Create(options);
         window.Load += Init;
         window.Render += Render;
@@ -38,8 +39,8 @@ public class Window
 
     private void Init()
     {
-
-        Engine.Instance.Init();
+        var gl = Silk.NET.OpenGL.GL.GetApi(this.window);
+        Engine.Instance.Init(gl);
     }
 
 

@@ -1,4 +1,3 @@
 <resources>
-    <string name="app_name">AndroidLauncher</string>
-    <string name="app_text">Hello, Android!</string>
+    <string name="app_name">小引擎</string>
 </resources>
