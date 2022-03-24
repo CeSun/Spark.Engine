@@ -1,4 +1,3 @@
-﻿using LiteEngine.Platform;
-
-Window window = new Window();
-window.Run();
+﻿using WindowsLauncher;
+Window win = new();
+win.Run();

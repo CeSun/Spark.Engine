@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "LiteEngine": {
-      "commandName": "Project",
-      "workingDirectory": "../Build"
-    }
-  }
-}

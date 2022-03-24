@@ -1,36 +1,51 @@
-﻿using OpenTK.Windowing.Common;
-using OpenTK.Windowing.Desktop;
-namespace LiteEngine.Platform;
-public class Window : GameWindow
+﻿using LiteEngine;
+using Silk.NET.Windowing;
+
+namespace WindowsLauncher;
+
+
+
+public class Window
 {
-    public Window() : base(new GameWindowSettings { IsMultiThreaded = false, RenderFrequency = 0, UpdateFrequency = 60 }, NativeWindowSettings.Default)
+    IWindow window;
+    public Window()
     {
-        Title = "LiteEngine"; 
+        var options = WindowOptions.Default;
+        options.Title = "LiteEngine - Desktop";
+        options.UpdatesPerSecond = 60;
+        options.FramesPerSecond = 0;
+        window = Silk.NET.Windowing.Window.Create(options);
+        window.Load += Init;
+        window.Render += Render;
+        window.Update += Update;
     }
 
-    protected override void OnLoad()
+    public void Run()
     {
-        base.OnLoad();
+        window.Run();
+        Fini();
+    }
+
+    private void Update(double time)
+    {
+        Engine.Instance.Update((float)time);
+    }
+
+    private void Render(double time)
+    {
+        Engine.Instance.Render();
+    }
+
+    private void Init()
+    {
+
         Engine.Instance.Init();
     }
-    protected override void OnUpdateFrame(FrameEventArgs args)
-    {
-        base.OnUpdateFrame(args);
-        Engine.Instance.Update((float)args.Time);
-    }
 
-    protected override void OnRenderFrame(FrameEventArgs args)
-    {
-        base.OnRenderFrame(args);
-        Engine.Instance.Render(); 
-        SwapBuffers();
 
-    }
-
-    protected override void OnUnload()
+    private void Fini()
     {
-        base.OnUnload();
+
         Engine.Instance.Fini();
     }
-
 }
