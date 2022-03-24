@@ -11,18 +11,18 @@ public class Window : GameWindow
     protected override void OnLoad()
     {
         base.OnLoad();
-        Game.Instance.Init();
+        Engine.Instance.Init();
     }
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
         base.OnUpdateFrame(args);
-        Game.Instance.Update((float)args.Time);
+        Engine.Instance.Update((float)args.Time);
     }
 
     protected override void OnRenderFrame(FrameEventArgs args)
     {
         base.OnRenderFrame(args);
-        Game.Instance.Render(); 
+        Engine.Instance.Render(); 
         SwapBuffers();
 
     }
@@ -30,7 +30,7 @@ public class Window : GameWindow
     protected override void OnUnload()
     {
         base.OnUnload();
-        Game.Instance.Fini();
+        Engine.Instance.Fini();
     }
 
 }

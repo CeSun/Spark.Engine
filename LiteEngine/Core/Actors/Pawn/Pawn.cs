@@ -7,5 +7,4 @@ using System.Threading.Tasks;
 namespace LiteEngine.Core.Actors;
 public class Pawn: Actor
 {
-    public bool Is
 }

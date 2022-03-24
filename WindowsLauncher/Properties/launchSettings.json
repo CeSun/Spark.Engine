@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WindowsLauncher": {
+      "commandName": "Project",
+      "workingDirectory": "../Build"
+    }
+  }
+}

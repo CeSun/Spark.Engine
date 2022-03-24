@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Library</OutputType>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -11,9 +11,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Render\**" />
-    <EmbeddedResource Remove="Render\**" />
-    <None Remove="Render\**" />
+    <PackageReference Include="OpenTK" Version="5.0.0-pre.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Game\Game.csproj" />
+    <ProjectReference Include="..\LiteEngine\LiteEngine.csproj" />
   </ItemGroup>
 
 </Project>

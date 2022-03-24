@@ -5,6 +5,10 @@ VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LiteEngine", "LiteEngine\LiteEngine.csproj", "{FE479E48-4F34-42B7-A006-2A8D7DB6C22D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Game", "Game\Game.csproj", "{8B150D45-4260-45A7-BBEB-BB232814B4FD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsLauncher", "WindowsLauncher\WindowsLauncher.csproj", "{0AB1C2FC-5756-4FED-96E0-76C7D2CC2390}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{FE479E48-4F34-42B7-A006-2A8D7DB6C22D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FE479E48-4F34-42B7-A006-2A8D7DB6C22D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FE479E48-4F34-42B7-A006-2A8D7DB6C22D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B150D45-4260-45A7-BBEB-BB232814B4FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B150D45-4260-45A7-BBEB-BB232814B4FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B150D45-4260-45A7-BBEB-BB232814B4FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B150D45-4260-45A7-BBEB-BB232814B4FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0AB1C2FC-5756-4FED-96E0-76C7D2CC2390}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0AB1C2FC-5756-4FED-96E0-76C7D2CC2390}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0AB1C2FC-5756-4FED-96E0-76C7D2CC2390}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0AB1C2FC-5756-4FED-96E0-76C7D2CC2390}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

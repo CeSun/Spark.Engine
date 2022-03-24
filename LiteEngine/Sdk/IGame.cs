@@ -4,14 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LiteEngine.Interface;
+namespace LiteEngine.Sdk;
 public interface IGame
 {
     public void OnUpdate(float deltaTime);
+    public void OnRender();
 
-    public void OnStart();
+    public void OnInit();
 
-    public void OnEnd();
+    public void OnFini();
 
     public void OnLevelLoaded();
 
