@@ -21,15 +21,6 @@
     <AndroidKeyStore>False</AndroidKeyStore>
   </PropertyGroup>
   <ItemGroup>
-    <AndroidLibrary Remove="新文件夹\**" />
-    <AndroidNativeLibrary Remove="新文件夹\**" />
-    <Compile Remove="新文件夹\**" />
-    <EmbeddedResource Remove="新文件夹\**" />
-    <JavaSourceJar Remove="新文件夹\**" />
-    <None Remove="新文件夹\**" />
-    <TransformFile Remove="新文件夹\**" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Silk.NET.OpenGL" Version="2.14.0" />
     <PackageReference Include="Silk.NET.Windowing" Version="2.14.0" />
   </ItemGroup>

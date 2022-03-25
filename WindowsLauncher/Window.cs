@@ -1,13 +1,12 @@
 ﻿using LiteEngine;
+using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
-
 namespace WindowsLauncher;
-
-
 
 public class Window
 {
     IWindow window;
+    GL? Gl;
     public Window()
     {
         var options = WindowOptions.Default;
@@ -19,34 +18,11 @@ public class Window
         window.Load += Init;
         window.Render += Render;
         window.Update += Update;
+        window.Closing += Fini;
     }
-
-    public void Run()
-    {
-        window.Run();
-        Fini();
-    }
-
-    private void Update(double time)
-    {
-        Engine.Instance.Update((float)time);
-    }
-
-    private void Render(double time)
-    {
-        Engine.Instance.Render();
-    }
-
-    private void Init()
-    {
-        var gl = Silk.NET.OpenGL.GL.GetApi(this.window);
-        Engine.Instance.Init(gl);
-    }
-
-
-    private void Fini()
-    {
-
-        Engine.Instance.Fini();
-    }
+    private void Init() =>  Engine.Instance.Init(Gl = Silk.NET.OpenGL.GL.GetApi(this.window));
+    private void Update(double time) => Engine.Instance.Update((float)time);
+    private void Render(double time) => Engine.Instance.Render();
+    private void Fini() => Engine.Instance.Fini();
+    public void Run() => window.Run();
 }
