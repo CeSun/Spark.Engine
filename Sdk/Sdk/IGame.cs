@@ -20,5 +20,4 @@ public interface IGame
 
     public void OnRoundEnd();
 
-
 }

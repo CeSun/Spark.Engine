@@ -20,7 +20,7 @@ public class Window
         window.Update += Update;
         window.Closing += Fini;
     }
-    private void Init() =>  Engine.Instance.Init(Gl = Silk.NET.OpenGL.GL.GetApi(this.window));
+    private void Init() =>  Engine.Instance.Init(Gl = GL.GetApi(this.window), new WindowsFileSystem());
     private void Update(double time) => Engine.Instance.Update((float)time);
     private void Render(double time) => Engine.Instance.Render();
     private void Fini() => Engine.Instance.Fini();

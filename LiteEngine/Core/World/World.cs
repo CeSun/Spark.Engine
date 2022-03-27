@@ -1,4 +1,7 @@
 ﻿using LiteEngine.Core.Actors;
+using LiteEngine.Core.Components;
+using LiteEngine.Core.Render;
+using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,23 +13,85 @@ namespace LiteEngine.Core;
 public class World
 {
     private List<Actor> Actors;
+
+    private List<Actor> AddActors;
+    private List<Actor> DelActors;
+
+    private Dictionary<RenderLayer, List<RenderableComponent>> RenderLayers;
+
+
+    public Skybox Skybox;
+    public void AddActor(Actor actor)
+    {
+        AddActors.Add(actor);
+    }
+
+    public void AddComponentToLayer(RenderableComponent com, RenderLayer layer)
+    {
+        RenderLayers[layer].Add(com);
+    }
+
+    public void RemoveComponentFromLayer(RenderableComponent com, RenderLayer layer)
+    {
+        RenderLayers[layer].Remove(com);
+    }
+
+    public void ForeachLayer(Action<RenderableComponent> action, RenderLayer renderLayer)
+    {
+        RenderLayers[renderLayer].ForEach(action); 
+    }
     public World ()
     {
         Actors = new List<Actor> ();
+        AddActors = new List<Actor> ();
+        DelActors = new List<Actor> ();
+        RenderLayers = new Dictionary<RenderLayer, List<RenderableComponent>>(); //<List<RenderableComponent>>();
+        for(var i = 0; i < (int)RenderLayer.Max; i++)
+        {
+            RenderLayers.Add((RenderLayer)(1 << i) , new List<RenderableComponent> ());
+        }
+        LoadLevel("");
     }
-
-    public void Spawn<T>() where T : Actor, new ()
+    
+    public void LoadLevel(string path)
     {
-        var actor = new T ();
-        actor.World = this;
-        Actors.Add (actor);
+        Skybox = new Skybox(path);
+    }
+
+
+    
+    public void Init()
+    {
+        Skybox.Init();
+        var camera = new CameraActor();
+    }
+
+    public void Fini()
+    {
+        Skybox.Fini();
 
     }
 
-    public static World Instance { get; private set;} = new World ();
 
     public void DestoryActor(Actor actor)
     {
-        Actors.Remove (actor);
+        DelActors.Add(actor);
     }
+
+    public void Render()
+    {
+        CameraCpmponent.RenderAllCamera();
+    }
+
+    public void Update(float deltaTime)
+    {
+        AddActors.ForEach(actor => Actors.Add(actor));
+        DelActors.ForEach(actor => Actors.Remove(actor));
+        AddActors.Clear();
+        DelActors.Clear();
+        Actors.ForEach(actor => actor.Update(deltaTime));
+        Skybox.Update(deltaTime);
+    }
+
+    public GL gl { get => Engine.Instance.Gl; }
 }

@@ -1,0 +1,34 @@
+﻿using LiteEngine.Core.SubSystem;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace WindowsLauncher;
+
+public class WindowsFileSystem : IPlatFile
+{
+    public byte[] LoadFile(string path)
+    {
+        return File.ReadAllBytes(path);
+    }
+
+    public async Task<byte[]> LoadFileAsync(string path)
+    {
+        return await File.ReadAllBytesAsync(path);
+
+    }
+
+    public string LoadFileString(string path)
+    {
+        var sr = new StreamReader(path);
+        return sr.ReadToEnd();
+    }
+
+    public async Task<string> LoadFileStringAsync(string path)
+    {
+        var sr = new StreamReader(path);
+        return await sr.ReadToEndAsync();
+    }
+}

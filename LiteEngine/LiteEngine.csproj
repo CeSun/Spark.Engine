@@ -21,7 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Game\Game.csproj" />
     <ProjectReference Include="..\Sdk\Sdk.csproj" />
   </ItemGroup>
 

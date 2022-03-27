@@ -11,18 +11,21 @@ namespace LiteEngine.Core.Actors;
 
 public partial class Actor
 {
-    internal Actor()
+    public Actor()
     {
+        World.AddActor(this);
         Name = "Actor";
-        RootComponent = new Component();
+        RootComponent = new RootComponent(this);
     }
+
     public string Name { get; set; }
 
     public void Destory()
     {
-        this.World.DestoryActor(this);
+        RootComponent.Destory();
+        World.DestoryActor(this);
     }
 
-    public Component RootComponent { get; private set; }
+    public RootComponent RootComponent { get; private set; }
 
 }

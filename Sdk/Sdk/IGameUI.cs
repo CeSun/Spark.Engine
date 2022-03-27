@@ -4,16 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LiteEngine.Sdk
+namespace LiteEngine.Sdk;
+public interface IGameUI
 {
-    public interface IGameUI
-    {
-        void OnInit();
+    void OnInit();
 
-        void OnUpdate(float deltaTime);
+    void OnUpdate(float deltaTime);
 
-        void OnRender();
+    void OnRender();
 
-        void OnFini();
-    }
+    void OnFini();
 }

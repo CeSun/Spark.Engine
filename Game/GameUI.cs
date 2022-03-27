@@ -14,6 +14,8 @@ public class GameUI : IGameUI
 
     public void OnInit()
     {
+        
+
     }
 
     public void OnRender()
@@ -22,5 +24,6 @@ public class GameUI : IGameUI
 
     public void OnUpdate(float deltaTime)
     {
+
     }
 }

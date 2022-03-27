@@ -21,17 +21,7 @@ public partial class Actor
     public Vector3 WorldScale { get; set; }
 
     /// <summary>
-    /// 相对父节点的位置
+    /// 矩阵
     /// </summary>
-    public Quaternion RelativeLocation { get; set; }
-
-    /// <summary>
-    /// 相对父节点的旋转
-    /// </summary>
-    public Vector3 RelativeRotation { get; set; }
-
-    /// <summary>
-    /// 相对父节点的缩放
-    /// </summary>
-    public Vector3 RelativeScale { get; set; }
+    public Matrix4x4 WorldTransform { get; set; }
 }

@@ -6,3 +6,8 @@
 /*/bin/*
 /*/obj/*
 /Build
+/AndroidLauncher/Properties
+/AndroidLauncher/Game.dll
+/AndroidLauncher/Game.pdb
+/WindowsLauncher/Properties
+/WindowsLauncher/WindowsLauncher.csproj.user

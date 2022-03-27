@@ -11,7 +11,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\LiteEngine\LiteEngine.csproj" />
     <ProjectReference Include="..\Sdk\Sdk.csproj" />
   </ItemGroup>
-    
+<ItemGroup>
+	<PackageReference Include="Silk.NET.OpenGL" Version="2.14.0" />
+</ItemGroup>
+
+
 </Project>
