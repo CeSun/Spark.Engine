@@ -1,4 +1,5 @@
 ﻿using LiteEngine;
+using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 namespace WindowsLauncher;
@@ -19,10 +20,13 @@ public class Window
         window.Render += Render;
         window.Update += Update;
         window.Closing += Fini;
+        window.Resize += Resize;
+
     }
     private void Init() =>  Engine.Instance.Init(Gl = GL.GetApi(this.window), new WindowsFileSystem());
     private void Update(double time) => Engine.Instance.Update((float)time);
     private void Render(double time) => Engine.Instance.Render();
     private void Fini() => Engine.Instance.Fini();
     public void Run() => window.Run();
+    private void Resize(Vector2D<int> size) => Engine.Instance.WindowResize(new System.Drawing.Size(size.X, size.Y));
 }

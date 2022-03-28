@@ -1,9 +1,12 @@
 ﻿using LiteEngine;
+using LiteEngine.Core.Actors;
 using LiteEngine.Sdk;
+using Silk.NET.OpenGL;
 
 namespace Game;
 public class FPSGame : IGame
 {
+    public GL gl { get => Engine.Instance.Gl; }
     public void OnFini()
     {
 
@@ -11,7 +14,8 @@ public class FPSGame : IGame
 
     public void OnInit()
     {
-        Engine.Instance.Gl.ClearColor(1, 0, 0, 1);
+        var camera = new CameraActor();
+
     }
 
     public void OnLevelLoaded()
@@ -21,7 +25,7 @@ public class FPSGame : IGame
 
     public void OnRender()
     {
-        // Engine.Instance.Gl.Clear(Silk.NET.OpenGL.ClearBufferMask.ColorBufferBit);
+
     }
 
     public void OnRoundEnd()

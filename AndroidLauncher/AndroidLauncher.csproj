@@ -45,7 +45,7 @@
 	  </AndroidAsset>
   </ItemGroup>
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-	  <Exec Command="xcopy &quot;$(SolutionDir)build\Game.dll&quot; &quot;$(ProjectDir)Game.dll&quot; /y" />
+	  <Exec Command="xcopy &quot;$(SolutionDir)build\Game.dll&quot; &quot;$(ProjectDir)&quot; /y&#xD;&#xA;xcopy &quot;$(SolutionDir)build\Game.pdb&quot; &quot;$(ProjectDir)&quot; /y" />
 	  <Exec Command="xcopy &quot;$(SolutionDir)build\Game.pdb&quot; &quot;$(ProjectDir)Game.pdb&quot; /y" />
 
   </Target>

@@ -1,6 +1,7 @@
 ﻿using LiteEngine.Core.Actors;
 using LiteEngine.Core.Components;
 using LiteEngine.Core.Render;
+using LiteEngine.Sdk;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -19,8 +20,9 @@ public class World
 
     private Dictionary<RenderLayer, List<RenderableComponent>> RenderLayers;
 
+    IGame GameDll { get => Engine.Instance.GameDll; }
 
-    public Skybox Skybox;
+    public Skybox? Skybox;
     public void AddActor(Actor actor)
     {
         AddActors.Add(actor);
@@ -56,19 +58,21 @@ public class World
     public void LoadLevel(string path)
     {
         Skybox = new Skybox(path);
+        
     }
 
 
     
     public void Init()
     {
-        Skybox.Init();
-        var camera = new CameraActor();
+        Skybox?.Init();
+        GameDll.OnInit();
     }
 
     public void Fini()
     {
-        Skybox.Fini();
+        Skybox?.Fini();
+        GameDll.OnFini();
 
     }
 
@@ -90,7 +94,7 @@ public class World
         AddActors.Clear();
         DelActors.Clear();
         Actors.ForEach(actor => actor.Update(deltaTime));
-        Skybox.Update(deltaTime);
+        Skybox?.Update(deltaTime);
     }
 
     public GL gl { get => Engine.Instance.Gl; }

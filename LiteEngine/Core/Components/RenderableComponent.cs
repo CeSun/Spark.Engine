@@ -12,10 +12,10 @@ namespace LiteEngine.Core.Components
     public class RenderableComponent : Component
     {
         protected GL gl { get => Engine.Instance.Gl; }
-        public RenderableComponent(string name) : base(name)
+        public RenderableComponent(Component parent, string name) : base(parent, name)
         {
             IsVisible = true;
-            Layer = RenderLayer.Layer1;
+             Layer = RenderLayer.Layer1;
         }
 
         private RenderLayer _Layer;

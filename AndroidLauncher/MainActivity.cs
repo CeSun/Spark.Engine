@@ -3,6 +3,7 @@ using Silk.NET.Windowing;
 using Silk.NET.Windowing.Sdl.Android;
 using Silk.NET.OpenGL;
 using Android.OS;
+using Silk.NET.Maths;
 
 namespace AndroidLauncher;
 
@@ -29,11 +30,21 @@ public class MainActivity : SilkActivity
         view.Load += Init;
         view.Update += Update;
         view.Render += Render;
+        view.Resize += Resize;//
         view.Run();
         Fini();
     }
     private void Update(double time) => Engine.Instance.Update((float)time);
     private void Render(double time) => Engine.Instance.Render();
-    private void Init() => Engine.Instance.Init(Gl = GL.GetApi(view), new AndroidFileSystem(Assets));
+    private void Init() 
+    {
+        if (Assets == null)
+            throw new("安卓的Assets对象为空");
+        Engine.Instance.Init(Gl = GL.GetApi(view), new AndroidFileSystem(Assets));
+    }
     private void Fini() => Engine.Instance.Fini();
+
+    private void Resize(Vector2D<int> size) => Engine.Instance.WindowResize(new System.Drawing.Size(size.X, size.Y));
+
+
 }

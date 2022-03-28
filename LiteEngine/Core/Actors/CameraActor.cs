@@ -9,12 +9,10 @@ namespace LiteEngine.Core.Actors;
 
 public class CameraActor : Actor
 {
+    CameraCpmponent CameraComponent;
     public CameraActor():base()
     {
-        var camera = new CameraCpmponent("TestComponent");
-        camera.Attach(RootComponent);
-
-
+        CameraComponent = new CameraCpmponent(RootComponent, "TestComponent");
     }
     
 }

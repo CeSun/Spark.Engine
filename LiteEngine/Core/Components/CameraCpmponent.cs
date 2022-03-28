@@ -10,7 +10,7 @@ namespace LiteEngine.Core.Components;
 
 public class CameraCpmponent : RenderableComponent
 {
-    public CameraCpmponent(string name) : base(name)
+    public CameraCpmponent(Component parent,string name) : base(parent, name)
     {
         Nearest = 0.01f;
         Furthest = 100.0f;

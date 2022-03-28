@@ -13,14 +13,22 @@ public class Component
 
     protected List<Component> SubComponents = new List<Component>();
 
-    public Component(string name)
+    public Actor? Owner { get; protected set; }
+
+    public Component(Component parent, string name)
     {
+        Parent = parent;
+        if(Parent != null)
+        {
+            Owner = Parent.Owner;
+            Parent.SubComponents.Add(this);
+        }
         Name = name;
     }
+
+
     public string Name { get; set; }
 
-
-    private Component? _Parent = null;
 
     public void RecursionSubComponent(Action<Component> action)
     {
@@ -30,15 +38,7 @@ public class Component
             subComponent.RecursionSubComponent(action);
         }
     }
-    public Component? Parent { get => _Parent; }
-
-    public void Attach(Component parent)
-    {
-        if (this.Parent != null)
-            throw new Exception("该组件已经有父级了！");
-        parent.SubComponents.Add(this);
-        this._Parent = parent;
-    }
+    public Component? Parent { get; private set; }
 
 
     public virtual void Update(float deltaTime)
