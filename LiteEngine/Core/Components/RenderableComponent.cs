@@ -15,7 +15,7 @@ namespace LiteEngine.Core.Components
         public RenderableComponent(Component parent, string name) : base(parent, name)
         {
             IsVisible = true;
-             Layer = RenderLayer.Layer1;
+            Layer = RenderLayer.Layer1;
         }
 
         private RenderLayer _Layer;

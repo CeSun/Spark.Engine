@@ -16,15 +16,15 @@ public unsafe struct Vertex
     public Vector3 Location;
 
     // 法向量
-    public static readonly int NormalOffset = sizeof(Vector3);
+    public static readonly int NormalOffset = 12;
     public Vector3 Normal;
 
     // 颜色
-    public static readonly int ColorOffset = NormalOffset + sizeof(Vector3);
+    public static readonly int ColorOffset = 24;
     public Vector3 Color;
 
     // UV坐标
-    public static readonly int TexCoordOffset = ColorOffset + sizeof(Vector3);
+    public static readonly int TexCoordOffset = 36;
     public Vector2 TexCoord;
 }
 

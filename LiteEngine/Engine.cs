@@ -25,6 +25,7 @@ public partial class Engine
 
     public void Update(float deltaTime)
     {
+        Gl.Clear(ClearBufferMask.ColorBufferBit);
         GameUIDll.OnUpdate(deltaTime);
         World?.Update(deltaTime);
     }

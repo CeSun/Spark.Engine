@@ -1,5 +1,6 @@
 ﻿using LiteEngine;
 using LiteEngine.Core.Actors;
+using LiteEngine.Core.Components;
 using LiteEngine.Sdk;
 using Silk.NET.OpenGL;
 
@@ -11,10 +12,19 @@ public class FPSGame : IGame
     {
 
     }
+    class TestActor : Actor
+    {
+        StaticMeshComponent staticMeshComponent;
+        public TestActor() : base()
+        {
+            staticMeshComponent = new StaticMeshComponent(RootComponent, "meshComp");
+        }
 
+    }
     public void OnInit()
     {
-        var camera = new CameraActor();
+        var actor = new CameraActor();
+        var testActor = new TestActor();
 
     }
 
