@@ -50,13 +50,6 @@ public class Shader
             throw new ($"Error linking shader {gl.GetProgramInfoLog(Id)}");
         }
 
-        gl.GetProgram(Id, GLEnum.ActiveUniforms, out var num);
-        for(uint i =0;i < num; i++)
-        {
-            var key = gl.GetActiveUniform(Id, i, out _, out _);
-            var location = gl.GetUniformLocation(Id, key);
-            Console.WriteLine($"uniform: {key}:{location}");
-        }
         gl.DetachShader(Id, vertexShader);
         gl.DetachShader(Id, fragmentShader);
         gl.DeleteShader(vertexShader);

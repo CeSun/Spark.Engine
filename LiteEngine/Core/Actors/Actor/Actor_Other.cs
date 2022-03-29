@@ -20,11 +20,11 @@ public partial class Actor
         var scaleMat4 = Matrix4x4.CreateScale(WorldScale);
         var rotationMat4 = Matrix4x4.CreateFromQuaternion(WorldRotation);
         var translateMat4 = Matrix4x4.CreateTranslation(WorldLocation);
-        WorldTransform = translateMat4 * rotationMat4* scaleMat4;
+        WorldTransform = scaleMat4 * rotationMat4 * translateMat4;
 
-        Up = Vector3.Transform(new Vector3(0, 1, 0), WorldTransform);
-        Right = Vector3.Transform(new Vector3(-1, 0, 0), WorldTransform);
-        Foward = Vector3.Transform(new Vector3(0, 0, 1), WorldTransform);
+        Up = Vector3.Transform(new Vector3(0, 1, 0), WorldTransform) - WorldLocation;
+        Right = Vector3.Transform(new Vector3(-1, 0, 0), WorldTransform) - WorldLocation;
+        Foward = Vector3.Transform(new Vector3(0, 0, 1), WorldTransform) - WorldLocation;
 
         RootComponent.Update(deltaTime);
     }

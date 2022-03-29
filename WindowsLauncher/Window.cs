@@ -15,6 +15,7 @@ public class Window
         options.Title = "LiteEngine - Desktop";
         options.UpdatesPerSecond = 60;
         options.FramesPerSecond = 0;
+        options.Size = new Vector2D<int>(800,600);
         options.ShouldSwapAutomatically = true;
         window = Silk.NET.Windowing.Window.Create(options);
         window.Load += Init;

@@ -4,8 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+using Silk.NET.Maths;
 
 namespace LiteEngine.Core.Components;
 
@@ -17,7 +16,7 @@ public class CameraCpmponent : RenderableComponent
     {
         Nearest = 0.01f;
         Furthest = 100.0f;
-        Fov = 45;
+        Fov = 75;
         RenderLayers = RenderLayer.Layer1;
         Available = true;
         Cameras.Add(this);
@@ -42,9 +41,9 @@ public class CameraCpmponent : RenderableComponent
     public override unsafe void Update(float deltaTime)
     {
         base.Update(deltaTime);
-        ViewMatrix = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI/Fov,600/ 800f, Nearest, Furthest);
+        ViewMatrix = Matrix4x4.CreatePerspectiveFieldOfView(0.2f, 800/ 600, Nearest, Furthest);
 
-        ProjectionMatrix = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Foward, WorldLocation + Up);
+        ProjectionMatrix = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Foward,  Up);
     }
     public Matrix4x4 _ViewMatrix;
     public Matrix4x4 ViewMatrix { get => _ViewMatrix; private set => _ViewMatrix = value; }

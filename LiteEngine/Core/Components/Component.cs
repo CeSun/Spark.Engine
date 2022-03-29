@@ -51,20 +51,21 @@ public class Component
         var scaleMat4 = Matrix4x4.CreateScale(RelativeScale);
         var rotationMat4 = Matrix4x4.CreateFromQuaternion(RelativeRotation);
         var translateMat4 = Matrix4x4.CreateTranslation(RelativeLocation);
-        RelativeTransform = translateMat4* rotationMat4* scaleMat4 ;
+        RelativeTransform = scaleMat4* rotationMat4 *  translateMat4 ;
 
         if (Parent != null)
         {
-            WorldTransform = Parent.WorldTransform * RelativeTransform;
+            WorldTransform = RelativeTransform * Parent.WorldTransform;
 
         }
         else if (Owner != null)
         {
-            WorldTransform = Owner.WorldTransform * RelativeTransform;
+            WorldTransform =  RelativeTransform * Owner.WorldTransform;
         }
-        Up = Vector3.Transform(new Vector3(0, 1, 0), WorldTransform);
-        Right = Vector3.Transform(new Vector3(-1, 0, 0), WorldTransform);
-        Foward = Vector3.Transform(new Vector3(0, 0, 1), WorldTransform);
+        WorldLocation = WorldTransform.Translation;
+        Up = Vector3.Transform(new Vector3(0, 1, 0), WorldTransform) - WorldLocation;
+        Right = Vector3.Transform(new Vector3(-1, 0, 0), WorldTransform) - WorldLocation;
+        Foward = Vector3.Transform(new Vector3(0, 0, 1), WorldTransform) - WorldLocation;
         SubComponents.ForEach((x) => x.Update(deltaTime));
     }
 

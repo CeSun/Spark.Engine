@@ -4,6 +4,7 @@ using LiteEngine.Core.Components;
 using LiteEngine.Core.Render;
 using LiteEngine.Core.Resources;
 using LiteEngine.Sdk;
+using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using System.Numerics;
 
@@ -27,7 +28,6 @@ public class FPSGame : IGame
         public override void Update(float deltaTime)
         {
             base.Update(deltaTime);
-            Console.WriteLine($"{staticMeshComponent.WorldLocation}");
         }
         private StaticMesh LoadMesh()
         {
@@ -79,11 +79,15 @@ public class FPSGame : IGame
 
     bool isNeedInit = false;
     Vector2 LastPos;
+    FPSActor fspActor;
     public void OnInit()
     {
-        var fspActor = new FPSActor();
+        fspActor = new FPSActor();
         fspActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0 , 0, 0);
-        fspActor.WorldLocation = new Vector3(0,0,-10);
+        fspActor.WorldLocation = new Vector3(0,0,-50);
+    
+        var testActor = new TestActor();
+        testActor.WorldLocation = new Vector3(0f, 0f, 0f);
         Engine.Instance.Input.Mice[0].MouseMove += (mouse, pos) =>
         {
             if (isNeedInit == true)
@@ -93,11 +97,18 @@ public class FPSGame : IGame
                 return;
             }
             var delta = pos - LastPos;
-            fspActor.WorldRotation *= Quaternion.CreateFromYawPitchRoll(  delta.X / 10, delta.Y / 10, 0);
+            if (delta.X > 0)
+                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, 0.1f);
+            else if (delta.X < 0)
+                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, -0.1f);
+            if (delta.Y > 0)
+                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, 0.1f);
+            else if (delta.Y < 0)
+                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, -0.1f);
+
             LastPos = pos;
         };
-        var testActor = new TestActor();
-        testActor.WorldLocation = new Vector3(0f, 0f, -50f);
+
     }
 
     public void OnLevelLoaded()
@@ -122,6 +133,28 @@ public class FPSGame : IGame
 
     public void OnUpdate(float deltaTime)
     {
+
+        var keyborad = Engine.Instance.Input.Keyboards.FirstOrDefault();
+        if (keyborad == null)
+            return;
+        var move = new Vector3();
+        if (keyborad.IsKeyPressed( Key.W))
+        {
+            move.Z = 1;
+        } else if (keyborad.IsKeyPressed(Key.S))
+        {
+            move.Z = -1;
+        }
+        if (keyborad.IsKeyPressed(Key.A))
+        {
+            move.X = 1;
+        }
+        else if (keyborad.IsKeyPressed(Key.D))
+        {
+            move.X = -1;
+        }
+
+        fspActor.WorldLocation += move;
 
     }
 }

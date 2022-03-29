@@ -95,6 +95,7 @@ public class World
         DelActors.Clear();
         Actors.ForEach(actor => actor.Update(deltaTime));
         Skybox?.Update(deltaTime);
+        GameDll.OnUpdate(deltaTime);
     }
 
     public GL gl { get => Engine.Instance.Gl; }
