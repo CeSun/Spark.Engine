@@ -16,6 +16,7 @@ public class Window
         options.FramesPerSecond = 0;
         options.ShouldSwapAutomatically = true;
         window = Silk.NET.Windowing.Window.Create(options);
+        Engine.Instance.ShaderHead = "#version 330 core";
         window.Load += Init;
         window.Render += Render;
         window.Update += Update;

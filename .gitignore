@@ -5,9 +5,10 @@
 /.vs/*
 /*/bin/*
 /*/obj/*
-/Build
-/AndroidLauncher/Properties
-/AndroidLauncher/Game.dll
-/AndroidLauncher/Game.pdb
 /WindowsLauncher/Properties
 /WindowsLauncher/WindowsLauncher.csproj.user
+/AndroidLauncher/Resource/Bin/Sdk.pdb
+/AndroidLauncher/Resource/Bin/Sdk.dll
+/AndroidLauncher/Resource/Bin/LiteEngine.pdb
+/AndroidLauncher/Resource/Bin/LiteEngine.dll
+/AndroidLauncher/Resource/Bin

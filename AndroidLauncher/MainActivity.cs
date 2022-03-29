@@ -26,6 +26,7 @@ public class MainActivity : SilkActivity
         options.ShouldSwapAutomatically = true;
         options.FramesPerSecond = 120;
         options.UpdatesPerSecond = 60;
+        Engine.Instance.ShaderHead = "#version 300 es";
         view = Silk.NET.Windowing.Window.GetView(options);
         view.Load += Init;
         view.Update += Update;

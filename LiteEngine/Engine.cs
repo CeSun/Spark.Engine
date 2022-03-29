@@ -65,7 +65,7 @@ public partial class Engine
     static Engine _Instance = new Engine();
     public static Engine Instance { get => _Instance; }
 
-
+    public string ShaderHead { get; set; }
     public World World
     {
         get
@@ -137,9 +137,9 @@ public partial class Engine
     public void LoadGameDll()
     {
 #if DEBUG
-        var asm = Assembly.Load(FileSystem.LoadFile("Game.dll"), FileSystem.LoadFile("Game.pdb"));
+        var asm = Assembly.Load(FileSystem.LoadFile("Resource/Bin/Game.dll"), FileSystem.LoadFile("Resource/Bin/Game.pdb"));
 #else
-        var asm = Assembly.Load(FileSystem.LoadFile("Game.dll")) ;
+        var asm = Assembly.Load(FileSystem.LoadFile("Resource/Bin/Game.dll")) ;
 #endif
         foreach (var type in asm.GetTypes())
         {

@@ -26,11 +26,6 @@
     <None Remove="Game.pdb" />
   </ItemGroup>
   <ItemGroup>
-    <AndroidAsset Include="Game.pdb">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AndroidAsset>
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Silk.NET.OpenGL" Version="2.14.0" />
     <PackageReference Include="Silk.NET.Windowing" Version="2.14.0" />
   </ItemGroup>
@@ -38,15 +33,7 @@
     <ProjectReference Include="..\Game\Game.csproj" />
     <ProjectReference Include="..\LiteEngine\LiteEngine.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Resources\layout\" />
-	  <AndroidAsset Include="Game.dll">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  </AndroidAsset>
-  </ItemGroup>
-  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-	  <Exec Command="xcopy &quot;$(SolutionDir)build\Game.dll&quot; &quot;$(ProjectDir)&quot; /y&#xD;&#xA;xcopy &quot;$(SolutionDir)build\Game.pdb&quot; &quot;$(ProjectDir)&quot; /y" />
-	  <Exec Command="xcopy &quot;$(SolutionDir)build\Game.pdb&quot; &quot;$(ProjectDir)Game.pdb&quot; /y" />
-
-  </Target>
+    <ItemGroup>
+		<AndroidAsset Include=".\Resource\**" />
+    </ItemGroup>
 </Project>
