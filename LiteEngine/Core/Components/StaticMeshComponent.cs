@@ -1,4 +1,5 @@
 ﻿using LiteEngine.Core.Render;
+using LiteEngine.Core.Resources;
 using Silk.NET.OpenGL;
 
 
@@ -6,15 +7,14 @@ namespace LiteEngine.Core.Components;
 
 public class StaticMeshComponent : RenderableComponent
 {
-    bool IsLoaded = false;
-    List<Vertex> vertices = new ();
-    List<uint> indices = new();
-    uint Vao;
-    uint Vbo;
-    uint Ebo;
+    StaticMesh StaticMesh;
+
     Render.Shader shader;
     public StaticMeshComponent(Component parent, string name) : base(parent, name)
     {
+        List<Vertex> vertices = new List<Vertex>();
+        List<uint> indices = new List<uint>();
+
         for(var i = 0; i < 4; i++)
         {
             var vertex = new Vertex();
@@ -42,19 +42,14 @@ public class StaticMeshComponent : RenderableComponent
             vertices.Add(vertex);
         }
         indices.AddRange(new uint[]{0,3,2,2,1,0});
-        (Vao, Vbo, Ebo) = GLUtil.GenBuffer(vertices, indices);
         shader = new Render.Shader("Resource/Shader/default.vs", "Resource/Shader/default.fs");
-        IsLoaded = true;
+        Mesh mesh = new Mesh(vertices, indices, shader);
+        StaticMesh = new StaticMesh(mesh);
     }
 
     public override unsafe void Render()
     {
         base.Render();
-        if (!IsLoaded)
-            return;
-        shader.Use();
-        gl.BindVertexArray(Vao);
-        gl.DrawElements(PrimitiveType.Triangles, (uint)indices.Count, GLEnum.UnsignedInt, null);
-        gl.BindVertexArray(0);
+        StaticMesh.Render();
     }
 }
