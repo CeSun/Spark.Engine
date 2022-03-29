@@ -9,18 +9,38 @@ using LiteEngine.Core;
 using LiteEngine.Core.SubSystem;
 using LiteEngine.Sdk;
 using Silk.NET.OpenGL;
+using Silk.NET.Input;
 
 namespace LiteEngine;
+
+public class EngineConfig
+{
+    public GL? Gl;
+    public IPlatFile? PlatFile;
+    public string? ShaderHead;
+    public IInputContext? InputContext;
+
+    public void Check()
+    {
+        if (Gl == null)
+            throw new InvalidOperationException("Gl上下文是空的");
+        if (PlatFile == null)
+            throw new("PlatFile是空的");
+        if (string.IsNullOrEmpty(ShaderHead))
+            throw new("ShaderHead 是空的");
+        if (InputContext == null) 
+            throw new("输入上下文是空的");
+    }
+}
 public partial class Engine
 {
   
 
     private Engine()
     {
-
+        ShaderHead = "";
     }
 
- 
 
 
     public void Update(float deltaTime)
@@ -35,10 +55,18 @@ public partial class Engine
         World?.Render();
     }
 
-    public void Init(GL gl, IPlatFile platFile)
+    public void Init(EngineConfig config)
     {
-        Gl = gl;
-        FileSystem = new FileSystem(platFile);
+        if (config == null)
+            throw new("Config为空!");
+        config.Check(); ;
+#pragma warning disable CS8604, CS8601// Possible null reference argument.
+        Gl = config.Gl;
+        FileSystem = new FileSystem(config.PlatFile);
+        ShaderHead = config.ShaderHead;
+        Input = config.InputContext;
+#pragma warning restore CS8604, CS8601 // Possible null reference argument.
+
         LoadGameDll();
         Gl.ClearColor(0.2f, 0.3f, 0.2f, 1.0f);
         GameUIDll.OnInit();
@@ -90,7 +118,17 @@ public partial class Engine
 
         private set => _FileSystem = value;
     }
-
+    private IInputContext? _Input;
+    public IInputContext Input 
+    { 
+        get 
+        {
+            if (_Input == null)
+                throw new Exception("Input is null");
+            return _Input;
+        }
+        private set => _Input = value; 
+    }
 
     private GL? _Gl;
     public GL Gl

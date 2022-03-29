@@ -15,6 +15,10 @@ public class Component
 
     public Actor? Owner { get; protected set; }
 
+    public Vector3 Up { get; protected set; }
+    public Vector3 Right { get; protected set; }
+    public Vector3 Foward { get; protected set; }
+
     public Component(Component parent, string name)
     {
         Parent = parent;
@@ -23,6 +27,7 @@ public class Component
             Owner = Parent.Owner;
             Parent.SubComponents.Add(this);
         }
+        RelativeScale = Vector3.One;
         Name = name;
     }
 
@@ -46,11 +51,20 @@ public class Component
         var scaleMat4 = Matrix4x4.CreateScale(RelativeScale);
         var rotationMat4 = Matrix4x4.CreateFromQuaternion(RelativeRotation);
         var translateMat4 = Matrix4x4.CreateTranslation(RelativeLocation);
-        RelativeTransform = scaleMat4 * rotationMat4 * translateMat4;
+        RelativeTransform = translateMat4* rotationMat4* scaleMat4 ;
+
         if (Parent != null)
         {
-            WorldTransform = RelativeTransform * Parent.WorldTransform;
+            WorldTransform = Parent.WorldTransform * RelativeTransform;
+
         }
+        else if (Owner != null)
+        {
+            WorldTransform = Owner.WorldTransform * RelativeTransform;
+        }
+        Up = Vector3.Transform(new Vector3(0, 1, 0), WorldTransform);
+        Right = Vector3.Transform(new Vector3(-1, 0, 0), WorldTransform);
+        Foward = Vector3.Transform(new Vector3(0, 0, 1), WorldTransform);
         SubComponents.ForEach((x) => x.Update(deltaTime));
     }
 

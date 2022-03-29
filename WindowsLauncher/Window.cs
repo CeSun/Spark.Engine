@@ -1,4 +1,5 @@
 ﻿using LiteEngine;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
@@ -16,15 +17,20 @@ public class Window
         options.FramesPerSecond = 0;
         options.ShouldSwapAutomatically = true;
         window = Silk.NET.Windowing.Window.Create(options);
-        Engine.Instance.ShaderHead = "#version 330 core";
         window.Load += Init;
         window.Render += Render;
         window.Update += Update;
         window.Closing += Fini;
         window.Resize += Resize;
-
+       
     }
-    private void Init() =>  Engine.Instance.Init(Gl = GL.GetApi(this.window), new WindowsFileSystem());
+    private void Init() =>  Engine.Instance.Init(
+        new EngineConfig { 
+            Gl = GL.GetApi(window), 
+            InputContext = window.CreateInput(), 
+            PlatFile = new WindowsFileSystem(), 
+            ShaderHead = "#version 330 core" 
+        });
     private void Update(double time) => Engine.Instance.Update((float)time);
     private void Render(double time) => Engine.Instance.Render();
     private void Fini() => Engine.Instance.Fini();

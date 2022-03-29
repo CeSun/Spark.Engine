@@ -4,6 +4,7 @@ using Silk.NET.Windowing.Sdl.Android;
 using Silk.NET.OpenGL;
 using Android.OS;
 using Silk.NET.Maths;
+using Silk.NET.Input;
 
 namespace AndroidLauncher;
 
@@ -39,9 +40,17 @@ public class MainActivity : SilkActivity
     private void Render(double time) => Engine.Instance.Render();
     private void Init() 
     {
+        if (view == null)
+            throw new Exception("IView为空");
         if (Assets == null)
             throw new("安卓的Assets对象为空");
-        Engine.Instance.Init(Gl = GL.GetApi(view), new AndroidFileSystem(Assets));
+        Engine.Instance.Init(new EngineConfig
+        {
+            Gl = GL.GetApi(view),
+            InputContext = view.CreateInput(),
+            PlatFile = new AndroidFileSystem(Assets),
+            ShaderHead = "#version 300 es"
+        });
     }
     private void Fini() => Engine.Instance.Fini();
 

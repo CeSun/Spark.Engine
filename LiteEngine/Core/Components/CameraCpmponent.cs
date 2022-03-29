@@ -1,4 +1,5 @@
 ﻿using LiteEngine.Core.Render;
+using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,9 @@ namespace LiteEngine.Core.Components;
 
 public class CameraCpmponent : RenderableComponent
 {
-    public CameraCpmponent(Component parent,string name) : base(parent, name)
+    uint Ubo;
+
+    public unsafe CameraCpmponent(Component parent, string name) : base(parent, name)
     {
         Nearest = 0.01f;
         Furthest = 100.0f;
@@ -18,7 +21,16 @@ public class CameraCpmponent : RenderableComponent
         RenderLayers = RenderLayer.Layer1;
         Available = true;
         Cameras.Add(this);
+
+        var Ubo = gl.GenBuffer();
+        gl.BindBuffer(GLEnum.UniformBuffer, Ubo);
+        gl.BufferData(GLEnum.UniformBuffer, (uint)(2 * sizeof(Matrix4x4)), null, BufferUsageARB.DynamicDraw);
+        gl.BindBuffer(GLEnum.UniformBuffer, 0);
+        gl.BindBufferRange(GLEnum.UniformBuffer, 0, Ubo, 0, (uint)(2 * sizeof(Matrix4x4)));
+
     }
+
+    public static CameraCpmponent? CurrentRenderCamera { get;private set;}
 
     public bool Available { get; set; }
     public float Fov { get; set; }
@@ -27,33 +39,40 @@ public class CameraCpmponent : RenderableComponent
 
     public RenderLayer RenderLayers { get; set; }
 
-    public override void Update(float deltaTime)
+    public override unsafe void Update(float deltaTime)
     {
         base.Update(deltaTime);
         ViewMatrix = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI/Fov,600/ 800f, Nearest, Furthest);
-        ProjectionMatrix = Matrix4x4.CreateLookAt(this.WorldLocation, Vector3.Transform(new Vector3(0,0,1), WorldTransform), Vector3.Transform(new Vector3(0,1,0), WorldTransform));
+
+        ProjectionMatrix = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Foward, WorldLocation + Up);
     }
-    public Matrix4x4 ViewMatrix { get; private set; }
-    
-    public Matrix4x4 ProjectionMatrix { get; private set; }
+    public Matrix4x4 _ViewMatrix;
+    public Matrix4x4 ViewMatrix { get => _ViewMatrix; private set => _ViewMatrix = value; }
+
+    public Matrix4x4 _ProjectionMatrix;
+    public Matrix4x4 ProjectionMatrix { get => _ProjectionMatrix; private set => _ProjectionMatrix = value; }
 
     public void RenderWorld()
     {
         if (!Available)
             return;
+        CurrentRenderCamera = this;
         gl.ClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        gl.Clear(Silk.NET.OpenGL.ClearBufferMask.DepthBufferBit | Silk.NET.OpenGL.ClearBufferMask.ColorBufferBit);
+        gl.BindBuffer(GLEnum.UniformBuffer, Ubo);
+        gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
         for (int i = 0; i < (int)RenderLayer.Max; i ++)
         {
             if (((int)RenderLayers | (1 << i)) != 0)
             {
-                gl.Clear( Silk.NET.OpenGL.ClearBufferMask.DepthBufferBit);
+                gl.Clear(ClearBufferMask.DepthBufferBit);
                 Engine.Instance.World.ForeachLayer(
                 com => {
                     com.Render();
                 }, (RenderLayer)(1 << i));
             }
         }
+        gl.BindBuffer(GLEnum.UniformBuffer, 0);
+        CurrentRenderCamera = null;
     }
 
     static List<CameraCpmponent> Cameras = new List<CameraCpmponent>();

@@ -16,6 +16,7 @@ public partial class Actor
         World.AddActor(this);
         Name = "Actor";
         RootComponent = new RootComponent(this);
+        WorldScale = Vector3.One;
     }
 
     public string Name { get; set; }

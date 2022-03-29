@@ -3,6 +3,7 @@ using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -22,7 +23,6 @@ public class Shader
         uint vertexShader = gl.CreateShader(ShaderType.VertexShader);
         gl.ShaderSource(vertexShader, VertexShaderSource);
         gl.CompileShader(vertexShader);
-
         string infoLog = gl.GetShaderInfoLog(vertexShader);
         if (!string.IsNullOrWhiteSpace(infoLog))
         {
@@ -50,6 +50,13 @@ public class Shader
             throw new ($"Error linking shader {gl.GetProgramInfoLog(Id)}");
         }
 
+        gl.GetProgram(Id, GLEnum.ActiveUniforms, out var num);
+        for(uint i =0;i < num; i++)
+        {
+            var key = gl.GetActiveUniform(Id, i, out _, out _);
+            var location = gl.GetUniformLocation(Id, key);
+            Console.WriteLine($"uniform: {key}:{location}");
+        }
         gl.DetachShader(Id, vertexShader);
         gl.DetachShader(Id, fragmentShader);
         gl.DeleteShader(vertexShader);
@@ -57,6 +64,18 @@ public class Shader
 
     }
 
+    public void SetUpUbo(string name, uint location)
+    {
+        var index = gl.GetUniformBlockIndex(Id, name);
+        gl.UniformBlockBinding(Id, index, location);
+    }
+
+    public unsafe void Set(string name, Matrix4x4 mat)
+    {
+        Use();
+        var local = gl.GetUniformLocation(Id, name);
+        gl.UniformMatrix4(local,1, false, (float*)&mat);
+    }
     public void Use()
     {
         gl.UseProgram(Id);
