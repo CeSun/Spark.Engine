@@ -17,6 +17,7 @@ public class StaticMesh
     {
         Meshes = new List<Mesh>();
     }
+    // todo 加载模型
     public StaticMesh(string Path) : this()
     {
 
@@ -25,6 +26,12 @@ public class StaticMesh
     public StaticMesh(Mesh mesh) : this()
     {
         Meshes.Add(mesh);
+    }
+
+
+    public StaticMesh(List<Mesh> mesh) : this()
+    {
+        Meshes.AddRange(mesh);
     }
 
     public void Render()
