@@ -8,11 +8,11 @@ using Silk.NET.Maths;
 
 namespace LiteEngine.Core.Components;
 
-public class CameraCpmponent : RenderableComponent
+public class CameraComponent : RenderableComponent
 {
     uint Ubo;
 
-    public unsafe CameraCpmponent(Component parent, string name) : base(parent, name)
+    public unsafe CameraComponent(Component parent, string name) : base(parent, name)
     {
         Nearest = 0.01f;
         Furthest = 100.0f;
@@ -29,7 +29,7 @@ public class CameraCpmponent : RenderableComponent
 
     }
 
-    public static CameraCpmponent? CurrentRenderCamera { get;private set;}
+    public static CameraComponent? CurrentRenderCamera { get;private set;}
 
     public bool Available { get; set; }
     public float Fov { get; set; }
@@ -75,7 +75,7 @@ public class CameraCpmponent : RenderableComponent
         CurrentRenderCamera = null;
     }
 
-    static List<CameraCpmponent> Cameras = new List<CameraCpmponent>();
+    static List<CameraComponent> Cameras = new List<CameraComponent>();
     public static void RenderAllCamera()
     {
         Cameras.ForEach(camera => camera.RenderWorld());

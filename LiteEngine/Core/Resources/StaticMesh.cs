@@ -69,7 +69,7 @@ public class Mesh
     }
     public unsafe void Render()
     {
-        if (CameraCpmponent.CurrentRenderCamera == null)
+        if (CameraComponent.CurrentRenderCamera == null)
             return;
         var model = Matrix4x4.Identity;
         if (Parent != null)
@@ -81,8 +81,8 @@ public class Mesh
         }
         Shader.Use();
         Shader.Set("Model", model);
-        Shader.Set("Projection", CameraCpmponent.CurrentRenderCamera.ProjectionMatrix);
-        Shader.Set("View", CameraCpmponent.CurrentRenderCamera.ViewMatrix);
+        Shader.Set("Projection", CameraComponent.CurrentRenderCamera.ProjectionMatrix);
+        Shader.Set("View", CameraComponent.CurrentRenderCamera.ViewMatrix);
         Engine.Instance.Gl.BindVertexArray(Vao);
         Engine.Instance.Gl.DrawElements(PrimitiveType.Triangles, (uint)Indices.Count, GLEnum.UnsignedInt, null);
         Engine.Instance.Gl.BindVertexArray(0);

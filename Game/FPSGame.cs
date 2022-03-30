@@ -22,12 +22,9 @@ public class FPSGame : IGame
         public TestActor() : base()
         {
             staticMeshComponent = new StaticMeshComponent(RootComponent, "meshComp");
+            // 加载一个正方形的网格，颜色是黄色
             staticMeshComponent.StaticMesh = LoadMesh();
 
-        }
-        public override void Update(float deltaTime)
-        {
-            base.Update(deltaTime);
         }
         private StaticMesh LoadMesh()
         {
@@ -69,17 +66,21 @@ public class FPSGame : IGame
         }
 
     }
-    class FPSActor : CameraActor
+    class FPSActor : Actor
     {
-        public override void Update(float deltaTime)
+        CameraComponent cameraComp;
+
+        public FPSActor()
         {
-            base.Update(deltaTime);
+            cameraComp = new CameraComponent(this.RootComponent, "我是一个摄像机");
+
         }
+       
     }
 
     bool isNeedInit = false;
     Vector2 LastPos;
-    FPSActor fspActor;
+    FPSActor? fspActor;
     public void OnInit()
     {
         fspActor = new FPSActor();
@@ -88,6 +89,7 @@ public class FPSGame : IGame
     
         var testActor = new TestActor();
         testActor.WorldLocation = new Vector3(0f, 0f, 1f);
+
         Engine.Instance.Input.Mice[0].MouseMove += (mouse, pos) =>
         {
             if (isNeedInit == true)
@@ -98,13 +100,13 @@ public class FPSGame : IGame
             }
             var delta = pos - LastPos;
             if (delta.X > 0)
-                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, -0.1f);
+                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, -0.01f);
             else if (delta.X < 0)
-                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, 0.1f);
+                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, 0.01f);
             if (delta.Y > 0)
-                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, 0.1f);
+                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, 0.01f);
             else if (delta.Y < 0)
-                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, -0.1f);
+                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, -0.01f);
 
             LastPos = pos;
         };
@@ -136,6 +138,8 @@ public class FPSGame : IGame
 
         var keyborad = Engine.Instance.Input.Keyboards.FirstOrDefault();
         if (keyborad == null)
+            return;
+        if (fspActor == null)
             return;
         var move = new Vector3();
         if (keyborad.IsKeyPressed( Key.W))

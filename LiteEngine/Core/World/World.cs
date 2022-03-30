@@ -84,7 +84,7 @@ public class World
 
     public void Render()
     {
-        CameraCpmponent.RenderAllCamera();
+        CameraComponent.RenderAllCamera();
     }
 
     public void Update(float deltaTime)
