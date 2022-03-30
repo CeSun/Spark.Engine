@@ -41,9 +41,10 @@ public class CameraCpmponent : RenderableComponent
     public override unsafe void Update(float deltaTime)
     {
         base.Update(deltaTime);
-        ViewMatrix = Matrix4x4.CreatePerspectiveFieldOfView(0.2f, 800/ 600, Nearest, Furthest);
 
-        ProjectionMatrix = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Foward,  Up);
+        ProjectionMatrix  = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI / 180f * 75F, (float)800.0 / 600, Nearest, Furthest);
+
+        ViewMatrix = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Foward,  Up);
     }
     public Matrix4x4 _ViewMatrix;
     public Matrix4x4 ViewMatrix { get => _ViewMatrix; private set => _ViewMatrix = value; }

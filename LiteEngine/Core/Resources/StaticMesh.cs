@@ -79,7 +79,6 @@ public class Mesh
                model = Parent.Parent.WorldTransform;
             }
         }
-
         Shader.Use();
         Shader.Set("Model", model);
         Shader.Set("Projection", CameraCpmponent.CurrentRenderCamera.ProjectionMatrix);

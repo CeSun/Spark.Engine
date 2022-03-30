@@ -84,10 +84,10 @@ public class FPSGame : IGame
     {
         fspActor = new FPSActor();
         fspActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0 , 0, 0);
-        fspActor.WorldLocation = new Vector3(0,0,-50);
+        fspActor.WorldLocation = new Vector3(0,0, 0);
     
         var testActor = new TestActor();
-        testActor.WorldLocation = new Vector3(0f, 0f, 0f);
+        testActor.WorldLocation = new Vector3(0f, 0f, 1f);
         Engine.Instance.Input.Mice[0].MouseMove += (mouse, pos) =>
         {
             if (isNeedInit == true)
@@ -98,9 +98,9 @@ public class FPSGame : IGame
             }
             var delta = pos - LastPos;
             if (delta.X > 0)
-                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, 0.1f);
-            else if (delta.X < 0)
                 fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, -0.1f);
+            else if (delta.X < 0)
+                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, 0.1f);
             if (delta.Y > 0)
                 fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, 0.1f);
             else if (delta.Y < 0)
@@ -154,7 +154,9 @@ public class FPSGame : IGame
             move.X = -1;
         }
 
+        var rotation = Matrix4x4.CreateFromQuaternion(fspActor.WorldRotation);
+        move = Vector3.Transform(move, rotation);
+        move *= 0.1f;
         fspActor.WorldLocation += move;
-
     }
 }

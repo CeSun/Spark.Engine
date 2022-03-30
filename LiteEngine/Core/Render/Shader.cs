@@ -67,7 +67,7 @@ public class Shader
     {
         Use();
         var local = gl.GetUniformLocation(Id, name);
-        gl.UniformMatrix4(local,1, false, (float*)&mat);
+        gl.UniformMatrix4(local,1, true, (float*)&mat);
     }
     public void Use()
     {
