@@ -21,11 +21,6 @@ public class CameraComponent : RenderableComponent
         Available = true;
         Cameras.Add(this);
 
-        var Ubo = gl.GenBuffer();
-        gl.BindBuffer(GLEnum.UniformBuffer, Ubo);
-        gl.BufferData(GLEnum.UniformBuffer, (uint)(2 * sizeof(Matrix4x4)), null, BufferUsageARB.DynamicDraw);
-        gl.BindBuffer(GLEnum.UniformBuffer, 0);
-        gl.BindBufferRange(GLEnum.UniformBuffer, 0, Ubo, 0, (uint)(2 * sizeof(Matrix4x4)));
 
     }
 
