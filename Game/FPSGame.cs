@@ -37,19 +37,19 @@ public class FPSGame : IGame
                 switch (i)
                 {
                     case 0:
-                        vertex.Location = new(-0.5f, 0.5f, 0);
+                        vertex.Location = new(-0.5f, 0, 0.5f);
                         vertex.TexCoord = new(0, 1);
                         break;
                     case 1:
-                        vertex.Location = new(0.5f, 0.5f, 0);
+                        vertex.Location = new(0.5f, 0, 0.5f);
                         vertex.TexCoord = new(1, 1);
                         break;
                     case 2:
-                        vertex.Location = new(0.5f, -0.5f, 0);
+                        vertex.Location = new(0.5f, 0, -0.5f);
                         vertex.TexCoord = new(1, 0);
                         break;
                     case 3:
-                        vertex.Location = new(-0.5f, -0.5f, 0);
+                        vertex.Location = new(-0.5f, 0, -0.5f);
                         vertex.TexCoord = new(-1, -1);
                         break;
                 }
@@ -84,18 +84,23 @@ public class FPSGame : IGame
     public void OnInit()
     {
         fspActor = new FPSActor();
-        fspActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0 , 0, 0);
+        fspActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0 , (float)Math.PI/2, 0);
         fspActor.WorldLocation = new Vector3(0,0, 0);
     
         var testActor = new TestActor();
-        testActor.WorldLocation = new Vector3(0f, 0f, 1f);
-
+        testActor.WorldLocation = new Vector3(0f, -1f, 0f);
+        testActor.WorldScale *= 2;
         Engine.Instance.Input.Mice[0].MouseMove += (mouse, pos) =>
         {
             if (isNeedInit == true)
             {
                 LastPos = pos;
                 isNeedInit = false;
+                return;
+            }
+            if (!Engine.Instance.Input.Mice[0].IsButtonPressed(MouseButton.Left))
+            {
+                LastPos = pos;
                 return;
             }
             var delta = pos - LastPos;
@@ -141,6 +146,7 @@ public class FPSGame : IGame
             return;
         if (fspActor == null)
             return;
+       
         var move = new Vector3();
         if (keyborad.IsKeyPressed( Key.W))
         {
