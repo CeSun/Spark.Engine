@@ -7,6 +7,7 @@ using LiteEngine.Sdk;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using System.Numerics;
+using Shader = LiteEngine.Core.Resources.Shader;
 
 namespace Game;
 public class FPSGame : IGame
@@ -58,7 +59,7 @@ public class FPSGame : IGame
                 vertices.Add(vertex);
             }
             indices.AddRange(new uint[] { 0, 3, 2, 2, 1, 0 });
-            var shader = new LiteEngine.Core.Render.Shader("Resource/Shader/default.vs", "Resource/Shader/default.fs");
+            var shader = new Shader("Resource/Shader/default.vs", "Resource/Shader/default.fs");
             shader.SetUpUbo("Matrices", 0);
             Mesh mesh = new Mesh(vertices, indices, shader);
 

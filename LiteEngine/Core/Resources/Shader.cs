@@ -7,7 +7,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LiteEngine.Core.Render;
+namespace LiteEngine.Core.Resources;
 
 public class Shader
 {
@@ -26,7 +26,7 @@ public class Shader
         string infoLog = gl.GetShaderInfoLog(vertexShader);
         if (!string.IsNullOrWhiteSpace(infoLog))
         {
-            throw new ($"Error compiling vertex shader {infoLog}");
+            throw new($"Error compiling vertex shader {infoLog}");
         }
 
         uint fragmentShader = gl.CreateShader(ShaderType.FragmentShader);
@@ -36,7 +36,7 @@ public class Shader
         infoLog = gl.GetShaderInfoLog(fragmentShader);
         if (!string.IsNullOrWhiteSpace(infoLog))
         {
-            throw new ($"Error compiling fragment shader {infoLog}");
+            throw new($"Error compiling fragment shader {infoLog}");
         }
 
         Id = gl.CreateProgram();
@@ -47,7 +47,7 @@ public class Shader
         gl.GetProgram(Id, GLEnum.LinkStatus, out var status);
         if (status == 0)
         {
-            throw new ($"Error linking shader {gl.GetProgramInfoLog(Id)}");
+            throw new($"Error linking shader {gl.GetProgramInfoLog(Id)}");
         }
 
         gl.DetachShader(Id, vertexShader);
@@ -67,7 +67,7 @@ public class Shader
     {
         Use();
         var local = gl.GetUniformLocation(Id, name);
-        gl.UniformMatrix4(local,1, false, (float*)&mat);
+        gl.UniformMatrix4(local, 1, false, (float*)&mat);
     }
     public void Use()
     {

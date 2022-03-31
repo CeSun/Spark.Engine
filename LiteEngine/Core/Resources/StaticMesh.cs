@@ -8,7 +8,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
-using Shader = LiteEngine.Core.Render.Shader;
+using Shader = LiteEngine.Core.Resources.Shader;
 
 namespace LiteEngine.Core.Resources;
 
