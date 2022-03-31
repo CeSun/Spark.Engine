@@ -85,8 +85,6 @@ public class Mesh
         }
         Shader.Use();
         Shader.Set("Model", model);
-        Shader.Set("Projection", CameraComponent.CurrentRenderCamera.ProjectionMatrix);
-        Shader.Set("View", CameraComponent.CurrentRenderCamera.ViewMatrix);
         Vao.Render();
     }
 

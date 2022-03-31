@@ -4,14 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Silk.NET.Maths;
+using LiteEngine.Core.Render.Object;
 
 namespace LiteEngine.Core.Components;
 
 public class CameraComponent : RenderableComponent
 {
-    uint Ubo;
-
+    UniformBufferObject Ubo;
     public unsafe CameraComponent(Component parent, string name) : base(parent, name)
     {
         Nearest = 0.01f;
@@ -21,7 +20,8 @@ public class CameraComponent : RenderableComponent
         Available = true;
         Cameras.Add(this);
 
-
+        Ubo = new UniformBufferObject((uint)(2 * sizeof(Matrix4x4)));
+        
     }
 
     public static CameraComponent? CurrentRenderCamera { get;private set;}
@@ -36,10 +36,17 @@ public class CameraComponent : RenderableComponent
     public override unsafe void Update(float deltaTime)
     {
         base.Update(deltaTime);
-
         ProjectionMatrix  = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI / 180f * 75F, Engine.Instance.Size.X / Engine.Instance.Size.Y, Nearest, Furthest);
 
         ViewMatrix = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Foward,  Up);
+        fixed (void* pProjection = &_ProjectionMatrix)
+        {
+            Ubo.UpdateData(pProjection, 0, (uint)sizeof(Matrix4x4));
+        }
+        fixed (void* pView = &_ViewMatrix)
+        {
+            Ubo.UpdateData(pView, sizeof(Matrix4x4), (uint)sizeof(Matrix4x4));
+        }
     }
     public Matrix4x4 _ViewMatrix;
     public Matrix4x4 ViewMatrix { get => _ViewMatrix; private set => _ViewMatrix = value; }
@@ -53,8 +60,8 @@ public class CameraComponent : RenderableComponent
             return;
         CurrentRenderCamera = this;
         gl.ClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        gl.BindBuffer(GLEnum.UniformBuffer, Ubo);
         gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+        Ubo.Use();
         for (int i = 0; i < (int)RenderLayer.Max; i ++)
         {
             if (((int)RenderLayers | (1 << i)) != 0)
@@ -66,7 +73,7 @@ public class CameraComponent : RenderableComponent
                 }, (RenderLayer)(1 << i));
             }
         }
-        gl.BindBuffer(GLEnum.UniformBuffer, 0);
+        Ubo.Clear();
         CurrentRenderCamera = null;
     }
 

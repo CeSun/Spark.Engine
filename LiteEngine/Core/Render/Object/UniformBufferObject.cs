@@ -14,15 +14,29 @@ public class UniformBufferObject
         gl.BindBuffer(GLEnum.UniformBuffer, Ubo);
         gl.BufferData(GLEnum.UniformBuffer, size, null, BufferUsageARB.DynamicDraw);
         gl.BindBuffer(GLEnum.UniformBuffer, 0);
-        gl.BindBufferBase(GLEnum.UniformBuffer, 1, Ubo);
+        gl.BindBufferRange(GLEnum.UniformBuffer, 0, Ubo, 0, size);
+    }
+
+    public unsafe void UpdateData(void* data, nint offset, uint size)
+    {
+        gl.BindBuffer(GLEnum.UniformBuffer, Ubo);
+        gl.BufferSubData(GLEnum.UniformBuffer, offset, size, data);
         gl.BindBuffer(GLEnum.UniformBuffer, 0);
     }
 
     public unsafe void UpdateData(void* data)
     {
-        gl.BindBuffer(GLEnum.UniformBuffer, Ubo);
-        gl.BufferSubData(GLEnum.UniformBuffer, 0, Size, data);
+        UpdateData(data, 0, Size);
     }
 
+    public void Use()
+    {
+        gl.BindBuffer(GLEnum.UniformBuffer, Ubo);
+    }
+
+    public void Clear()
+    {
+        gl.BindBuffer(GLEnum.UniformBuffer, 0);
+    }
 
 }

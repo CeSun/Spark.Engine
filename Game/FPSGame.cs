@@ -107,7 +107,7 @@ public class FPSGame : IGame
                 return;
             }
             var delta = pos - LastPos;
-            fpsActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, (float)Math.PI / 180 * delta.X);
+            fpsActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, -1 * (float)Math.PI / 180 * delta.X);
             fpsActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, (float)Math.PI / 180 * delta.Y);
 
             LastPos = pos;
@@ -143,7 +143,6 @@ public class FPSGame : IGame
             return;
         if (fpsActor == null)
             return;
-       
         var move = new Vector3();
         if (keyborad.IsKeyPressed( Key.W))
         {
