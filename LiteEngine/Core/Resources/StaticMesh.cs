@@ -1,5 +1,6 @@
 ﻿using LiteEngine.Core.Components;
 using LiteEngine.Core.Render;
+using LiteEngine.Core.Render.Object;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -55,17 +56,20 @@ public class Mesh
     public StaticMesh? Parent;
     public List<Vertex> Vertices;
     public List<uint> Indices;
-    public uint Vao;
-    public uint Vbo;
-    public uint Ebo;
     public Shader Shader;
-    
-    public Mesh(List<Vertex> vertices, List<uint> indices, Shader shader)
+    VertexArrayObject Vao;
+    public unsafe Mesh(List<Vertex> vertices, List<uint> indices, Shader shader)
     {
         Vertices = vertices;
         Indices = indices;
         Shader = shader;
-        (Vao, Vbo, Ebo) = GLUtil.GenBuffer(vertices, indices);
+        Vao = new VertexArrayObject();
+        Vao.Init(new List<ArrayAttribute> {
+            new ArrayAttribute {Num = 3, Offset = (uint)Vertex.LocationOffset, Step = (uint)sizeof(Vertex), Type = VertexAttribPointerType.Float },
+            new ArrayAttribute {Num = 3, Offset = (uint)Vertex.NormalOffset, Step = (uint)sizeof(Vertex), Type = VertexAttribPointerType.Float },
+            new ArrayAttribute {Num = 3, Offset = (uint)Vertex.ColorOffset, Step = (uint)sizeof(Vertex), Type = VertexAttribPointerType.Float },
+            new ArrayAttribute {Num = 2, Offset = (uint)Vertex.TexCoordOffset, Step = (uint)sizeof(Vertex), Type = VertexAttribPointerType.Float }
+        }, vertices, indices);
     }
     public unsafe void Render()
     {
@@ -83,9 +87,7 @@ public class Mesh
         Shader.Set("Model", model);
         Shader.Set("Projection", CameraComponent.CurrentRenderCamera.ProjectionMatrix);
         Shader.Set("View", CameraComponent.CurrentRenderCamera.ViewMatrix);
-        Engine.Instance.Gl.BindVertexArray(Vao);
-        Engine.Instance.Gl.DrawElements(PrimitiveType.Triangles, (uint)Indices.Count, GLEnum.UnsignedInt, null);
-        Engine.Instance.Gl.BindVertexArray(0);
+        Vao.Render();
     }
 
 }

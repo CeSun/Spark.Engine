@@ -51,6 +51,7 @@ public class MainActivity : SilkActivity
             PlatFile = new AndroidFileSystem(Assets),
             ShaderHead = "#version 300 es"
         });
+        Engine.Instance.WindowResize(new System.Drawing.Size(view.Size.X, view.Size.Y));
     }
     private void Fini() => Engine.Instance.Fini();
 

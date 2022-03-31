@@ -15,7 +15,7 @@ public class Window
         options.Title = "LiteEngine - Desktop";
         options.UpdatesPerSecond = 60;
         options.FramesPerSecond = 0;
-        options.Size = new Vector2D<int>(800,600);
+        options.Size = new Vector2D<int>(800, 600);
         options.ShouldSwapAutomatically = true;
         window = Silk.NET.Windowing.Window.Create(options);
         window.Load += Init;
@@ -23,15 +23,19 @@ public class Window
         window.Update += Update;
         window.Closing += Fini;
         window.Resize += Resize;
-       
+
     }
-    private void Init() =>  Engine.Instance.Init(
+    private void Init() 
+    {
+        Engine.Instance.Init(
         new EngineConfig { 
             Gl = GL.GetApi(window), 
             InputContext = window.CreateInput(), 
             PlatFile = new WindowsFileSystem(), 
             ShaderHead = "#version 330 core" 
         });
+        Engine.Instance.WindowResize(new System.Drawing.Size(window.Size.X, window.Size.Y));
+    } 
     private void Update(double time) => Engine.Instance.Update((float)time);
     private void Render(double time) => Engine.Instance.Render();
     private void Fini() => Engine.Instance.Fini();

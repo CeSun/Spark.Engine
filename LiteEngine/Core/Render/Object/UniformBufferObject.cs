@@ -1,13 +1,13 @@
 ﻿using Silk.NET.OpenGL;
 using System.Numerics;
 
-namespace LiteEngine.Core.Render;
-public class UboHepler
+namespace LiteEngine.Core.Render.Object;
+public class UniformBufferObject
 {
     public uint Ubo;
     uint Size;
     GL gl { get => Engine.Instance.Gl; }
-    public unsafe UboHepler(uint size)
+    public unsafe UniformBufferObject(uint size)
     {
         Size = size;
         Ubo = gl.GenBuffer();

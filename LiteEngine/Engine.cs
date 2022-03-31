@@ -10,6 +10,7 @@ using LiteEngine.Core.SubSystem;
 using LiteEngine.Sdk;
 using Silk.NET.OpenGL;
 using Silk.NET.Input;
+using System.Numerics;
 
 namespace LiteEngine;
 
@@ -84,6 +85,7 @@ public partial class Engine
     public void WindowResize(Size size)
     {
         Gl.Viewport(size);
+        Size = new Vector2 {X = size.Width,Y = size.Height };
     }
 }
 
@@ -92,7 +94,7 @@ public partial class Engine
 {
     static Engine _Instance = new Engine();
     public static Engine Instance { get => _Instance; }
-
+    public Vector2 Size { get; private set; }
     public string ShaderHead { get; set; }
     public World World
     {

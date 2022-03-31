@@ -37,7 +37,7 @@ public class CameraComponent : RenderableComponent
     {
         base.Update(deltaTime);
 
-        ProjectionMatrix  = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI / 180f * 75F, (float)800.0 / 600, Nearest, Furthest);
+        ProjectionMatrix  = Matrix4x4.CreatePerspectiveFieldOfView((float)Math.PI / 180f * 75F, Engine.Instance.Size.X / Engine.Instance.Size.Y, Nearest, Furthest);
 
         ViewMatrix = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Foward,  Up);
     }

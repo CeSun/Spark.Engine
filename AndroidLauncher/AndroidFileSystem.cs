@@ -15,26 +15,34 @@ public class AndroidFileSystem : IPlatFile
     const int maxReadSize = 256 * 1024;
     public byte[] LoadFile(string path)
     {
-        var br = new BinaryReader(_AssetManager.Open(path));
-        return br.ReadBytes(maxReadSize);
+        using (var br = new BinaryReader(_AssetManager.Open(path)))
+        {
+            return br.ReadBytes(maxReadSize);
+        }
     }
     
     public async Task<byte[]> LoadFileAsync(string path)
     {
         await Task.Delay(0);
-        var br = new BinaryReader(_AssetManager.Open(path));
-        return br.ReadBytes(maxReadSize);
+        using (var br = new BinaryReader(_AssetManager.Open(path)))
+        {
+            return br.ReadBytes(maxReadSize);
+        }
     }
 
     public string LoadFileString(string path)
     {
-        var sr = new StreamReader(_AssetManager.Open(path));
-        return sr.ReadToEnd();
+        using (var sr = new StreamReader(_AssetManager.Open(path)))
+        {
+            return sr.ReadToEnd();
+        }
     }
 
     public async Task<string> LoadFileStringAsync(string path)
     {
-        var sr = new StreamReader(_AssetManager.Open(path));
-        return await sr.ReadToEndAsync();
+        using (var sr = new StreamReader(_AssetManager.Open(path)))
+        {
+            return await sr.ReadToEndAsync();
+        }
     }
 }

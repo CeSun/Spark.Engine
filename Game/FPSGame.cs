@@ -80,16 +80,19 @@ public class FPSGame : IGame
 
     bool isNeedInit = false;
     Vector2 LastPos;
-    FPSActor? fspActor;
+    FPSActor? fpsActor;
     public void OnInit()
     {
-        fspActor = new FPSActor();
-        fspActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0 , (float)Math.PI/2, 0);
-        fspActor.WorldLocation = new Vector3(0,0, 0);
-    
+        fpsActor = new FPSActor();
+        fpsActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0 , (float)Math.PI/2, 0);
+        fpsActor.WorldLocation = new Vector3(0,0, 0);
         var testActor = new TestActor();
-        testActor.WorldLocation = new Vector3(0f, -1f, 0f);
+        testActor.WorldLocation = new Vector3(0f, -10f, 0f);
         testActor.WorldScale *= 2;
+        Engine.Instance.Input.Mice[0].MouseDown += (mouse, pos) =>
+        {
+            LastPos = mouse.Position;
+        };
         Engine.Instance.Input.Mice[0].MouseMove += (mouse, pos) =>
         {
             if (isNeedInit == true)
@@ -104,14 +107,8 @@ public class FPSGame : IGame
                 return;
             }
             var delta = pos - LastPos;
-            if (delta.X > 0)
-                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, -0.01f);
-            else if (delta.X < 0)
-                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, 0.01f);
-            if (delta.Y > 0)
-                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, 0.01f);
-            else if (delta.Y < 0)
-                fspActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, -0.01f);
+            fpsActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, (float)Math.PI / 180 * delta.X);
+            fpsActor.WorldRotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, (float)Math.PI / 180 * delta.Y);
 
             LastPos = pos;
         };
@@ -144,7 +141,7 @@ public class FPSGame : IGame
         var keyborad = Engine.Instance.Input.Keyboards.FirstOrDefault();
         if (keyborad == null)
             return;
-        if (fspActor == null)
+        if (fpsActor == null)
             return;
        
         var move = new Vector3();
@@ -164,9 +161,9 @@ public class FPSGame : IGame
             move.X = -1;
         }
 
-        var rotation = Matrix4x4.CreateFromQuaternion(fspActor.WorldRotation);
+        var rotation = Matrix4x4.CreateFromQuaternion(fpsActor.WorldRotation);
         move = Vector3.Transform(move, rotation);
         move *= 0.1f;
-        fspActor.WorldLocation += move;
+        fpsActor.WorldLocation += move;
     }
 }
