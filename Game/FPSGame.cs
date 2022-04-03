@@ -24,7 +24,7 @@ public class FPSGame : IGame
         {
             staticMeshComponent = new StaticMeshComponent(RootComponent, "meshComp");
             // 加载一个正方形的网格，颜色是黄色
-            staticMeshComponent.StaticMesh = LoadMesh();
+            staticMeshComponent.StaticMesh = new StaticMesh(MeshGenerator.GenBall());
 
         }
         private StaticMesh LoadMesh()
