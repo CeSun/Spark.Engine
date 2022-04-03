@@ -13,11 +13,13 @@ public class MainActivity : SilkActivity
 {
     private IView? view;
     private GL? Gl;
-    protected override void OnResume()
+
+    protected override void OnCreate(Bundle? savedInstanceState)
     {
+        base.OnCreate(savedInstanceState);
+        if (RequestedOrientation != Android.Content.PM.ScreenOrientation.Landscape)
+            RequestedOrientation = Android.Content.PM.ScreenOrientation.Landscape;
         Title = "LiteEngine - Android";
-        base.OnResume();
-        // RequestedOrientation = Android.Content.PM.ScreenOrientation.Landscape;
     }
     protected override void OnRun()
     {

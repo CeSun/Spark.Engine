@@ -15,7 +15,7 @@
     <ProjectReference Include="..\Sdk\Sdk.csproj" />
   </ItemGroup>
 <ItemGroup>
-	<PackageReference Include="Silk.NET.OpenGL" Version="2.14.0" />
+	<PackageReference Include="Silk.NET.OpenGL" Version="2.15.0" />
 </ItemGroup>
 
 
