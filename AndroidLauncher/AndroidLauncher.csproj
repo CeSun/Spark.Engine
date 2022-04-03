@@ -24,6 +24,9 @@
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Game.pdb" />
+    <None Remove="Resource\Shader\Texture.fs" />
+    <None Remove="Resource\Shader\Texture.vs" />
+    <None Remove="Resource\Texture\container.jpg" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Silk.NET.OpenGL" Version="2.15.0" />
@@ -35,5 +38,10 @@
   </ItemGroup>
     <ItemGroup>
 		<AndroidAsset Include=".\Resource\**" />
+    </ItemGroup>
+    <ItemGroup>
+      <AndroidAsset Include="Resource\Shader\Texture.fs" />
+      <AndroidAsset Include="Resource\Shader\Texture.vs" />
+      <AndroidAsset Include="Resource\Texture\container.jpg" />
     </ItemGroup>
 </Project>

@@ -8,6 +8,7 @@ using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using System.Numerics;
 using Shader = LiteEngine.Core.Resources.Shader;
+using Texture = LiteEngine.Core.Resources.Texture;
 
 namespace Game;
 public class FPSGame : IGame
@@ -24,7 +25,7 @@ public class FPSGame : IGame
         {
             staticMeshComponent = new StaticMeshComponent(RootComponent, "meshComp");
             // 加载一个正方形的网格，颜色是黄色
-            staticMeshComponent.StaticMesh = new StaticMesh(MeshGenerator.GenBall());
+            staticMeshComponent.StaticMesh = LoadMesh();//new StaticMesh(MeshGenerator.GenBall());
 
         }
         private StaticMesh LoadMesh()
@@ -51,17 +52,17 @@ public class FPSGame : IGame
                         break;
                     case 3:
                         vertex.Location = new(-0.5f, 0, -0.5f);
-                        vertex.TexCoord = new(-1, -1);
+                        vertex.TexCoord = new(0, 0);
                         break;
                 }
                 vertex.Normal = new(0, 0, 1);
-                vertex.Color = new(1, 1, 0);
+                vertex.Color = new(1, 1, 1);
                 vertices.Add(vertex);
             }
             indices.AddRange(new uint[] { 0, 3, 2, 2, 1, 0 });
-            var shader = new Shader("Resource/Shader/default.vs", "Resource/Shader/default.fs");
+            var shader = new Shader("Resource/Shader/texture.vs", "Resource/Shader/texture.fs");
             shader.SetUpUbo("Matrices", 0);
-            Mesh mesh = new Mesh(vertices, indices, shader);
+            Mesh mesh = new Mesh(vertices, indices, new List<Texture> { Texture.LoadTexture("Resource/Texture/container.jpg", true) }, shader) ;
 
             return new StaticMesh(mesh);
         }

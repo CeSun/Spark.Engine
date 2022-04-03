@@ -34,7 +34,7 @@ public class MainActivity : SilkActivity
         view.Load += Init;
         view.Update += Update;
         view.Render += Render;
-        view.Resize += Resize;//
+        view.Resize += Resize;
         view.Run();
         Fini();
     }

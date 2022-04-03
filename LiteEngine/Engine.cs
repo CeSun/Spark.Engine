@@ -73,6 +73,7 @@ public partial class Engine
         GameUIDll.OnInit();
         World = new World();
         World.Init();
+        //Gl.PolygonMode(GLEnum.FrontAndBack, GLEnum.Line);
     }
 
     public void Fini()

@@ -24,7 +24,7 @@ namespace LiteEngine.Core.Resources
 					float xPos = (float)(Math.Cos(xSegment * 2.0f * Math.PI) * Math.Sin(ySegment * Math.PI));
 					float yPos = (float)Math.Cos(ySegment * Math.PI);
 					float zPos = (float)(Math.Sin(xSegment * 2.0f * Math.PI) * Math.Sin(ySegment * Math.PI));
-					vertices.Add(new Vertex { Location = new System.Numerics.Vector3((float)xPos, (float)yPos, (float)zPos), Color = new System.Numerics.Vector3((float)xPos, (float)yPos, (float)zPos) });
+					vertices.Add(new Vertex { Location = new System.Numerics.Vector3((float)xPos, (float)yPos, (float)zPos), Color = new System.Numerics.Vector3(1, 1, 0) });
 				}
 			}
 			for (int i = 0; i < Y_SEGMENTS; i++)
@@ -40,7 +40,7 @@ namespace LiteEngine.Core.Resources
 				}
 			}
 			var shader = new Shader("Resource/Shader/default.vs", "Resource/Shader/default.fs");
-			return new Mesh(vertices, indices, shader);
+			return new Mesh(vertices, indices, null, shader);
 		}
     }
 }
