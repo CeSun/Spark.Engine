@@ -12,3 +12,4 @@
 /AndroidLauncher/Resource/Bin/LiteEngine.pdb
 /AndroidLauncher/Resource/Bin/LiteEngine.dll
 /AndroidLauncher/Resource/Bin
+*.user
