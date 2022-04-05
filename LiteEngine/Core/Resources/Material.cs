@@ -9,15 +9,23 @@ public class Material
     public Shader Shader { get; set; }
 
     static GL gl { get => Engine.Instance.Gl; }
-    public Material(List<Texture> textures, Shader shader)
+    public Material(List<Texture>? textures, Shader shader) : this()
     {
-        Textures = textures;
+        if (textures != null)
+            Textures.AddRange(textures);
         Shader = shader;
     }
-    
+    public Material()
+    {
+        Textures = new List<Texture>();
+        Shader = Shader.LoadShader("default");
+    }
+
     public void Use()
     {
         Shader.Use();
+        if (Textures == null)
+            return;
         for(int i = 0; i < Textures.Count; i++)
         {
             if (i > 31)

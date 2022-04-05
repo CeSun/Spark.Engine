@@ -1,6 +1,7 @@
 ﻿using LiteEngine.Core.Actors;
 using LiteEngine.Core.Components;
 using LiteEngine.Core.Render;
+using LiteEngine.Core.SubSystem;
 using LiteEngine.Sdk;
 using Silk.NET.OpenGL;
 using System;
@@ -20,6 +21,7 @@ public class World
 
     private Dictionary<RenderLayer, List<RenderableComponent>> RenderLayers;
 
+    public LightSystem LightSystem { get; private set; }
     IGame GameDll { get => Engine.Instance.GameDll; }
 
     public Skybox? Skybox;
@@ -44,6 +46,7 @@ public class World
     }
     public World ()
     {
+        LightSystem = new LightSystem();
         Actors = new List<Actor> ();
         AddActors = new List<Actor> ();
         DelActors = new List<Actor> ();

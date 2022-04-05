@@ -60,10 +60,9 @@ public class FPSGame : IGame
                 vertices.Add(vertex);
             }
             indices.AddRange(new uint[] { 0, 3, 2, 2, 1, 0 });
-            var shader = new Shader("Resource/Shader/texture.vs", "Resource/Shader/texture.fs");
+            var shader = Shader.LoadShader("texture");
             shader.SetUpUbo("Matrices", 0);
-            Mesh mesh = new Mesh(vertices, indices, new List<Texture> { Texture.LoadTexture("Resource/Texture/container.jpg", true) }, shader) ;
-
+            Mesh mesh = new Mesh(vertices, indices, new Material(new List<Texture> { Texture.LoadTexture("Resource/Texture/container.jpg", true) }, shader));
             return new StaticMesh(mesh);
         }
 
@@ -86,10 +85,11 @@ public class FPSGame : IGame
     public void OnInit()
     {
         fpsActor = new FPSActor();
-        fpsActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0 , (float)Math.PI/2, 0);
+        fpsActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0 , (float)Math.PI / 2, 0);
         fpsActor.WorldLocation = new Vector3(0,0, 0);
         var testActor = new TestActor();
         testActor.WorldLocation = new Vector3(0f, -10f, 0f);
+        testActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, (float)Math.PI, 0);
         testActor.WorldScale *= 2;
         Engine.Instance.Input.Mice[0].MouseDown += (mouse, pos) =>
         {

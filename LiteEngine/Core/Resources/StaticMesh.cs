@@ -56,15 +56,13 @@ public class Mesh
     public StaticMesh? Parent { get; set; }
     public List<Vertex> Vertices { get; set; }
     public List<uint> Indices { get; set; }
-    public List<Texture>? Textures { get; set; }
+    public Material? Material { get; set; }
     GL gl { get => Engine.Instance.Gl; }
-    public Shader Shader;
     VertexArrayObject Vao;
-    public unsafe Mesh(List<Vertex> vertices, List<uint> indices, List<Texture>? textures, Shader shader)
+    public unsafe Mesh(List<Vertex> vertices, List<uint> indices, Material? material)
     {
         Vertices = vertices;
         Indices = indices;
-        Shader = shader;
         Vao = new VertexArrayObject();
         Vao.Init(new List<ArrayAttribute> {
             new ArrayAttribute {Num = 3, Offset = (uint)Vertex.LocationOffset, Step = (uint)sizeof(Vertex), Type = VertexAttribPointerType.Float },
@@ -72,7 +70,7 @@ public class Mesh
             new ArrayAttribute {Num = 3, Offset = (uint)Vertex.ColorOffset, Step = (uint)sizeof(Vertex), Type = VertexAttribPointerType.Float },
             new ArrayAttribute {Num = 2, Offset = (uint)Vertex.TexCoordOffset, Step = (uint)sizeof(Vertex), Type = VertexAttribPointerType.Float }
         }, vertices, indices);
-        Textures = textures;
+        Material = material;
     }
     public unsafe void Render()
     {
@@ -86,16 +84,9 @@ public class Mesh
                model = Parent.Parent.WorldTransform;
             }
         }
-        Shader.Use();
-        Shader.Set("Model", model);
-        if (Textures != null)
-        {
-            for (int i = 0; i < Textures.Count; i++)
-            {
-                gl.ActiveTexture(GLEnum.Texture0 + i);
-                Textures[i].Use();
-            }
-        }
+        Material?.Shader.Use();
+        Material?.Shader.Set("Model", model);
+        Material?.Use();
         Vao.Render();
     }
 

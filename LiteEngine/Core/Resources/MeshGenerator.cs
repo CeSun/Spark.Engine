@@ -39,8 +39,8 @@ namespace LiteEngine.Core.Resources
 					indices.Add((uint)(i * (X_SEGMENTS + 1) + j + 1));
 				}
 			}
-			var shader = new Shader("Resource/Shader/default.vs", "Resource/Shader/default.fs");
-			return new Mesh(vertices, indices, null, shader);
+			var shader = Shader.LoadShader("default");
+			return new Mesh(vertices, indices, new Material(null, shader));
 		}
     }
 }

@@ -13,11 +13,22 @@ public class Shader
 {
     private GL gl { get => Engine.Instance.Gl; }
     private FileSystem fileSystem { get => Engine.Instance.FileSystem; }
-
+    static Dictionary<string, Shader> _shaders = new Dictionary<string, Shader>();
     public uint Id { get; private set; }
-    public Shader(string vertex, string frag)
-    {
 
+    public static Shader LoadShader(string name)
+    {
+        if (_shaders.TryGetValue(name, out var shader))
+        {
+            return shader;
+        }
+        shader = new Shader($"Resource/Shader/{name}.vs", $"Resource/Shader/{name}.fs");
+        _shaders.Add(name, shader);
+        return shader;
+    }
+
+    private Shader(string vertex, string frag)
+    {
         var VertexShaderSource = fileSystem.LoadFileString(vertex).Replace("{GLVERSION}", Engine.Instance.ShaderHead);
         var FragmentShaderSource = fileSystem.LoadFileString(frag).Replace("{GLVERSION}", Engine.Instance.ShaderHead);
         uint vertexShader = gl.CreateShader(ShaderType.VertexShader);
