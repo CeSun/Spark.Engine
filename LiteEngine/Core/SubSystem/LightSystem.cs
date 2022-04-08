@@ -46,18 +46,22 @@ namespace LiteEngine.Core.SubSystem
         {
             if (IsNeedUpdate)
             {
-                uint offset = sizeof(int);
-                for(int i =0; i < DirectionalLights.Count; i ++)
+                int length = DirectionalLights.Count;
+                void* buffer = &length;
+                DLUbo.UpdateData(buffer, 0, sizeof(int));
+            }
+            uint offset = sizeof(int);
+            for(int i =0; i < DirectionalLights.Count; i ++)
+            {
+                var light = DirectionalLights[i];
+                if (!IsNeedUpdate && !light.IsNeedUpdate)
+                    continue;
+                fixed (void* buffer = &light.GetLightRef())
                 {
-                    var light = DirectionalLights[i];
-                    if (!IsNeedUpdate && !light.IsNeedUpdate)
-                        continue;
-                    fixed (void* buffer = &light.GetLightRef())
-                    {
-                        DLUbo.UpdateData(buffer, (nint)(offset + i * sizeof(DirectionalLightInfo)), (uint)(offset + (i + 1) * sizeof(DirectionalLightInfo)));
-                    }
+                    DLUbo.UpdateData(buffer, (nint)(offset + i * sizeof(DirectionalLightInfo)), (uint)(offset + (i + 1) * sizeof(DirectionalLightInfo)));
                 }
             }
+            IsNeedUpdate = false;
         }
 
         public void Fini()
