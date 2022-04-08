@@ -7,14 +7,14 @@ public class UniformBufferObject
     public uint Ubo;
     uint Size;
     GL gl { get => Engine.Instance.Gl; }
-    public unsafe UniformBufferObject(uint size)
+    public unsafe UniformBufferObject(uint size, uint index)
     {
         Size = size;
         Ubo = gl.GenBuffer();
         gl.BindBuffer(GLEnum.UniformBuffer, Ubo);
         gl.BufferData(GLEnum.UniformBuffer, size, null, BufferUsageARB.DynamicDraw);
         gl.BindBuffer(GLEnum.UniformBuffer, 0);
-        gl.BindBufferRange(GLEnum.UniformBuffer, 0, Ubo, 0, size);
+        gl.BindBufferRange(GLEnum.UniformBuffer, index, Ubo, 0, size);
     }
 
     public unsafe void UpdateData(void* data, nint offset, uint size)

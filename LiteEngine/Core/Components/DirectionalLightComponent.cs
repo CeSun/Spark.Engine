@@ -13,10 +13,17 @@ public class DirectionalLightComponent : LightComponent
 {
     public DirectionalLightComponent(Component parent, string name = "DirectionalLight") : base(parent, name)
     {
-        Engine.Instance.World.LightSystem.Add(Info);
+        Engine.Instance.World.LightSystem.Add(this);
+        IsNeedUpdate = true;
     }
     DirectionalLightInfo Info;
 
+    public bool IsNeedUpdate { get; private set; }
+    public ref DirectionalLightInfo GetLightRef()
+    {
+        return ref Info;
+    }
+    
     public Color Color
     {
         get => Color.FromArgb((int)(Info.Color.X * 255), (int)(Info.Color.Y * 255), (int)(Info.Color.Z * 255));
@@ -26,6 +33,8 @@ public class DirectionalLightComponent : LightComponent
     public override void Destory()
     {
         base.Destory();
+        Engine.Instance.World.LightSystem.Remove(this);
+
     }
 
     public override void Update(float deltaTime)

@@ -20,7 +20,7 @@ public class CameraComponent : RenderableComponent
         Available = true;
         Cameras.Add(this);
 
-        Ubo = new UniformBufferObject((uint)(2 * sizeof(Matrix4x4)));
+        Ubo = new UniformBufferObject((uint)(2 * sizeof(Matrix4x4)), 0);
         
     }
 

@@ -70,12 +70,14 @@ public class World
     {
         Skybox?.Init();
         GameDll.OnInit();
+        LightSystem.Init();
     }
 
     public void Fini()
     {
         Skybox?.Fini();
         GameDll.OnFini();
+        LightSystem.Fini();
 
     }
 
@@ -99,6 +101,7 @@ public class World
         Actors.ForEach(actor => actor.Update(deltaTime));
         Skybox?.Update(deltaTime);
         GameDll.OnUpdate(deltaTime);
+        LightSystem.Update(deltaTime);
     }
 
     public GL gl { get => Engine.Instance.Gl; }
