@@ -18,66 +18,6 @@ public class FPSGame : IGame
     {
 
     }
-    class TestActor : Actor
-    {
-        StaticMeshComponent staticMeshComponent;
-        public TestActor() : base()
-        {
-            staticMeshComponent = new StaticMeshComponent(RootComponent, "meshComp");
-            // 加载一个正方形的网格，颜色是黄色
-            staticMeshComponent.StaticMesh = LoadMesh();//new StaticMesh(MeshGenerator.GenBall());
-
-        }
-        private StaticMesh LoadMesh()
-        {
-            List<Vertex> vertices = new List<Vertex>();
-            List<uint> indices = new List<uint>();
-
-            for (var i = 0; i < 4; i++)
-            {
-                var vertex = new Vertex();
-                switch (i)
-                {
-                    case 0:
-                        vertex.Location = new(-0.5f, 0, 0.5f);
-                        vertex.TexCoord = new(0, 1);
-                        break;
-                    case 1:
-                        vertex.Location = new(0.5f, 0, 0.5f);
-                        vertex.TexCoord = new(1, 1);
-                        break;
-                    case 2:
-                        vertex.Location = new(0.5f, 0, -0.5f);
-                        vertex.TexCoord = new(1, 0);
-                        break;
-                    case 3:
-                        vertex.Location = new(-0.5f, 0, -0.5f);
-                        vertex.TexCoord = new(0, 0);
-                        break;
-                }
-                vertex.Normal = new(0, 0, 1);
-                vertex.Color = new(1, 1, 1);
-                vertices.Add(vertex);
-            }
-            indices.AddRange(new uint[] { 0, 3, 2, 2, 1, 0 });
-            var shader = Shader.LoadShader("texture");
-            shader.SetUpUbo("Matrices", 0);
-            Mesh mesh = new Mesh(vertices, indices, new Material(new List<Texture> { Texture.LoadTexture("Resource/Texture/container.jpg", true) }, shader));
-            return new StaticMesh(mesh);
-        }
-
-    }
-    class FPSActor : Actor
-    {
-        CameraComponent cameraComp;
-
-        public FPSActor()
-        {
-            cameraComp = new CameraComponent(this.RootComponent, "我是一个摄像机");
-
-        }
-       
-    }
 
     bool isNeedInit = false;
     Vector2 LastPos;
@@ -167,4 +107,65 @@ public class FPSGame : IGame
         move *= 0.1f;
         fpsActor.WorldLocation += move;
     }
+}
+
+class TestActor : Actor
+{
+    StaticMeshComponent staticMeshComponent;
+    public TestActor() : base()
+    {
+        staticMeshComponent = new StaticMeshComponent(RootComponent, "meshComp");
+        // 加载一个正方形的网格，颜色是黄色
+        staticMeshComponent.StaticMesh = LoadMesh();//new StaticMesh(MeshGenerator.GenBall());
+
+    }
+    private StaticMesh LoadMesh()
+    {
+        List<Vertex> vertices = new List<Vertex>();
+        List<uint> indices = new List<uint>();
+
+        for (var i = 0; i < 4; i++)
+        {
+            var vertex = new Vertex();
+            switch (i)
+            {
+                case 0:
+                    vertex.Location = new(-0.5f, 0, 0.5f);
+                    vertex.TexCoord = new(0, 1);
+                    break;
+                case 1:
+                    vertex.Location = new(0.5f, 0, 0.5f);
+                    vertex.TexCoord = new(1, 1);
+                    break;
+                case 2:
+                    vertex.Location = new(0.5f, 0, -0.5f);
+                    vertex.TexCoord = new(1, 0);
+                    break;
+                case 3:
+                    vertex.Location = new(-0.5f, 0, -0.5f);
+                    vertex.TexCoord = new(0, 0);
+                    break;
+            }
+            vertex.Normal = new(0, 0, 1);
+            vertex.Color = new(1, 1, 1);
+            vertices.Add(vertex);
+        }
+        indices.AddRange(new uint[] { 0, 3, 2, 2, 1, 0 });
+        var shader = Shader.LoadShader("texture");
+        shader.SetUpUbo("Matrices", 0);
+        Mesh mesh = new Mesh(vertices, indices, new Material(new List<Texture> { Texture.LoadTexture("Resource/Texture/container.jpg", true) }, shader));
+        return new StaticMesh(mesh);
+    }
+
+}
+class FPSActor : Actor
+{
+    CameraComponent cameraComp;
+
+    public FPSActor()
+    {
+        cameraComp = new CameraComponent(this.RootComponent, "我是一个摄像机");
+
+    }
+
 }

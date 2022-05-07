@@ -11,16 +11,32 @@ namespace LiteEngine.Core.SubSystem
 {
     public class LightSystem
     {
-        UniformBufferObject DLUbo;
+        UniformBufferObject DirectionalLightsBuffer;
+        UniformBufferObject PointLightsBuffer;
+        UniformBufferObject SpotLightsBuffer;
+        // 默认光源数量
         private int Size;
-        private bool IsNeedUpdate = false;
+
+        private bool DirectionalLightsDirty = false;
+
+        private bool PointLightsDirty = false;
+
+        private bool SpotLightsDirty = false;
         private List<DirectionalLightComponent> DirectionalLights { get; set; }
-       
+        private List<PointLightComponent> PointLights { get; set; } 
+        private List<SpotLightComponent> SpotLights { get; set; }
+
+
         public unsafe LightSystem()
         {
             Size = 20;
             DirectionalLights = new List<DirectionalLightComponent>();
-            DLUbo = new UniformBufferObject((uint)(sizeof(DirectionalLightInfo) * Size) + sizeof(int), 1);
+            PointLights = new List<PointLightComponent>();
+            SpotLights = new List<SpotLightComponent>();
+
+            DirectionalLightsBuffer = new UniformBufferObject((uint)(sizeof(DirectionalLightInfo) * Size), 1);
+            PointLightsBuffer = new UniformBufferObject((uint)(sizeof(PointLightInfo) * Size), 2);
+            SpotLightsBuffer = new UniformBufferObject((uint)(sizeof(SpotLightInfo) * Size), 3);
 
         }
         public void Init()
@@ -32,36 +48,86 @@ namespace LiteEngine.Core.SubSystem
             if (DirectionalLights.Count >= Size)
                 throw new("定向光源已经达到上限");
             DirectionalLights.Add(light);
-            IsNeedUpdate = true;
+            DirectionalLightsDirty = true;
 
         }
+
+        public void Add(SpotLightComponent light)
+        {
+            if (SpotLights.Count >= Size)
+                throw new Exception("定向光源已经达到上限");
+            SpotLights.Add(light);
+            SpotLightsDirty = true;
+        }
+
+        public void Add(PointLightComponent light)
+        {
+            if (SpotLights.Count >= Size)
+                throw new Exception("定向光源已经达到上限");
+            PointLights.Add(light);
+            PointLightsDirty = true;
+        }
+
+        public void Remove(PointLightComponent light)
+        {
+            PointLights.Remove(light);
+            PointLightsDirty = true;
+        }
+
+        public void Remove(SpotLightComponent light)
+        {
+            SpotLights.Remove(light);
+            SpotLightsDirty = true;
+        }
+
 
         public void Remove(DirectionalLightComponent light)
         {
             DirectionalLights.Remove(light);
-            IsNeedUpdate = true;
+            DirectionalLightsDirty = true;
         }
 
         public unsafe void Update(float deltaTime)
         {
-            if (IsNeedUpdate)
-            {
-                int length = DirectionalLights.Count;
-                void* buffer = &length;
-                DLUbo.UpdateData(buffer, 0, sizeof(int));
-            }
-            uint offset = sizeof(int);
+            // 定向光源
             for(int i =0; i < DirectionalLights.Count; i ++)
             {
                 var light = DirectionalLights[i];
-                if (!IsNeedUpdate && !light.IsNeedUpdate)
+                if (!DirectionalLightsDirty && !light.IsNeedUpdate)
                     continue;
                 fixed (void* buffer = &light.GetLightRef())
                 {
-                    DLUbo.UpdateData(buffer, (nint)(offset + i * sizeof(DirectionalLightInfo)), (uint)(offset + (i + 1) * sizeof(DirectionalLightInfo)));
+                    DirectionalLightsBuffer.UpdateData(buffer, (nint)(i * sizeof(DirectionalLightInfo)), (uint)((i + 1) * sizeof(DirectionalLightInfo)));
                 }
             }
-            IsNeedUpdate = false;
+            DirectionalLightsDirty = false;
+
+            // 点光源
+            for (int i = 0; i < PointLights.Count; i++)
+            {
+                var light = PointLights[i];
+                if (!PointLightsDirty && !light.IsNeedUpdate)
+                    continue;
+                fixed (void* buffer = &light.GetLightRef())
+                {
+                    PointLightsBuffer.UpdateData(buffer, (nint)(i * sizeof(PointLightInfo)), (uint)((i + 1) * sizeof(PointLightInfo)));
+                }
+            }
+            PointLightsDirty = false;
+
+            // 投射光源
+            for (int i = 0; i < SpotLights.Count; i++)
+            {
+                var light = PointLights[i];
+                if (!SpotLightsDirty && !light.IsNeedUpdate)
+                    continue;
+                fixed (void* buffer = &light.GetLightRef())
+                {
+                    SpotLightsBuffer.UpdateData(buffer, (nint)(i * sizeof(SpotLightInfo)), (uint)((i + 1) * sizeof(SpotLightInfo)));
+                }
+            }
+            SpotLightsDirty = false;
+
         }
 
         public void Fini()

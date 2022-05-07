@@ -5,17 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace LiteEngine.Core.Actors;
-public class Pawn: Actor
+
+public class AIController : Controller
 {
 
-    internal void OnPoccess(Controller controller)
-    {
-
-    }
-
-
-    internal void OnUnPoccess(Controller controller)
-    {
-
-    }
 }

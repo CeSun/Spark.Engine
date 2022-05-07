@@ -11,6 +11,7 @@ namespace LiteEngine.Core.Components;
 
 public class LightComponent : RenderableComponent
 {
+    public bool IsNeedUpdate { get; protected set; }
     protected LightComponent(Component parent, string name) : base(parent, name)
     {
         IsEnable = true;

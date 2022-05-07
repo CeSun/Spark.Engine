@@ -10,6 +10,15 @@ namespace LiteEngine.Core.Components;
 
 public class CameraComponent : RenderableComponent
 {
+    public enum CameraClearFlag
+    {
+        Color,
+        Depth,
+        Skybox,
+    }
+
+    public CameraClearFlag ClearFlag { get; set; }
+
     UniformBufferObject Ubo;
     public unsafe CameraComponent(Component parent, string name) : base(parent, name)
     {
@@ -20,12 +29,13 @@ public class CameraComponent : RenderableComponent
         Available = true;
         Cameras.Add(this);
 
+        ClearFlag = CameraClearFlag.Color | CameraClearFlag.Depth | CameraClearFlag.Skybox;
+
         Ubo = new UniformBufferObject((uint)(2 * sizeof(Matrix4x4)), 0);
         
     }
-
+    
     public static CameraComponent? CurrentRenderCamera { get;private set;}
-
     public bool Available { get; set; }
     public float Fov { get; set; }
     public float Nearest { get; set; }
@@ -60,7 +70,12 @@ public class CameraComponent : RenderableComponent
             return;
         CurrentRenderCamera = this;
         gl.ClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+        if ((ClearFlag & CameraClearFlag.Color) != 0)
+            gl.Clear(ClearBufferMask.ColorBufferBit);
+        if ((ClearFlag & CameraClearFlag.Depth) != 0)
+            gl.Clear(ClearBufferMask.DepthBufferBit);
+        if ((ClearFlag & CameraClearFlag.Skybox) != 0)
+            Engine.Instance.World.Skybox?.Render();
         Ubo.Use();
         for (int i = 0; i < (int)RenderLayer.Max; i ++)
         {

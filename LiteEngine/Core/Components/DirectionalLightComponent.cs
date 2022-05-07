@@ -18,7 +18,6 @@ public class DirectionalLightComponent : LightComponent
     }
     DirectionalLightInfo Info;
 
-    public bool IsNeedUpdate { get; private set; }
     public ref DirectionalLightInfo GetLightRef()
     {
         return ref Info;

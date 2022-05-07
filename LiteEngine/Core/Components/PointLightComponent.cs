@@ -16,8 +16,11 @@ public class PointLightComponent : LightComponent
 
     }
 
-
-
+    PointLightInfo Info;
+    public ref PointLightInfo GetLightRef()
+    {
+        return ref Info;
+    }
 }
 
 
