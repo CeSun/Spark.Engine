@@ -1,4 +1,4 @@
-﻿using LiteEngine;
+﻿using Spark;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -13,7 +13,7 @@ public class Window
     {
         var options = WindowOptions.Default;
         options.Title = "LiteEngine - Desktop";
-        options.UpdatesPerSecond = 60;
+        options.UpdatesPerSecond = 0;
         options.FramesPerSecond = 0;
         options.Size = new Vector2D<int>(800, 600);
         options.ShouldSwapAutomatically = true;

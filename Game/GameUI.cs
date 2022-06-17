@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using LiteEngine.Sdk;
+using Spark.Sdk;
 
-namespace Game;
+namespace Spark.Game;
 public class GameUI : IGameUI
 {
     public void OnFini()

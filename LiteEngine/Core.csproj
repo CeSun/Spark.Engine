@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -9,12 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Silk.NET" Version="2.15.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.15.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.15.0" />
+    <PackageReference Include="StbSharp" Version="0.7.2.38" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Game\Game.csproj" />
-    <ProjectReference Include="..\LiteEngine\Core.csproj" />
+    <ProjectReference Include="..\Sdk\Sdk.csproj" />
   </ItemGroup>
 
 </Project>

@@ -5,14 +5,14 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using LiteEngine.Core;
-using LiteEngine.Core.SubSystem;
-using LiteEngine.Sdk;
+using Spark.Core;
+using Spark.Core.SubSystem;
+using Spark.Sdk;
 using Silk.NET.OpenGL;
 using Silk.NET.Input;
 using System.Numerics;
 
-namespace LiteEngine;
+namespace Spark;
 
 public class EngineConfig
 {

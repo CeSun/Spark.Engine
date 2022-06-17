@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LiteEngine.Sdk;
+namespace Spark.Sdk;
 public interface IGame
 {
     public void OnUpdate(float deltaTime);

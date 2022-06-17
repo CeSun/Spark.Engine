@@ -1,16 +1,16 @@
-﻿using LiteEngine;
-using LiteEngine.Core.Actors;
-using LiteEngine.Core.Components;
-using LiteEngine.Core.Render;
-using LiteEngine.Core.Resources;
-using LiteEngine.Sdk;
+﻿using Spark;
+using Spark.Core.Actors;
+using Spark.Core.Components;
+using Spark.Core.Render;
+using Spark.Core.Resources;
+using Spark.Sdk;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using System.Numerics;
-using Shader = LiteEngine.Core.Resources.Shader;
-using Texture = LiteEngine.Core.Resources.Texture;
+using Shader = Spark.Core.Resources.Shader;
+using Texture = Spark.Core.Resources.Texture;
 
-namespace Game;
+namespace Spark.Game;
 public class FPSGame : IGame
 {
     public GL gl { get => Engine.Instance.Gl; }

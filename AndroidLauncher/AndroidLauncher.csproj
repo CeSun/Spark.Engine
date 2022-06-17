@@ -34,7 +34,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Game\Game.csproj" />
-    <ProjectReference Include="..\LiteEngine\LiteEngine.csproj" />
+    <ProjectReference Include="..\LiteEngine\Core.csproj" />
   </ItemGroup>
     <ItemGroup>
 		<AndroidAsset Include=".\Resource\**" />
