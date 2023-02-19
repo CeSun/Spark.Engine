@@ -3,7 +3,7 @@ using Silk.NET.Windowing;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Spark.Engine;
-
+using Spark.Engine.Core;
 
 
 var option = WindowOptions.Default;
@@ -16,9 +16,15 @@ var InitFun = () =>
     Engine.Instance.ReceiveCommondLines(args);
 };
 
-window.Render += Engine.Instance.Update;
-window.Update += Engine.Instance.FixedUpdate;
+window.Render += Engine.Instance.Render;
+window.Update += Engine.Instance.Tick;
 window.Load += (InitFun + Engine.Instance.Init);
 window.Closing += Engine.Instance.Fini;
 window.Resize += Engine.Instance.Resize;
 window.Run();
+
+
+class MyActor : Actor
+{
+
+}

@@ -1,18 +1,19 @@
 ﻿using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+using Spark.Engine.Core;
 using System.Numerics;
 
 namespace Spark.Engine;
 
 public class Engine : Util.Singleton<Engine>
 {
-
+    public Level? CurrentLevel { get; set; }
     public void Init()
     {
         
     }
 
-    public void Update(double DeltaTime)
+    public void Tick(double DeltaTime)
     {
         RenderContext.Instance.Render(gl =>
         {
@@ -21,7 +22,7 @@ public class Engine : Util.Singleton<Engine>
     }
 
 
-    public void FixedUpdate(double DeltaTime) 
+    public void Render(double DeltaTime) 
     { 
 
     }

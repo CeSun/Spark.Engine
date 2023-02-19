@@ -17,7 +17,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SparkDemo", "Game\SparkDemo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Util", "Engine\Util\Util.csproj", "{AC568E16-A47B-48C1-955C-8F9314599639}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DedicatedServer", "DedicatedServer\DedicatedServer.csproj", "{AC7255D5-6A21-4B73-8F55-4FA5CA41019C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DedicatedServer", "Platform\DedicatedServer\DedicatedServer.csproj", "{AC7255D5-6A21-4B73-8F55-4FA5CA41019C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -8,6 +8,23 @@ namespace Spark.Engine.Core;
 
 public class FunctionalComponent
 {
+    private Actor? _Owner;
+    public Actor? Owner 
+    {
+        get => Owner;
+        set
+        {
+            if (_Owner != null)
+            {
+                _Owner.RemoveComponent(this);
+            }
+            _Owner = value;
+            if (_Owner != null)
+            {
+                _Owner.AddComponent(this);
+            }
+        }
+    }
     public void BeginPlay()
     {
         OnBeginPlay();
