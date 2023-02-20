@@ -7,7 +7,13 @@ namespace Spark.Engine;
 
 public class Engine : Util.Singleton<Engine>
 {
-    public Level? CurrentLevel { get; set; }
+    public List<Game> Games;
+
+    public Engine()
+    {
+        Games = new List<Game> { new Game() };
+    }
+
     public void Init()
     {
         
@@ -15,16 +21,13 @@ public class Engine : Util.Singleton<Engine>
 
     public void Tick(double DeltaTime)
     {
-        RenderContext.Instance.Render(gl =>
-        {
-            gl.Clear(ClearBufferMask.ColorBufferBit);
-        });
+        Games.ForEach(game => game.Tick(DeltaTime));
     }
 
 
     public void Render(double DeltaTime) 
-    { 
-
+    {
+        Games.ForEach(game => game.Render(DeltaTime));
     }
 
     public void Fini()

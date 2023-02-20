@@ -121,6 +121,16 @@ public class SceneComponentManager
             }
             list.Remove(Component);
         }
+        if (IsDestory == true)
+        {
 
+        }
+
+    }
+
+    private bool IsDestory = false;
+    public void Destory()
+    {
+        IsDestory = true;
     }
 }

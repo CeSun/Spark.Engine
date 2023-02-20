@@ -46,13 +46,13 @@ public partial class SceneComponent
             var RotationMatrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
             var ScaleMatrix = Matrix4x4.CreateScale(WorldScale);
             // 计算世界矩阵
-            var Transform = LocationMatrix * RotationMatrix * ScaleMatrix;
+            var Transform = ScaleMatrix * RotationMatrix * LocationMatrix;
             // 父组件矩阵
             var ParentTransform = (Parent == null ? Matrix4x4.Identity : Parent.WorldTransfrom);
             // 父组件逆矩阵
             Matrix4x4.Invert(ParentTransform, out var InvertParentTransform);
             // 从世界矩阵回到相对矩阵
-            var RelativeTransform = InvertParentTransform * Transform;
+            var RelativeTransform = Transform * InvertParentTransform;
             // 计算出相对位移
             RelativeLocation = RelativeTransform.Translation;
         }
@@ -71,13 +71,13 @@ public partial class SceneComponent
             var RotationMatrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
             var ScaleMatrix = Matrix4x4.CreateScale(value);
             // 计算世界矩阵
-            var Transform = LocationMatrix * RotationMatrix * ScaleMatrix;
+            var Transform = ScaleMatrix * RotationMatrix * LocationMatrix;
             // 父组件矩阵
             var ParentTransform = (Parent == null ? Matrix4x4.Identity : Parent.WorldTransfrom);
             // 父组件逆矩阵
             Matrix4x4.Invert(ParentTransform, out var InvertParentTransform);
             // 从世界矩阵回到相对矩阵
-            var RelativeTransform = InvertParentTransform * Transform;
+            var RelativeTransform = Transform * InvertParentTransform;
             // 计算出相对缩放
             RelativeScale = RelativeTransform.Scale();
         }
@@ -96,13 +96,13 @@ public partial class SceneComponent
             var RotationMatrix = Matrix4x4.CreateFromQuaternion(value);
             var ScaleMatrix = Matrix4x4.CreateScale(WorldScale);
             // 计算世界矩阵
-            var Transform = LocationMatrix * RotationMatrix * ScaleMatrix;
+            var Transform = ScaleMatrix * RotationMatrix * LocationMatrix;
             // 父组件矩阵
             var ParentTransform = (Parent == null ? Matrix4x4.Identity : Parent.WorldTransfrom);
             // 父组件逆矩阵
             Matrix4x4.Invert(ParentTransform, out var InvertParentTransform);
             // 从世界矩阵回到相对矩阵
-            var RelativeTransform = InvertParentTransform * Transform;
+            var RelativeTransform = Transform * InvertParentTransform;
             // 计算出相对旋转
             RelativeRotation = RelativeTransform.Rotation();
         }
@@ -181,9 +181,9 @@ public partial class SceneComponent
             // 创建缩放矩阵
             var ScaleMatrix = Matrix4x4.CreateScale(RelativeScale);
             // 计算相对矩阵, 矩阵是行主序的
-            RelativeTransform = LocationMatrix * RotationMatrix * ScaleMatrix;
+            RelativeTransform = ScaleMatrix * RotationMatrix * LocationMatrix;
             // 计算到世界空间矩阵
-            WorldTransfrom = RelativeTransform * (Parent == null ? Matrix4x4.Identity : Parent.WorldTransfrom);
+            WorldTransfrom = (Parent == null ? Matrix4x4.Identity : Parent.WorldTransfrom) * RelativeTransform;
             // 清楚脏数据标记
             _TransformDirtyFlag = false;
             // 计算世界坐标
