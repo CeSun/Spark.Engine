@@ -1,54 +1,56 @@
-﻿using Silk.NET.Maths;
-using Silk.NET.OpenGL;
+﻿using Silk.NET.OpenGL;
+using Spark.Util;
 using Spark.Engine.Core;
-using System.Numerics;
-
 namespace Spark.Engine;
 
-public class Engine : Util.Singleton<Engine>
+public class Engine : Singleton<Engine>
 {
-    public List<Game> Games;
-
-    public Engine()
+    public GL? Gl { get; set; }
+    List<World> Worlds = new List<World>();
+    public void InitEngine(string[] args, Dictionary<string, object> objects)
     {
-        Games = new List<Game> { new Game() };
+        Gl = (GL)objects["OpenGL"];
+        Worlds.Add(new World());
+    }
+    public void Update(double DeltaTime)
+    {
+        Worlds.ForEach(world => world.Update(DeltaTime));
     }
 
-    public void Init()
+    public void Render(double DeltaTime)
     {
-        
+        Worlds.ForEach(world => world.Render(DeltaTime));
     }
 
-    public void Tick(double DeltaTime)
+    public void Start()
     {
-        Games.ForEach(game => game.Tick(DeltaTime));
+        Worlds.ForEach(world => world.BeginPlay());
     }
 
-
-    public void Render(double DeltaTime) 
+    public void Stop()
     {
-        Games.ForEach(game => game.Render(DeltaTime));
+        Worlds.ForEach(world => world.Destory());
     }
 
-    public void Fini()
-    {
-
-    }
-
-    
-    public void ConfigPlatform(GL gl)
-    {
-        RenderContext.Instance.GL = gl;
-    }
-
-    public void ReceiveCommondLines(string[] CommondLines)
+    public void Resize(int Width, int Height)
     {
 
     }
+}
 
-    public void Resize(Vector2D<int> WindowSize)
+
+public class StaticEngine
+{
+    public static GL gl 
     {
-
+        get
+        {
+            if (Engine.Instance.Gl == null)
+            {
+                throw new Exception("no gl context");
+            }
+            return Engine.Instance.Gl;
+        }
     }
 
 

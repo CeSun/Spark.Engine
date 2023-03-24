@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Game\SparkDemo\SparkDemo.csproj" />
+    <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
   </ItemGroup>
 
 </Project>

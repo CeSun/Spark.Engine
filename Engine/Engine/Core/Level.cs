@@ -1,47 +1,42 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Silk.NET.OpenGL;
+using Spark.Engine.Core.Components;
+using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Core;
 
 public class Level
 {
-    public Level() 
-    {
-        ActorManager = new ActorManager();
-        SceneComponentManager = new SceneComponentManager();
-    }
-    public SceneComponentManager SceneComponentManager { get; set; }
-    public ActorManager ActorManager { get; set; }
+    private List<PrimitiveComponent> _PrimitiveComponents { get; set; }
 
+    public IReadOnlyList<PrimitiveComponent> PrimitiveComponents { get => _PrimitiveComponents;  }
 
-    public void Tick(double DeltaTime)
+    public void RegistComponent(PrimitiveComponent component)
     {
-        SceneComponentManager.Tick(DeltaTime);
-    }
-
-    public void Render(double DeltaTime)
-    {
-        SceneComponentManager.Render(DeltaTime);
-    }
-    private Game? _GameInstance;
-
-    public Game GameInstance
-    {
-        get
+        if (PrimitiveComponents.Contains(component))
         {
-            if (_GameInstance == null)
-            {
-                throw new Exception("Game Instance is null");
-            }
-            return _GameInstance;
+            return;
         }
-        internal set
+        _PrimitiveComponents.Add(component);
+    }
+
+    public void UnregistComponent(PrimitiveComponent component)
+    {
+        if (!PrimitiveComponents.Contains(component))
         {
-            _GameInstance = value;
+            return;
         }
+        _PrimitiveComponents.Remove(component);
+    }
+    public World CurrentWorld { private set; get; }
+    public Level(World world)
+    {
+        CurrentWorld = world;
     }
 
     public void BeginPlay()
@@ -49,8 +44,18 @@ public class Level
 
     }
 
-    public void Destory()
+    public void Destory() 
+    { 
+
+    }
+
+    public void Update(double DeltaTime)
     {
 
+    }
+
+    public void Render(double DeltaTime)
+    {
+        _PrimitiveComponents.ForEach(component => component.Render(DeltaTime));
     }
 }

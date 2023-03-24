@@ -6,11 +6,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Core;
 
-public partial class SceneComponent
+public class SceneRenderer
 {
 
-    public virtual void Render(double DeltaTime)
-    {
-
-    }
 }
