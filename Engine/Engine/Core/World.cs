@@ -8,6 +8,10 @@ namespace Spark.Engine.Core;
 
 public class World
 {
+    public World() 
+    {
+        SceneRenderer = new SceneRenderer(this);
+    }
     public Level? _Level;
     public Level CurrentLevel 
     { 
@@ -24,6 +28,8 @@ public class World
             _Level = value;
         }
     }
+
+    public SceneRenderer SceneRenderer;
     public void BeginPlay()
     {
         OpenLevel("Default");
@@ -45,7 +51,7 @@ public class World
 
     public void Render(double DeltaTime)
     {
-        CurrentLevel.Render(DeltaTime);
+        SceneRenderer.Render(DeltaTime);
     }
 
     public void OpenLevel(string path)

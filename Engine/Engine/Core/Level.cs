@@ -12,7 +12,7 @@ namespace Spark.Engine.Core;
 
 public class Level
 {
-    private List<PrimitiveComponent> _PrimitiveComponents { get; set; }
+    private List<PrimitiveComponent> _PrimitiveComponents = new List<PrimitiveComponent>();
 
     public IReadOnlyList<PrimitiveComponent> PrimitiveComponents { get => _PrimitiveComponents;  }
 

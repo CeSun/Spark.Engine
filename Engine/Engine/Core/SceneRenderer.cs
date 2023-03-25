@@ -8,5 +8,21 @@ namespace Spark.Engine.Core;
 
 public class SceneRenderer
 {
+    World World { get; set; }
+    public SceneRenderer(World world) 
+    {
+        World = world;
+    }
 
+    public void Render(double DeltaTime)
+    {
+        foreach(var component in World.CurrentLevel.PrimitiveComponents)
+        {
+            if (component.IsDestoryed == false)
+            {
+                component.Render(DeltaTime);
+            }
+        }
+        
+    }
 }

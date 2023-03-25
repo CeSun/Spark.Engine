@@ -1,8 +1,9 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Silk.NET.Windowing;
-using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using Spark.Engine;;
+using Spark.Engine;
+using System.Numerics;
+using Silk.NET.Maths;
 
 var option = WindowOptions.Default;
 option.Size = new Vector2D<int>(800, 600);

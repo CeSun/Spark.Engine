@@ -64,13 +64,13 @@ public partial class Actor
         {
             if (RootComponent == null)
                 return Vector3.Zero;
-            return RootComponent.Location;
+            return RootComponent.WorldLocation;
         }
         set
         {
             if (RootComponent == null)
                 return;
-            RootComponent.Location = value;
+            RootComponent.WorldLocation = value;
         }
     }
     public Quaternion WorldRotation
@@ -79,13 +79,13 @@ public partial class Actor
         {
             if (RootComponent == null)
                 return Quaternion.Zero;
-            return RootComponent.Rotation;
+            return RootComponent.WorldRotation;
         }
         set
         {
             if (RootComponent == null)
                 return;
-            RootComponent.Rotation = value;
+            RootComponent.WorldRotation = value;
         }
     }
     public Vector3 WorldScale
@@ -94,13 +94,13 @@ public partial class Actor
         {
             if (RootComponent == null)
                 return Vector3.One;
-            return RootComponent.Scale;
+            return RootComponent.WorldScale;
         }
         set
         {
             if (RootComponent == null)
                 return;
-            RootComponent.Scale = value;
+            RootComponent.WorldScale = value;
         }
     }
 
