@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Spark.Engine.Core.Components;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,6 +10,8 @@ namespace Spark.Engine.Core;
 public class SceneRenderer
 {
     World World { get; set; }
+
+    public CameraComponent? CurrentCamera { get; set; }
     public SceneRenderer(World world) 
     {
         World = world;

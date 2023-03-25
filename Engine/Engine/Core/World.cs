@@ -51,7 +51,7 @@ public class World
 
     public void Render(double DeltaTime)
     {
-        SceneRenderer.Render(DeltaTime);
+        this.CurrentLevel.Render(DeltaTime);
     }
 
     public void OpenLevel(string path)

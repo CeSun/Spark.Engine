@@ -95,7 +95,7 @@ public partial class PrimitiveComponent
                     var l = _WorldLocation;
                     var r = _WorldRotation;
                     var s = _WorldScale;
-                    UpdateRelativeTransformFromWorldTransfor(l, r, s);
+                    UpdateRelativeTransformFromWorldTransform(l, r, s);
                 }
                 _ParentComponent._ChildrenComponent.Add(this);
             }
@@ -105,8 +105,13 @@ public partial class PrimitiveComponent
     public IReadOnlyList<PrimitiveComponent> ChildrenComponent => _ChildrenComponent;
 
     public bool IsDestoryed { protected set; get; }
-    public bool TransformDirty 
-    { 
+
+}
+
+public partial class PrimitiveComponent
+{
+    public bool TransformDirty
+    {
         protected set
         {
             if (_TransformDirty == false)
@@ -135,23 +140,29 @@ public partial class PrimitiveComponent
         }
         set
         {
-            UpdateRelativeTransformFromWorldTransfor(value, WorldRotation, WorldScale);
+            UpdateRelativeTransformFromWorldTransform(value, WorldRotation, WorldScale);
         }
     }
-    private void UpdateRelativeTransformFromWorldTransfor(Vector3 pWorldLocation, Quaternion pWorldRotation,  Vector3 pWorldScale)
+    private void UpdateRelativeTransformFromWorldTransform(Vector3 pWorldLocation, Quaternion pWorldRotation, Vector3 pWorldScale)
     {
         var worldTransform = MatrixHelper.CreateTransform(pWorldLocation, pWorldRotation, pWorldScale);
+        UpdateRelativeTransformFromWorldTransform(worldTransform);
+    }
+
+    private void UpdateRelativeTransformFromWorldTransform(Matrix4x4 pWorldTransform)
+    {
+
         Matrix4x4 relativeTransform = default;
         if (ParentComponent == null)
         {
-            relativeTransform = worldTransform;
+            relativeTransform = pWorldTransform;
         }
         else
         {
             if (Matrix4x4.Invert(ParentComponent.WorldTransform, out var WorldInvertTransform))
             {
 
-                relativeTransform = WorldInvertTransform * worldTransform;
+                relativeTransform = WorldInvertTransform * pWorldTransform;
             }
         }
         RelativeLocation = relativeTransform.Translation;
@@ -172,7 +183,7 @@ public partial class PrimitiveComponent
         }
         set
         {
-            UpdateRelativeTransformFromWorldTransfor(WorldLocation, value, WorldScale);
+            UpdateRelativeTransformFromWorldTransform(WorldLocation, value, WorldScale);
         }
     }
 
@@ -190,7 +201,7 @@ public partial class PrimitiveComponent
         }
         set
         {
-            UpdateRelativeTransformFromWorldTransfor(WorldLocation, WorldRotation, value);
+            UpdateRelativeTransformFromWorldTransform(WorldLocation, WorldRotation, value);
         }
     }
 
@@ -220,7 +231,7 @@ public partial class PrimitiveComponent
         set
         {
             _RelativeScale = value;
-            
+
             TransformDirty = true;
         }
     }
@@ -266,6 +277,10 @@ public partial class PrimitiveComponent
         {
             _WorldTransform = ParentComponent._WorldTransform * _RelativeTransform;
         }
+        // UpdateRelativeTransformFromWorldTransform(_WorldTransform);
+        _WorldLocation = _WorldTransform.Translation;
+        _WorldRotation = _WorldTransform.Rotation();
+        _WorldScale = _WorldTransform.Scale();
         _TransformDirty = false;
         foreach (var child in ChildrenComponent)
         {
@@ -284,9 +299,10 @@ public partial class PrimitiveComponent
             return this;
         return ParentComponent.GetRootTransformDirtyNode();
     }
+    public Vector3 ForwardVector => Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
+    public Vector3 RightVector => Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
+    public Vector3 UpVector => Vector3.Transform(new Vector3(0, 0, 1), WorldRotation);
 }
-
-
 public partial class PrimitiveComponent
 {
 
@@ -302,7 +318,7 @@ public partial class PrimitiveComponent
 
     private Quaternion _WorldRotation;
 
-    private Vector3 _WorldScale;
+    private Vector3 _WorldScale = Vector3.One;
 
     private Vector3 _RelativeLocation;
 

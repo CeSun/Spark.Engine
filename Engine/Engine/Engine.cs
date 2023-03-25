@@ -1,6 +1,9 @@
 ﻿using Silk.NET.OpenGL;
 using Spark.Util;
 using Spark.Engine.Core;
+using System.Numerics;
+using System.Drawing;
+
 namespace Spark.Engine;
 
 public class Engine : Singleton<Engine>
@@ -10,6 +13,7 @@ public class Engine : Singleton<Engine>
     public void InitEngine(string[] args, Dictionary<string, object> objects)
     {
         Gl = (GL)objects["OpenGL"];
+        WindowSize = (Point)objects["WindowSize"];
         Worlds.Add(new World());
     }
     public void Update(double DeltaTime)
@@ -34,8 +38,10 @@ public class Engine : Singleton<Engine>
 
     public void Resize(int Width, int Height)
     {
-
+        WindowSize = new(Width, Height);
     }
+
+    public Point WindowSize { get; private set; }
 }
 
 

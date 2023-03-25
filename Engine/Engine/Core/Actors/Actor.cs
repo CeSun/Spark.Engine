@@ -24,6 +24,7 @@ public partial class Actor
     public Actor(Level level)
     {
         CurrentLevel = level;
+        level.RegistActor(this);
     }
 
     public void BeginPlay()
@@ -31,17 +32,27 @@ public partial class Actor
         OnBeginPlay();
     }
 
+    public void Update(double DeltaTime)
+    {
+        OnUpdate(DeltaTime);
+    }
+
+    protected virtual void OnUpdate(double DeltaTime)
+    {
+
+    }
     protected virtual void OnBeginPlay()
     {
 
     }
-    public void Destory() 
+    public void Destory()
     {
-        foreach(var component in PrimitiveComponents)
+        OnEndPlay();
+        foreach (var component in PrimitiveComponents)
         {
             UnregistComponent(component);
         }
-        OnEndPlay();
+        CurrentLevel.UnregistActor(this);
     }
 
     protected virtual void OnEndPlay()
@@ -160,5 +171,31 @@ public partial class Actor
             _PrimitiveComponents.Remove(SubComponent);
             CurrentLevel.UnregistComponent(SubComponent);
         }
+    }
+
+
+    public T GetComponent<T>() where T : PrimitiveComponent
+    {
+        foreach(var comp in PrimitiveComponents)
+        {
+            if (comp is T c)
+            {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    public List<T> GetComponents<T>() where T : PrimitiveComponent
+    {
+        var list = new List<T>();
+        foreach(var comp in PrimitiveComponents)
+        {
+            if (comp is T c)
+            {
+                list.Add(c);
+            }
+        }
+        return list;
     }
 }
