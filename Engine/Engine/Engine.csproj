@@ -5,10 +5,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0028" />
     <PackageReference Include="Silk.NET.OpenGL" Version="2.16.0" />
+    <PackageReference Include="StbImageSharp" Version="2.27.13" />
   </ItemGroup>
 
   <ItemGroup>

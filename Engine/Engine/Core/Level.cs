@@ -4,8 +4,10 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SharpGLTF.Schema2;
 using Silk.NET.OpenGL;
 using Spark.Engine.Core.Actors;
+using Spark.Engine.Core.Assets;
 using Spark.Engine.Core.Components;
 using static Spark.Engine.StaticEngine;
 
@@ -22,16 +24,15 @@ public partial class Level
 
     public void BeginPlay()
     {
-        Actor actor = new Actor(this);
-        PrimitiveComponent comp = new PrimitiveComponent(actor);
-        actor.RootComponent = comp;
-        PrimitiveComponent comp2 = new PrimitiveComponent(actor);
-        comp2 = new PrimitiveComponent(actor);
-        comp2.ParentComponent = comp;
-        comp.WorldLocation = new (100, 0, 0);
-        comp2.RelativeLocation = new(0, 200, 0);
-        Console.WriteLine(comp.WorldLocation);
-        Console.WriteLine(comp2.WorldLocation);
+        StaticMesh mesh = new StaticMesh("/StaticMesh/untitled.glb", false);
+        Actor CameraActor = new Actor(this);
+        CameraComponent cameraComponent = new CameraComponent(CameraActor);
+        CameraActor.RootComponent = cameraComponent;
+
+        Actor StaticMeshActor = new Actor(this);
+        StaticMeshComponent staticMeshComponent = new StaticMeshComponent(StaticMeshActor);
+        StaticMeshActor.RootComponent = staticMeshComponent;
+        staticMeshComponent.StaticMesh = mesh;
     }
 
     public void Destory() 
@@ -46,6 +47,10 @@ public partial class Level
 
     public void Render(double DeltaTime)
     {
+        foreach (var camera in CameraComponents)
+        {
+            camera.RenderScene(DeltaTime);
+        }
     }
 }
 

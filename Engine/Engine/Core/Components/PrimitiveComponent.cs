@@ -17,8 +17,8 @@ public partial class PrimitiveComponent
     public PrimitiveComponent(Actor actor)
     {
         IsDestoryed = false;
-        Owner = actor;
-        Owner.RegistComponent(this);
+        _Owner = actor;
+        _Owner.RegistComponent(this);
         OnBeginGame();
     }
 

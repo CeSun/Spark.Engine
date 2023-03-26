@@ -16,4 +16,10 @@
     <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Assets\StaticMesh\untitled.glb">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

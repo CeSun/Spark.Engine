@@ -174,7 +174,7 @@ public partial class Actor
     }
 
 
-    public T GetComponent<T>() where T : PrimitiveComponent
+    public T? GetComponent<T>() where T : PrimitiveComponent
     {
         foreach(var comp in PrimitiveComponents)
         {
