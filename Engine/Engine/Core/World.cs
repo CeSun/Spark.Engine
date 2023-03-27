@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Spark.Engine.Core.Render;
 
 namespace Spark.Engine.Core;
 
@@ -11,6 +12,7 @@ public class World
     public World() 
     {
         SceneRenderer = new SceneRenderer(this);
+
     }
     public Level? _Level;
     public Level CurrentLevel 

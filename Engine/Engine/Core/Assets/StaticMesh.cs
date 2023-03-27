@@ -17,135 +17,143 @@ public class StaticMesh : Asset
 {
     List<List<StaticMeshVertex>> Meshes = new List<List<StaticMeshVertex>>();
     List<List<uint>> IndicesList = new List<List<uint>>();
-    List<Material> Materials = new List<Material>();
+    public List<Material> Materials = new List<Material>();
 
     List<uint> VertexArrayObjectIndexes = new List<uint>();
     List<uint> VertexBufferObjectIndexes = new List<uint>();
     List<uint> ElementBufferObjectIndexes = new List<uint>();
-    public StaticMesh(string path, bool IsAsync) : base(path, IsAsync)
+
+    public StaticMesh(string path) : base(path)
     {
     }
 
-    protected override async Task AsyncLoad()
+    public StaticMesh(List<StaticMeshVertex> mesh, List<uint> indices, Material material)
     {
-        await Task.Run(() =>
+        Meshes.Add(mesh);
+        IndicesList.Add(indices);
+        Materials.Add(material);
+        IsValid = true;
+        IsLoaded = true;
+        InitRender();
+    }
+
+    protected override void LoadAsset()
+    {
+        var model = SharpGLTF.Schema2.ModelRoot.Load("./Assets" + Path);
+        foreach (var glMesh in model.LogicalMeshes)
         {
-            try
+            foreach(var glPrimitive in glMesh.Primitives)
             {
-                var model = SharpGLTF.Schema2.ModelRoot.Load("./Assets" + Path);
-                foreach (var glMesh in model.LogicalMeshes)
+                List<StaticMeshVertex> staticMeshVertices = new List<StaticMeshVertex>();
+                foreach (var kv in glPrimitive.VertexAccessors)
                 {
-                    foreach(var glPrimitive in glMesh.Primitives)
+                    int index = 0;
+                    if (kv.Key == "POSITION")
                     {
-                        List<StaticMeshVertex> staticMeshVertices = new List<StaticMeshVertex>();
-                        foreach (var kv in glPrimitive.VertexAccessors)
+                        foreach (var v in kv.Value.AsVector3Array())
                         {
-                            int index = 0;
-                            if (kv.Key == "POSITION")
+                            var Vertex = new StaticMeshVertex();
+                            if (staticMeshVertices.Count > index)
                             {
-                                foreach (var v in kv.Value.AsVector3Array())
-                                {
-                                    var Vertex = new StaticMeshVertex();
-                                    if (staticMeshVertices.Count > index)
-                                    {
-                                        Vertex = staticMeshVertices[index];
-                                    }
-                                    else
-                                    {
-                                        staticMeshVertices.Add(Vertex);
-                                    }
-                                    Vertex.Location = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
-                                    if (staticMeshVertices.Count > index)
-                                    {
-                                    }
-                                    staticMeshVertices[index] = Vertex;
-                                    index++;
-                                }
+                                Vertex = staticMeshVertices[index];
                             }
-                            if (kv.Key == "NORMAL")
+                            else
                             {
-                                foreach (var v in kv.Value.AsVector3Array())
-                                {
-                                    var Vertex = new StaticMeshVertex();
-                                    if (staticMeshVertices.Count > index)
-                                    {
-                                        Vertex = staticMeshVertices[index];
-                                    }
-                                    else
-                                    {
-                                        staticMeshVertices.Add(Vertex);
-                                    }
-                                    Vertex.Normal = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
-                                    staticMeshVertices[index] = Vertex;
-                                    index++;
-                                }
+                                staticMeshVertices.Add(Vertex);
                             }
-                            if (kv.Key == "TEXCOORD_0")
+                            Vertex.Location = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
+                            if (staticMeshVertices.Count > index)
                             {
-                                foreach (var v in kv.Value.AsVector2Array())
-                                {
+                            }
+                            staticMeshVertices[index] = Vertex;
+                            index++;
+                        }
+                    }
+                    if (kv.Key == "NORMAL")
+                    {
+                        foreach (var v in kv.Value.AsVector3Array())
+                        {
+                            var Vertex = new StaticMeshVertex();
+                            if (staticMeshVertices.Count > index)
+                            {
+                                Vertex = staticMeshVertices[index];
+                            }
+                            else
+                            {
+                                staticMeshVertices.Add(Vertex);
+                            }
+                            Vertex.Normal = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
+                            staticMeshVertices[index] = Vertex;
+                            index++;
+                        }
+                    }
+                    if (kv.Key == "TEXCOORD_0")
+                    {
+                        foreach (var v in kv.Value.AsVector2Array())
+                        {
 
-                                    var Vertex = new StaticMeshVertex();
-                                    if (staticMeshVertices.Count > index)
-                                    {
-                                        Vertex = staticMeshVertices[index];
-                                    }
-                                    else
-                                    {
-                                        staticMeshVertices.Add(Vertex);
-                                    }
-                                    Vertex.TexCoord = new Vector2 { X = v.X, Y = v.Y};
-                                    staticMeshVertices[index] = Vertex;
-                                    index++;
-                                }
-                            }
-                        }
-                        Meshes.Add(staticMeshVertices);
-
-                        List<uint> Indices= new List<uint>();
-                        foreach(var index in glPrimitive.IndexAccessor.AsIndicesArray())
-                        {
-                            Indices.Add(index);
-                        }
-                        IndicesList.Add(Indices);
-                        var Material = new Material();
-                        foreach(var glChannel in glPrimitive.Material.Channels)
-                        {
-                            if (glChannel.Texture == null)
-                                continue;
-                            var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
-                            if (glChannel.Key == "BaseColor")
+                            var Vertex = new StaticMeshVertex();
+                            if (staticMeshVertices.Count > index)
                             {
-                                Material.Diffuse = texture;
+                                Vertex = staticMeshVertices[index];
                             }
-                            if (glChannel.Key == "Normal")
+                            else
                             {
-                                Material.Normal = texture;
+                                staticMeshVertices.Add(Vertex);
                             }
+                            Vertex.TexCoord = new Vector2 { X = v.X, Y = v.Y};
+                            staticMeshVertices[index] = Vertex;
+                            index++;
                         }
-                        Materials.Add(Material);
                     }
                 }
-                InitRender();
-                IsValid = true;
+                Meshes.Add(staticMeshVertices);
 
+                List<uint> Indices= new List<uint>();
+                foreach(var index in glPrimitive.IndexAccessor.AsIndicesArray())
+                {
+                    Indices.Add(index);
+                }
+                IndicesList.Add(Indices);
+                var Material = new Material();
+                foreach(var glChannel in glPrimitive.Material.Channels)
+                {
+                    if (glChannel.Texture == null)
+                        continue;
+                    var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
+                    if (glChannel.Key == "BaseColor")
+                    {
+                        Material.Diffuse = texture;
+                    }
+                    if (glChannel.Key == "Normal")
+                    {
+                        Material.Normal = texture;
+                    }
+                }
+                Materials.Add(Material);
             }
-            catch
-            {
-                IsValid = false;
-            }
-        });
+        }
+        InitRender();
     }
 
     private unsafe void InitRender()
     {
-
         for (var index = 0; index < Meshes.Count; index++)
         {
-            VertexArrayObjectIndexes[index] = gl.GenVertexArray();
-            VertexBufferObjectIndexes[index] = gl.GenBuffer();
-            ElementBufferObjectIndexes[index] = gl.GenBuffer();
-            gl.BindVertexArray(VertexArrayObjectIndexes[index]);
+            uint vao = gl.GenVertexArray();
+            uint vbo = gl.GenBuffer();
+            uint ebo = gl.GenBuffer();
+            gl.BindVertexArray(vao);
+            gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
+            fixed (StaticMeshVertex* p = CollectionsMarshal.AsSpan(Meshes[index]))
+            {
+                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Meshes[index].Count * sizeof(StaticMeshVertex)), p, GLEnum.StaticDraw);
+            }
+            gl.BindBuffer(GLEnum.ElementArrayBuffer, ebo);
+            fixed (uint* p = CollectionsMarshal.AsSpan(IndicesList[index]))
+            {
+                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(IndicesList[index].Count * sizeof(uint)), p, GLEnum.StaticDraw);
+            }
 
             // Location
             gl.EnableVertexAttribArray(0);
@@ -159,25 +167,17 @@ public class StaticMesh : Asset
             // TexCoord
             gl.EnableVertexAttribArray(3);
             gl.VertexAttribPointer(3, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(3 * sizeof(Vector3)));
-            gl.BindBuffer(GLEnum.VertexArray, VertexBufferObjectIndexes[index]);
-            fixed(void* p = Meshes[index].ToArray())
-            {
-                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Meshes[index].Count * sizeof(StaticMeshVertex)), p, GLEnum.StaticDraw);
-            }
-            gl.BindBuffer(GLEnum.ElementArrayBuffer, ElementBufferObjectIndexes[index]);
-            fixed(void* p = IndicesList[index].ToArray())
-            {
-                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(IndicesList[index].Count * sizeof(uint)), p, GLEnum.StaticDraw);
-            }
             gl.BindVertexArray(0);
-            gl.BindBuffer(GLEnum.VertexArray, 0);
-            gl.BindBuffer(GLEnum.ElementArrayBuffer, 0);
 
+            VertexArrayObjectIndexes.Add(vao);
+            VertexBufferObjectIndexes.Add(vbo);
+            ElementBufferObjectIndexes.Add(ebo);
         }
         
 
 
     }
+
     public unsafe void Render(double DeltaTime)
     {
         if (IsValid == false)
@@ -187,9 +187,10 @@ public class StaticMesh : Asset
         {
             Materials[index].Use();
             gl.BindVertexArray(VertexArrayObjectIndexes[index]);
+            Shader.GlobalShader?.Use();
             gl.DrawElements(GLEnum.Triangles, (uint)IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
-            index++;
             gl.ActiveTexture(GLEnum.Texture0);
+            index++;
         }
     }
 }

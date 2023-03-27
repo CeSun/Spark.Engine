@@ -14,9 +14,8 @@ namespace Spark.Engine.Core.Assets;
 public class Texture : Asset
 {
     uint TextureId;
-    protected override async Task AsyncLoad()
+    protected override void  LoadAsset()
     {
-        await Task.Yield();
         using (var StreamReader = new StreamReader("./Assets" + Path))
         {
             var image = ImageResult.FromStream(StreamReader.BaseStream);
@@ -27,7 +26,7 @@ public class Texture : Asset
         }
 
     }
-    public Texture(string path, bool IsAsync) : base(path, IsAsync) 
+    public Texture(string path) : base(path) 
     {
         
     }
@@ -80,7 +79,8 @@ public class Texture : Asset
 
     public void Use(string Name, int index)
     {
-        gl.ActiveTexture(GLEnum.Texture0 + index);
         GlobalShader?.SetInt(Name, index);
+        gl.ActiveTexture(GLEnum.Texture0 + index);
+        gl.BindTexture(GLEnum.Texture2D, TextureId);
     }
 }

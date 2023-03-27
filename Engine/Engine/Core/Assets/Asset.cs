@@ -10,28 +10,23 @@ public abstract class Asset
 {
 
     public event Action? OnLoadCompleted;
-    public Asset(string path, bool IsAsync)
+    public Asset(string path)
     {
         Path = path;
         IsLoaded = false;
         IsValid = false;
-        if (IsAsync)
+        try
         {
-            var fun = async () =>
-            {
-                await AsyncLoad();
-                IsLoaded = true;
-                OnLoadCompleted?.Invoke();
-            };
-            fun();
-
+            LoadAsset();
+            IsValid = true;
         }
-        else
+        catch (Exception ex)
         {
-            AsyncLoad().Wait();
-            IsLoaded = true;
-            OnLoadCompleted?.Invoke();
+            Console.WriteLine(ex);
+            IsValid = false;
         }
+        IsLoaded = true;
+        OnLoadCompleted?.Invoke();
 
     }
 
@@ -45,6 +40,6 @@ public abstract class Asset
 
     public bool IsValid { get; protected set; }
     
-    protected abstract Task AsyncLoad();
+    protected abstract void LoadAsset();
 
 }

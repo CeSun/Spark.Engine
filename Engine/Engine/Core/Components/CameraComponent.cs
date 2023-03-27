@@ -1,4 +1,6 @@
 ﻿using Spark.Engine.Core.Actors;
+using Spark.Engine.Core.Render;
+using Spark.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +17,7 @@ public enum ProjectionType
 }
 public partial class CameraComponent : PrimitiveComponent, IComparable<CameraComponent>
 {
+    public static CameraComponent? CurrentCameraComponent;
     public int Order { get; set; }
     public CameraComponent(Actor actor) : base(actor)
     {
@@ -23,7 +26,10 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         FarPlaneDistance = 100;
         Order = 0;
         ProjectionType = ProjectionType.Perspective;
+        RenderTarget = Engine.Instance.WindowRenderTarget;
     }
+
+    public RenderTarget RenderTarget { get; set; }
 
     ProjectionType ProjectionType { get; set; }
     /// <summary>
@@ -50,12 +56,6 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         get => _Far;
         set
         {
-            if (value < 0.0f)
-                return;
-            if (NearPlaneDistance > FarPlaneDistance)
-            {
-                NearPlaneDistance = FarPlaneDistance;
-            }
             _Far = value;
         }
     }
@@ -68,20 +68,14 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         get => _Near;
         set
         {
-            if (value < 0.0f)
-                return;
             _Near = value;
-            if (FarPlaneDistance < NearPlaneDistance)
-            {
-                FarPlaneDistance = NearPlaneDistance;
-            }
         }
     }
     public Matrix4x4 View => Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + ForwardVector, UpVector);
 
     public Matrix4x4 Projection => this.ProjectionType switch
     {
-        ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView, Engine.Instance.WindowSize.X / (float)Engine.Instance.WindowSize.Y, NearPlaneDistance, FarPlaneDistance),
+        ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), Engine.Instance.WindowSize.X / (float)Engine.Instance.WindowSize.Y, NearPlaneDistance, FarPlaneDistance),
         ProjectionType.Orthographic => Matrix4x4.CreatePerspective(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, NearPlaneDistance, FarPlaneDistance),
         _ => throw new NotImplementedException()
     };
@@ -89,9 +83,9 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
 
     public void RenderScene(double DeltaTime)
     {
-        Owner.CurrentWorld.SceneRenderer.CurrentCamera = this;
+        CurrentCameraComponent = this;
         Owner.CurrentWorld.SceneRenderer.Render(DeltaTime);
-        Owner.CurrentWorld.SceneRenderer.CurrentCamera = null;
+        CurrentCameraComponent = null;
     }
 
 

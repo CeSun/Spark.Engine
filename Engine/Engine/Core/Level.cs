@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using SharpGLTF.Schema2;
@@ -9,6 +10,7 @@ using Silk.NET.OpenGL;
 using Spark.Engine.Core.Actors;
 using Spark.Engine.Core.Assets;
 using Spark.Engine.Core.Components;
+using Spark.Util;
 using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Core;
@@ -24,15 +26,18 @@ public partial class Level
 
     public void BeginPlay()
     {
-        StaticMesh mesh = new StaticMesh("/StaticMesh/untitled.glb", false);
+        
+        StaticMesh mesh = new StaticMesh("/StaticMesh/untitled.glb");
         Actor CameraActor = new Actor(this);
         CameraComponent cameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = cameraComponent;
-
         Actor StaticMeshActor = new Actor(this);
         StaticMeshComponent staticMeshComponent = new StaticMeshComponent(StaticMeshActor);
         StaticMeshActor.RootComponent = staticMeshComponent;
+        staticMeshComponent.WorldScale = new System.Numerics.Vector3(10, 10, 10);
         staticMeshComponent.StaticMesh = mesh;
+        staticMeshComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(180f.DegreeToRadians(), 0, 0);
+        staticMeshComponent.WorldLocation = cameraComponent.WorldLocation + (cameraComponent.ForwardVector * 20) - staticMeshComponent.UpVector * 10 ;
     }
 
     public void Destory() 
@@ -104,10 +109,10 @@ public partial class Level
 {
     private List<PrimitiveComponent> _PrimitiveComponents = new List<PrimitiveComponent>();
     private List<CameraComponent> _CameraComponents = new List<CameraComponent>();
-
+    private List<DirectionLightComponent> _DirectionLightComponents = new List<DirectionLightComponent>();
     public IReadOnlyList<CameraComponent> CameraComponents => _CameraComponents;
     public IReadOnlyList<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
-
+    public IReadOnlyList<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
     public void RegistComponent(PrimitiveComponent component)
     {
         if (PrimitiveComponents.Contains(component))
@@ -123,6 +128,13 @@ public partial class Level
                 _CameraComponents.Order();
             }
         }
+        else if (component is DirectionLightComponent directionLightComponent)
+        {
+            if (!_DirectionLightComponents.Contains(directionLightComponent))
+            {
+                _DirectionLightComponents.Add(directionLightComponent);
+            }
+        }
     }
 
     public void UnregistComponent(PrimitiveComponent component)
@@ -136,6 +148,14 @@ public partial class Level
         {
             if (_CameraComponents.Contains(cameraComponent))
                 _CameraComponents.Remove(cameraComponent);
+        }
+        else if (component is DirectionLightComponent directionLightComponent)
+        {
+            if (_DirectionLightComponents.Contains(directionLightComponent))
+            {
+                _DirectionLightComponents.Remove(directionLightComponent);
+            }
+
         }
     }
 }

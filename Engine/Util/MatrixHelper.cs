@@ -82,6 +82,6 @@ public static class MatrixHelper
         var LocationMatrix = Matrix4x4.CreateTranslation(Location);
         var RotationMatrix = Matrix4x4.CreateFromQuaternion(Rotation);
         var ScaleMatrix = Matrix4x4.CreateScale(Scale);
-        return  LocationMatrix * RotationMatrix * ScaleMatrix;
+        return ScaleMatrix * RotationMatrix * LocationMatrix;
     }
 }

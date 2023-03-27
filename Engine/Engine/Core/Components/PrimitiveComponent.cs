@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using Spark.Engine.Core.Actors;
+using Spark.Engine.Core.Assets;
 
 namespace Spark.Engine.Core.Components;
 
@@ -54,7 +55,7 @@ public partial class PrimitiveComponent
     /// <param name="DeltaTime"></param>
     public virtual void Render(double DeltaTime)
     {
-
+        Shader.GlobalShader?.SetMatrix("ModelTransform", RelativeTransform);
     }
     
     /// <summary>
@@ -162,7 +163,7 @@ public partial class PrimitiveComponent
             if (Matrix4x4.Invert(ParentComponent.WorldTransform, out var WorldInvertTransform))
             {
 
-                relativeTransform = WorldInvertTransform * pWorldTransform;
+                relativeTransform = pWorldTransform * WorldInvertTransform;
             }
         }
         RelativeLocation = relativeTransform.Translation;
@@ -275,9 +276,8 @@ public partial class PrimitiveComponent
         }
         else
         {
-            _WorldTransform = ParentComponent._WorldTransform * _RelativeTransform;
+            _WorldTransform = _RelativeTransform * ParentComponent._WorldTransform;
         }
-        // UpdateRelativeTransformFromWorldTransform(_WorldTransform);
         _WorldLocation = _WorldTransform.Translation;
         _WorldRotation = _WorldTransform.Rotation();
         _WorldScale = _WorldTransform.Scale();
@@ -299,9 +299,9 @@ public partial class PrimitiveComponent
             return this;
         return ParentComponent.GetRootTransformDirtyNode();
     }
-    public Vector3 ForwardVector => Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
-    public Vector3 RightVector => Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
-    public Vector3 UpVector => Vector3.Transform(new Vector3(0, 0, 1), WorldRotation);
+    public Vector3 ForwardVector => Vector3.Transform(new Vector3(0, 0, -1), WorldRotation);
+    public Vector3 RightVector => Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
+    public Vector3 UpVector => Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
 }
 public partial class PrimitiveComponent
 {

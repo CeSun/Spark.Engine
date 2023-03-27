@@ -15,5 +15,6 @@ void main()
 {
     OutTexCoord = TexCoord;
     OutColor =  Color;
-    gl_Position = ProjectionTransform * ViewTransform * ModelTransform * vec4(Location, 1.0); // 注意我们如何把一个vec3作为vec4的构造器的参数
+    gl_Position = ProjectionTransform * ViewTransform * ModelTransform * vec4(Location, 1.0);
+    
 }
