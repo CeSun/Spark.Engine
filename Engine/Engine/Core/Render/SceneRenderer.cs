@@ -21,7 +21,7 @@ public class SceneRenderer
     public SceneRenderer(World world)
     {
         World = world;
-        BaseShader = new Shader("/Shader/Base");
+        BaseShader = new Shader("/Shader/DeferredBase");
         GloblaBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
     }
 
@@ -36,23 +36,23 @@ public class SceneRenderer
 
     private void BasePass(double DeltaTime)
     {
-
-        gl.BindFramebuffer(FramebufferTarget.Framebuffer, GloblaBuffer.BufferId);
-        gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-        Shader.GlobalShader = BaseShader;
-        if (CurrentCameraComponent != null)
+        GloblaBuffer.Render(() =>
         {
-            BaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
-            BaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-        }
-        foreach (var component in World.CurrentLevel.PrimitiveComponents)
-        {
-            if (component.IsDestoryed == false)
+            gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            Shader.GlobalShader = BaseShader;
+            if (CurrentCameraComponent != null)
             {
-                component.Render(DeltaTime);
+                BaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+                BaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
             }
-        }
-        gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            foreach (var component in World.CurrentLevel.PrimitiveComponents)
+            {
+                if (component.IsDestoryed == false)
+                {
+                    component.Render(DeltaTime);
+                }
+            }
+        });
 
     }
 

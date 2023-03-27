@@ -53,8 +53,8 @@ public class RenderBuffer
                 gl.DeleteTexture(ColorId);
             }
 
-            BufferId = gl.GenBuffer();
-            gl.BindBuffer(GLEnum.Framebuffer, BufferId);
+            BufferId = gl.GenFramebuffer();
+            gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
 
             PositionId = gl.GenTexture();
             gl.BindTexture(GLEnum.Texture2D, PositionId);
@@ -92,8 +92,8 @@ public class RenderBuffer
 
     public void Render(Action RenderAction)
     {
-        //gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
+        gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
         RenderAction();
-        //gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+        gl.BindFramebuffer(GLEnum.Framebuffer, 0);
     }
 }

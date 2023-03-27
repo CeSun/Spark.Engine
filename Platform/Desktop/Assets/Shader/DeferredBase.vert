@@ -10,11 +10,15 @@ uniform mat4 ProjectionTransform;
 
 out vec2 OutTexCoord;
 out vec3 OutColor;
+out vec3 OutNormal;
+out vec3 OutPosition;
 
 void main()
 {
     OutTexCoord = TexCoord;
     OutColor =  Color;
+    OutNormal = Normal;
+    OutPosition = Location.xyz;
     gl_Position = ProjectionTransform * ViewTransform * ModelTransform * vec4(Location, 1.0);
     
 }
