@@ -15,12 +15,14 @@ namespace Spark.Engine.Core.Render;
 
 public class SceneRenderer
 {
+    RenderBuffer GloblaBuffer;
     Shader BaseShader;
     World World { get; set; }
     public SceneRenderer(World world)
     {
         World = world;
         BaseShader = new Shader("/Shader/Base");
+        GloblaBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
     }
 
     public void Render(double DeltaTime)
@@ -34,6 +36,8 @@ public class SceneRenderer
 
     private void BasePass(double DeltaTime)
     {
+
+        gl.BindFramebuffer(FramebufferTarget.Framebuffer, GloblaBuffer.BufferId);
         gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
         Shader.GlobalShader = BaseShader;
         if (CurrentCameraComponent != null)
@@ -48,11 +52,13 @@ public class SceneRenderer
                 component.Render(DeltaTime);
             }
         }
+        gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
     }
 
     private void PostProcessPass(double DeltaTime)
     {
-        gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        //gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
     }
 }

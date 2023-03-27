@@ -9,18 +9,6 @@ namespace Spark.Engine;
 
 public class Engine : Singleton<Engine>
 {
-    public RenderTarget WindowRenderTarget { 
-        get 
-        { 
-            if (_WindowRenderTarget == null)
-            {
-                throw new Exception("当前无RenderTarget");
-            }
-            return _WindowRenderTarget;
-        } 
-    }
-
-    private RenderTarget? _WindowRenderTarget;
     public GL? Gl { get; set; }
     List<World> Worlds = new List<World>();
     public void InitEngine(string[] args, Dictionary<string, object> objects)
@@ -28,7 +16,6 @@ public class Engine : Singleton<Engine>
         Gl = (GL)objects["OpenGL"];
         WindowSize = (Point)objects["WindowSize"];
         Worlds.Add(new World());
-        _WindowRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y);
     }
     public void Update(double DeltaTime)
     {

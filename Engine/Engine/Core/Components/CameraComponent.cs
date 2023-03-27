@@ -26,10 +26,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         FarPlaneDistance = 100;
         Order = 0;
         ProjectionType = ProjectionType.Perspective;
-        RenderTarget = Engine.Instance.WindowRenderTarget;
     }
-
-    public RenderTarget RenderTarget { get; set; }
 
     ProjectionType ProjectionType { get; set; }
     /// <summary>
