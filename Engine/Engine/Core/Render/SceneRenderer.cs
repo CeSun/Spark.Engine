@@ -118,7 +118,7 @@ public class SceneRenderer
             return;
         CurrentCameraComponent.RenderTarget.RenderTo(() =>
         {
-            
+            // 清除背景颜色
             gl.ClearColor(Color.Black);
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
             gl.Disable(EnableCap.DepthTest);
@@ -126,9 +126,9 @@ public class SceneRenderer
             gl.BlendFunc(GLEnum.One, GLEnum.One);
             gl.Enable(EnableCap.Blend);
 
-
+            // 环境光
             AmbientLightingPass();
-
+            // 定向光
             DirectionalLight();
 
 
@@ -142,15 +142,14 @@ public class SceneRenderer
         if (CurrentCameraComponent == null)
             return;
         AmbientLightingShader.Use();
-        Matrix4x4.Invert((CurrentCameraComponent.View * CurrentCameraComponent.Projection), out var VPInvert);
         AmbientLightingShader.SetVector2("TexCoordScale",
             new Vector2
             {
                 X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
                 Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
             });
-        AmbientLightingShader.SetInt("ColorTexture", 0);
         AmbientLightingShader.SetFloat("Brightness", 0.1f);
+        AmbientLightingShader.SetInt("ColorTexture", 0);
         gl.ActiveTexture(GLEnum.Texture0);
         gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
 
@@ -163,9 +162,42 @@ public class SceneRenderer
 
     private unsafe void DirectionalLight()
     {
-        // LightingShader.SetMatrix("VPInvert", VPInvert);
-        foreach(var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
+        if (CurrentCameraComponent == null)
+            return;
+        foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
+            Matrix4x4.Invert((CurrentCameraComponent.View * CurrentCameraComponent.Projection), out var VPInvert);
+            DirectionalLightingShader.SetMatrix("VPInvert", VPInvert);
+
+
+            AmbientLightingShader.SetVector2("TexCoordScale",
+                new Vector2
+                {
+                    X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
+                    Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                });
+
+
+            DirectionalLightingShader.SetInt("ColorTexture", 0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
+
+
+            DirectionalLightingShader.SetInt("NormalTexture", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.NormalId);
+
+
+            DirectionalLightingShader.SetInt("DepthTexture", 2);
+            gl.ActiveTexture(GLEnum.Texture2);
+            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.DepthId);
+
+            gl.BindVertexArray(PostProcessVAO);
+            gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            DirectionalLightingShader.UnUse();
+
+
 
         }
     }
