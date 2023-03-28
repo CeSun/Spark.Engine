@@ -125,7 +125,6 @@ public class SceneRenderer
             });
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
-
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);

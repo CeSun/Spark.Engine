@@ -38,17 +38,20 @@ public class RenderBuffer
             {
                 BufferHeight = height;
             }
-            // 删除buffer
-            if (BufferId != 0)
+            /*
+            if (NormalId != 0)
             {
-                gl.DeleteBuffer(BufferId);
+                gl.DeleteTexture(NormalId);
             }
             if (ColorId != 0)
             {
                 gl.DeleteTexture(ColorId);
             }
-
-            BufferId = gl.GenFramebuffer();
+            */
+            if (BufferId == 0)
+            {
+                BufferId = gl.GenFramebuffer();
+            }
             gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
 
 
