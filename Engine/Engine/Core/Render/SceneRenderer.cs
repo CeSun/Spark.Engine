@@ -13,6 +13,8 @@ using static Spark.Engine.Core.Components.CameraComponent;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using SharpGLTF.Transforms;
+using SharpGLTF.Schema2;
 
 namespace Spark.Engine.Core.Render;
 
@@ -21,6 +23,7 @@ public class SceneRenderer
     RenderBuffer GloblaBuffer;
     Shader BaseShader;
     Shader LightingShader;
+    Shader AmbientLightingShader;
     World World { get; set; }
 
     uint PostProcessVAO = 0;
@@ -31,6 +34,7 @@ public class SceneRenderer
         World = world;
         BaseShader = new Shader("/Shader/DeferredBase");
         LightingShader = new Shader("/Shader/DeferredLighting");
+        AmbientLightingShader = new Shader("/Shader/DeferredAmbientLighting");
         GloblaBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
         InitRender();
     }
@@ -77,18 +81,18 @@ public class SceneRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-        gl.Enable(EnableCap.DepthTest);
         GloblaBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
 
         BasePass(DeltaTime);
 
-        PostProcessPass(DeltaTime);
+        LightingPass(DeltaTime);
     }
 
     private void BasePass(double DeltaTime)
     {
         GloblaBuffer.Render(() =>
         {
+            gl.Enable(EnableCap.DepthTest);
             gl.ClearColor(Color.Black);
             gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             Shader.GlobalShader = BaseShader;
@@ -108,31 +112,64 @@ public class SceneRenderer
 
     }
 
-    private unsafe void PostProcessPass(double DeltaTime)
+    private void LightingPass(double DeltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
         CurrentCameraComponent.RenderTarget.RenderTo(() =>
         {
-            gl.ClearColor(Color.White);
+            
+            gl.ClearColor(Color.Black);
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-            LightingShader.Use();
+            gl.Disable(EnableCap.DepthTest);
+            gl.BlendEquation(GLEnum.FuncAdd);
+            gl.BlendFunc(GLEnum.One, GLEnum.One);
+            gl.Enable(EnableCap.Blend);
 
-            LightingShader.SetInt("ColorTexture", 0);
-            LightingShader.SetVector2("TexCoordScale", new Vector2 { 
+
+            AmbientLightingPass();
+
+            DirectionalLight();
+
+
+            gl.Disable(EnableCap.Blend);
+
+        });
+    }
+
+    private unsafe void AmbientLightingPass()
+    {
+        if (CurrentCameraComponent == null)
+            return;
+        AmbientLightingShader.Use();
+        Matrix4x4.Invert((CurrentCameraComponent.View * CurrentCameraComponent.Projection), out var VPInvert);
+        AmbientLightingShader.SetVector2("TexCoordScale",
+            new Vector2
+            {
                 X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
                 Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
             });
-            gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
-            gl.BindVertexArray(PostProcessVAO);
-            gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
-            gl.ActiveTexture(GLEnum.Texture0);
-            LightingShader.UnUse();
+        AmbientLightingShader.SetInt("ColorTexture", 0);
+        AmbientLightingShader.SetFloat("Brightness", 0.1f);
+        gl.ActiveTexture(GLEnum.Texture0);
+        gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
 
-        });
 
+        gl.BindVertexArray(PostProcessVAO);
+        gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+        gl.ActiveTexture(GLEnum.Texture0);
+        AmbientLightingShader.UnUse();
     }
+
+    private unsafe void DirectionalLight()
+    {
+        // LightingShader.SetMatrix("VPInvert", VPInvert);
+        foreach(var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
+        {
+
+        }
+    }
+
 }
 
 struct DeferredVertex

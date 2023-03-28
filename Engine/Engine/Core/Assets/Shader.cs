@@ -37,6 +37,7 @@ public class Shader : Asset
         if (code == 0)
         {
             var info = gl.GetShaderInfoLog(vert);
+            Console.WriteLine(VertShaderSource);
             throw new Exception(info);
         }
         var frag = gl.CreateShader(GLEnum.FragmentShader);
@@ -47,6 +48,7 @@ public class Shader : Asset
         {
             gl.DeleteShader(vert);
             var info = gl.GetShaderInfoLog(frag);
+            Console.WriteLine(FragShaderSource);
             throw new Exception(info);
         }
         ProgramId = gl.CreateProgram();
@@ -59,7 +61,6 @@ public class Shader : Asset
             gl.DeleteShader(vert);
             gl.DeleteShader(frag);
             var info = gl.GetProgramInfoLog(ProgramId);
-
             throw new Exception(info);
         }
         gl.DeleteShader(vert);
@@ -67,6 +68,13 @@ public class Shader : Asset
     }
 
     public void SetInt(string name, int value) 
+    {
+        gl.UseProgram(ProgramId);
+        var location = gl.GetUniformLocation(ProgramId, name);
+        gl.Uniform1(location, value);
+    }
+
+    public void SetFloat(string name, float value)
     {
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);

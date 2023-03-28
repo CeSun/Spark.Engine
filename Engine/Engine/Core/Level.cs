@@ -27,17 +27,19 @@ public partial class Level
     public void BeginPlay()
     {
         
-        StaticMesh mesh = new StaticMesh("/StaticMesh/untitled.glb");
         Actor CameraActor = new Actor(this);
         CameraComponent cameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = cameraComponent;
+
+
         Actor StaticMeshActor = new Actor(this);
         StaticMeshComponent staticMeshComponent = new StaticMeshComponent(StaticMeshActor);
+        StaticMesh mesh = new StaticMesh("/StaticMesh/untitled.glb");
         StaticMeshActor.RootComponent = staticMeshComponent;
-        staticMeshComponent.WorldScale = new System.Numerics.Vector3(10, 10, 10);
+        staticMeshComponent.WorldScale = new Vector3(20, 20, 20);
         staticMeshComponent.StaticMesh = mesh;
         staticMeshComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(180f.DegreeToRadians(), 0, 0);
-        staticMeshComponent.WorldLocation = cameraComponent.WorldLocation + (cameraComponent.ForwardVector * 20) - staticMeshComponent.UpVector * 10 ;
+        staticMeshComponent.WorldLocation = cameraComponent.WorldLocation + (cameraComponent.ForwardVector * 20) - staticMeshComponent.UpVector * 18  ;
     }
 
     public void Destory() 
