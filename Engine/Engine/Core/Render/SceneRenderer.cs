@@ -22,8 +22,9 @@ public class SceneRenderer
 {
     RenderBuffer GloblaBuffer;
     Shader BaseShader;
+    Shader BrightnessLightingShader;
     Shader DirectionalLightingShader;
-    Shader AmbientLightingShader;
+    Shader SpotLightingShader;
     World World { get; set; }
 
     uint PostProcessVAO = 0;
@@ -33,8 +34,9 @@ public class SceneRenderer
     {
         World = world;
         BaseShader = new Shader("/Shader/Deferred/Base");
+        BrightnessLightingShader = new Shader("/Shader/Deferred/BrightnessLighting");
         DirectionalLightingShader = new Shader("/Shader/Deferred/DirectionalLighting");
-        AmbientLightingShader = new Shader("/Shader/Deferred/AmbientLighting");
+        SpotLightingShader = new Shader("/Shader/Deferred/SpotLighting");
         GloblaBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
         InitRender();
     }
@@ -126,11 +128,12 @@ public class SceneRenderer
             gl.BlendFunc(GLEnum.One, GLEnum.One);
             gl.Enable(EnableCap.Blend);
 
-            // 环境光
+            // 间接光
             AmbientLightingPass();
             // 定向光
             DirectionalLight();
-
+            // 点光源
+            SpotLight();
 
             gl.Disable(EnableCap.Blend);
 
@@ -141,15 +144,15 @@ public class SceneRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-        AmbientLightingShader.Use();
-        AmbientLightingShader.SetVector2("TexCoordScale",
+        BrightnessLightingShader.Use();
+        BrightnessLightingShader.SetVector2("TexCoordScale",
             new Vector2
             {
                 X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
                 Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
             });
-        AmbientLightingShader.SetFloat("Brightness", 0.1f);
-        AmbientLightingShader.SetInt("ColorTexture", 0);
+        BrightnessLightingShader.SetFloat("Brightness",0.0f);
+        BrightnessLightingShader.SetInt("ColorTexture", 0);
         gl.ActiveTexture(GLEnum.Texture0);
         gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
 
@@ -157,20 +160,22 @@ public class SceneRenderer
         gl.BindVertexArray(PostProcessVAO);
         gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
         gl.ActiveTexture(GLEnum.Texture0);
-        AmbientLightingShader.UnUse();
+        BrightnessLightingShader.UnUse();
     }
 
     private unsafe void DirectionalLight()
     {
         if (CurrentCameraComponent == null)
             return;
+        DirectionalLightingShader.Use();
         foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
+            var LightInfo = DirectionalLight.LightInfo;
             Matrix4x4.Invert((CurrentCameraComponent.View * CurrentCameraComponent.Projection), out var VPInvert);
             DirectionalLightingShader.SetMatrix("VPInvert", VPInvert);
 
 
-            AmbientLightingShader.SetVector2("TexCoordScale",
+            DirectionalLightingShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
                     X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
@@ -178,6 +183,8 @@ public class SceneRenderer
                 });
 
 
+            DirectionalLightingShader.SetFloat("AmbientStrength", DirectionalLight.AmbientStrength);
+            DirectionalLightingShader.SetFloat("LightStrength", DirectionalLight.LightStrength);
             DirectionalLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
@@ -192,14 +199,66 @@ public class SceneRenderer
             gl.ActiveTexture(GLEnum.Texture2);
             gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.DepthId);
 
+            DirectionalLightingShader.SetVector3("LightDirection", LightInfo.Direction);
+            DirectionalLightingShader.SetVector3("LightColor", LightInfo.Color);
+
+            DirectionalLightingShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
-            DirectionalLightingShader.UnUse();
-
 
 
         }
+        DirectionalLightingShader.UnUse();
+
+    }
+
+    public unsafe void SpotLight()
+    {
+        if (CurrentCameraComponent == null)
+            return;
+        SpotLightingShader.Use();
+        foreach (var SpotLightComponent in World.CurrentLevel.SpotLightComponents)
+        {
+            Matrix4x4.Invert((CurrentCameraComponent.View * CurrentCameraComponent.Projection), out var VPInvert);
+            SpotLightingShader.SetMatrix("VPInvert", VPInvert);
+
+
+            SpotLightingShader.SetVector2("TexCoordScale",
+                new Vector2
+                {
+                    X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
+                    Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                });
+
+
+            SpotLightingShader.SetFloat("AmbientStrength", SpotLightComponent.AmbientStrength);
+
+            SpotLightingShader.SetInt("ColorTexture", 0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
+
+
+            SpotLightingShader.SetInt("NormalTexture", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.NormalId);
+
+
+            SpotLightingShader.SetInt("DepthTexture", 2);
+            gl.ActiveTexture(GLEnum.Texture2);
+            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.DepthId);
+
+            SpotLightingShader.SetVector3("LightLocation", SpotLightComponent.WorldLocation);
+            SpotLightingShader.SetVector3("LightColor", SpotLightComponent._Color);
+
+            SpotLightingShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+            gl.BindVertexArray(PostProcessVAO);
+            gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+            gl.ActiveTexture(GLEnum.Texture0);
+
+
+        }
+        DirectionalLightingShader.UnUse();
     }
 
 }

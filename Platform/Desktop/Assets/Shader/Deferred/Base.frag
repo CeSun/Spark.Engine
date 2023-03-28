@@ -13,5 +13,5 @@ uniform sampler2D Normal;
 void main()
 {
     BufferColor = vec4(texture(Diffuse, OutTexCoord).rgb, 1.0f);
-    BufferNormal =  (OutNormal + vec3(1, 1, 1)) / 2;
+    BufferNormal =  (OutNormal + 1) / 2;
 }

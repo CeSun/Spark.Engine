@@ -55,7 +55,7 @@ public partial class PrimitiveComponent
     /// <param name="DeltaTime"></param>
     public virtual void Render(double DeltaTime)
     {
-        Shader.GlobalShader?.SetMatrix("ModelTransform", RelativeTransform);
+        Shader.GlobalShader?.SetMatrix("ModelTransform", WorldTransform);
         Shader.GlobalShader?.SetMatrix("NormalTransform", NormalTransform);
     }
     

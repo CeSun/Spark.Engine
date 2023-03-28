@@ -7,11 +7,11 @@ uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
 uniform mat4 VPInvert;
-uniform vec3 LightDirection;
 uniform vec3 LightColor;
+uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
 uniform float AmbientStrength;
-uniform float LightStrength;
+
 
 
 
@@ -21,7 +21,7 @@ vec3 GetWorldLocation(vec3 ScreenLocation);
 
 void main()
 {
-    float specularStrength = 0.5f;
+    float specularStrength = 0.5;
 
     
     float depth = texture(DepthTexture, OutTexCoord).r;
@@ -32,22 +32,20 @@ void main()
 
     Normal = normalize(Normal);
 
-    
     vec3  Ambient = AmbientStrength * LightColor.rgb;
-
-
+    
+    vec3 LightDirection = normalize(WorldLocation - LightLocation);
     // mfs
     float diff = max(dot(Normal, -1 * LightDirection), 0.0);
-    vec3 Diffuse = diff * LightColor;
-
+    vec3 diffuse = diff * LightColor;
     // jmfs 
     vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
     vec3 ReflectDirection = reflect(LightDirection, Normal);
     float spec = pow(max(dot(CameraDirection, ReflectDirection), 0.0), 32);
 
-    vec3 Specular = specularStrength * spec * LightColor;
+    vec3 specular = specularStrength * spec * LightColor;
 
-    glColor = vec4((Ambient + Diffuse + Specular ) * LightStrength * Color.rgb, 1); 
+    glColor = vec4((Ambient + diffuse + specular) * Color.rgb, 1); 
 
 }
 

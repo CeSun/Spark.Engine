@@ -19,6 +19,8 @@ void main()
     OutTexCoord = TexCoord;
     OutColor =  Color;
     OutNormal = normalize(mat3(NormalTransform) * Normal);
+    // OutNormal = mat3(transpose(inverse(ModelTransform))) * Normal;
+
     OutPosition = Location.xyz;
     gl_Position = ProjectionTransform * ViewTransform * ModelTransform * vec4(Location, 1.0);
     

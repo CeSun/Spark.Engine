@@ -24,29 +24,46 @@ public partial class Level
         CurrentWorld = world;
     }
 
+    Actor? StaticMeshActor;
     public void BeginPlay()
     {
-        
-        Actor CameraActor = new Actor(this);
-        CameraComponent cameraComponent = new CameraComponent(CameraActor);
-        CameraActor.RootComponent = cameraComponent;
+        var CameraActor = new Actor(this);
+        var CameraComponent = new CameraComponent(CameraActor);
+        CameraActor.RootComponent = CameraComponent;
+        CameraActor.WorldLocation -= CameraComponent.ForwardVector * 3;
+        CameraComponent.NearPlaneDistance = 0.1f;
 
 
-        Actor StaticMeshActor = new Actor(this);
-        StaticMeshComponent staticMeshComponent = new StaticMeshComponent(StaticMeshActor);
-        StaticMesh mesh = new StaticMesh("/StaticMesh/untitled.glb");
-        StaticMeshActor.RootComponent = staticMeshComponent;
-        staticMeshComponent.WorldScale = new Vector3(20, 20, 20);
-        staticMeshComponent.StaticMesh = mesh;
-        staticMeshComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(180f.DegreeToRadians(), 0, 0);
-        staticMeshComponent.WorldLocation = cameraComponent.WorldLocation + (cameraComponent.ForwardVector * 20) - staticMeshComponent.UpVector * 18  ;
+        var CubeActor = new Actor(this);
+        var CubeMeshComp = new StaticMeshComponent(CubeActor);
+        CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
+        CubeActor.RootComponent = CubeMeshComp;
+        CubeActor.WorldLocation += CubeMeshComp.ForwardVector * 3;
+
+        var DirectionActor = new Actor(this);
+        var DirectionComp = new DirectionLightComponent(DirectionActor);
+        DirectionActor.RootComponent = DirectionComp;
+        DirectionComp.Color = Color.Red;
+        DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), 0f, 0f);
+        DirectionComp.LightStrength = 1;
+
+
+        var SpotActor = new Actor(this);
+        var SpotLightComp = new SpotLightComponent(SpotActor);
+        SpotActor.RootComponent = SpotLightComp;
+        SpotLightComp.Color = Color.Green;
+        SpotLightComp.WorldLocation -= SpotLightComp.ForwardVector * 3;
+        SpotLightComp.WorldLocation += SpotLightComp.RightVector * 10;
+
+        StaticMeshActor = CubeActor;
+
     }
 
     public void Destory() 
     { 
 
     }
-
+    float a = 0;
     public void Update(double DeltaTime)
     {
         ActorUpdate(DeltaTime);
@@ -54,6 +71,11 @@ public partial class Level
 
     public void Render(double DeltaTime)
     {
+        if (StaticMeshActor != null)
+        {
+            a += ((float)(DeltaTime) * 20);
+            StaticMeshActor.WorldRotation = Quaternion.CreateFromYawPitchRoll((float)(a.DegreeToRadians()), 0, 0);
+        }
         foreach (var camera in CameraComponents)
         {
             camera.RenderScene(DeltaTime);
@@ -112,9 +134,11 @@ public partial class Level
     private List<PrimitiveComponent> _PrimitiveComponents = new List<PrimitiveComponent>();
     private List<CameraComponent> _CameraComponents = new List<CameraComponent>();
     private List<DirectionLightComponent> _DirectionLightComponents = new List<DirectionLightComponent>();
+    private List<SpotLightComponent> _SpotLightComponents = new List<SpotLightComponent>();
     public IReadOnlyList<CameraComponent> CameraComponents => _CameraComponents;
     public IReadOnlyList<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
     public IReadOnlyList<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
+    public IReadOnlyList<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
     public void RegistComponent(PrimitiveComponent component)
     {
         if (PrimitiveComponents.Contains(component))
@@ -137,6 +161,13 @@ public partial class Level
                 _DirectionLightComponents.Add(directionLightComponent);
             }
         }
+        else if (component is SpotLightComponent spotLightComponent)
+        {
+            if (!_SpotLightComponents.Contains(spotLightComponent))
+            {
+                _SpotLightComponents.Add(spotLightComponent);
+            }
+        }
     }
 
     public void UnregistComponent(PrimitiveComponent component)
@@ -157,7 +188,13 @@ public partial class Level
             {
                 _DirectionLightComponents.Remove(directionLightComponent);
             }
-
+        }
+        else if (component is SpotLightComponent spotLightComponent)
+        {
+            if (_SpotLightComponents.Contains(spotLightComponent))
+            {
+                _SpotLightComponents.Remove(spotLightComponent);
+            }
         }
     }
 }

@@ -11,27 +11,39 @@ namespace Spark.Engine.Core.Components;
 
 public class DirectionLightComponent : LightComponent
 {
-    public Color Color
+    public float LightStrength
     {
-        get
-        {
-            return  Color.FromArgb(255, (int)(_Color.X * 255), (int)(_Color.Y *  255), (int)(_Color.Z * 255));
-        }
+        get => _LightStrength;
         set
         {
-            _Color = new Vector3(value.R / 255f, value.G / 255f, value.B / 255f);
+            if (value < 0)
+                return;
+            if (value > 1)
+                return;
+            _LightStrength = value;
+
         }
     }
 
-    public Vector3 _Color;
+    public float _LightStrength = 0.7f;
     public DirectionLightComponent(Actor actor) : base(actor)
     {
 
+    }
+
+    public DirectionLightInfo LightInfo
+    {
+        get => new DirectionLightInfo
+        {
+            Direction = ForwardVector,
+            Color = _Color
+        };
     }
 }
 
 public struct DirectionLightInfo
 {
+    public Vector3 Direction;
     public Vector3 Color;
 
 }
