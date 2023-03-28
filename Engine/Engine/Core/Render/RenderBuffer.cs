@@ -10,17 +10,16 @@ namespace Spark.Engine.Core.Render;
 
 public class RenderBuffer
 {
-    int BufferWidth;
-    int BufferHeight;
+    public int BufferWidth { private set; get; }
+    public int BufferHeight { private set; get; }
 
-    int Width;
-    int Height;
+    public int Width { private set; get; }
+    public int Height { private set; get; }
 
-    public uint BufferId;
-    uint PositionId;
-    uint ColorId;
-    uint NormalId;
-    uint DepthId;
+    public uint BufferId { private set; get; }
+    public uint ColorId { private set; get; }
+    public uint NormalId { private set; get; }
+    public uint DepthId { private set; get; }
     public RenderBuffer(int width, int height)
     {
         Resize(width, height);
@@ -44,10 +43,6 @@ public class RenderBuffer
             {
                 gl.DeleteBuffer(BufferId);
             }
-            if (PositionId != 0)
-            {
-                gl.DeleteTexture(PositionId);
-            }
             if (ColorId != 0)
             {
                 gl.DeleteTexture(ColorId);
@@ -56,34 +51,37 @@ public class RenderBuffer
             BufferId = gl.GenFramebuffer();
             gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
 
-            PositionId = gl.GenTexture();
-            gl.BindTexture(GLEnum.Texture2D, PositionId);
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgba, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.Rgba, GLEnum.Float, (void*)0);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
-            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.Texture2D, PositionId, 0);
 
             NormalId = gl.GenTexture();
             gl.BindTexture(GLEnum.Texture2D, NormalId);
             gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgba, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.Rgba, GLEnum.Float, (void*)0);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
-            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment1, GLEnum.Texture2D, NormalId, 0);
+            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.Texture2D, NormalId, 0);
 
             ColorId = gl.GenTexture();
             gl.BindTexture(GLEnum.Texture2D, ColorId);
             gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgba, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.Rgba, GLEnum.Float, (void*)0);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
-            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment2, GLEnum.Texture2D, ColorId, 0);
+            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment1, GLEnum.Texture2D, ColorId, 0);
 
-            GLEnum[] attachments = new GLEnum[]{ GLEnum.ColorAttachment0, GLEnum.ColorAttachment1, GLEnum.ColorAttachment2 };
-            gl.DrawBuffers(attachments);
+            DepthId = gl.GenTexture();
+            gl.BindTexture(GLEnum.Texture2D, DepthId);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.DepthComponent, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.DepthComponent, GLEnum.Float, (void*)0);
+            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
+            // attach depth texture as FBO's depth buffer
+            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Texture2D, DepthId, 0);
+
+            /*
             DepthId = gl.GenRenderbuffer();
             gl.BindRenderbuffer(GLEnum.Renderbuffer, DepthId);
             gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent, (uint)BufferWidth, (uint)BufferHeight);
             gl.FramebufferRenderbuffer(GLEnum.Renderbuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, DepthId);
-            
+            */
+            GLEnum[] attachments = new GLEnum[] { GLEnum.ColorAttachment0, GLEnum.ColorAttachment1 };
+            gl.DrawBuffers(attachments);
             if (gl.CheckFramebufferStatus(GLEnum.Framebuffer) != GLEnum.FramebufferComplete)
                 Console.WriteLine("fbo 出错！");
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);

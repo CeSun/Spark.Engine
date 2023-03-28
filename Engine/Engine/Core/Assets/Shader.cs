@@ -73,6 +73,13 @@ public class Shader : Asset
         gl.Uniform1(location, value);
     }
 
+    public void SetVector2(string name, Vector2 value)
+    {
+        gl.UseProgram(ProgramId);
+        var location = gl.GetUniformLocation(ProgramId, name);
+        gl.Uniform2(location, value);
+    }
+
     public unsafe void SetMatrix(string name, Matrix4x4 value)
     {
         gl.UseProgram(ProgramId);

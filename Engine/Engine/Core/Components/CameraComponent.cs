@@ -17,10 +17,13 @@ public enum ProjectionType
 }
 public partial class CameraComponent : PrimitiveComponent, IComparable<CameraComponent>
 {
+    public RenderTarget RenderTarget { get; set; }
+
     public static CameraComponent? CurrentCameraComponent;
     public int Order { get; set; }
     public CameraComponent(Actor actor) : base(actor)
     {
+        RenderTarget = Engine.Instance.ViewportRenderTarget;
         FieldOfView = 90;
         NearPlaneDistance = 10;
         FarPlaneDistance = 100;

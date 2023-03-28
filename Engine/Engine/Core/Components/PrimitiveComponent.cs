@@ -56,6 +56,7 @@ public partial class PrimitiveComponent
     public virtual void Render(double DeltaTime)
     {
         Shader.GlobalShader?.SetMatrix("ModelTransform", RelativeTransform);
+        Shader.GlobalShader?.SetMatrix("NormalTransform", NormalTransform);
     }
     
     /// <summary>
@@ -278,6 +279,11 @@ public partial class PrimitiveComponent
         {
             _WorldTransform = _RelativeTransform * ParentComponent._WorldTransform;
         }
+        // 计算法线矩阵
+        var Translation = Matrix4x4.CreateTranslation(_WorldTransform.Translation);
+        Matrix4x4.Invert(_WorldTransform * Translation, out _NormalTransform);
+        _NormalTransform = Matrix4x4.Transpose(_NormalTransform);
+
         _WorldLocation = _WorldTransform.Translation;
         _WorldRotation = _WorldTransform.Rotation();
         _WorldScale = _WorldTransform.Scale();
@@ -302,6 +308,8 @@ public partial class PrimitiveComponent
     public Vector3 ForwardVector => Vector3.Transform(new Vector3(0, 0, -1), WorldRotation);
     public Vector3 RightVector => Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
     public Vector3 UpVector => Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
+
+    public Matrix4x4 NormalTransform => _NormalTransform;
 }
 public partial class PrimitiveComponent
 {
@@ -329,4 +337,6 @@ public partial class PrimitiveComponent
     public Matrix4x4 _WorldTransform;
 
     public Matrix4x4 _RelativeTransform;
+
+    public Matrix4x4 _NormalTransform;
 }

@@ -7,6 +7,7 @@ layout (location = 3) in vec2 TexCoord;
 uniform mat4 ModelTransform;
 uniform mat4 ViewTransform;
 uniform mat4 ProjectionTransform;
+uniform mat4 NormalTransform;
 
 out vec2 OutTexCoord;
 out vec3 OutColor;
@@ -17,7 +18,7 @@ void main()
 {
     OutTexCoord = TexCoord;
     OutColor =  Color;
-    OutNormal = Normal;
+    OutNormal = normalize(mat3(NormalTransform) * Normal);
     OutPosition = Location.xyz;
     gl_Position = ProjectionTransform * ViewTransform * ModelTransform * vec4(Location, 1.0);
     

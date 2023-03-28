@@ -9,12 +9,24 @@ namespace Spark.Engine;
 
 public class Engine : Singleton<Engine>
 {
+    public RenderTarget? _GlobalRenderTarget;
+
+    public RenderTarget ViewportRenderTarget
+    {
+        get
+        {
+            if (_GlobalRenderTarget == null)
+                throw new Exception("rt 为空");
+            return _GlobalRenderTarget;
+        }
+    }
     public GL? Gl { get; set; }
     List<World> Worlds = new List<World>();
     public void InitEngine(string[] args, Dictionary<string, object> objects)
     {
         Gl = (GL)objects["OpenGL"];
         WindowSize = (Point)objects["WindowSize"];
+        _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y, true);
         Worlds.Add(new World());
     }
     public void Update(double DeltaTime)
@@ -39,7 +51,9 @@ public class Engine : Singleton<Engine>
 
     public void Resize(int Width, int Height)
     {
-        Gl.Viewport(new Rectangle(0, 0, Width, Height));
+        ViewportRenderTarget.Width = Width;
+        ViewportRenderTarget.Height = Height;
+        Gl?.Viewport(new Rectangle(0, 0, Width, Height));
         WindowSize = new(Width, Height);
     }
     
