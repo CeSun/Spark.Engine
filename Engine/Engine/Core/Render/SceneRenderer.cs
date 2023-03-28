@@ -22,7 +22,7 @@ public class SceneRenderer
 {
     RenderBuffer GloblaBuffer;
     Shader BaseShader;
-    Shader LightingShader;
+    Shader DirectionalLightingShader;
     Shader AmbientLightingShader;
     World World { get; set; }
 
@@ -32,9 +32,9 @@ public class SceneRenderer
     public SceneRenderer(World world)
     {
         World = world;
-        BaseShader = new Shader("/Shader/DeferredBase");
-        LightingShader = new Shader("/Shader/DeferredLighting");
-        AmbientLightingShader = new Shader("/Shader/DeferredAmbientLighting");
+        BaseShader = new Shader("/Shader/Deferred/Base");
+        DirectionalLightingShader = new Shader("/Shader/Deferred/DirectionalLighting");
+        AmbientLightingShader = new Shader("/Shader/Deferred/AmbientLighting");
         GloblaBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
         InitRender();
     }
