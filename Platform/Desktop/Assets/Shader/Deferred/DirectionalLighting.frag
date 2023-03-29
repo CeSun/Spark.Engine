@@ -25,7 +25,7 @@ void main()
     float specularStrength = 0.5f;
 
     
-    float depth = texture(DepthTexture, OutTexCoord).r;
+    float depth = texture(DepthTexture, OutTexCoord).w;
     // vec3 ScreenLocation = vec3(gl_FragCoord.x / 800, gl_FragCoord.y / 600, depth);
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);

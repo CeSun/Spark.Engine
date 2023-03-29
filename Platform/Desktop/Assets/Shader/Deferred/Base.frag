@@ -1,6 +1,7 @@
 #version 330 core
 layout (location = 0) out vec3 BufferNormal;
-layout (location = 1) out vec4 BufferColor;
+layout (location = 1) out vec3 BufferColor;
+layout (location = 2) out vec4 BufferDepth;
 
 in vec2 OutTexCoord;
 in vec3 OutColor;
@@ -12,6 +13,7 @@ uniform sampler2D Normal;
 
 void main()
 {
-    BufferColor = vec4(texture(Diffuse, OutTexCoord).rgb, 1.0f);
+    BufferColor = texture(Diffuse, OutTexCoord).rgb;
     BufferNormal =  (OutNormal + 1) / 2;
+    BufferDepth = vec4(BufferColor.rgb, gl_FragCoord.z);
 }

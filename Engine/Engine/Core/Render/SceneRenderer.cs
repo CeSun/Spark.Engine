@@ -85,6 +85,8 @@ public class SceneRenderer
             return;
         GloblaBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
 
+        gl.Enable(GLEnum.CullFace);
+        gl.CullFace(GLEnum.Back);
         BasePass(DeltaTime);
 
         LightingPass(DeltaTime);

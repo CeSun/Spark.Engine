@@ -25,7 +25,7 @@ void main()
     float specularStrength = 0.5;
 
     
-    float depth = texture(DepthTexture, OutTexCoord).r;
+    float depth = texture(DepthTexture, OutTexCoord).w;
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2) - 1;
