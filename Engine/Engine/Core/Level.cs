@@ -62,6 +62,7 @@ public partial class Level
         CameraActor.RootComponent = CameraComponent;
         CameraActor.WorldLocation += CameraComponent.UpVector * 10;
         CameraComponent.NearPlaneDistance = 10f;
+        CameraComponent.FarPlaneDistance =  100f;
         // CameraComponent.FieldOfView = 120f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
         this.CameraActor = CameraActor;
@@ -75,7 +76,7 @@ public partial class Level
         var CubeMeshComp = new StaticMeshComponent(CubeActor);
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeActor.RootComponent = CubeMeshComp;
-        CubeMeshComp.WorldScale = new Vector3(10, 1, 10);
+        CubeMeshComp.WorldScale = new Vector3(50, 1, 50);
         /*
         var DirectionActor = new Actor(this);
         var DirectionComp = new DirectionLightComponent(DirectionActor);
@@ -90,7 +91,14 @@ public partial class Level
         var SpotLightComp = new SpotLightComponent(SpotActor);
         SpotActor.RootComponent = SpotLightComp;
         SpotLightComp.Color = Color.Green;
-        SpotLightComp.WorldLocation += SpotLightComp.UpVector * 100;
+        SpotLightComp.WorldLocation += SpotLightComp.UpVector * 20 - SpotLightComp.RightVector * 5; ;
+
+
+        var SpotActor2 = new Actor(this);
+        var SpotLightComp2 = new SpotLightComponent(SpotActor2);
+        SpotActor2.RootComponent = SpotLightComp2;
+        SpotLightComp2.Color = Color.Red;
+        SpotLightComp2.WorldLocation += SpotLightComp2.UpVector * 20 + SpotLightComp2.RightVector * 5; ;
 
         StaticMeshActor = CubeActor;
     }

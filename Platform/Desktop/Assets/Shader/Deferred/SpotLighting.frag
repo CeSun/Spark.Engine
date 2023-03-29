@@ -26,6 +26,7 @@ void main()
 
     
     float depth = texture(DepthTexture, OutTexCoord).w;
+    // vec3 WorldLocation = texture(DepthTexture, OutTexCoord).xyz;
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2) - 1;
@@ -52,9 +53,8 @@ void main()
 vec3 GetWorldLocation(vec3 ScreenLocation)
 {
     ScreenLocation = ScreenLocation * 2 - vec3(1.0f, 1.0f, 1.0f);
-    ScreenLocation.z = ScreenLocation.z * -1;
+    // ScreenLocation.z = ScreenLocation.z * -1;
     vec4 tempWorldLocation = VPInvert * vec4(ScreenLocation, 1.0f);
     vec3 WorldLocation =  tempWorldLocation.xyz / tempWorldLocation.w;
-
     return WorldLocation;
 }

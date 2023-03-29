@@ -15,5 +15,5 @@ void main()
 {
     BufferColor = texture(Diffuse, OutTexCoord).rgb;
     BufferNormal =  (OutNormal + 1) / 2;
-    BufferDepth = vec4(BufferColor.rgb, gl_FragCoord.z);
+    BufferDepth = vec4(BufferColor, gl_FragCoord.z);
 }

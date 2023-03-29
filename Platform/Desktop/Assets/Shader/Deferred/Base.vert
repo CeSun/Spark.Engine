@@ -21,7 +21,7 @@ void main()
     OutNormal = normalize(mat3(NormalTransform) * Normal);
     // OutNormal = mat3(transpose(inverse(ModelTransform))) * Normal;
 
-    OutPosition = Location.xyz;
+    OutPosition = (ModelTransform * vec4(Location, 1.0)).xyz;
     gl_Position = ProjectionTransform * ViewTransform * ModelTransform * vec4(Location, 1.0);
     
 }
