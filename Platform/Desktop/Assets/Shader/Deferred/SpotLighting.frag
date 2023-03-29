@@ -3,6 +3,7 @@ out vec4 glColor;
 
 
 in vec2 OutTexCoord;
+in vec2 OutTrueTexCoord;
 uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
@@ -25,8 +26,7 @@ void main()
 
     
     float depth = texture(DepthTexture, OutTexCoord).r;
-    vec3 ScreenLocation = vec3(gl_FragCoord.xy, depth);
-    vec3 WorldLocation = GetWorldLocation(ScreenLocation);
+    vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2) - 1;
 

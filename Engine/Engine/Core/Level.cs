@@ -11,6 +11,8 @@ using Spark.Engine.Core.Actors;
 using Spark.Engine.Core.Assets;
 using Spark.Engine.Core.Components;
 using Spark.Util;
+using Silk.NET.Input;
+
 using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Core;
@@ -25,56 +27,120 @@ public partial class Level
     }
 
     Actor? StaticMeshActor;
+    Actor? CameraActor;
+
+    Vector2 MoveData = default;
+    Vector2 LastPosition;
+
+    public void OnMouseMove(IMouse mouse,  Vector2 position)
+    {
+        if (MainMouse.IsButtonPressed(MouseButton.Left))
+        {
+            if (CameraActor == null)
+                return;
+            var moveable = position - LastPosition;
+            LastPosition = position;
+
+            MoveData += (moveable * 0.1f);
+            var rotation = Quaternion.CreateFromYawPitchRoll(-1 * MoveData.X.DegreeToRadians(), -1 * MoveData.Y.DegreeToRadians(), 0);
+            CameraActor.WorldRotation = rotation;
+
+        }
+    }
+
+    public void OnMouseKeyDown(IMouse mouse, MouseButton key)
+    {
+        if (key == MouseButton.Left)
+        {
+            LastPosition = mouse.Position;
+        }
+    }
     public void BeginPlay()
     {
         var CameraActor = new Actor(this);
         var CameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = CameraComponent;
-        CameraActor.WorldLocation -= CameraComponent.ForwardVector * 3;
-        CameraComponent.NearPlaneDistance = 0.1f;
+        CameraActor.WorldLocation += CameraComponent.UpVector * 10;
+        CameraComponent.NearPlaneDistance = 10f;
+        // CameraComponent.FieldOfView = 120f;
+        CameraComponent.ProjectionType = ProjectionType.Perspective;
+        this.CameraActor = CameraActor;
 
+       
+
+        MainMouse.MouseMove += OnMouseMove;
+        MainMouse.MouseDown += OnMouseKeyDown;
 
         var CubeActor = new Actor(this);
         var CubeMeshComp = new StaticMeshComponent(CubeActor);
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeActor.RootComponent = CubeMeshComp;
-        CubeActor.WorldLocation += CubeMeshComp.ForwardVector * 3;
-
+        CubeMeshComp.WorldScale = new Vector3(10, 1, 10);
+        /*
         var DirectionActor = new Actor(this);
         var DirectionComp = new DirectionLightComponent(DirectionActor);
         DirectionActor.RootComponent = DirectionComp;
         DirectionComp.Color = Color.Red;
-        DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), 0f, 0f);
+        DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), -30f.DegreeToRadians(), 0f);
         DirectionComp.LightStrength = 1;
+        */
 
 
         var SpotActor = new Actor(this);
         var SpotLightComp = new SpotLightComponent(SpotActor);
         SpotActor.RootComponent = SpotLightComp;
         SpotLightComp.Color = Color.Green;
-        SpotLightComp.WorldLocation -= SpotLightComp.ForwardVector * 3;
-        SpotLightComp.WorldLocation += SpotLightComp.RightVector * 10;
+        SpotLightComp.WorldLocation += SpotLightComp.UpVector * 100;
 
         StaticMeshActor = CubeActor;
-
     }
 
     public void Destory() 
     { 
-
     }
     float a = 0;
     public void Update(double DeltaTime)
     {
+        CameraMove(DeltaTime);
         ActorUpdate(DeltaTime);
     }
+
+    private void CameraMove(double DeltaTime)
+    {
+        if (CameraActor == null)
+            return;
+        Vector3 MoveDirection = Vector3.Zero;
+        if (MainKeyBoard.IsKeyPressed(Key.W))
+        {
+            MoveDirection.Z = -1;
+        }
+        if (MainKeyBoard.IsKeyPressed(Key.S))
+        {
+            MoveDirection.Z = 1;
+        }
+        if (MainKeyBoard.IsKeyPressed(Key.A))
+        {
+            MoveDirection.X = -1;
+        }
+        if (MainKeyBoard.IsKeyPressed(Key.D))
+        {
+            MoveDirection.X = 1;
+        }
+        if (MoveDirection.Length() != 0)
+        {
+            MoveDirection = Vector3.Normalize(MoveDirection);
+            MoveDirection = Vector3.Transform(MoveDirection, CameraActor.WorldRotation);
+            CameraActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
+        }
+    }
+
 
     public void Render(double DeltaTime)
     {
         if (StaticMeshActor != null)
         {
             a += ((float)(DeltaTime) * 20);
-            StaticMeshActor.WorldRotation = Quaternion.CreateFromYawPitchRoll((float)(a.DegreeToRadians()), 0, 0);
+            // StaticMeshActor.WorldRotation = Quaternion.CreateFromYawPitchRoll((float)(a.DegreeToRadians()), a.DegreeToRadians(), 0);
         }
         foreach (var camera in CameraComponents)
         {

@@ -11,6 +11,7 @@
   <ItemGroup>
     <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0028" />
     <PackageReference Include="Silk.NET.OpenGL" Version="2.16.0" />
+	<PackageReference Include="Silk.NET.Input.Common" Version="2.16.0" />
     <PackageReference Include="StbImageSharp" Version="2.27.13" />
   </ItemGroup>
 

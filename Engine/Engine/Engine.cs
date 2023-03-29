@@ -4,13 +4,14 @@ using Spark.Engine.Core;
 using System.Numerics;
 using System.Drawing;
 using Spark.Engine.Core.Render;
+using Silk.NET.Input;
 
 namespace Spark.Engine;
 
 public class Engine : Singleton<Engine>
 {
     public RenderTarget? _GlobalRenderTarget;
-
+    
     public RenderTarget ViewportRenderTarget
     {
         get
@@ -21,11 +22,13 @@ public class Engine : Singleton<Engine>
         }
     }
     public GL? Gl { get; set; }
+    public IInputContext? Input { get; set; }
     List<World> Worlds = new List<World>();
     public void InitEngine(string[] args, Dictionary<string, object> objects)
     {
         Gl = (GL)objects["OpenGL"];
         WindowSize = (Point)objects["WindowSize"];
+        Input = (IInputContext)objects["InputContext"];
         _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y, true);
         Worlds.Add(new World());
     }
@@ -72,6 +75,45 @@ public class StaticEngine
                 throw new Exception("no gl context");
             }
             return Engine.Instance.Gl;
+        }
+    }
+
+    public static IInputContext Input
+    {
+        get
+        {
+            if (Engine.Instance.Input == null)
+            {
+                throw new Exception("no Input context");
+            }
+            return Engine.Instance.Input;
+        }
+    }
+
+    public static IKeyboard MainKeyBoard
+    {
+        get
+        {
+            var kb = Input.Keyboards.FirstOrDefault();
+            if (kb == null)
+            {
+                throw new Exception("no keyboard");
+            }
+            return kb;
+        }
+    }
+
+
+    public static IMouse MainMouse
+    {
+        get
+        {
+            var mouse = Input.Mice.FirstOrDefault();
+            if (mouse == null)
+            {
+                throw new Exception("no mouse");
+            }
+            return mouse;
         }
     }
 

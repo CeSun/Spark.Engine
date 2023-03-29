@@ -5,6 +5,7 @@ using Spark.Engine;
 using System.Numerics;
 using Silk.NET.Maths;
 using System.Drawing;
+using Silk.NET.Input;
 
 var option = WindowOptions.Default;
 option.Size = new Vector2D<int>(800, 600);
@@ -14,10 +15,10 @@ var InitFun = () =>
     Engine.Instance.InitEngine(args, new Dictionary<string, object>
     {
         { "OpenGL", GL.GetApi(window) },
-        { "WindowSize", new Point(option.Size.X , option.Size.Y) }
+        { "WindowSize", new Point(option.Size.X , option.Size.Y) },
+        { "InputContext", window.CreateInput()}
     });
 };
-
 window.Render += Engine.Instance.Render;
 window.Update += Engine.Instance.Update;
 window.Load += (InitFun + Engine.Instance.Start);

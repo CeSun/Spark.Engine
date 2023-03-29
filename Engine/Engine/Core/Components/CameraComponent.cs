@@ -31,7 +31,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         ProjectionType = ProjectionType.Perspective;
     }
 
-    ProjectionType ProjectionType { get; set; }
+    public ProjectionType ProjectionType { get; set; }
     /// <summary>
     /// 视角角度，FOV
     /// </summary>
