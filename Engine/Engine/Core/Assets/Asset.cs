@@ -20,13 +20,16 @@ public abstract class Asset
             LoadAsset();
             IsValid = true;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine(ex);
             IsValid = false;
+            throw;
         }
-        IsLoaded = true;
-        OnLoadCompleted?.Invoke();
+        finally
+        {
+            IsLoaded = true;
+            OnLoadCompleted?.Invoke();
+        }
 
     }
 

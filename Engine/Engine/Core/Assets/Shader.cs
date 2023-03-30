@@ -21,11 +21,11 @@ public class Shader : Asset
     
     protected override void LoadAsset()
     {
-        using (StreamReader sr = new StreamReader("./Assets" + Path + ".vert"))
+        using (var sr = FileSystem.GetStreamReader("Content" + Path + ".vert"))
         {
             VertShaderSource =  sr.ReadToEnd();
         }
-        using (StreamReader sr = new StreamReader("./Assets" + Path + ".frag"))
+        using (var sr = FileSystem.GetStreamReader("Content" + Path + ".frag"))
         {
             FragShaderSource =  sr.ReadToEnd();
         }

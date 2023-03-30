@@ -16,7 +16,8 @@ var InitFun = () =>
     {
         { "OpenGL", GL.GetApi(window) },
         { "WindowSize", new Point(option.Size.X , option.Size.Y) },
-        { "InputContext", window.CreateInput()}
+        { "InputContext", window.CreateInput()},
+        { "FileSystem",new Desktop.DesktopFileSystem()}
     });
 };
 window.Render += Engine.Instance.Render;

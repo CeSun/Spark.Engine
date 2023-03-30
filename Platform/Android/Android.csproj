@@ -1,0 +1,42 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net7.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationId>com.spark.engine.android</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Content\Shader\Deferred\Base.frag" />
+    <None Remove="Content\StaticMesh\cube.glb" />
+    <None Remove="Content\StaticMesh\cube2.glb" />
+    <None Remove="Content\StaticMesh\untitled.glb" />
+  </ItemGroup>
+  <ItemGroup>
+    <AndroidAsset Remove="Content\Shader\Deferred\Base.vert" />
+    <AndroidAsset Remove="Content\Shader\Deferred\BrightnessLighting.frag" />
+    <AndroidAsset Remove="Content\Shader\Deferred\BrightnessLighting.vert" />
+    <AndroidAsset Remove="Content\Shader\Deferred\DirectionalLighting.frag" />
+    <AndroidAsset Remove="Content\Shader\Deferred\DirectionalLighting.vert" />
+    <AndroidAsset Remove="Content\Shader\Deferred\PointLighting.frag" />
+    <AndroidAsset Remove="Content\Shader\Deferred\PointLighting.vert" />
+    <AndroidAsset Remove="Content\Shader\Deferred\SpotLighting.frag" />
+    <AndroidAsset Remove="Content\Shader\Deferred\SpotLighting.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Silk.NET" Version="2.16.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <AndroidAsset Include="Content\**\*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </AndroidAsset>
+  </ItemGroup>
+
+	
+</Project>

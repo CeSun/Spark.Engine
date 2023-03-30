@@ -69,6 +69,7 @@ public partial class Level
         CameraComponent.FarPlaneDistance =  100f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
         this.CameraActor = CameraActor;
+        CameraComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -90f.DegreeToRadians(), 0);
 
         var CubeActor = new Actor(this);
         var CubeMeshComp = new StaticMeshComponent(CubeActor);
@@ -102,7 +103,6 @@ public partial class Level
             PointLightComp2.WorldLocation += PointLightComp2.UpVector * 20 + PointLightComp2.RightVector * 5; ;
         }
         */
-
 
         var PointLight = new Actor(this);
         var PointLightComp = new PointLightComponent(PointLight);

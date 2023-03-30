@@ -14,6 +14,6 @@ uniform sampler2D Normal;
 void main()
 {
     BufferColor = texture(Diffuse, OutTexCoord).rgb;
-    BufferNormal =  (OutNormal + 1) / 2;
+    BufferNormal =  (OutNormal + 1.0f) / 2.0f;
     BufferDepth = vec4(BufferColor, gl_FragCoord.z);
 }

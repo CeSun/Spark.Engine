@@ -1,7 +1,6 @@
 ﻿using SharpGLTF.Schema2;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
@@ -39,7 +38,14 @@ public class StaticMesh : Asset
 
     protected override void LoadAsset()
     {
-        var model = SharpGLTF.Schema2.ModelRoot.Load("./Assets" + Path);
+        using var sr = FileSystem.GetStreamReader("Content" + Path);
+
+        using BinaryReader br = new BinaryReader(sr.BaseStream);
+        var data = br.ReadBytes(1024 * 1024);
+        using MemoryStream ms = new MemoryStream(data);
+        ms.Write(data);
+        
+        var model = SharpGLTF.Schema2.ModelRoot.ParseGLB(data);
         foreach (var glMesh in model.LogicalMeshes)
         {
             foreach(var glPrimitive in glMesh.Primitives)

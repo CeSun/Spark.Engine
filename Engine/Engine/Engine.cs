@@ -5,10 +5,11 @@ using System.Numerics;
 using System.Drawing;
 using Spark.Engine.Core.Render;
 using Silk.NET.Input;
+using Spark.Engine.Platform;
 
 namespace Spark.Engine;
 
-public class Engine : Singleton<Engine>
+public partial class Engine : Singleton<Engine>
 {
     public RenderTarget? _GlobalRenderTarget;
     
@@ -21,14 +22,13 @@ public class Engine : Singleton<Engine>
             return _GlobalRenderTarget;
         }
     }
-    public GL? Gl { get; set; }
-    public IInputContext? Input { get; set; }
     List<World> Worlds = new List<World>();
     public void InitEngine(string[] args, Dictionary<string, object> objects)
     {
         Gl = (GL)objects["OpenGL"];
         WindowSize = (Point)objects["WindowSize"];
         Input = (IInputContext)objects["InputContext"];
+        FileSystem = (FileSystem)objects["FileSystem"];
         _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y, true);
         Worlds.Add(new World());
     }
@@ -64,7 +64,14 @@ public class Engine : Singleton<Engine>
 }
 
 
-public class StaticEngine
+public partial class Engine : Singleton<Engine>
+{
+    public GL? Gl { get; set; }
+    public IInputContext? Input { get; set; }
+
+    public Platform.FileSystem? FileSystem { get; set; }
+}
+    public class StaticEngine
 {
     public static GL gl 
     {
@@ -114,6 +121,19 @@ public class StaticEngine
                 throw new Exception("no mouse");
             }
             return mouse;
+        }
+    }
+
+    public static Platform.FileSystem FileSystem
+    { 
+        get
+        {
+            var fileSystem = Engine.Instance.FileSystem;
+            if (fileSystem == null)
+            {
+                throw new Exception("no fileSystem");
+            }
+            return fileSystem;
         }
     }
 

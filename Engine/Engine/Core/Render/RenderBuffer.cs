@@ -92,7 +92,7 @@ public class RenderBuffer
 
     public void Render(Action RenderAction)
     {
-        gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
+        gl.BindFramebuffer(GLEnum.Framebuffer, 0);
         RenderAction();
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
     }

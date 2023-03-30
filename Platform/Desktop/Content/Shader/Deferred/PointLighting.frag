@@ -31,7 +31,7 @@ void main()
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     //vec3 WorldLocation =texture(DepthTexture, OutTexCoord).xyz;
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
-    vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2) - 1;
+    vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
 
     float Distance    = length(LightLocation - WorldLocation);
     float Attenuation = 1.0 / (Constant + Linear * Distance + Quadratic * (Distance * Distance));
@@ -48,7 +48,7 @@ void main()
     // jmfs 
     vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
     vec3 ReflectDirection = reflect(LightDirection, Normal);
-    float spec = pow(max(dot(CameraDirection, ReflectDirection), 0.0), 32);
+    float spec = pow(max(dot(CameraDirection, ReflectDirection), 0.0), 32.0f);
 
     vec3 specular = specularStrength * Attenuation * spec * LightColor;
 
@@ -58,7 +58,7 @@ void main()
 
 vec3 GetWorldLocation(vec3 ScreenLocation)
 {
-    ScreenLocation = ScreenLocation * 2 - vec3(1.0f, 1.0f, 1.0f);
+    ScreenLocation = ScreenLocation * 2.0f - vec3(1.0f, 1.0f, 1.0f);
     // ScreenLocation.z = ScreenLocation.z * -1;
     vec4 tempWorldLocation = VPInvert * vec4(ScreenLocation, 1.0f);
     vec3 WorldLocation =  tempWorldLocation.xyz / tempWorldLocation.w;
