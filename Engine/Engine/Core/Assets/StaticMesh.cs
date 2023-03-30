@@ -40,12 +40,8 @@ public class StaticMesh : Asset
     {
         using var sr = FileSystem.GetStreamReader("Content" + Path);
 
-        using BinaryReader br = new BinaryReader(sr.BaseStream);
-        var data = br.ReadBytes(1024 * 1024);
-        using MemoryStream ms = new MemoryStream(data);
-        ms.Write(data);
         
-        var model = SharpGLTF.Schema2.ModelRoot.ParseGLB(data);
+        var model = ModelRoot.ReadGLB(sr.BaseStream);
         foreach (var glMesh in model.LogicalMeshes)
         {
             foreach(var glPrimitive in glMesh.Primitives)

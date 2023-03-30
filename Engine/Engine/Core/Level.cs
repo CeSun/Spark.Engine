@@ -64,18 +64,35 @@ public partial class Level
         var CameraActor = new Actor(this);
         var CameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = CameraComponent;
-        CameraActor.WorldLocation += CameraComponent.UpVector * 10;
+        CameraActor.WorldLocation -= CameraComponent.ForwardVector * 10;
         CameraComponent.NearPlaneDistance = 1;
         CameraComponent.FarPlaneDistance =  100f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
         this.CameraActor = CameraActor;
-        CameraComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -90f.DegreeToRadians(), 0);
+
+        var RobotActor = new Actor(this);
+        var RobotMeshComp = new StaticMeshComponent(RobotActor);
+        RobotMeshComp.StaticMesh = new StaticMesh("/StaticMesh/untitled.glb");
+        RobotActor.RootComponent = RobotMeshComp;
+        RobotMeshComp.WorldScale = new Vector3(5, 5, 5);
+        RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
+        RobotMeshComp.WorldLocation -= RobotMeshComp.UpVector * 3;
+
+
 
         var CubeActor = new Actor(this);
-        var CubeMeshComp = new StaticMeshComponent(CubeActor);
+        var CubeMeshComp = new StaticMeshComponent(RobotActor);
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeActor.RootComponent = CubeMeshComp;
-        CubeMeshComp.WorldScale = new Vector3(10, 1, 10);
+        CubeMeshComp.WorldScale = new Vector3(30, 1, 30);
+        CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4;
+
+        var DirectionActor = new Actor(this);
+        var DirectionComp = new DirectionLightComponent(DirectionActor);
+        DirectionActor.RootComponent = DirectionComp;
+        DirectionComp.Color = Color.White;
+        DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), -30f.DegreeToRadians(), 0f);
+        DirectionComp.LightStrength = 0.5f;
 
         /*
         for(int i = 0; i < 15; i ++)
@@ -108,14 +125,15 @@ public partial class Level
         var PointLightComp = new PointLightComponent(PointLight);
         PointLight.RootComponent = PointLightComp;
         PointLightComp.Color = Color.Green;
-        PointLightComp.WorldLocation += PointLightComp.UpVector * 20 - PointLightComp.RightVector * 10; ;
+        PointLightComp.WorldLocation += PointLightComp.UpVector * 10;
 
         var SpotLightActor = new Actor(this);
         var SpotLightComponent = new SpotLightComponent(SpotLightActor);
         SpotLightActor.RootComponent = SpotLightComponent;
         SpotLightComponent.Color = Color.Red;
-        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 5 ;
-        SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -70f.DegreeToRadians(), 0);
+        SpotLightComponent.WorldLocation -= SpotLightComponent.ForwardVector * 5;
+        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 5;
+        SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -30F.DegreeToRadians(), 0);
         StaticMeshActor = CubeActor;
     }
 
