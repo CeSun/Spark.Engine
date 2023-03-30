@@ -26,25 +26,30 @@ public partial class Level
         CurrentWorld = world;
     }
 
-    Actor? StaticMeshActor;
+    Actor? RobotActor;
     Actor? CameraActor;
 
     Vector2 MoveData = default;
+    Vector2 MoveData2 = default;
     Vector2 LastPosition;
 
     public void OnMouseMove(IMouse mouse,  Vector2 position)
     {
         if (MainMouse.IsButtonPressed(MouseButton.Left))
         {
-            if (CameraActor == null)
+            if (RobotActor == null)
                 return;
             var moveable = position - LastPosition;
             LastPosition = position;
 
             MoveData += (moveable * 0.1f);
             var rotation = Quaternion.CreateFromYawPitchRoll(-1 * MoveData.X.DegreeToRadians(), -1 * MoveData.Y.DegreeToRadians(), 0);
-            CameraActor.WorldRotation = rotation;
+            // CameraActor.WorldRotation = rotation;
 
+
+            rotation = Quaternion.CreateFromYawPitchRoll(-1 * MoveData.X.DegreeToRadians(), 0, 0);
+
+            RobotActor.WorldRotation = rotation;
         }
     }
 
@@ -63,7 +68,7 @@ public partial class Level
 
         var CameraActor = new Actor(this);
         var CameraComponent = new CameraComponent(CameraActor);
-        CameraActor.RootComponent = CameraComponent;
+        // CameraActor.RootComponent = CameraComponent;
         CameraActor.WorldLocation -= CameraComponent.ForwardVector * 10;
         CameraComponent.NearPlaneDistance = 1;
         CameraComponent.FarPlaneDistance =  100f;
@@ -75,24 +80,27 @@ public partial class Level
         RobotMeshComp.StaticMesh = new StaticMesh("/StaticMesh/untitled.glb");
         RobotActor.RootComponent = RobotMeshComp;
         RobotMeshComp.WorldScale = new Vector3(5, 5, 5);
-        RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
+        // RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
         RobotMeshComp.WorldLocation -= RobotMeshComp.UpVector * 3;
 
-
+        CameraComponent.ParentComponent = RobotMeshComp;
+        CameraComponent.RelativeLocation += new Vector3(0, 1.5f, 2);
+        CameraComponent.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
 
         var CubeActor = new Actor(this);
         var CubeMeshComp = new StaticMeshComponent(RobotActor);
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeActor.RootComponent = CubeMeshComp;
         CubeMeshComp.WorldScale = new Vector3(30, 1, 30);
-        CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4;
+        CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4F;
 
         var DirectionActor = new Actor(this);
         var DirectionComp = new DirectionLightComponent(DirectionActor);
         DirectionActor.RootComponent = DirectionComp;
         DirectionComp.Color = Color.White;
-        DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), -30f.DegreeToRadians(), 0f);
-        DirectionComp.LightStrength = 0.5f;
+        DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
+        DirectionComp.LightStrength = 1f;
+        DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
 
         /*
         for(int i = 0; i < 15; i ++)
@@ -118,8 +126,7 @@ public partial class Level
             PointLight2.RootComponent = PointLightComp2;
             PointLightComp2.Color = Color.Red;
             PointLightComp2.WorldLocation += PointLightComp2.UpVector * 20 + PointLightComp2.RightVector * 5; ;
-        }
-        */
+        } */
 
         var PointLight = new Actor(this);
         var PointLightComp = new PointLightComponent(PointLight);
@@ -134,7 +141,8 @@ public partial class Level
         SpotLightComponent.WorldLocation -= SpotLightComponent.ForwardVector * 5;
         SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 5;
         SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -30F.DegreeToRadians(), 0);
-        StaticMeshActor = CubeActor;
+
+        this.RobotActor = RobotActor;
     }
 
     public void Destory() 
@@ -144,6 +152,7 @@ public partial class Level
     public void Update(double DeltaTime)
     {
         CameraMove(DeltaTime);
+        RobotMove(DeltaTime);
         ActorUpdate(DeltaTime);
     }
 
@@ -172,18 +181,43 @@ public partial class Level
         {
             MoveDirection = Vector3.Normalize(MoveDirection);
             MoveDirection = Vector3.Transform(MoveDirection, CameraActor.WorldRotation);
-            CameraActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
+            // CameraActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
         }
     }
 
 
+    private void RobotMove(double DeltaTime)
+    {
+        if (RobotActor == null)
+            return;
+        Vector3 MoveDirection = Vector3.Zero;
+        if (MainKeyBoard.IsKeyPressed(Key.W))
+        {
+            MoveDirection.Z = -1;
+        }
+        if (MainKeyBoard.IsKeyPressed(Key.S))
+        {
+            MoveDirection.Z = 1;
+        }
+        if (MainKeyBoard.IsKeyPressed(Key.A))
+        {
+            MoveDirection.X = -1;
+        }
+        if (MainKeyBoard.IsKeyPressed(Key.D))
+        {
+            MoveDirection.X = 1;
+        }
+        if (MoveDirection.Length() != 0)
+        {
+            MoveDirection = Vector3.Normalize(MoveDirection);
+            MoveDirection = Vector3.Transform(MoveDirection, RobotActor.WorldRotation);
+            RobotActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
+        }
+    }
+
     public void Render(double DeltaTime)
     {
-        if (StaticMeshActor != null)
-        {
-            a += ((float)(DeltaTime) * 20);
-            // StaticMeshActor.WorldRotation = Quaternion.CreateFromYawPitchRoll((float)(a.DegreeToRadians()), a.DegreeToRadians(), 0);
-        }
+       
         foreach (var camera in CameraComponents)
         {
             camera.RenderScene(DeltaTime);

@@ -6,6 +6,8 @@ using System.Numerics;
 using Silk.NET.Maths;
 using System.Drawing;
 using Silk.NET.Input;
+using Spark.Util;
+
 
 var option = WindowOptions.Default;
 option.Size = new Vector2D<int>(800, 600);

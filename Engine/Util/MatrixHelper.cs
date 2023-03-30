@@ -11,22 +11,22 @@ public static class MatrixHelper
     // 计算缩放分量
     public static Vector3 Scale(this Matrix4x4 matrix)
     {
-        var Vector1 = new Vector3() 
+        var Vector1 = new Vector3()
         {
             X = matrix.M11,
-            Y = matrix.M12,
-            Z = matrix.M13,
+            Y = matrix.M21,
+            Z = matrix.M31,
         };
         var Vector2 = new Vector3()
         {
-            X = matrix.M21,
+            X = matrix.M12,
             Y = matrix.M22,
-            Z = matrix.M23,
+            Z = matrix.M32,
         }; 
         var Vector3 = new Vector3()
         {
-            X = matrix.M31,
-            Y = matrix.M32,
+            X = matrix.M13,
+            Y = matrix.M23,
             Z = matrix.M33,
         };
         return new Vector3
@@ -41,21 +41,21 @@ public static class MatrixHelper
         var vector1 = new Vector3()
         {
             X = matrix.M11,
-            Y = matrix.M12,
-            Z = matrix.M13,
+            Y = matrix.M21,
+            Z = matrix.M31,
         };
         vector1 = Vector3.Normalize(vector1);
         var vector2 = new Vector3()
         {
-            X = matrix.M21,
+            X = matrix.M12,
             Y = matrix.M22,
-            Z = matrix.M23,
+            Z = matrix.M32,
         };
         vector2 = Vector3.Normalize(vector2);
         var vector3 = new Vector3()
         {
-            X = matrix.M31,
-            Y = matrix.M32,
+            X = matrix.M13,
+            Y = matrix.M23,
             Z = matrix.M33,
         };
         vector3 = Vector3.Normalize(vector3);

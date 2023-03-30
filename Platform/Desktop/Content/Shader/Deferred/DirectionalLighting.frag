@@ -7,6 +7,9 @@ in vec2 OutTrueTexCoord;
 uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
+uniform sampler2D ShadowMapTexture;
+
+uniform mat4 WorldToLight;
 uniform mat4 VPInvert;
 uniform vec3 LightDirection;
 uniform vec3 LightColor;
@@ -34,6 +37,20 @@ void main()
     Normal = normalize(Normal);
 
     
+    vec4 tmpLightSpaceLocation = WorldToLight * vec4(WorldLocation, 1.0);
+    vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
+    LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
+    float ShadowDepth = texture(ShadowMapTexture, LightSpaceLocation.xy).r;
+
+
+    float bias = max(0.005 * (1.0 - dot(Normal, -1.0f * LightDirection)), 0.0005);
+    float Shadow = LightSpaceLocation.z - bias > ShadowDepth ? 1.0 : 0.0 ;
+    Shadow = LightSpaceLocation.z > 1 ? 0.0 : Shadow;
+
+    
+
+
+
     vec3  Ambient = AmbientStrength * LightColor.rgb;
 
 
@@ -48,7 +65,7 @@ void main()
 
     vec3 Specular = specularStrength * spec * LightColor;
 
-    glColor = vec4((Ambient + Diffuse + Specular ) * LightStrength * Color.rgb, 1.0f); 
+    glColor = vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color.rgb, 1.0f); 
 
 }
 

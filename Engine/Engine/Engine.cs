@@ -56,7 +56,6 @@ public partial class Engine : Singleton<Engine>
     {
         ViewportRenderTarget.Width = Width;
         ViewportRenderTarget.Height = Height;
-        Gl?.Viewport(new Rectangle(0, 0, Width, Height));
         WindowSize = new(Width, Height);
     }
     

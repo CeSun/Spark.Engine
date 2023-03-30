@@ -7,6 +7,7 @@ in vec2 OutTrueTexCoord;
 uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
+uniform sampler2D ShadowMapTexture;
 uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
@@ -18,6 +19,7 @@ uniform float Quadratic;
 uniform float InnerCosine;
 uniform float OuterCosine;
 uniform vec3 ForwardVector;
+uniform mat4 WorldToLight;
 
 
 
@@ -37,6 +39,20 @@ void main()
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
     Normal = normalize(Normal);
     vec3 LightDirection = normalize(WorldLocation - LightLocation);
+
+
+    vec4 tmpLightSpaceLocation = WorldToLight * vec4(WorldLocation, 1.0);
+    vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
+    LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
+    float ShadowDepth = texture(ShadowMapTexture, LightSpaceLocation.xy).r;
+
+
+    float bias = max(0.005 * (1.0 - dot(Normal, -1.0f * LightDirection)), 0.0005);
+    float Shadow = LightSpaceLocation.z - bias > ShadowDepth ? 1.0 : 0.0 ;
+    Shadow = LightSpaceLocation.z > 1 ? 0.0 : Shadow;
+
+
+
     float Distance    = length(LightLocation - WorldLocation);
     float Attenuation = 1.0 / (Constant + Linear * Distance + Quadratic * (Distance * Distance));
 
@@ -59,7 +75,7 @@ void main()
 
     vec3 specular = specularStrength * Attenuation * Intensity * spec * LightColor;
 
-    glColor = vec4((Ambient + diffuse + specular) * Color.rgb, 1); 
+    glColor = vec4((Ambient + (diffuse + specular)  * (1.0 - Shadow)) * Color.rgb, 1); 
 
 }
 
