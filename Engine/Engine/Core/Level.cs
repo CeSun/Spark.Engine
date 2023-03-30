@@ -75,29 +75,47 @@ public partial class Level
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeActor.RootComponent = CubeMeshComp;
         CubeMeshComp.WorldScale = new Vector3(10, 1, 10);
-       
-        var DirectionActor = new Actor(this);
-        var DirectionComp = new DirectionLightComponent(DirectionActor);
-        DirectionActor.RootComponent = DirectionComp;
-        DirectionComp.Color = Color.Pink;
-        DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), -30f.DegreeToRadians(), 0f);
-        DirectionComp.LightStrength = 0.5f;
-        
+
+        /*
+        for(int i = 0; i < 15; i ++)
+        {
+            var DirectionActor = new Actor(this);
+            var DirectionComp = new DirectionLightComponent(DirectionActor);
+            DirectionActor.RootComponent = DirectionComp;
+            DirectionComp.Color = Color.Pink;
+            DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), -30f.DegreeToRadians(), 0f);
+            DirectionComp.LightStrength = 0.5f;
 
 
-        var SpotActor = new Actor(this);
-        var SpotLightComp = new SpotLightComponent(SpotActor);
-        SpotActor.RootComponent = SpotLightComp;
-        SpotLightComp.Color = Color.Green;
-        SpotLightComp.WorldLocation += SpotLightComp.UpVector * 20 - SpotLightComp.RightVector * 5; ;
+
+            var PointLight = new Actor(this);
+            var PointLightComp = new PointLightComponent(PointLight);
+            PointLight.RootComponent = PointLightComp;
+            PointLightComp.Color = Color.Green;
+            PointLightComp.WorldLocation += PointLightComp.UpVector * 20 - PointLightComp.RightVector * 5; ;
 
 
-        var SpotActor2 = new Actor(this);
-        var SpotLightComp2 = new SpotLightComponent(SpotActor2);
-        SpotActor2.RootComponent = SpotLightComp2;
-        SpotLightComp2.Color = Color.Red;
-        SpotLightComp2.WorldLocation += SpotLightComp2.UpVector * 20 + SpotLightComp2.RightVector * 5; ;
+            var PointLight2 = new Actor(this);
+            var PointLightComp2 = new PointLightComponent(PointLight2);
+            PointLight2.RootComponent = PointLightComp2;
+            PointLightComp2.Color = Color.Red;
+            PointLightComp2.WorldLocation += PointLightComp2.UpVector * 20 + PointLightComp2.RightVector * 5; ;
+        }
+        */
 
+
+        var PointLight = new Actor(this);
+        var PointLightComp = new PointLightComponent(PointLight);
+        PointLight.RootComponent = PointLightComp;
+        PointLightComp.Color = Color.Green;
+        PointLightComp.WorldLocation += PointLightComp.UpVector * 20 - PointLightComp.RightVector * 10; ;
+
+        var SpotLightActor = new Actor(this);
+        var SpotLightComponent = new SpotLightComponent(SpotLightActor);
+        SpotLightActor.RootComponent = SpotLightComponent;
+        SpotLightComponent.Color = Color.Red;
+        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 5 ;
+        SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -70f.DegreeToRadians(), 0);
         StaticMeshActor = CubeActor;
     }
 
@@ -206,10 +224,12 @@ public partial class Level
     private List<PrimitiveComponent> _PrimitiveComponents = new List<PrimitiveComponent>();
     private List<CameraComponent> _CameraComponents = new List<CameraComponent>();
     private List<DirectionLightComponent> _DirectionLightComponents = new List<DirectionLightComponent>();
+    private List<PointLightComponent> _PointLightComponents = new List<PointLightComponent>();
     private List<SpotLightComponent> _SpotLightComponents = new List<SpotLightComponent>();
     public IReadOnlyList<CameraComponent> CameraComponents => _CameraComponents;
     public IReadOnlyList<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
     public IReadOnlyList<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
+    public IReadOnlyList<PointLightComponent> PointLightComponents => _PointLightComponents;
     public IReadOnlyList<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
     public void RegistComponent(PrimitiveComponent component)
     {
@@ -231,6 +251,13 @@ public partial class Level
             if (!_DirectionLightComponents.Contains(directionLightComponent))
             {
                 _DirectionLightComponents.Add(directionLightComponent);
+            }
+        }
+        else if (component is PointLightComponent pointLightComponent)
+        {
+            if (!_PointLightComponents.Contains(pointLightComponent))
+            {
+                _PointLightComponents.Add(pointLightComponent);
             }
         }
         else if (component is SpotLightComponent spotLightComponent)
@@ -259,6 +286,13 @@ public partial class Level
             if (_DirectionLightComponents.Contains(directionLightComponent))
             {
                 _DirectionLightComponents.Remove(directionLightComponent);
+            }
+        }
+        else if (component is PointLightComponent pointLightComponent)
+        {
+            if (_PointLightComponents.Contains(pointLightComponent))
+            {
+                _PointLightComponents.Remove(pointLightComponent);
             }
         }
         else if (component is SpotLightComponent spotLightComponent)

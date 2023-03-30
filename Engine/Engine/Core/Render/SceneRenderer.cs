@@ -15,6 +15,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using SharpGLTF.Transforms;
 using SharpGLTF.Schema2;
+using Spark.Util;
 
 namespace Spark.Engine.Core.Render;
 
@@ -25,6 +26,7 @@ public class SceneRenderer
     Shader BrightnessLightingShader;
     Shader DirectionalLightingShader;
     Shader SpotLightingShader;
+    Shader PointLightingShader;
     World World { get; set; }
 
     uint PostProcessVAO = 0;
@@ -37,6 +39,7 @@ public class SceneRenderer
         BrightnessLightingShader = new Shader("/Shader/Deferred/BrightnessLighting");
         DirectionalLightingShader = new Shader("/Shader/Deferred/DirectionalLighting");
         SpotLightingShader = new Shader("/Shader/Deferred/SpotLighting");
+        PointLightingShader = new Shader("/Shader/Deferred/PointLighting");
         GloblaBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
         InitRender();
     }
@@ -135,8 +138,9 @@ public class SceneRenderer
             // 定向光
             DirectionalLight();
             // 点光源
+            PointLight();
+            // 
             SpotLight();
-
             gl.Disable(EnableCap.Blend);
 
         });
@@ -215,8 +219,60 @@ public class SceneRenderer
 
     }
 
+    public unsafe void PointLight()
+    {
+        if (CurrentCameraComponent == null)
+            return;
+        PointLightingShader.Use();
+        foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
+        {
+            Matrix4x4.Invert((CurrentCameraComponent.View * CurrentCameraComponent.Projection), out var VPInvert);
+            PointLightingShader.SetMatrix("VPInvert", VPInvert);
+
+
+            PointLightingShader.SetVector2("TexCoordScale",
+                new Vector2
+                {
+                    X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
+                    Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                });
+
+
+            PointLightingShader.SetFloat("Constant", PointLightComponent.Constant);
+            PointLightingShader.SetFloat("Linear", PointLightComponent.Linear);
+            PointLightingShader.SetFloat("Quadratic", PointLightComponent.Quadratic);
+
+            PointLightingShader.SetInt("ColorTexture", 0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
+
+
+            PointLightingShader.SetInt("NormalTexture", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.NormalId);
+
+
+            PointLightingShader.SetInt("DepthTexture", 2);
+            gl.ActiveTexture(GLEnum.Texture2);
+            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.DepthId);
+
+            PointLightingShader.SetVector3("LightLocation", PointLightComponent.WorldLocation);
+            PointLightingShader.SetVector3("LightColor", PointLightComponent._Color);
+
+            PointLightingShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+            gl.BindVertexArray(PostProcessVAO);
+            gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+            gl.ActiveTexture(GLEnum.Texture0);
+
+
+        }
+        PointLightingShader.UnUse();
+    }
+
+
     public unsafe void SpotLight()
     {
+
         if (CurrentCameraComponent == null)
             return;
         SpotLightingShader.Use();
@@ -237,6 +293,13 @@ public class SceneRenderer
             SpotLightingShader.SetFloat("Constant", SpotLightComponent.Constant);
             SpotLightingShader.SetFloat("Linear", SpotLightComponent.Linear);
             SpotLightingShader.SetFloat("Quadratic", SpotLightComponent.Quadratic);
+
+
+            SpotLightingShader.SetFloat("InnerCosine", (float)Math.Cos(SpotLightComponent.InnerAngle.DegreeToRadians()));
+
+            SpotLightingShader.SetFloat("OuterCosine", (float)Math.Cos(SpotLightComponent.OuterAngle.DegreeToRadians()));
+            SpotLightingShader.SetVector3("ForwardVector", SpotLightComponent.ForwardVector);
+
 
             SpotLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
@@ -262,9 +325,8 @@ public class SceneRenderer
 
 
         }
-        DirectionalLightingShader.UnUse();
+        SpotLightingShader.UnUse();
     }
-
 }
 
 struct DeferredVertex
