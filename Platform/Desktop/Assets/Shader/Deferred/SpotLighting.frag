@@ -12,6 +12,9 @@ uniform vec3 LightColor;
 uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
 uniform float AmbientStrength;
+uniform float Constant;
+uniform float Linear;
+uniform float Quadratic;
 
 
 
@@ -23,28 +26,31 @@ vec3 GetWorldLocation(vec3 ScreenLocation);
 void main()
 {
     float specularStrength = 0.5;
-
-    
+   
     float depth = texture(DepthTexture, OutTexCoord).w;
     // vec3 WorldLocation = texture(DepthTexture, OutTexCoord).xyz;
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2) - 1;
 
+    float Distance    = length(LightLocation - WorldLocation);
+    float Attenuation = 1.0 / (Constant + Linear * Distance + Quadratic * (Distance * Distance));
+
+
     Normal = normalize(Normal);
 
-    vec3  Ambient = AmbientStrength * LightColor.rgb;
+    vec3  Ambient = AmbientStrength * Attenuation * LightColor.rgb;
     
     vec3 LightDirection = normalize(WorldLocation - LightLocation);
     // mfs
     float diff = max(dot(Normal, -1 * LightDirection), 0.0);
-    vec3 diffuse = diff * LightColor;
+    vec3 diffuse = diff * Attenuation * LightColor;
     // jmfs 
     vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
     vec3 ReflectDirection = reflect(LightDirection, Normal);
     float spec = pow(max(dot(CameraDirection, ReflectDirection), 0.0), 32);
 
-    vec3 specular = specularStrength * spec * LightColor;
+    vec3 specular = specularStrength * Attenuation * spec * LightColor;
 
     glColor = vec4((Ambient + diffuse + specular) * Color.rgb, 1); 
 

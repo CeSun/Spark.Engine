@@ -57,34 +57,32 @@ public partial class Level
     }
     public void BeginPlay()
     {
+        MainMouse.MouseMove += OnMouseMove;
+        MainMouse.MouseDown += OnMouseKeyDown;
+
+
         var CameraActor = new Actor(this);
         var CameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = CameraComponent;
         CameraActor.WorldLocation += CameraComponent.UpVector * 10;
-        CameraComponent.NearPlaneDistance = 10f;
+        CameraComponent.NearPlaneDistance = 1;
         CameraComponent.FarPlaneDistance =  100f;
-        // CameraComponent.FieldOfView = 120f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
         this.CameraActor = CameraActor;
-
-       
-
-        MainMouse.MouseMove += OnMouseMove;
-        MainMouse.MouseDown += OnMouseKeyDown;
 
         var CubeActor = new Actor(this);
         var CubeMeshComp = new StaticMeshComponent(CubeActor);
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeActor.RootComponent = CubeMeshComp;
-        CubeMeshComp.WorldScale = new Vector3(50, 1, 50);
-        /*
+        CubeMeshComp.WorldScale = new Vector3(10, 1, 10);
+       
         var DirectionActor = new Actor(this);
         var DirectionComp = new DirectionLightComponent(DirectionActor);
         DirectionActor.RootComponent = DirectionComp;
-        DirectionComp.Color = Color.Red;
+        DirectionComp.Color = Color.Pink;
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), -30f.DegreeToRadians(), 0f);
-        DirectionComp.LightStrength = 1;
-        */
+        DirectionComp.LightStrength = 0.5f;
+        
 
 
         var SpotActor = new Actor(this);

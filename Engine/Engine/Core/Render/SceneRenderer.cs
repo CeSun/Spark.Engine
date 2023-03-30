@@ -234,7 +234,9 @@ public class SceneRenderer
                 });
 
 
-            SpotLightingShader.SetFloat("AmbientStrength", SpotLightComponent.AmbientStrength);
+            SpotLightingShader.SetFloat("Constant", SpotLightComponent.Constant);
+            SpotLightingShader.SetFloat("Linear", SpotLightComponent.Linear);
+            SpotLightingShader.SetFloat("Quadratic", SpotLightComponent.Quadratic);
 
             SpotLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
