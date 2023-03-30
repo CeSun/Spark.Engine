@@ -65,16 +65,7 @@ public partial class Level
         MainMouse.MouseMove += OnMouseMove;
         MainMouse.MouseDown += OnMouseKeyDown;
 
-
-        var CameraActor = new Actor(this);
-        var CameraComponent = new CameraComponent(CameraActor);
-        // CameraActor.RootComponent = CameraComponent;
-        CameraActor.WorldLocation -= CameraComponent.ForwardVector * 10;
-        CameraComponent.NearPlaneDistance = 1;
-        CameraComponent.FarPlaneDistance =  100f;
-        CameraComponent.ProjectionType = ProjectionType.Perspective;
-        this.CameraActor = CameraActor;
-
+        // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this);
         var RobotMeshComp = new StaticMeshComponent(RobotActor);
         RobotMeshComp.StaticMesh = new StaticMesh("/StaticMesh/untitled.glb");
@@ -83,10 +74,16 @@ public partial class Level
         // RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
         RobotMeshComp.WorldLocation -= RobotMeshComp.UpVector * 3;
 
+        // 定义摄像机组件，挂载到静态网格体组件后面， 设置相对位置在网格体的后上方
+        var CameraComponent = new CameraComponent(RobotActor);
         CameraComponent.ParentComponent = RobotMeshComp;
+        CameraComponent.NearPlaneDistance = 1;
+        CameraComponent.FarPlaneDistance =  100f;
+        CameraComponent.ProjectionType = ProjectionType.Perspective;
         CameraComponent.RelativeLocation += new Vector3(0, 1.5f, 2);
         CameraComponent.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
 
+        // 加载个cube作为地板
         var CubeActor = new Actor(this);
         var CubeMeshComp = new StaticMeshComponent(RobotActor);
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
@@ -94,6 +91,7 @@ public partial class Level
         CubeMeshComp.WorldScale = new Vector3(30, 1, 30);
         CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4F;
 
+        // 创建定向光源
         var DirectionActor = new Actor(this);
         var DirectionComp = new DirectionLightComponent(DirectionActor);
         DirectionActor.RootComponent = DirectionComp;
