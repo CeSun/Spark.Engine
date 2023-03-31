@@ -44,7 +44,7 @@ void main()
 
 
     float bias = max(0.005 * (1.0 - dot(Normal, -1.0f * LightDirection)), 0.0005);
-    float Shadow = LightSpaceLocation.z - bias > ShadowDepth ? 1.0 : 0.0 ;
+    float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0 ;
     Shadow = LightSpaceLocation.z > 1 ? 0.0 : Shadow;
 
     
@@ -60,8 +60,9 @@ void main()
 
     // jmfs 
     vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
-    vec3 ReflectDirection = reflect(LightDirection, Normal);
-    float spec = pow(max(dot(CameraDirection, ReflectDirection), 0.0), 32.0f);
+    vec3 HalfVector = normalize((-LightDirection + CameraDirection));
+    // vec3 ReflectDirection = reflect(LightDirection, Normal);
+    float spec = pow(max(dot(Normal, HalfVector), 0.0), 16.0f);
 
     vec3 Specular = specularStrength * spec * LightColor;
 

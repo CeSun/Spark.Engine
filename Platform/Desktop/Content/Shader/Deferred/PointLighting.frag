@@ -47,8 +47,9 @@ void main()
     vec3 diffuse = diff * Attenuation * LightColor;
     // jmfs 
     vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
-    vec3 ReflectDirection = reflect(LightDirection, Normal);
-    float spec = pow(max(dot(CameraDirection, ReflectDirection), 0.0), 32.0f);
+    vec3 HalfVector = normalize((-LightDirection + CameraDirection));
+    // vec3 ReflectDirection = reflect(LightDirection, Normal);
+    float spec = pow(max(dot(Normal, HalfVector), 0.0), 16.0f);
 
     vec3 specular = specularStrength * Attenuation * spec * LightColor;
 

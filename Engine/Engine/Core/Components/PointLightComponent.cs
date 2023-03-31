@@ -22,4 +22,8 @@ public class PointLightComponent : LightComponent
     public float Linear;
 
     public float Quadratic;
+
+    public uint FrameBufferID;
+
+
 }

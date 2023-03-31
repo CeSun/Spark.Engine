@@ -96,9 +96,9 @@ public class SceneRenderer
 
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Back);
+
         DepthPass(DeltaTime);
         BasePass(DeltaTime); 
-
         LightingPass(DeltaTime);
     }
     private void DepthPass(double DeltaTime)
