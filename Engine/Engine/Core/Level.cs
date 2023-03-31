@@ -99,7 +99,7 @@ public partial class Level
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
         DirectionComp.LightStrength = 1f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
-
+        var skybox = new SkyboxComponent(DirectionActor);
         /*
         for(int i = 0; i < 15; i ++)
         {
@@ -281,6 +281,8 @@ public partial class Level
     public IReadOnlyList<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
     public IReadOnlyList<PointLightComponent> PointLightComponents => _PointLightComponents;
     public IReadOnlyList<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
+
+    public SkyboxComponent?  CurrentSkybox { get; private set; }
     public void RegistComponent(PrimitiveComponent component)
     {
         if (PrimitiveComponents.Contains(component))
@@ -317,6 +319,17 @@ public partial class Level
                 _SpotLightComponents.Add(spotLightComponent);
             }
         }
+
+        if (component is SkyboxComponent && CurrentSkybox == null)
+        {
+            foreach (var compon in _PrimitiveComponents)
+            {
+                if (compon is SkyboxComponent skyboxComponent)
+                {
+                    CurrentSkybox = skyboxComponent;
+                }
+            }
+        }
     }
 
     public void UnregistComponent(PrimitiveComponent component)
@@ -350,6 +363,17 @@ public partial class Level
             if (_SpotLightComponents.Contains(spotLightComponent))
             {
                 _SpotLightComponents.Remove(spotLightComponent);
+            }
+        }
+        if (component is SkyboxComponent && CurrentSkybox == component)
+        {
+            CurrentSkybox = null;
+            foreach (var compon in _PrimitiveComponents)
+            {
+                if (compon is SkyboxComponent skyboxComponent)
+                {
+                    CurrentSkybox = skyboxComponent;
+                }
             }
         }
     }

@@ -30,6 +30,7 @@ public class SceneRenderer
 
     Shader DLShadowMapShader;
     Shader SpotShadowMapShader;
+    Shader SkyboxShader;
 
     World World { get; set; }
 
@@ -46,6 +47,7 @@ public class SceneRenderer
         PointLightingShader = new Shader("/Shader/Deferred/PointLighting");
         DLShadowMapShader = new Shader("/Shader/ShadowMap/DirectionLightShadow");
         SpotShadowMapShader = new Shader("/Shader/ShadowMap/SpotLightShadow");
+        SkyboxShader = new Shader("/Shader/Skybox");
         GloblaBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
         InitRender();
     }
@@ -96,10 +98,25 @@ public class SceneRenderer
 
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Back);
-
+;
         DepthPass(DeltaTime);
         BasePass(DeltaTime); 
         LightingPass(DeltaTime);
+    }
+
+    private void SkyboxPass(double DeltaTime)
+    {
+        if (CurrentCameraComponent == null)
+            return;
+        SkyboxShader.Use();
+        Matrix4x4 View = Matrix4x4.CreateLookAt(Vector3.Zero, Vector3.Zero + CurrentCameraComponent.ForwardVector, CurrentCameraComponent.UpVector);
+        Matrix4x4 Projection = Matrix4x4.CreatePerspectiveFieldOfView(CurrentCameraComponent.FieldOfView.DegreeToRadians(), Engine.Instance.WindowSize.X / (float)Engine.Instance.WindowSize.Y, 0.1f, 100f);
+        SkyboxShader.SetMatrix("view", View);
+        SkyboxShader.SetMatrix("projection", Projection);
+        SkyboxShader.SetInt("skybox", 0);
+        World.CurrentLevel.CurrentSkybox?.RenderSkybox(DeltaTime);
+        SkyboxShader.UnUse();
+
     }
     private void DepthPass(double DeltaTime)
     {
@@ -176,6 +193,9 @@ public class SceneRenderer
             gl.Enable(EnableCap.DepthTest);
             gl.ClearColor(Color.Black);
             gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+            SkyboxPass(DeltaTime);
+
             Shader.GlobalShader = BaseShader;
             if (CurrentCameraComponent != null)
             {

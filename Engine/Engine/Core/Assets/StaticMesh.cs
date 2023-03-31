@@ -129,7 +129,7 @@ public class StaticMesh : Asset
                     }
                     if (glChannel.Key == "Normal")
                     {
-                        Material.Normal = texture;
+                        Material.Normal = texture; 
                     }
                 }
                 Materials.Add(Material);
