@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Silk.NET.OpenGL;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Core.Assets;
 
@@ -39,6 +41,11 @@ public class Material
                 texture.Use(index);
             }
             index++;
+        }
+        if (Textures[1] == null)
+        {
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, 0);
         }
     }
 }

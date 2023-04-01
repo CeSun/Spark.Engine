@@ -40,12 +40,20 @@ void main()
     vec4 tmpLightSpaceLocation = WorldToLight * vec4(WorldLocation, 1.0);
     vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
     LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
-    float ShadowDepth = texture(ShadowMapTexture, LightSpaceLocation.xy).r;
 
 
-    float bias = max(0.005 * (1.0 - dot(Normal, -1.0f * LightDirection)), 0.0005);
-    float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0 ;
-    Shadow = LightSpaceLocation.z > 1 ? 0.0 : Shadow;
+    float Shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(ShadowMapTexture, 0);
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            float ShadowDepth = texture(ShadowMapTexture, LightSpaceLocation.xy + vec2(x, y) * texelSize).r; 
+            Shadow += LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0 ;      
+        }    
+    }
+    Shadow /= 9.0;
+
 
     
 

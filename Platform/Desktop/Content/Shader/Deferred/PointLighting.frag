@@ -71,10 +71,8 @@ float ShadowCalculation(vec3 WorldLocation)
     // now get current linear depth as the length between the fragment and light position
     float currentDepth = length(fragToLight);
     // test for shadows
-    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;        
-    // display closestDepth as debug (to visualize depth cubemap)
-    // FragColor = vec4(vec3(closestDepth / far_plane), 1.0);    
-        
+    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;       
+
     return shadow;
 }
 

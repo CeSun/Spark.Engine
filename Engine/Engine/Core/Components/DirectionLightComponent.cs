@@ -30,6 +30,7 @@ public class DirectionLightComponent : LightComponent
     public float _LightStrength = 0.7f;
     public DirectionLightComponent(Actor actor) : base(actor)
     {
+        ShadowMapSize = new Point(1024, 1024);
         InitShadowMap();
     }
 

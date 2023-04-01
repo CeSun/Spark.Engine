@@ -41,7 +41,7 @@ public class LightComponent : PrimitiveComponent
     public Vector3 _Color;
     public LightComponent(Actor actor) : base(actor)
     {
-        ShadowMapSize = new Point(1920, 1920);  
+        ShadowMapSize = new Point(512, 512);  
 
     }
 

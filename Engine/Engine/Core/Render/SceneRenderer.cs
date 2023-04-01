@@ -143,7 +143,8 @@ public class SceneRenderer
         DLShadowMapShader.Use();
         foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
-            var View = Matrix4x4.CreateLookAt(DirectionalLight.WorldLocation, DirectionalLight.WorldLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
+            var LightLocation = CurrentCameraComponent.RelativeLocation - DirectionalLight.ForwardVector * 20;
+            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
             var Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
             gl.Viewport(new Rectangle(0, 0, DirectionalLight.ShadowMapSize.X, DirectionalLight.ShadowMapSize.Y));
             gl.BindFramebuffer(GLEnum.Framebuffer, DirectionalLight.ShadowMapFrameBufferID);
@@ -326,8 +327,8 @@ public class SceneRenderer
             Matrix4x4.Invert((CurrentCameraComponent.View * CurrentCameraComponent.Projection), out var VPInvert);
             DirectionalLightingShader.SetMatrix("VPInvert", VPInvert);
 
-
-            var View = Matrix4x4.CreateLookAt(DirectionalLight.WorldLocation, DirectionalLight.WorldLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
+            var LightLocation = CurrentCameraComponent.RelativeLocation - DirectionalLight.ForwardVector * 20;
+            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
             var Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
 
             var WorldToLight = View * Projection;

@@ -135,9 +135,65 @@ public class StaticMesh : Asset
                 Materials.Add(Material);
             }
         }
+        InitTBN();
         InitRender();
     }
 
+    private void InitTBN()
+    {
+        for (int i = 0; i < IndicesList.Count; i ++)
+        {
+            InitMeshTBN(i);
+        }
+    }
+
+    private void InitMeshTBN(int index)
+    {
+        var vertics = Meshes[index];
+        var indices = IndicesList[index];
+
+        for(int i = 0; i < indices.Count; i += 3)
+        {
+            var p1 = vertics[(int)indices[i]];
+            var p2 = vertics[(int)indices[i + 1]];
+            var p3 = vertics[(int)indices[i + 2]];
+
+            Vector3 Edge1 = p2.Location - p1.Location;
+            Vector3 Edge2 = p3.Location - p1.Location;
+            Vector2 DeltaUV1 = p2.TexCoord - p1.TexCoord;
+            Vector2 DeltaUV2 = p3.TexCoord - p1.TexCoord;
+
+            float f = 1.0f / (DeltaUV1.X * DeltaUV2.Y - DeltaUV2.X * DeltaUV1.Y);
+
+            Vector3 tangent1;
+            Vector3 bitangent1;
+
+            tangent1.X = f * (DeltaUV2.Y * Edge1.X - DeltaUV1.Y * Edge2.X);
+            tangent1.Y = f * (DeltaUV2.Y * Edge1.Y - DeltaUV1.Y * Edge2.Y);
+            tangent1.Z = f * (DeltaUV2.Y * Edge1.Z - DeltaUV1.Y * Edge2.Z);
+            tangent1 = Vector3.Normalize(tangent1);
+
+            bitangent1.X = f * (-DeltaUV2.X * Edge1.X + DeltaUV1.X * Edge2.X);
+            bitangent1.Y = f * (-DeltaUV2.X * Edge1.Y + DeltaUV1.X * Edge2.Y);
+            bitangent1.Z = f * (-DeltaUV2.X * Edge1.Z + DeltaUV1.X * Edge2.Z);
+            bitangent1 = Vector3.Normalize(bitangent1);
+
+            p1.Tangent = tangent1;
+            p2.Tangent = tangent1;
+            p3.Tangent = tangent1;
+
+
+            p1.BitTangent = bitangent1;
+            p2.BitTangent = bitangent1;
+            p3.BitTangent = bitangent1;
+
+            vertics[(int)indices[i]] = p1;
+            vertics[(int)indices[i + 1]] = p2;
+            vertics[(int)indices[i + 2]] = p3;
+
+        }
+
+    }
     private unsafe void InitRender()
     {
         for (var index = 0; index < Meshes.Count; index++)
@@ -163,12 +219,21 @@ public class StaticMesh : Asset
             // Normal
             gl.EnableVertexAttribArray(1);
             gl.VertexAttribPointer(1, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)sizeof(Vector3));
-            // Color
+
+
             gl.EnableVertexAttribArray(2);
             gl.VertexAttribPointer(2, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(2 * sizeof(Vector3)));
-            // TexCoord
+
+
             gl.EnableVertexAttribArray(3);
-            gl.VertexAttribPointer(3, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(3 * sizeof(Vector3)));
+            gl.VertexAttribPointer(3, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(3 * sizeof(Vector3)));
+
+            // Color
+            gl.EnableVertexAttribArray(4);
+            gl.VertexAttribPointer(4, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(4 * sizeof(Vector3)));
+            // TexCoord
+            gl.EnableVertexAttribArray(5);
+            gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(5 * sizeof(Vector3)));
             gl.BindVertexArray(0);
 
             VertexArrayObjectIndexes.Add(vao);
@@ -201,6 +266,10 @@ public struct StaticMeshVertex
     public Vector3 Location;
 
     public Vector3 Normal;
+
+    public Vector3 Tangent;
+
+    public Vector3 BitTangent;
 
     public Vector3 Color;
 

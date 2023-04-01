@@ -100,7 +100,7 @@ public partial class Level
         DirectionActor.RootComponent = DirectionComp;
         DirectionComp.Color = Color.White;
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
-        DirectionComp.LightStrength = 0.4f;
+        DirectionComp.LightStrength = 1f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
 
         var PointLight = new Actor(this);
