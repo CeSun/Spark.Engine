@@ -102,6 +102,8 @@ public class SceneRenderer
         DepthPass(DeltaTime);
         BasePass(DeltaTime); 
         LightingPass(DeltaTime);
+        SkyboxPass(DeltaTime);
+
     }
 
     private void SkyboxPass(double DeltaTime)
@@ -113,6 +115,13 @@ public class SceneRenderer
         Matrix4x4 Projection = Matrix4x4.CreatePerspectiveFieldOfView(CurrentCameraComponent.FieldOfView.DegreeToRadians(), Engine.Instance.WindowSize.X / (float)Engine.Instance.WindowSize.Y, 0.1f, 100f);
         SkyboxShader.SetMatrix("view", View);
         SkyboxShader.SetMatrix("projection", Projection);
+
+        SkyboxShader.SetInt("NormalTexture", 1);
+        gl.ActiveTexture(GLEnum.Texture1);
+        gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.NormalId);
+
+        SkyboxShader.SetVector2("BufferSize", new Vector2(GloblaBuffer.BufferWidth, GloblaBuffer.BufferHeight));
+        SkyboxShader.SetVector2("ScreenSize", new Vector2(GloblaBuffer.Width, GloblaBuffer.Height));
         SkyboxShader.SetInt("skybox", 0);
         World.CurrentLevel.CurrentSkybox?.RenderSkybox(DeltaTime);
         SkyboxShader.UnUse();
@@ -193,8 +202,6 @@ public class SceneRenderer
             gl.Enable(EnableCap.DepthTest);
             gl.ClearColor(Color.Black);
             gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-            SkyboxPass(DeltaTime);
 
             Shader.GlobalShader = BaseShader;
             if (CurrentCameraComponent != null)
