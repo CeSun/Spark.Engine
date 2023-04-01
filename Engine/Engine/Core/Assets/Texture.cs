@@ -77,6 +77,14 @@ public class Texture : Asset
         }
     }
 
+    ~Texture()
+    {
+        if (TextureId != 0)
+        {
+            gl.DeleteTexture(TextureId);
+        }
+    }
+
     public void Use(int index)
     {
         gl.ActiveTexture(GLEnum.Texture0 + index);

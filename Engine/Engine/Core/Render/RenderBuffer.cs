@@ -20,6 +20,7 @@ public class RenderBuffer
     public uint ColorId { private set; get; }
     public uint NormalId { private set; get; }
     public uint DepthId { private set; get; }
+    public uint RboId { private set; get; }
     public RenderBuffer(int width, int height)
     {
         Resize(width, height);
@@ -38,7 +39,6 @@ public class RenderBuffer
             {
                 BufferHeight = height;
             }
-            /*
             if (NormalId != 0)
             {
                 gl.DeleteTexture(NormalId);
@@ -47,11 +47,19 @@ public class RenderBuffer
             {
                 gl.DeleteTexture(ColorId);
             }
-            */
-            if (BufferId == 0)
+            if (DepthId != 0)
             {
-                BufferId = gl.GenFramebuffer();
+                gl.DeleteTexture(DepthId);
             }
+            if (RboId != 0)
+            {
+                gl.DeleteRenderbuffer(RboId);
+            }
+            if (BufferId != 0)
+            {
+                gl.DeleteFramebuffer(BufferId);
+            }
+            BufferId = gl.GenFramebuffer();
             gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
 
 
@@ -77,10 +85,10 @@ public class RenderBuffer
             // attach depth texture as FBO's depth buffer
             gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment2, GLEnum.Texture2D, DepthId, 0);
 
-            var DepthId2 = gl.GenRenderbuffer();
-            gl.BindRenderbuffer(GLEnum.Renderbuffer, DepthId2);
+            RboId = gl.GenRenderbuffer();
+            gl.BindRenderbuffer(GLEnum.Renderbuffer, RboId);
             gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent, (uint)BufferWidth, (uint)BufferHeight);
-            gl.FramebufferRenderbuffer(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, DepthId2);
+            gl.FramebufferRenderbuffer(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, RboId);
             gl.Enable(GLEnum.DepthTest);
             GLEnum[] attachments = new GLEnum[] { GLEnum.ColorAttachment0, GLEnum.ColorAttachment1, GLEnum.ColorAttachment2 };
             gl.DrawBuffers(attachments);
@@ -90,6 +98,29 @@ public class RenderBuffer
         }
     }
 
+    ~RenderBuffer()
+    {
+        if (NormalId != 0)
+        {
+            gl.DeleteTexture(NormalId);
+        }
+        if (ColorId != 0)
+        {
+            gl.DeleteTexture(ColorId);
+        }
+        if (DepthId != 0)
+        {
+            gl.DeleteTexture(DepthId);
+        }
+        if (RboId != 0)
+        {
+            gl.DeleteRenderbuffer(RboId);
+        }
+        if (BufferId != 0)
+        {
+            gl.DeleteFramebuffer(BufferId);
+        }
+    }
     public void Render(Action RenderAction)
     {
         gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);

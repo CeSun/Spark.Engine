@@ -48,4 +48,5 @@ public class Material
             gl.BindTexture(GLEnum.Texture2D, 0);
         }
     }
+
 }

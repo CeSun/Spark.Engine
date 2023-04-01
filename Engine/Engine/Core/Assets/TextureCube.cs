@@ -74,4 +74,12 @@ public class TextureCube : Asset
         gl.ActiveTexture(GLEnum.Texture0 + index);
         gl.BindTexture(GLEnum.TextureCubeMap, TextureId);
     }
+
+    ~TextureCube()
+    {
+        if (TextureId != 0)
+        {
+            gl.DeleteTexture(TextureId);
+        }
+    }
 }

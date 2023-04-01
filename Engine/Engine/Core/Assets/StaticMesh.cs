@@ -258,6 +258,23 @@ public class StaticMesh : Asset
             index++;
         }
     }
+
+
+    ~StaticMesh()
+    {
+        foreach(var vao in VertexArrayObjectIndexes)
+        {
+            gl.DeleteVertexArray(vao);
+        }
+        foreach(var vbo in VertexBufferObjectIndexes)
+        {
+            gl.DeleteBuffer(vbo);
+        }
+        foreach (var ebo in ElementBufferObjectIndexes)
+        {
+            gl.DeleteBuffer(ebo);
+        }
+    }
 }
 
 

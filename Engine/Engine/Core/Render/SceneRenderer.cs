@@ -53,6 +53,16 @@ public class SceneRenderer
         InitRender();
     }
 
+    ~SceneRenderer()
+    {
+        if (PostProcessVAO != 0)
+            gl.DeleteVertexArray(PostProcessVAO);
+        if (PostProcessVBO != 0)
+            gl.DeleteBuffer(PostProcessVBO);
+        if (PostProcessEBO != 0)
+            gl.DeleteBuffer(PostProcessEBO);
+
+    }
     public unsafe void InitRender()
     {
         DeferredVertex[] Vertices = new DeferredVertex[4] { 
