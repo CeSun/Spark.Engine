@@ -51,6 +51,5 @@ public class SpotLightComponent : LightComponent
         gl.BindTexture(GLEnum.Texture2D, 0);
 
     }
-    public Point ShadowMapSize { get; set; }
 
 }

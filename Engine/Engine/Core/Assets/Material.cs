@@ -36,7 +36,7 @@ public class Material
         {
             if (texture != null)
             {
-                texture.Use(TextureNames[index], index);
+                texture.Use(index);
             }
             index++;
         }

@@ -14,6 +14,7 @@ public class Shader : Asset
     public uint ProgramId;
     public string? VertShaderSource;
     public string? FragShaderSource;
+    public string? GeomShaderSource;
     public Shader(string Path) : base(Path)
     {
         
@@ -51,20 +52,57 @@ public class Shader : Asset
             Console.WriteLine(FragShaderSource);
             throw new Exception(info);
         }
+        try
+        {
+            using (var sr = FileSystem.GetStreamReader("Content" + Path + ".geom"))
+            {
+                GeomShaderSource = sr.ReadToEnd();
+            }
+        }catch 
+        {
+
+        }
+        uint geom = default;
+        if (GeomShaderSource != null)
+        {
+
+            geom = gl.CreateShader(GLEnum.GeometryShader);
+            gl.ShaderSource(geom, GeomShaderSource);
+            gl.CompileShader(geom);
+            gl.GetShader(frag, GLEnum.CompileStatus, out code);
+            if (code == 0)
+            {
+                gl.DeleteShader(vert);
+                gl.DeleteShader(frag);
+                var info = gl.GetShaderInfoLog(geom);
+                Console.WriteLine(GeomShaderSource);
+                throw new Exception(info);
+            }
+
+        }
         ProgramId = gl.CreateProgram();
         gl.AttachShader(ProgramId, vert);
         gl.AttachShader(ProgramId, frag);
+        if (GeomShaderSource != null)
+        {
+            gl.AttachShader(ProgramId, geom);
+        }
         gl.LinkProgram(ProgramId);
         gl.GetProgram(ProgramId, GLEnum.LinkStatus, out code);
         if (code == 0)
         {
             gl.DeleteShader(vert);
             gl.DeleteShader(frag);
+            if (GeomShaderSource != null)
+                gl.DeleteShader(geom);
+
             var info = gl.GetProgramInfoLog(ProgramId);
             throw new Exception(info);
         }
         gl.DeleteShader(vert);
         gl.DeleteShader(frag);
+        if (GeomShaderSource != null)
+            gl.DeleteShader(geom);
     }
 
     public void SetInt(string name, int value) 
@@ -111,6 +149,5 @@ public class Shader : Asset
         gl.UseProgram(0);
     }
 
-    public static Shader? GlobalShader;
 
 }

@@ -77,9 +77,8 @@ public class Texture : Asset
         }
     }
 
-    public void Use(string Name, int index)
+    public void Use(int index)
     {
-        GlobalShader?.SetInt(Name, index);
         gl.ActiveTexture(GLEnum.Texture0 + index);
         gl.BindTexture(GLEnum.Texture2D, TextureId);
     }

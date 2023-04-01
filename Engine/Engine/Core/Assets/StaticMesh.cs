@@ -189,9 +189,7 @@ public class StaticMesh : Asset
         {
             Materials[index].Use();
             gl.BindVertexArray(VertexArrayObjectIndexes[index]);
-            Shader.GlobalShader?.Use();
             gl.DrawElements(GLEnum.Triangles, (uint)IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
-            gl.ActiveTexture(GLEnum.Texture0);
             index++;
         }
     }

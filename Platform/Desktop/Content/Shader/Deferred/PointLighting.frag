@@ -7,6 +7,7 @@ in vec2 OutTrueTexCoord;
 uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
+uniform samplerCube ShadowMapTextue;
 uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
@@ -15,11 +16,12 @@ uniform float AmbientStrength;
 uniform float Constant;
 uniform float Linear;
 uniform float Quadratic;
-
+uniform float FarPlan;
 
 
 
 vec3 GetWorldLocation(vec3 ScreenLocation);
+float ShadowCalculation(vec3 fragPos);
 
 
 
@@ -52,9 +54,28 @@ void main()
     float spec = pow(max(dot(Normal, HalfVector), 0.0), 16.0f);
 
     vec3 specular = specularStrength * Attenuation * spec * LightColor;
+    
+    float shadow = ShadowCalculation(WorldLocation);  
+    glColor = vec4((Ambient + (1 - shadow) * (diffuse + specular)) * Color.rgb, 1); 
 
-    glColor = vec4((Ambient + diffuse + specular) * Color.rgb, 1); 
+}
 
+float ShadowCalculation(vec3 WorldLocation)
+{
+    // get vector between fragment position and light position
+    vec3 fragToLight = WorldLocation - LightLocation;
+    // ise the fragment to light vector to sample from the depth map    
+    float closestDepth = texture(ShadowMapTextue, fragToLight).r;
+    // it is currently in linear range between [0,1], let's re-transform it back to original depth value
+    closestDepth *= FarPlan;
+    // now get current linear depth as the length between the fragment and light position
+    float currentDepth = length(fragToLight);
+    // test for shadows
+    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;        
+    // display closestDepth as debug (to visualize depth cubemap)
+    // FragColor = vec4(vec3(closestDepth / far_plane), 1.0);    
+        
+    return shadow;
 }
 
 vec3 GetWorldLocation(vec3 ScreenLocation)

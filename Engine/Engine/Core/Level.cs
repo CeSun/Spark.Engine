@@ -73,6 +73,7 @@ public partial class Level
         RobotMeshComp.WorldScale = new Vector3(5, 5, 5);
         // RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
         RobotMeshComp.WorldLocation -= RobotMeshComp.UpVector * 3;
+        this.RobotActor = RobotActor;
 
         // 定义摄像机组件，挂载到静态网格体组件后面， 设置相对位置在网格体的后上方
         var CameraComponent = new CameraComponent(RobotActor);
@@ -90,6 +91,8 @@ public partial class Level
         CubeActor.RootComponent = CubeMeshComp;
         CubeMeshComp.WorldScale = new Vector3(30, 1, 30);
         CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4F;
+        var skybox = new SkyboxComponent(CubeActor);
+
 
         // 创建定向光源
         var DirectionActor = new Actor(this);
@@ -97,50 +100,22 @@ public partial class Level
         DirectionActor.RootComponent = DirectionComp;
         DirectionComp.Color = Color.White;
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
-        DirectionComp.LightStrength = 1f;
+        DirectionComp.LightStrength = 0.4f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
-        var skybox = new SkyboxComponent(DirectionActor);
-        /*
-        for(int i = 0; i < 15; i ++)
-        {
-            var DirectionActor = new Actor(this);
-            var DirectionComp = new DirectionLightComponent(DirectionActor);
-            DirectionActor.RootComponent = DirectionComp;
-            DirectionComp.Color = Color.Pink;
-            DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), -30f.DegreeToRadians(), 0f);
-            DirectionComp.LightStrength = 0.5f;
-
-
-
-            var PointLight = new Actor(this);
-            var PointLightComp = new PointLightComponent(PointLight);
-            PointLight.RootComponent = PointLightComp;
-            PointLightComp.Color = Color.Green;
-            PointLightComp.WorldLocation += PointLightComp.UpVector * 20 - PointLightComp.RightVector * 5; ;
-
-
-            var PointLight2 = new Actor(this);
-            var PointLightComp2 = new PointLightComponent(PointLight2);
-            PointLight2.RootComponent = PointLightComp2;
-            PointLightComp2.Color = Color.Red;
-            PointLightComp2.WorldLocation += PointLightComp2.UpVector * 20 + PointLightComp2.RightVector * 5; ;
-        } */
 
         var PointLight = new Actor(this);
         var PointLightComp = new PointLightComponent(PointLight);
         PointLight.RootComponent = PointLightComp;
-        PointLightComp.Color = Color.Green;
-        PointLightComp.WorldLocation += PointLightComp.UpVector * 10;
+        PointLightComp.Color = Color.DeepPink;
+        PointLightComp.WorldLocation += PointLightComp.UpVector * 10 - PointLightComp.RightVector * 2;
 
-        var SpotLightActor = new Actor(this);
-        var SpotLightComponent = new SpotLightComponent(SpotLightActor);
-        SpotLightActor.RootComponent = SpotLightComponent;
-        SpotLightComponent.Color = Color.Red;
-        SpotLightComponent.WorldLocation -= SpotLightComponent.ForwardVector * 5;
-        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 5;
-        SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -30F.DegreeToRadians(), 0);
 
-        this.RobotActor = RobotActor;
+
+        var PointLight2 = new Actor(this);
+        var PointLightComp2 = new PointLightComponent(PointLight2);
+        PointLight2.RootComponent = PointLightComp2;
+        PointLightComp2.Color = Color.Purple;
+        PointLightComp2.WorldLocation += PointLightComp2.UpVector * 10 + PointLightComp2.RightVector * 2;
     }
 
     public void Destory() 
