@@ -92,7 +92,7 @@ public partial class Level
         CubeMeshComp.WorldScale = new Vector3(30, 1, 30);
         CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4F;
         var skybox = new SkyboxComponent(CubeActor);
-
+        skybox.SkyboxCube = new TextureCube("/Skybox/pm");
 
         // 创建定向光源
         var DirectionActor = new Actor(this);

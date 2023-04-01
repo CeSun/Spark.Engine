@@ -9,6 +9,7 @@ using static Spark.Engine.StaticEngine;
 using System.Reflection;
 using StbImageSharp;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using Spark.Engine.Core.Assets;
 
 namespace Spark.Engine.Core.Components;
 
@@ -18,7 +19,6 @@ public class SkyboxComponent : PrimitiveComponent
     {
 
         InitRender();
-        InitTexture();
     }
 
     uint Ebo;
@@ -74,30 +74,11 @@ public class SkyboxComponent : PrimitiveComponent
 
     }
 
-    private unsafe void InitTexture()
-    {
-        TextureId = gl.GenTexture();
-        gl.BindTexture(GLEnum.TextureCubeMap, TextureId);
-        string[] filename = {
-            "pm_rt.jpg", "pm_lf.jpg", "pm_up.jpg", "pm_dn.jpg", "pm_bk.jpg", "pm_ft.jpg"
-        };
 
-        for(int i = 0; i < filename.Length; i++)
-        {
-            using (var sr = FileSystem.GetStreamReader("Content/Skybox/" + filename[i]))
-            {
-                var result = ImageResult.FromStream(sr.BaseStream); 
-                fixed(void* data = result.Data)
-                {
-                    gl.TexImage2D(GLEnum.TextureCubeMapPositiveX + i, 0, (int)GLEnum.Rgb, (uint)result.Width, (uint)result.Height, 0, GLEnum.Rgb, GLEnum.UnsignedByte, data);
-                }
-                gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
-                gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
-                gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
-                gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
-                gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
-            }
-        }
+
+    public TextureCube? SkyboxCube
+    {
+        get; set;
     }
     public override void Render(double DeltaTime)
     {
@@ -107,10 +88,11 @@ public class SkyboxComponent : PrimitiveComponent
 
     public unsafe void RenderSkybox(double DeltaTime)
     {
+        if (SkyboxCube == null)
+            return;
         gl.DepthMask(false);
         gl.BindVertexArray(Vao);
-        gl.ActiveTexture(GLEnum.Texture0);
-        gl.BindTexture(GLEnum.TextureCubeMap, TextureId);
+        SkyboxCube?.Use(0);
         gl.DrawElements(GLEnum.Triangles, (uint)36, GLEnum.UnsignedInt, (void*)0);
         gl.DepthMask(true);
     }
