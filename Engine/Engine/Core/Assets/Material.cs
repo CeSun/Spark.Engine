@@ -26,6 +26,7 @@ public class Material
     public Texture Diffuse { get => Textures[0]; set => Textures[0] = value; }
     public Texture Normal { get => Textures[1]; set => Textures[1] = value; }
 
+    public Texture Parallax { get => Textures[2]; set => Textures[2] = value; }
     public Material() 
     {
 
@@ -45,6 +46,11 @@ public class Material
         if (Textures[1] == null)
         {
             gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, 0);
+        }
+        if (Textures[2] == null)
+        {
+            gl.ActiveTexture(GLEnum.Texture2);
             gl.BindTexture(GLEnum.Texture2D, 0);
         }
     }

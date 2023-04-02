@@ -21,7 +21,7 @@ namespace Spark.Engine.Core.Render;
 
 public class SceneRenderer
 {
-    RenderBuffer GloblaBuffer;
+    SceneBuffer GloblaBuffer;
     Shader BaseShader;
     Shader BrightnessLightingShader;
     Shader DirectionalLightingShader;
@@ -32,6 +32,12 @@ public class SceneRenderer
     Shader SpotShadowMapShader;
     Shader SkyboxShader;
     Shader PontLightShadowShader;
+    Shader BloomPreShader;
+    Shader BloomShader;
+
+    RenderBuffer BloomBuffer;
+    RenderBuffer PostProcessBuffer1;
+    RenderBuffer PostProcessBuffer2;
     World World { get; set; }
 
     uint PostProcessVAO = 0;
@@ -48,8 +54,13 @@ public class SceneRenderer
         DLShadowMapShader = new Shader("/Shader/ShadowMap/DirectionLightShadow");
         SpotShadowMapShader = new Shader("/Shader/ShadowMap/SpotLightShadow");
         PontLightShadowShader = new Shader("/Shader/ShadowMap/PointLightShadow");
+        BloomPreShader = new Shader("/Shader/Deferred/BloomPre");
+        BloomShader = new Shader("/Shader/Deferred/Bloom");
         SkyboxShader = new Shader("/Shader/Skybox");
-        GloblaBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
+        GloblaBuffer = new SceneBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
+        BloomBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+        PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+        PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         InitRender();
     }
 
@@ -112,11 +123,16 @@ public class SceneRenderer
         // 生成ShadowMap
         DepthPass(DeltaTime);
         // 生成GBuffer
-        BasePass(DeltaTime); 
-        // 延迟光照
-        LightingPass(DeltaTime);
-        // 天空盒
-        SkyboxPass(DeltaTime);
+        BasePass(DeltaTime);
+        PostProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        PostProcessBuffer1.Render(() =>
+        {
+            // 延迟光照
+            LightingPass(DeltaTime);
+            // 天空盒
+            SkyboxPass(DeltaTime);
+        });
+        BloomPass(DeltaTime);
 
     }
 
@@ -260,8 +276,10 @@ public class SceneRenderer
             {
                 BaseShader.SetInt("Diffuse", 0);
                 BaseShader.SetInt("Normal", 1);
+                BaseShader.SetInt("Parallax", 2);
                 BaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 BaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+                BaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
             }
             foreach (var component in World.CurrentLevel.PrimitiveComponents)
             {
@@ -276,31 +294,33 @@ public class SceneRenderer
 
     }
 
+    private unsafe void RenderToCameraRenderTarget(double DeltaTime)
+    {
+        
+    }
     private void LightingPass(double DeltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
-        CurrentCameraComponent.RenderTarget.RenderTo(() =>
-        {
-            // 清除背景颜色
-            gl.ClearColor(Color.Black);
-            gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-            gl.Disable(EnableCap.DepthTest);
-            gl.BlendEquation(GLEnum.FuncAdd);
-            gl.BlendFunc(GLEnum.One, GLEnum.One);
-            gl.Enable(EnableCap.Blend);
+        
+        // 清除背景颜色
+        gl.ClearColor(Color.Black);
+        gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+        gl.Disable(EnableCap.DepthTest);
+        gl.BlendEquation(GLEnum.FuncAdd);
+        gl.BlendFunc(GLEnum.One, GLEnum.One);
+        gl.Enable(EnableCap.Blend);
 
-            // 间接光
-            AmbientLightingPass();
-            // 定向光
-            DirectionalLight();
-            // 点光源
-            PointLight();
-            // 
-            SpotLight();
-            gl.Disable(EnableCap.Blend);
+        // 间接光
+        AmbientLightingPass();
+        // 定向光
+        DirectionalLight();
+        // 点光源
+        PointLight();
+        // 
+        SpotLight();
+        gl.Disable(EnableCap.Blend);
 
-        });
     }
 
     private unsafe void AmbientLightingPass()
@@ -385,6 +405,54 @@ public class SceneRenderer
 
     }
 
+    private unsafe void BloomPass(double DeltaTime)
+    {
+        if (CurrentCameraComponent == null) return;
+        PostProcessBuffer2.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        PostProcessBuffer2.Render(() =>
+        {
+            BloomPreShader.Use();
+            BloomPreShader.SetVector2("TexCoordScale",
+                new Vector2
+                {
+                    X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
+                    Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                });
+            BloomPreShader.SetInt("ColorTexture", 0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer1.GBufferIds[0]);
+
+            gl.BindVertexArray(PostProcessVAO);
+            gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            BloomPreShader.UnUse();
+        });
+
+        for (int i = 0; i < 2; i++)
+        {
+            PostProcessBuffer1.Render(() =>
+            {
+                BloomShader.Use();
+                BloomShader.SetVector2("TexCoordScale",
+                    new Vector2
+                    {
+                        X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
+                        Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
+                    });
+                BloomShader.SetInt("horizontal", i);
+                BloomShader.SetInt("ColorTexture", 0);
+                gl.ActiveTexture(GLEnum.Texture0);
+                gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+
+
+                gl.BindVertexArray(PostProcessVAO);
+                gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+                gl.ActiveTexture(GLEnum.Texture0);
+                BloomShader.UnUse();
+            });
+        }
+
+    }
     public unsafe void PointLight()
     {
         if (CurrentCameraComponent == null)

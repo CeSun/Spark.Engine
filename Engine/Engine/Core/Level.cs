@@ -14,6 +14,7 @@ using Spark.Util;
 using Silk.NET.Input;
 
 using static Spark.Engine.StaticEngine;
+using Texture = Spark.Engine.Core.Assets.Texture;
 
 namespace Spark.Engine.Core;
 
@@ -27,7 +28,7 @@ public partial class Level
     }
 
     Actor? RobotActor;
-    Actor? CameraActor;
+    CameraComponent? CameraComponent;
 
     Vector2 MoveData = default;
     Vector2 MoveData2 = default;
@@ -44,12 +45,12 @@ public partial class Level
 
             MoveData += (moveable * 0.1f);
             var rotation = Quaternion.CreateFromYawPitchRoll(-1 * MoveData.X.DegreeToRadians(), -1 * MoveData.Y.DegreeToRadians(), 0);
-            // CameraActor.WorldRotation = rotation;
+            CameraComponent.WorldRotation = rotation;
 
 
             rotation = Quaternion.CreateFromYawPitchRoll(-1 * MoveData.X.DegreeToRadians(), 0, 0);
 
-            RobotActor.WorldRotation = rotation;
+            // RobotActor.WorldRotation = rotation;
         }
     }
 
@@ -71,13 +72,13 @@ public partial class Level
         RobotMeshComp.StaticMesh = new StaticMesh("/StaticMesh/untitled.glb");
         RobotActor.RootComponent = RobotMeshComp;
         RobotMeshComp.WorldScale = new Vector3(5, 5, 5);
-        // RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
+        RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
         RobotMeshComp.WorldLocation -= RobotMeshComp.UpVector * 3;
         this.RobotActor = RobotActor;
-
+        var CameraActor = new Actor(this);
         // 定义摄像机组件，挂载到静态网格体组件后面， 设置相对位置在网格体的后上方
-        var CameraComponent = new CameraComponent(RobotActor);
-        CameraComponent.ParentComponent = RobotMeshComp;
+        CameraComponent = new CameraComponent(RobotActor);
+        CameraActor.RootComponent = CameraComponent;
         CameraComponent.NearPlaneDistance = 1;
         CameraComponent.FarPlaneDistance =  100f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
@@ -94,6 +95,18 @@ public partial class Level
         var skybox = new SkyboxComponent(CubeActor);
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
 
+        var CubeActor2 = new Actor(this);
+        var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
+        CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/Cube3.glb");
+        CubeActor2.RootComponent = CubeMeshComp2;
+        CubeMeshComp2.WorldScale = new Vector3(2, 2, 2);
+        CubeActor2.WorldLocation += CubeMeshComp2.UpVector * 2F + CubeMeshComp2.RightVector * 2;
+        var texture = new Texture("/StaticMesh/bricks2_disp.jpg");
+        foreach(var material in CubeMeshComp2.StaticMesh.Materials)
+        {
+            material.Parallax = texture;
+        }
+        //CubeMeshComp2.StaticMesh.Materials
         // 创建定向光源
         var DirectionActor = new Actor(this);
         var DirectionComp = new DirectionLightComponent(DirectionActor);
@@ -102,7 +115,7 @@ public partial class Level
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
         DirectionComp.LightStrength = 1f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
-
+        /*
         var PointLight = new Actor(this);
         var PointLightComp = new PointLightComponent(PointLight);
         PointLight.RootComponent = PointLightComp;
@@ -116,6 +129,7 @@ public partial class Level
         PointLight2.RootComponent = PointLightComp2;
         PointLightComp2.Color = Color.Purple;
         PointLightComp2.WorldLocation += PointLightComp2.UpVector * 10 + PointLightComp2.RightVector * 2;
+        */
     }
 
     public void Destory() 
@@ -131,7 +145,7 @@ public partial class Level
 
     private void CameraMove(double DeltaTime)
     {
-        if (CameraActor == null)
+        if (CameraComponent == null)
             return;
         Vector3 MoveDirection = Vector3.Zero;
         if (MainKeyBoard.IsKeyPressed(Key.W))
@@ -153,8 +167,8 @@ public partial class Level
         if (MoveDirection.Length() != 0)
         {
             MoveDirection = Vector3.Normalize(MoveDirection);
-            MoveDirection = Vector3.Transform(MoveDirection, CameraActor.WorldRotation);
-            // CameraActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
+            MoveDirection = Vector3.Transform(MoveDirection, CameraComponent.WorldRotation);
+            CameraComponent.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
         }
     }
 
@@ -184,7 +198,7 @@ public partial class Level
         {
             MoveDirection = Vector3.Normalize(MoveDirection);
             MoveDirection = Vector3.Transform(MoveDirection, RobotActor.WorldRotation);
-            RobotActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
+            // RobotActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
         }
     }
 

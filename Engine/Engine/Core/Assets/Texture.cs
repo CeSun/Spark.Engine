@@ -16,7 +16,7 @@ public class Texture : Asset
     uint TextureId;
     protected override void  LoadAsset()
     {
-        using (var StreamReader = new StreamReader("./Assets" + Path))
+        using (var StreamReader = new StreamReader("./Content" + Path))
         {
             var image = ImageResult.FromStream(StreamReader.BaseStream);
             if (image != null)
@@ -81,7 +81,7 @@ public class Texture : Asset
     {
         if (TextureId != 0)
         {
-            gl.DeleteTexture(TextureId);
+            // gl.DeleteTexture(TextureId);
         }
     }
 

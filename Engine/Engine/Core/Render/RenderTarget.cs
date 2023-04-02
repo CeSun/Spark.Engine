@@ -22,6 +22,7 @@ public class RenderTarget
     private uint FboId;
 
     private bool _IsRenderToViewPort;
+
     public bool IsRenderToViewPort
     {
         set
