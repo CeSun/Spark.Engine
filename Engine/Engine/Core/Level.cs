@@ -95,11 +95,12 @@ public partial class Level
         CubeActor.RootComponent = CubeMeshComp;
         CubeMeshComp.WorldScale = new Vector3(30, 1, 30);
         CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4F;
+        CubeMeshComp.StaticMesh.Materials[0].IsReflection = 1;
         var skybox = new SkyboxComponent(CubeActor);
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
 
         // 时差贴图
-        
+
         var CubeActor2 = new Actor(this);
         var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
         CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/Cube3.glb");

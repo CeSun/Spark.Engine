@@ -2,6 +2,7 @@
 layout (location = 0) out vec3 BufferNormal;
 layout (location = 1) out vec3 BufferColor;
 layout (location = 2) out vec4 BufferDepth;
+layout (location = 3) out vec4 BufferCustom;
 
 in vec2 OutTexCoord;
 in vec3 OutColor;
@@ -11,6 +12,7 @@ in vec3 OutNormal;
 in vec3 OutPosition;
 in vec3 TbnPosition;
 
+uniform float IsReflection;
 uniform sampler2D Diffuse;
 uniform sampler2D Normal;
 uniform sampler2D Parallax;
@@ -30,7 +32,7 @@ void main()
 	TextureNormal = normalize(TextureNormal * 2.0 - 1.0);  
 	TextureNormal = normalize(TBNMat * TextureNormal);
     
-    
+    BufferCustom = vec4(IsReflection,0.0, 0.0, 0.0);
     BufferColor = texture(Diffuse, NewTexCoord).rgb;
     BufferNormal =  (TextureNormal + 1.0f) / 2.0f;
     BufferDepth = vec4(gl_FragCoord.z, 0, 0, 0);

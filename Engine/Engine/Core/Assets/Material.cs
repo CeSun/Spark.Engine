@@ -23,6 +23,8 @@ public class Material
         "Texture8",
         "Texture9",
     };
+
+    public float IsReflection = 0;
     public Texture Diffuse { get => Textures[0]; set => Textures[0] = value; }
     public Texture Normal { get => Textures[1]; set => Textures[1] = value; }
 

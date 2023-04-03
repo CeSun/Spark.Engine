@@ -36,6 +36,7 @@ public class SceneRenderer
     Shader BloomPreShader;
     Shader BloomShader;
     Shader RenderToCamera;
+    Shader ScreenSpaceReflectionShader;
     RenderBuffer PostProcessBuffer1;
     RenderBuffer PostProcessBuffer2;
     RenderBuffer PostProcessBuffer3;
@@ -59,6 +60,7 @@ public class SceneRenderer
         BloomShader = new Shader("/Shader/Deferred/Bloom");
         SkyboxShader = new Shader("/Shader/Skybox");
         RenderToCamera = new Shader("/Shader/Deferred/RenderToCamera");
+        ScreenSpaceReflectionShader = new Shader("/Shader/Deferred/ssr");
 
         GlobalBuffer = new SceneRenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -66,6 +68,7 @@ public class SceneRenderer
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         InitRender();
     }
+
 
     ~SceneRenderer()
     {
@@ -146,6 +149,7 @@ public class SceneRenderer
     private void PostProcessPass(double DeltaTime)
     {
         BloomPass(DeltaTime);
+        ScreenSpaceReflection(DeltaTime);
     }
     private void SkyboxPass(double DeltaTime)
     {
@@ -299,6 +303,14 @@ public class SceneRenderer
                 {
                     BaseShader.SetMatrix("ModelTransform", component.WorldTransform);
                     BaseShader.SetMatrix("NormalTransform", component.NormalTransform);
+                    BaseShader.SetFloat("IsReflection", 0);
+                    if (component is StaticMeshComponent staticMeshComponent)
+                    {
+                        if (staticMeshComponent.StaticMesh != null)
+                        {
+                            BaseShader.SetFloat("IsReflection", staticMeshComponent.StaticMesh.Materials[0].IsReflection);
+                        }
+                    }
                     component.Render(DeltaTime);
                 }
             }
@@ -334,6 +346,49 @@ public class SceneRenderer
             RenderToCamera.UnUse();
 
         });
+
+    }
+
+    private unsafe void ScreenSpaceReflection(double DeltaTime)
+    {
+        if (CurrentCameraComponent == null) return;
+        PostProcessBuffer2.Render(() =>
+        {
+            gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+            ScreenSpaceReflectionShader.Use();
+            ScreenSpaceReflectionShader.SetVector2("TexCoordScale",
+                new Vector2
+                {
+                    X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
+                    Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
+                });
+
+            Matrix4x4.Invert((CurrentCameraComponent.View * CurrentCameraComponent.Projection), out var VPInvert);
+            ScreenSpaceReflectionShader.SetMatrix("VPInvert", VPInvert);
+
+            var VP = CurrentCameraComponent.View * CurrentCameraComponent.Projection;
+            ScreenSpaceReflectionShader.SetMatrix("VP", VP);
+
+            ScreenSpaceReflectionShader.SetInt("ColorTexture", 0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer1.GBufferIds[0]);
+            ScreenSpaceReflectionShader.SetInt("NormalTexture", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.NormalId);
+            ScreenSpaceReflectionShader.SetInt("ReflectionTexture", 2);
+            gl.ActiveTexture(GLEnum.Texture2);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[3]);
+            ScreenSpaceReflectionShader.SetInt("DepthTexture", 3);
+            gl.ActiveTexture(GLEnum.Texture3);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+
+            gl.BindVertexArray(PostProcessVAO);
+            gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            ScreenSpaceReflectionShader.UnUse();
+        });
+
+        LastPostProcessBuffer = PostProcessBuffer2;
 
     }
     private void LightingPass(double DeltaTime)
