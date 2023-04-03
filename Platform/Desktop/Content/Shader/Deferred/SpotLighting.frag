@@ -20,6 +20,7 @@ uniform float InnerCosine;
 uniform float OuterCosine;
 uniform vec3 ForwardVector;
 uniform mat4 WorldToLight;
+uniform float LightStrength;
 
 
 
@@ -82,7 +83,7 @@ void main()
 
     vec3 specular = specularStrength * Attenuation * Intensity * spec * LightColor;
 
-    glColor = vec4((Ambient + (diffuse + specular)  * (1.0 - Shadow)) * Color.rgb, 1); 
+    glColor = vec4((Ambient + (diffuse + specular)  * (1.0 - Shadow)) * LightStrength * Color.rgb, 1); 
 
 }
 

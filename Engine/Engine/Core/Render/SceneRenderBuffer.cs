@@ -8,9 +8,9 @@ using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Core.Render;
 
-internal class SceneBuffer : RenderBuffer
+internal class SceneRenderBuffer : RenderBuffer
 {
-    public SceneBuffer(int width, int height) : base(width, height, 3)
+    public SceneRenderBuffer(int width, int height) : base(width, height, 3)
     {
 
     }

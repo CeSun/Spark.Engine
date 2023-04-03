@@ -38,6 +38,8 @@ public partial class Level
     {
         if (MainMouse.IsButtonPressed(MouseButton.Left))
         {
+            if (CameraComponent == null)
+                return;
             if (RobotActor == null)
                 return;
             var moveable = position - LastPosition;
@@ -95,6 +97,8 @@ public partial class Level
         var skybox = new SkyboxComponent(CubeActor);
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
 
+        // 时差贴图
+        /*
         var CubeActor2 = new Actor(this);
         var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
         CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/Cube3.glb");
@@ -106,6 +110,7 @@ public partial class Level
         {
             material.Parallax = texture;
         }
+        */
         //CubeMeshComp2.StaticMesh.Materials
         // 创建定向光源
         var DirectionActor = new Actor(this);
@@ -113,13 +118,14 @@ public partial class Level
         DirectionActor.RootComponent = DirectionComp;
         DirectionComp.Color = Color.White;
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
-        DirectionComp.LightStrength = 1f;
+        DirectionComp.LightStrength = 0.7f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
-        /*
+        
         var PointLight = new Actor(this);
         var PointLightComp = new PointLightComponent(PointLight);
         PointLight.RootComponent = PointLightComp;
         PointLightComp.Color = Color.DeepPink;
+        PointLightComp.LightStrength =1f;
         PointLightComp.WorldLocation += PointLightComp.UpVector * 10 - PointLightComp.RightVector * 2;
 
 
@@ -128,8 +134,9 @@ public partial class Level
         var PointLightComp2 = new PointLightComponent(PointLight2);
         PointLight2.RootComponent = PointLightComp2;
         PointLightComp2.Color = Color.Purple;
+        PointLightComp.LightStrength = 1f;
         PointLightComp2.WorldLocation += PointLightComp2.UpVector * 10 + PointLightComp2.RightVector * 2;
-        */
+       
     }
 
     public void Destory() 

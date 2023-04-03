@@ -1,11 +1,14 @@
 ﻿#version 330 core
-out vec4 glColor;
+layout (location = 0) in vec3 Location;
+layout (location = 1) in vec2 TexCoord;
 
-in vec2 OutTexCoord;
-uniform sampler2D ColorTexture;
-uniform float Brightness;
+uniform vec2 TexCoordScale;
+out vec2 OutTexCoord;
 
 void main()
 {
-    glColor = vec4(texture(ColorTexture, OutTexCoord).rgb * Brightness, 1.0f);
+    
+    OutTexCoord = TexCoord * TexCoordScale;
+    gl_Position = vec4(Location, 1.0);
+    
 }

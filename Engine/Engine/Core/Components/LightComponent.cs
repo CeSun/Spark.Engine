@@ -11,6 +11,21 @@ namespace Spark.Engine.Core.Components;
 
 public class LightComponent : PrimitiveComponent
 {
+    public float LightStrength
+    {
+        get => _LightStrength;
+        set
+        {
+            if (value < 0)
+                return;
+            if (value > 1)
+                return;
+            _LightStrength = value;
+
+        }
+    }
+
+    public float _LightStrength = 0.7f;
     public float AmbientStrength 
     {
         get => _AmbientStength; 

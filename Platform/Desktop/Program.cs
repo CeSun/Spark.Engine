@@ -10,6 +10,9 @@ using Spark.Util;
 
 
 var option = WindowOptions.Default;
+option.FramesPerSecond = 0;
+option.UpdatesPerSecond = 0;
+
 option.Size = new Vector2D<int>(800, 600);
 var window = Window.Create(option);
 var InitFun = () =>

@@ -17,6 +17,8 @@ uniform float Constant;
 uniform float Linear;
 uniform float Quadratic;
 uniform float FarPlan;
+uniform float LightStrength;
+
 
 
 
@@ -56,7 +58,7 @@ void main()
     vec3 specular = specularStrength * Attenuation * spec * LightColor;
     
     float shadow = ShadowCalculation(WorldLocation);  
-    glColor = vec4((Ambient + (1 - shadow) * (diffuse + specular)) * Color.rgb, 1); 
+    glColor = vec4((Ambient + (1 - shadow) * (diffuse + specular)) * LightStrength * Color.rgb, 1); 
 
 }
 
