@@ -4,7 +4,8 @@ out vec3 glColor;
 in vec2 OutTexCoord;
 uniform vec2 TexCoordScale;
 uniform mat4 VPInvert;
-uniform mat4 VP;
+uniform mat4 Projection;
+uniform mat4 View;
 
 uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
@@ -29,14 +30,15 @@ void main()
         return;
     }
 
-    float Step = 0.1;
-    for (int i = 0; i < 10; i ++)
+    WorldLocation = (View * vec4(WorldLocation, 1)).xyz;
+    Normal = mat3(View) * Normal; 
+    float Step = 0.5;
+    for (int i = 0; i < 100; i ++)
     {
-        vec3 NewLocation = WorldLocation + Normal * 0.1;
-        vec4 ScreenLocation = vec4(NewLocation, 1.0) * VP;
+        vec3 NewLocation = WorldLocation + Normal * Step * i ;
+        vec4 ScreenLocation = Projection * vec4(NewLocation, 1.0) ;
         if (ScreenLocation.x > ScreenLocation.w || ScreenLocation.y > ScreenLocation.w || ScreenLocation.z > ScreenLocation.w)
         {
-        
             break;
         }
         if (ScreenLocation.x < -ScreenLocation.w || ScreenLocation.y < -ScreenLocation.w || ScreenLocation.z < -ScreenLocation.w)
@@ -46,6 +48,7 @@ void main()
         ScreenLocation = ScreenLocation / ScreenLocation.w;
 
         vec3 NewUvd = (ScreenLocation.xyz + 1.0 ) / 2;
+
         vec4 TargetDepth = MyTexture(DepthTexture, NewUvd.xy);
 
         if (TargetDepth.z < NewUvd.z)

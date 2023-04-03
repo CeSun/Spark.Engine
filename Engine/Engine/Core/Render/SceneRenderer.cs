@@ -366,8 +366,8 @@ public class SceneRenderer
             Matrix4x4.Invert((CurrentCameraComponent.View * CurrentCameraComponent.Projection), out var VPInvert);
             ScreenSpaceReflectionShader.SetMatrix("VPInvert", VPInvert);
 
-            var VP = CurrentCameraComponent.View * CurrentCameraComponent.Projection;
-            ScreenSpaceReflectionShader.SetMatrix("VP", VP);
+            ScreenSpaceReflectionShader.SetMatrix("View", CurrentCameraComponent.View);
+            ScreenSpaceReflectionShader.SetMatrix("Projection", CurrentCameraComponent.Projection);
 
             ScreenSpaceReflectionShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
