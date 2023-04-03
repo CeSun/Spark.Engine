@@ -22,7 +22,7 @@ namespace Spark.Engine.Core.Render;
 
 public class SceneRenderer
 {
-    SceneRenderBuffer GloblaBuffer;
+    SceneRenderBuffer GlobalBuffer;
     Shader BaseShader;
     Shader BrightnessLightingShader;
     Shader DirectionalLightingShader;
@@ -60,7 +60,7 @@ public class SceneRenderer
         SkyboxShader = new Shader("/Shader/Skybox");
         RenderToCamera = new Shader("/Shader/Deferred/RenderToCamera");
 
-        GloblaBuffer = new SceneRenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
+        GlobalBuffer = new SceneRenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -119,7 +119,7 @@ public class SceneRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-        GloblaBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        GlobalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer2.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer3.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
@@ -129,6 +129,7 @@ public class SceneRenderer
         DepthPass(DeltaTime);
         // 生成GBuffer
         BasePass(DeltaTime);
+        
         PostProcessBuffer1.Render(() =>
         {
             // 延迟光照
@@ -136,10 +137,16 @@ public class SceneRenderer
             // 天空盒
             SkyboxPass(DeltaTime);
         });
-        BloomPass(DeltaTime);
+        // 后处理
+        PostProcessPass(DeltaTime);
+        // 渲染到摄像机的RenderTarget上
         RenderToCameraRenderTarget(DeltaTime);
     }
 
+    private void PostProcessPass(double DeltaTime)
+    {
+        BloomPass(DeltaTime);
+    }
     private void SkyboxPass(double DeltaTime)
     {
         if (CurrentCameraComponent == null)
@@ -152,10 +159,10 @@ public class SceneRenderer
 
         SkyboxShader.SetInt("NormalTexture", 1);
         gl.ActiveTexture(GLEnum.Texture1);
-        gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.NormalId);
+        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.NormalId);
 
-        SkyboxShader.SetVector2("BufferSize", new Vector2(GloblaBuffer.BufferWidth, GloblaBuffer.BufferHeight));
-        SkyboxShader.SetVector2("ScreenSize", new Vector2(GloblaBuffer.Width, GloblaBuffer.Height));
+        SkyboxShader.SetVector2("BufferSize", new Vector2(GlobalBuffer.BufferWidth, GlobalBuffer.BufferHeight));
+        SkyboxShader.SetVector2("ScreenSize", new Vector2(GlobalBuffer.Width, GlobalBuffer.Height));
         SkyboxShader.SetInt("skybox", 0);
         World.CurrentLevel.CurrentSkybox?.RenderSkybox(DeltaTime);
         SkyboxShader.UnUse();
@@ -270,7 +277,7 @@ public class SceneRenderer
     }
     private void BasePass(double DeltaTime)
     {
-        GloblaBuffer.Render(() =>
+        GlobalBuffer.Render(() =>
         {
             gl.Enable(EnableCap.DepthTest);
             gl.ClearColor(Color.Black);
@@ -312,8 +319,8 @@ public class SceneRenderer
             RenderToCamera.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
-                    Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
+                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
                 });
             RenderToCamera.SetFloat("Brightness", 0.0f);
             RenderToCamera.SetInt("ColorTexture", 0);
@@ -362,13 +369,13 @@ public class SceneRenderer
         BrightnessLightingShader.SetVector2("TexCoordScale",
             new Vector2
             {
-                X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
-                Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
+                Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
             });
         BrightnessLightingShader.SetFloat("Brightness",0.0f);
         BrightnessLightingShader.SetInt("ColorTexture", 0);
         gl.ActiveTexture(GLEnum.Texture0);
-        gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
+        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.ColorId);
 
 
         gl.BindVertexArray(PostProcessVAO);
@@ -397,8 +404,8 @@ public class SceneRenderer
             DirectionalLightingShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
-                    Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
+                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
                 });
 
 
@@ -406,17 +413,17 @@ public class SceneRenderer
             DirectionalLightingShader.SetFloat("LightStrength", DirectionalLight.LightStrength);
             DirectionalLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.ColorId);
 
 
             DirectionalLightingShader.SetInt("NormalTexture", 1);
             gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.NormalId);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.NormalId);
 
 
             DirectionalLightingShader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.DepthId);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
             DirectionalLightingShader.SetInt("ShadowMapTexture", 3);
             gl.ActiveTexture(GLEnum.Texture3);
@@ -447,8 +454,8 @@ public class SceneRenderer
             BloomPreShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
-                    Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
+                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
                 });
             BloomPreShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
@@ -529,8 +536,8 @@ public class SceneRenderer
             PointLightingShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
-                    Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
+                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
                 });
 
             PointLightingShader.SetFloat("Constant", PointLightComponent.Constant);
@@ -539,17 +546,17 @@ public class SceneRenderer
 
             PointLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.ColorId);
 
 
             PointLightingShader.SetInt("NormalTexture", 1);
             gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.NormalId);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.NormalId);
 
 
             PointLightingShader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.DepthId);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
             PointLightingShader.SetInt("ShadowMapTextue", 3);
             gl.ActiveTexture(GLEnum.Texture3);
@@ -587,8 +594,8 @@ public class SceneRenderer
             SpotLightingShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GloblaBuffer.Width / (float)GloblaBuffer.BufferWidth,
-                    Y = GloblaBuffer.Height / (float)GloblaBuffer.BufferHeight
+                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
+                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
                 });
 
 
@@ -610,17 +617,17 @@ public class SceneRenderer
 
             SpotLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.ColorId);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.ColorId);
 
 
             SpotLightingShader.SetInt("NormalTexture", 1);
             gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.NormalId);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.NormalId);
 
 
             SpotLightingShader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GloblaBuffer.DepthId);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
             SpotLightingShader.SetInt("ShadowMapTexture", 3);
 
             gl.ActiveTexture(GLEnum.Texture3);

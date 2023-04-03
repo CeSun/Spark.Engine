@@ -29,7 +29,7 @@ public class RenderTarget
         {
             if (value != _IsRenderToViewPort)
             {
-                value = _IsRenderToViewPort;
+                _IsRenderToViewPort = value;
             }
         }
 
