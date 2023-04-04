@@ -119,10 +119,8 @@ void main()
                         }
                     }
 
-                    return;
                 }
             }
-            return;
         }
     }
 }
