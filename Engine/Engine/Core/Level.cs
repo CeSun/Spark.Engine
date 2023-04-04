@@ -75,7 +75,7 @@ public partial class Level
         RobotActor.RootComponent = RobotMeshComp;
         RobotMeshComp.WorldScale = new Vector3(5, 5, 5);
         RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
-        RobotMeshComp.WorldLocation -= RobotMeshComp.UpVector * 3;
+        RobotMeshComp.WorldLocation -= RobotMeshComp.UpVector * 2;
         this.RobotActor = RobotActor;
 
         // 相机actor
@@ -99,6 +99,7 @@ public partial class Level
         var skybox = new SkyboxComponent(CubeActor);
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
 
+        /*
         // 时差贴图
 
         var CubeActor2 = new Actor(this);
@@ -112,7 +113,7 @@ public partial class Level
         {
             // material.Parallax = texture;
         }
-        
+        */
         //CubeMeshComp2.StaticMesh.Materials
         // 创建定向光源
         var DirectionActor = new Actor(this);
