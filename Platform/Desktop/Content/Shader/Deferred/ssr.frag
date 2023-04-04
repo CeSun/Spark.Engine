@@ -6,12 +6,13 @@ uniform vec2 TexCoordScale;
 uniform mat4 VPInvert;
 uniform mat4 Projection;
 uniform mat4 View;
-
+uniform vec3 CameraLocation;
 uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D ReflectionTexture;
 uniform sampler2D DepthTexture;
-
+uniform samplerCube SkyboxTexture;
+uniform sampler2D BackDepthTexture;
 
 vec4 MyTexture(sampler2D Texture, vec2 Coord);
 vec3 GetWorldLocation(vec3 ScreenLocation);
@@ -26,22 +27,25 @@ void main()
 
     if (IsReflection < 1)
     {
-        glColor = MyTexture(ColorTexture, OutTexCoord).xyz;
+        glColor = texture(ColorTexture, OutTexCoord).xyz;
         return;
     }
+    vec3 CameraDirection = normalize(WorldLocation - CameraLocation);
 
-    WorldLocation = (View * vec4(WorldLocation, 1)).xyz;
-    Normal = mat3(View) * Normal; 
-    float Step = 0.5;
-    for (int i = 0; i < 100; i ++)
+    vec3 Direction= normalize(reflect(CameraDirection, Normal));
+    vec3 SpaceDirection = Direction;
+    vec3 SkyboxColor = texture(SkyboxTexture, SpaceDirection).rgb;
+    
+    float Step = 0.1;
+    for (int i = 1; i < 1000; i ++)
     {
-        vec3 NewLocation = WorldLocation + Normal * Step * i ;
-        vec4 ScreenLocation = Projection * vec4(NewLocation, 1.0) ;
-        if (ScreenLocation.x > ScreenLocation.w || ScreenLocation.y > ScreenLocation.w || ScreenLocation.z > ScreenLocation.w)
+        vec3 NewLocation = WorldLocation + (Direction * Step * i);
+        vec4 ScreenLocation = Projection * View * vec4(NewLocation, 1.0) ;
+        if (ScreenLocation.x >= ScreenLocation.w || ScreenLocation.y >= ScreenLocation.w || ScreenLocation.z >= ScreenLocation.w)
         {
             break;
         }
-        if (ScreenLocation.x < -ScreenLocation.w || ScreenLocation.y < -ScreenLocation.w || ScreenLocation.z < -ScreenLocation.w)
+        if (ScreenLocation.x <= -ScreenLocation.w || ScreenLocation.y <= -ScreenLocation.w || ScreenLocation.z <= -ScreenLocation.w)
         {
             break;
         }
@@ -49,14 +53,18 @@ void main()
 
         vec3 NewUvd = (ScreenLocation.xyz + 1.0 ) / 2;
 
-        vec4 TargetDepth = MyTexture(DepthTexture, NewUvd.xy);
-
-        if (TargetDepth.z < NewUvd.z)
+        float TargetDepth = MyTexture(DepthTexture, NewUvd.xy).r;
+        float TargetBackDepth =  MyTexture(BackDepthTexture, NewUvd.xy).r;
+		
+		if (TargetDepth == 0)
+			break;
+        if (TargetDepth <= NewUvd.z && TargetBackDepth >= NewUvd.z)
         {
-            glColor = MyTexture(ColorTexture, NewUvd.xy).xyz;
-            break;
+			glColor = MyTexture(ColorTexture, NewUvd.xy).xyz;
+            return;
         }
     }
+    glColor = SkyboxColor;
 }
 
 vec4 MyTexture(sampler2D Texture, vec2 Coord)

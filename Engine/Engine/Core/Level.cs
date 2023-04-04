@@ -103,14 +103,14 @@ public partial class Level
 
         var CubeActor2 = new Actor(this);
         var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
-        CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/Cube3.glb");
+        CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/Cube2.glb");
         CubeActor2.RootComponent = CubeMeshComp2;
         CubeMeshComp2.WorldScale = new Vector3(2, 2, 2);
         CubeActor2.WorldLocation += CubeMeshComp2.UpVector * 2F + CubeMeshComp2.RightVector * 2;
         var texture = new Texture("/StaticMesh/bricks2_disp.jpg");
         foreach(var material in CubeMeshComp2.StaticMesh.Materials)
         {
-            material.Parallax = texture;
+            // material.Parallax = texture;
         }
         
         //CubeMeshComp2.StaticMesh.Materials

@@ -24,7 +24,7 @@ public class SkyboxComponent : PrimitiveComponent
     uint Ebo;
     uint Vbo;
     uint Vao;
-    uint TextureId;
+    public uint TextureId { private set;  get; }
     unsafe void InitRender()
     {
         float[] Vertex =
