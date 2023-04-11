@@ -10,12 +10,6 @@
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="Content\Shader\Deferred\Base.frag" />
-    <None Remove="Content\StaticMesh\cube.glb" />
-    <None Remove="Content\StaticMesh\cube2.glb" />
-    <None Remove="Content\StaticMesh\untitled.glb" />
-  </ItemGroup>
-  <ItemGroup>
     <AndroidAsset Remove="Content\Shader\Deferred\Base.vert" />
     <AndroidAsset Remove="Content\Shader\Deferred\BrightnessLighting.frag" />
     <AndroidAsset Remove="Content\Shader\Deferred\BrightnessLighting.vert" />
@@ -37,6 +31,4 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </AndroidAsset>
   </ItemGroup>
-
-	
 </Project>

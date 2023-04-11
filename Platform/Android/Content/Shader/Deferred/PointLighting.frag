@@ -1,5 +1,4 @@
-#version 320 es
-precision mediump float;
+#version 300 es
 out vec4 glColor;
 
 
@@ -8,6 +7,7 @@ in vec2 OutTrueTexCoord;
 uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
+uniform samplerCube ShadowMapTextue;
 uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
@@ -16,11 +16,14 @@ uniform float AmbientStrength;
 uniform float Constant;
 uniform float Linear;
 uniform float Quadratic;
+uniform float FarPlan;
+uniform float LightStrength;
 
 
 
 
 vec3 GetWorldLocation(vec3 ScreenLocation);
+float ShadowCalculation(vec3 fragPos);
 
 
 
@@ -28,7 +31,7 @@ void main()
 {
     float specularStrength = 0.5;
    
-    float depth = texture(DepthTexture, OutTexCoord).w;
+    float depth = texture(DepthTexture, OutTexCoord).r;
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     //vec3 WorldLocation =texture(DepthTexture, OutTexCoord).xyz;
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
@@ -44,17 +47,35 @@ void main()
     
     vec3 LightDirection = normalize(WorldLocation - LightLocation);
     // mfs
-    float diff = max(dot(Normal, -1.0f * LightDirection), 0.0);
+    float diff = max(dot(Normal, -1.0 * LightDirection), 0.0);
     vec3 diffuse = diff * Attenuation * LightColor;
     // jmfs 
     vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
-    vec3 ReflectDirection = reflect(LightDirection, Normal);
-    float spec = pow(max(dot(CameraDirection, ReflectDirection), 0.0), 32.0f);
+    vec3 HalfVector = normalize((-LightDirection + CameraDirection));
+    // vec3 ReflectDirection = reflect(LightDirection, Normal);
+    float spec = pow(max(dot(Normal, HalfVector), 0.0), 16.0f);
 
     vec3 specular = specularStrength * Attenuation * spec * LightColor;
+    
+    float shadow = ShadowCalculation(WorldLocation);  
+    glColor = vec4((Ambient + (1.0 - shadow) * (diffuse + specular)) * LightStrength * Color.rgb, 1.0); 
 
-    glColor = vec4((Ambient + diffuse + specular) * Color.rgb, 1); 
+}
 
+float ShadowCalculation(vec3 WorldLocation)
+{
+    // get vector between fragment position and light position
+    vec3 fragToLight = WorldLocation - LightLocation;
+    // ise the fragment to light vector to sample from the depth map    
+    float closestDepth = texture(ShadowMapTextue, fragToLight).r;
+    // it is currently in linear range between [0,1], let's re-transform it back to original depth value
+    closestDepth *= FarPlan;
+    // now get current linear depth as the length between the fragment and light position
+    float currentDepth = length(fragToLight);
+    // test for shadows
+    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;       
+
+    return shadow;
 }
 
 vec3 GetWorldLocation(vec3 ScreenLocation)

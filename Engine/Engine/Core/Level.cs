@@ -103,7 +103,7 @@ public partial class Level
 
         var CubeActor2 = new Actor(this);
         var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
-        CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/Cube2.glb");
+        CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeActor2.RootComponent = CubeMeshComp2;
         CubeMeshComp2.WorldScale = new Vector3(2, 2, 2);
         CubeActor2.WorldLocation += CubeMeshComp2.UpVector * 2F + CubeMeshComp2.RightVector * 2;

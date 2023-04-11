@@ -51,7 +51,7 @@ public class PointLightComponent : LightComponent
         ShadowMapFrameBufferID = gl.GenFramebuffer();
         gl.BindFramebuffer(GLEnum.Framebuffer, ShadowMapFrameBufferID);
         gl.FramebufferTexture(GLEnum.Framebuffer, GLEnum.DepthAttachment, ShadowMapTextureID, 0);
-        gl.DrawBuffer(GLEnum.None);
+        gl.DrawBuffers(new GLEnum[] { });
         gl.ReadBuffer(GLEnum.None);
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
 

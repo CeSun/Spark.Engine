@@ -1,8 +1,8 @@
-#version 330 core
+#version 300 es
 out vec3 glColor;
 
 in vec2 OutTexCoord;
-uniform vec2 TexCoordScale;
+in vec2 TexCoordScale2;
 uniform mat4 VPInvert;
 uniform mat4 Projection;
 uniform mat4 View;
@@ -20,12 +20,12 @@ vec3 GetWorldLocation(vec3 ScreenLocation);
 void main()
 {
     float depth = texture(DepthTexture, OutTexCoord).r;
-    vec3 WorldLocation = GetWorldLocation(vec3(OutTexCoord / TexCoordScale, depth));
+    vec3 WorldLocation = GetWorldLocation(vec3(OutTexCoord / TexCoordScale2, depth));
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
     float IsReflection = texture(ReflectionTexture, OutTexCoord).r;
 
-    if (IsReflection < 1)
+    if (IsReflection < 1.0)
     {
         glColor = texture(ColorTexture, OutTexCoord).xyz;
         return;
@@ -36,13 +36,13 @@ void main()
     vec3 SpaceDirection = Direction;
     vec3 SkyboxColor = texture(SkyboxTexture, SpaceDirection).rgb;
     
-    float MaxStep = 3;
+    float MaxStep = 3.0;
     float MinStep = 0.05;
     
     glColor = SkyboxColor;
     for (int i = 1; i < 50; i ++)
     {
-        vec3 NewLocation = WorldLocation + (Direction * MaxStep * i);
+        vec3 NewLocation = WorldLocation + (Direction * MaxStep * float(i));
         vec4 ScreenLocation = Projection * View * vec4(NewLocation, 1.0) ;
         if (ScreenLocation.x >= ScreenLocation.w || ScreenLocation.y >= ScreenLocation.w || ScreenLocation.z >= ScreenLocation.w)
         {
@@ -54,18 +54,18 @@ void main()
         }
         ScreenLocation = ScreenLocation / ScreenLocation.w;
 
-        vec3 NewUvd = (ScreenLocation.xyz + 1.0 ) / 2;
+        vec3 NewUvd = (ScreenLocation.xyz + 1.0 ) / 2.0;
 
         float TargetDepth = MyTexture(DepthTexture, NewUvd.xy).r;
         float TargetBackDepth =  MyTexture(BackDepthTexture, NewUvd.xy).r;
 		
-		if (TargetDepth == 0)
+		if (TargetDepth == 0.0)
 			break;
         if (TargetDepth <= NewUvd.z)
         {
             for(int j = 1; j <= 60; j ++)
             {
-                NewLocation = WorldLocation + (Direction * (MaxStep * (i - 1) + MinStep * j));
+                NewLocation = WorldLocation + (Direction * (MaxStep * (float(i) - 1.0) + MinStep * float(j)));
                 ScreenLocation = Projection * View * vec4(NewLocation, 1.0) ;
                 if (ScreenLocation.x >= ScreenLocation.w || ScreenLocation.y >= ScreenLocation.w || ScreenLocation.z >= ScreenLocation.w)
                 {
@@ -77,13 +77,13 @@ void main()
                 }
                 ScreenLocation = ScreenLocation / ScreenLocation.w;
 
-                NewUvd = (ScreenLocation.xyz + 1.0 ) / 2;
+                NewUvd = (ScreenLocation.xyz + 1.0 ) / 2.0;
 
 
                 TargetDepth = MyTexture(DepthTexture, NewUvd.xy).r;
                 TargetBackDepth =  MyTexture(BackDepthTexture, NewUvd.xy).r;
 		
-		        if (TargetDepth == 0)
+		        if (TargetDepth == 0.0)
 			        break;
                 if (TargetDepth <= NewUvd.z && TargetBackDepth >= NewUvd.z)
                 {
@@ -100,7 +100,7 @@ void main()
 
 vec4 MyTexture(sampler2D Texture, vec2 Coord)
 {
-	return texture(Texture, Coord * TexCoordScale);
+	return texture(Texture, Coord * TexCoordScale2);
 }
 
 vec3 GetWorldLocation(vec3 ScreenLocation)
