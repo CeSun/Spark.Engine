@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -16,6 +17,14 @@ public partial class Actor
     /// </summary>
     public Level CurrentLevel { get; private set; }
 
+    private bool _ReceieveUpdate;
+
+    protected void ReceieveUpdate()
+    {
+        if (_ReceieveUpdate) return;
+        _ReceieveUpdate = true;
+        CurrentLevel.UpdateManager.RegistUpdate(Update);
+    }
     /// <summary>
     /// Actor所在世界
     /// </summary>
@@ -51,6 +60,10 @@ public partial class Actor
         foreach (var component in PrimitiveComponents)
         {
             UnregistComponent(component);
+        }
+        if (_ReceieveUpdate)
+        {
+            CurrentLevel.UpdateManager.UnregistUpdate(Update);
         }
         CurrentLevel.UnregistActor(this);
     }

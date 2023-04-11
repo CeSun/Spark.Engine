@@ -15,6 +15,7 @@ using Silk.NET.Input;
 
 using static Spark.Engine.StaticEngine;
 using Texture = Spark.Engine.Core.Assets.Texture;
+using Spark.Engine.Core.Manager;
 
 namespace Spark.Engine.Core;
 
@@ -25,7 +26,9 @@ public partial class Level
     public Level(World world)
     {
         CurrentWorld = world;
+        UpdateManager = new UpdateManager();
     }
+    public UpdateManager UpdateManager { private set; get; }
 
     Actor? RobotActor;
     CameraComponent? CameraComponent;
@@ -230,7 +233,6 @@ public partial class Level
     private List<Actor> _DelActors = new List<Actor>();
     private List<Actor> _AddActors = new List<Actor>();
     public IReadOnlyList<Actor> Actors => _Actors;
-
     public void RegistActor(Actor actor)
     {
         if (_Actors.Contains(actor))
