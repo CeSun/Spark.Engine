@@ -49,6 +49,7 @@ public class Shader : Asset
         {
             gl.DeleteShader(vert);
             var info = gl.GetShaderInfoLog(frag);
+            Console.WriteLine(Path);
             Console.WriteLine(FragShaderSource);
             throw new Exception(info);
         }

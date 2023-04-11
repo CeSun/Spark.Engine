@@ -27,7 +27,7 @@ public class TextureCube : Asset
     private uint TextureId;
     protected override unsafe void LoadAsset()
     {
-        using var sr = FileSystem.GetStreamReader("Content/" + Path + ".TextureCube");
+        using var sr = FileSystem.GetStreamReader("Content" + Path + ".TextureCube");
         
         var jstext = sr.ReadToEnd();
         var Object = JsonNode.Parse(jstext);
@@ -35,7 +35,7 @@ public class TextureCube : Asset
         var strs = Path.Split("/");
         if (strs.Length > 1)
         {
-            jpgpath = "/" + string.Join("/", strs.Take(strs.Length - 1));
+            jpgpath = string.Join("/", strs.Take(strs.Length - 1));
         }
         else
         {

@@ -45,7 +45,7 @@ public class SpotLightComponent : LightComponent
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.ClampToBorder);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureBorderColor, new float[] { 1, 1, 1, 1 });
         gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Texture2D, ShadowMapTextureID, 0);
-        gl.DrawBuffer(GLEnum.None);
+        gl.DrawBuffers(new GLEnum[] { });
         gl.ReadBuffer(GLEnum.None);
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
         gl.BindTexture(GLEnum.Texture2D, 0);

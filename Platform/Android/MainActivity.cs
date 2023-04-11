@@ -18,7 +18,7 @@ public class MainActivity : SilkActivity
 
         var options = ViewOptions.Default;
 
-        options.API = new GraphicsAPI(ContextAPI.OpenGLES, ContextProfile.Core, ContextFlags.Default, new APIVersion(3, 0));
+        options.API = new GraphicsAPI(ContextAPI.OpenGLES, ContextProfile.Core, ContextFlags.Default, new APIVersion(3, 2));
         using (var view = Silk.NET.Windowing.Window.GetView(options))
         {
 
@@ -27,7 +27,7 @@ public class MainActivity : SilkActivity
                 Engine.Instance.InitEngine(new string[0], new Dictionary<string, object>
                 {
                 { "OpenGL", GL.GetApi(view) },
-                { "WindowSize", new System.Drawing.Point(800 , 600) },
+                { "WindowSize", new System.Drawing.Point(view.Size.X , view.Size.Y) },
                 { "InputContext", view.CreateInput()},
                 { "FileSystem", new AndroidFileSystem(Assets)}
                 });

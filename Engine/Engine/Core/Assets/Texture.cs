@@ -16,7 +16,7 @@ public class Texture : Asset
     uint TextureId;
     protected override void  LoadAsset()
     {
-        using (var StreamReader = new StreamReader("./Content" + Path))
+        using (var StreamReader = FileSystem.GetStreamReader("Content" + Path))
         {
             var image = ImageResult.FromStream(StreamReader.BaseStream);
             if (image != null)
