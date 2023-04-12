@@ -20,7 +20,7 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace Spark.Engine.Core.Render;
 
-public class SceneRenderer
+public class DeferredSceneRenderer : Renderer
 {
     SceneRenderBuffer GlobalBuffer;
     Shader BaseShader;
@@ -48,7 +48,7 @@ public class SceneRenderer
     uint PostProcessVAO = 0;
     uint PostProcessVBO = 0;
     uint PostProcessEBO = 0;
-    public SceneRenderer(World world)
+    public DeferredSceneRenderer(World world)
     {
         World = world;
         BaseShader = new Shader("/Shader/Deferred/Base");
@@ -71,12 +71,12 @@ public class SceneRenderer
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
 
-        SceneBackFaceDepthBuffer = new SSRRenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y);
+        SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         InitRender();
     }
 
 
-    ~SceneRenderer()
+    ~DeferredSceneRenderer()
     {
         if (PostProcessVAO != 0)
             gl.DeleteVertexArray(PostProcessVAO);
@@ -135,6 +135,7 @@ public class SceneRenderer
         SceneBackFaceDepthBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Back);
+        gl.Enable(GLEnum.DepthTest);
         // 生成ShadowMap
         DepthPass(DeltaTime);
         // 生成GBuffer
@@ -416,7 +417,7 @@ public class SceneRenderer
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.NormalId);
             ScreenSpaceReflectionShader.SetInt("ReflectionTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[3]);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[2]);
             ScreenSpaceReflectionShader.SetInt("DepthTexture", 3);
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
@@ -430,7 +431,7 @@ public class SceneRenderer
             }
             ScreenSpaceReflectionShader.SetInt("BackDepthTexture", 5);
             gl.ActiveTexture(GLEnum.Texture5);
-            gl.BindTexture(GLEnum.Texture2D, SceneBackFaceDepthBuffer.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, SceneBackFaceDepthBuffer.DepthId);
 
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);

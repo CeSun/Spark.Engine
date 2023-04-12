@@ -1,8 +1,7 @@
 #version 330 core
 layout (location = 0) out vec3 BufferNormal;
 layout (location = 1) out vec3 BufferColor;
-layout (location = 2) out vec4 BufferDepth;
-layout (location = 3) out vec4 BufferCustom;
+layout (location = 2) out vec4 BufferCustom;
 
 in vec2 OutTexCoord;
 in vec3 OutColor;
@@ -35,7 +34,6 @@ void main()
     BufferCustom = vec4(IsReflection,0.0, 0.0, 0.0);
     BufferColor = texture(Diffuse, NewTexCoord).rgb;
     BufferNormal =  (TextureNormal + 1.0f) / 2.0f;
-    BufferDepth = vec4(gl_FragCoord.z, 0, 0, 0);
 }
 
 vec2 GetUVOffset(vec2 TexCoord, vec3 ViewDirection)

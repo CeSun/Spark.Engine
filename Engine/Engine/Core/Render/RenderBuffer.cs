@@ -17,7 +17,7 @@ public class RenderBuffer
     public int Height { private set; get; }
 
     public uint BufferId { private set; get; }
-    public uint RboId { private set; get; }
+    public uint DepthId { private set; get; }
 
 
     public uint[] GBufferIds { private set; get; }
@@ -54,9 +54,9 @@ public class RenderBuffer
                     gl.DeleteTexture(id);
                 }
             }
-            if (RboId != 0)
+            if (DepthId != 0)
             {
-                gl.DeleteRenderbuffer(RboId);
+                gl.DeleteTexture(DepthId);
             }
             if (BufferId != 0)
             {
@@ -70,17 +70,20 @@ public class RenderBuffer
                 GenGbuffer(i);
             }
 
-            RboId = gl.GenRenderbuffer();
-            gl.BindRenderbuffer(GLEnum.Renderbuffer, RboId);
-            gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent, (uint)BufferWidth, (uint)BufferHeight);
-            gl.FramebufferRenderbuffer(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, RboId);
+            DepthId = gl.GenTexture();
+            gl.BindTexture(GLEnum.Texture2D, DepthId);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.DepthComponent, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.DepthComponent, GLEnum.Float, (void*)0);
+            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
+            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Texture2D, DepthId, 0);
+
             gl.Enable(GLEnum.DepthTest);
             
             gl.DrawBuffers(Attachments);
             var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
             if (state != GLEnum.FramebufferComplete)
             {
-                Console.WriteLine("fbo 出错！");
+                Console.WriteLine("fbo 出错！" + state);
             }
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
 
@@ -92,7 +95,7 @@ public class RenderBuffer
     {
         GBufferIds[index] = gl.GenTexture();
         gl.BindTexture(GLEnum.Texture2D, GBufferIds[index]);
-        gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgb, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.Rgb, GLEnum.Float, (void*)0);
+        gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgb, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.Rgb, GLEnum.UnsignedByte, (void*)0);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
         gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0 + index, GLEnum.Texture2D, GBufferIds[index], 0);
@@ -108,9 +111,9 @@ public class RenderBuffer
             }
         }
 
-        if (RboId != 0)
+        if (DepthId != 0)
         {
-            gl.DeleteRenderbuffer(RboId);
+            gl.DeleteTexture(DepthId);
         }
         if (BufferId != 0)
         {

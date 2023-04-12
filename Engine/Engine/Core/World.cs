@@ -11,7 +11,7 @@ public class World
 {
     public World() 
     {
-        SceneRenderer = new SceneRenderer(this);
+        SceneRenderer = new DeferredSceneRenderer(this);
 
     }
     public Level? _Level;
@@ -31,7 +31,7 @@ public class World
         }
     }
 
-    public SceneRenderer SceneRenderer;
+    public Renderer SceneRenderer;
     public void BeginPlay()
     {
         OpenLevel("Default");
