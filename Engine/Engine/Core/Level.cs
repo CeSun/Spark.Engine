@@ -88,7 +88,7 @@ public partial class Level
         CameraComponent.NearPlaneDistance = 1;
         CameraComponent.FarPlaneDistance =  100f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
-        CameraComponent.RelativeLocation += new Vector3(0, 1.5f, 2);
+        CameraComponent.RelativeLocation += (new Vector3(0, 5f, 2) - CameraComponent.ForwardVector * 10);
         CameraComponent.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
 
         // 加载个cube作为地板
@@ -140,9 +140,20 @@ public partial class Level
         var PointLightComp2 = new PointLightComponent(PointLight2);
         PointLight2.RootComponent = PointLightComp2;
         PointLightComp2.Color = Color.Purple;
-        PointLightComp.LightStrength = 1f;
+        PointLightComp2.LightStrength = 1f;
         PointLightComp2.WorldLocation += PointLightComp2.UpVector * 10 + PointLightComp2.RightVector * 2;
-       
+
+
+
+
+        var spotLight = new Actor(this);
+        var SpotLightComponent = new SpotLightComponent(PointLight2);
+        spotLight.RootComponent = SpotLightComponent;
+        SpotLightComponent.Color = Color.Purple;
+        SpotLightComponent.LightStrength = 1f;
+        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 10;
+        SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
+
     }
 
     public void Destory() 
