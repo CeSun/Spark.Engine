@@ -26,6 +26,18 @@ public partial class Engine : Singleton<Engine>
     public void InitEngine(string[] args, Dictionary<string, object> objects)
     {
         Gl = (GL)objects["OpenGL"];
+        if (Gl != null)
+        {
+            var versionstr = Gl.GetStringS(GLEnum.Version);
+            if (versionstr.IndexOf("ES") >= 0)
+            {
+                GLType = GLType.ES;
+            }
+            else
+            {
+                GLType = GLType.Desktop;
+            }
+        }
         WindowSize = (Point)objects["WindowSize"];
         Input = (IInputContext)objects["InputContext"];
         FileSystem = (FileSystem)objects["FileSystem"];
@@ -70,7 +82,18 @@ public partial class Engine : Singleton<Engine>
 
     public Platform.FileSystem? FileSystem { get; set; }
 }
-    public class StaticEngine
+
+public enum GLType
+{
+    Desktop,
+    ES,
+    Web
+}
+public partial class Engine : Singleton<Engine>
+{
+    public GLType GLType { get; internal set; }
+}
+public class StaticEngine
 {
     public static GL gl 
     {

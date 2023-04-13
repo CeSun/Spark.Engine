@@ -122,7 +122,7 @@ public partial class Level
         var DirectionActor = new Actor(this);
         var DirectionComp = new DirectionLightComponent(DirectionActor);
         DirectionActor.RootComponent = DirectionComp;
-        DirectionComp.Color = Color.White;
+        DirectionComp.Color = Color.Green;
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
         DirectionComp.LightStrength = 0.7f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
@@ -136,18 +136,11 @@ public partial class Level
 
 
 
-        var PointLight2 = new Actor(this);
-        var PointLightComp2 = new PointLightComponent(PointLight2);
-        PointLight2.RootComponent = PointLightComp2;
-        PointLightComp2.Color = Color.Purple;
-        PointLightComp2.LightStrength = 1f;
-        PointLightComp2.WorldLocation += PointLightComp2.UpVector * 10 + PointLightComp2.RightVector * 2;
-
 
 
 
         var spotLight = new Actor(this);
-        var SpotLightComponent = new SpotLightComponent(PointLight2);
+        var SpotLightComponent = new SpotLightComponent(spotLight);
         spotLight.RootComponent = SpotLightComponent;
         SpotLightComponent.Color = Color.Purple;
         SpotLightComponent.LightStrength = 1f;

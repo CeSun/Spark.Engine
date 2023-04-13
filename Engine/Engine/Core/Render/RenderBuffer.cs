@@ -72,7 +72,7 @@ public class RenderBuffer
 
             DepthId = gl.GenTexture();
             gl.BindTexture(GLEnum.Texture2D, DepthId);
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.DepthComponent, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.DepthComponent, GLEnum.UnsignedInt, (void*)0);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.DepthComponent32f, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.DepthComponent, GLEnum.Float, (void*)0);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
             gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Texture2D, DepthId, 0);

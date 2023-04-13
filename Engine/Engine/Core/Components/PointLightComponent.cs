@@ -35,9 +35,12 @@ public class PointLightComponent : LightComponent
 
     private unsafe void InitRender()
     {
+        string version = gl.GetStringS(GLEnum.Version);
+
         ShadowMapTextureID = gl.GenTexture();
         gl.BindTexture(GLEnum.TextureCubeMap, ShadowMapTextureID);
 
+       
         for (var i = 0; i < 6; ++i)
         {
             gl.TexImage2D(GLEnum.TextureCubeMapPositiveX + i, 0, (int)GLEnum.DepthComponent, (uint)ShadowMapSize.X, (uint)ShadowMapSize.Y, 0, GLEnum.DepthComponent, GLEnum.UnsignedInt, (void*)0);
