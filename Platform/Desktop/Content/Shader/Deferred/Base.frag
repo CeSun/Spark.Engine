@@ -11,7 +11,6 @@ in vec3 OutNormal;
 in vec3 OutPosition;
 in vec3 TbnPosition;
 
-uniform float IsReflection;
 uniform sampler2D Diffuse;
 uniform sampler2D Normal;
 uniform sampler2D Parallax;
@@ -31,7 +30,7 @@ void main()
 	TextureNormal = normalize(TextureNormal * 2.0 - 1.0);  
 	TextureNormal = normalize(TBNMat * TextureNormal);
     
-    BufferCustom = vec4(IsReflection,0.0, 0.0, 0.0);
+    BufferCustom = vec4(0.0, 0.0, 0.0, 0.0);
     BufferColor = texture(Diffuse, NewTexCoord).rgb;
     BufferNormal =  (TextureNormal + 1.0f) / 2.0f;
 }
