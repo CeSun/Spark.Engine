@@ -1,22 +1,15 @@
-﻿using Spark.Engine.Assets;
-using Spark.Engine.Components;
-using System;
-using System.Collections.Generic;
+﻿using Silk.NET.OpenGL;
+using Spark.Engine.Render.Buffer;
+using Spark.Util;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Silk.NET.OpenGL;
+using System.Numerics;
 using static Spark.Engine.StaticEngine;
 using Shader = Spark.Engine.Assets.Shader;
 using static Spark.Engine.Components.CameraComponent;
-using System.Numerics;
-using Spark.Util;
-using Spark.Engine.Render.Buffer;
 
 namespace Spark.Engine.Render.Renderer;
 
-public class DeferredSceneRenderer : IRenderer
+public class PbrSceneRenderer : IRenderer
 {
     RenderBuffer GlobalBuffer;
     Shader BaseShader;
@@ -44,7 +37,7 @@ public class DeferredSceneRenderer : IRenderer
     uint PostProcessVAO = 0;
     uint PostProcessVBO = 0;
     uint PostProcessEBO = 0;
-    public DeferredSceneRenderer(World world)
+    public PbrSceneRenderer(World world)
     {
         World = world;
         BaseShader = new Shader("/Shader/Deferred/Base");
@@ -72,7 +65,7 @@ public class DeferredSceneRenderer : IRenderer
     }
 
 
-    ~DeferredSceneRenderer()
+    ~PbrSceneRenderer()
     {
         if (PostProcessVAO != 0)
             gl.DeleteVertexArray(PostProcessVAO);
@@ -739,10 +732,4 @@ public class DeferredSceneRenderer : IRenderer
         }
         SpotLightingShader.UnUse();
     }
-}
-
-public struct DeferredVertex
-{
-    public Vector3 Location;
-    public Vector2 TexCoord;
 }
