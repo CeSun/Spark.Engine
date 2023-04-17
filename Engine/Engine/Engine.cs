@@ -1,11 +1,10 @@
 ﻿using Silk.NET.OpenGL;
 using Spark.Util;
-using Spark.Engine.Core;
 using System.Numerics;
 using System.Drawing;
-using Spark.Engine.Core.Render;
 using Silk.NET.Input;
 using Spark.Engine.Platform;
+using Spark.Engine.Render;
 
 namespace Spark.Engine;
 
