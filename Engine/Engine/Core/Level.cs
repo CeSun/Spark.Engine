@@ -98,7 +98,7 @@ public partial class Level
         CubeActor.RootComponent = CubeMeshComp;
         CubeMeshComp.WorldScale = new Vector3(30, 1, 30);
         CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4F;
-        CubeMeshComp.StaticMesh.Materials[0].IsReflection = 1;
+        // CubeMeshComp.StaticMesh.Materials[0].IsReflection = 1;
         var skybox = new SkyboxComponent(CubeActor);
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
 

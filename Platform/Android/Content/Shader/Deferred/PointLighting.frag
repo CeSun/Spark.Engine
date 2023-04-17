@@ -12,7 +12,6 @@ uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
-uniform float AmbientStrength;
 uniform float Constant;
 uniform float Linear;
 uniform float Quadratic;
@@ -42,8 +41,6 @@ void main()
 
 
     Normal = normalize(Normal);
-
-    vec3  Ambient = AmbientStrength * Attenuation * LightColor.rgb;
     
     vec3 LightDirection = normalize(WorldLocation - LightLocation);
     // mfs
@@ -58,7 +55,7 @@ void main()
     vec3 specular = specularStrength * Attenuation * spec * LightColor;
     
     float shadow = ShadowCalculation(WorldLocation);  
-    glColor = vec4((Ambient + (1.0 - shadow) * (diffuse + specular)) * LightStrength * Color.rgb, 1.0); 
+    glColor = vec4(((1.0 - shadow) * (diffuse + specular)) * LightStrength * Color.rgb, 1.0); 
 
 }
 

@@ -49,7 +49,7 @@ public class MobieSceneRenderer : Renderer
                 {
                     if (staticMeshComponent.StaticMesh != null)
                     {
-                        BaseShader.SetFloat("IsReflection", staticMeshComponent.StaticMesh.Materials[0].IsReflection);
+                     
                     }
                 }
                 component.Render(DeltaTime);

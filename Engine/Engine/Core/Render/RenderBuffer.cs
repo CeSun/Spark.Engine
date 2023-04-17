@@ -80,6 +80,10 @@ public class RenderBuffer
             gl.Enable(GLEnum.DepthTest);
             
             gl.DrawBuffers(Attachments);
+            if (Attachments.Length < 0)
+            {
+                gl.ReadBuffer(GLEnum.None);
+            }
             var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
             if (state != GLEnum.FramebufferComplete)
             {

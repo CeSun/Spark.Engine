@@ -12,7 +12,6 @@ uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
-uniform float AmbientStrength;
 uniform float Constant;
 uniform float Linear;
 uniform float Quadratic;
@@ -69,9 +68,6 @@ void main()
     
     float Intensity = clamp((Theta - OuterCosine) / Epsilon, 0.0, 1.0);
 
-;
-
-    vec3  Ambient = AmbientStrength * Attenuation * LightColor.rgb;
     
     // mfs
     float diff = max(dot(Normal, -1.0 * LightDirection), 0.0);
@@ -84,7 +80,7 @@ void main()
 
     vec3 specular = specularStrength * Attenuation * Intensity * spec * LightColor;
 
-    glColor = vec4((Ambient + (diffuse + specular)  * (1.0 - Shadow)) * LightStrength * Color.rgb, 1); 
+    glColor = vec4(((diffuse + specular)  * (1.0 - Shadow)) * LightStrength * Color.rgb, 1); 
 
 }
 

@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using SharpGLTF.Schema2;
+using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,7 @@ public class Material
     public string[] TextureNames = new string[10]{
         "Diffuse",
         "Normal",
-        "Texture2",
+        "Parallax",
         "Texture3",
         "Texture4",
         "Texture5",
@@ -24,10 +25,8 @@ public class Material
         "Texture9",
     };
 
-    public float IsReflection = 0;
     public Texture Diffuse { get => Textures[0]; set => Textures[0] = value; }
     public Texture Normal { get => Textures[1]; set => Textures[1] = value; }
-
     public Texture Parallax { get => Textures[2]; set => Textures[2] = value; }
     public Material() 
     {
@@ -37,24 +36,22 @@ public class Material
     public void Use()
     {
         int index = 0;
+
         foreach(var texture in  Textures)
         {
             if (texture != null)
             {
                 texture.Use(index);
             }
+            else
+            {
+                gl.ActiveTexture(GLEnum.Texture0 + index);
+                gl.BindTexture(GLEnum.Texture2D, 0);
+            }
             index++;
         }
-        if (Textures[1] == null)
-        {
-            gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, 0);
-        }
-        if (Textures[2] == null)
-        {
-            gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, 0);
-        }
     }
+
+    
 
 }

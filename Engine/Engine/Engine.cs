@@ -29,7 +29,7 @@ public partial class Engine : Singleton<Engine>
         if (Gl != null)
         {
             var versionstr = Gl.GetStringS(GLEnum.Version);
-            if (versionstr.IndexOf("ES") >= 0)
+            if (versionstr != null && versionstr.IndexOf("ES") >= 0)
             {
                 GLType = GLType.ES;
             }

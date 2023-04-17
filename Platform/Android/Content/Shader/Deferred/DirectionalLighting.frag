@@ -14,7 +14,6 @@ uniform mat4 VPInvert;
 uniform vec3 LightDirection;
 uniform vec3 LightColor;
 uniform vec3 CameraLocation;
-uniform float AmbientStrength;
 uniform float LightStrength;
 
 
@@ -56,12 +55,6 @@ void main()
     Shadow /= 9.0;
 
 
-    
-
-
-
-    vec3  Ambient = AmbientStrength * LightColor.rgb;
-
 
     // mfs
     float diff = max(dot(Normal, -1.0f * LightDirection), 0.0);
@@ -75,7 +68,7 @@ void main()
 
     vec3 Specular = specularStrength * spec * LightColor;
 
-    glColor = vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color.rgb, 1.0f); 
+    glColor = vec4(((Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color.rgb, 1.0f); 
 
 }
 

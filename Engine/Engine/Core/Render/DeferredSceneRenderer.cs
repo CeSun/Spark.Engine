@@ -71,7 +71,7 @@ public class DeferredSceneRenderer : Renderer
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
 
-        SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+        SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
         InitRender();
     }
 
@@ -342,14 +342,6 @@ public class DeferredSceneRenderer : Renderer
                 {
                     BaseShader.SetMatrix("ModelTransform", component.WorldTransform);
                     BaseShader.SetMatrix("NormalTransform", component.NormalTransform);
-                    BaseShader.SetFloat("IsReflection", 0);
-                    if (component is StaticMeshComponent staticMeshComponent)
-                    {
-                        if (staticMeshComponent.StaticMesh != null)
-                        {
-                            BaseShader.SetFloat("IsReflection", staticMeshComponent.StaticMesh.Materials[0].IsReflection);
-                        }
-                    }
                     component.Render(DeltaTime);
                 }
             }
