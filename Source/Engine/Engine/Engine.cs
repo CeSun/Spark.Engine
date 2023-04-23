@@ -11,7 +11,7 @@ namespace Spark.Engine;
 public partial class Engine : Singleton<Engine>
 {
     public RenderTarget? _GlobalRenderTarget;
-    
+    SingleThreadSyncContext SyncContext;
     public RenderTarget ViewportRenderTarget
     {
         get
@@ -20,6 +20,12 @@ public partial class Engine : Singleton<Engine>
                 throw new Exception("rt 为空");
             return _GlobalRenderTarget;
         }
+    }
+    public Engine()
+    {
+        SyncContext = new SingleThreadSyncContext();
+        SynchronizationContext.SetSynchronizationContext(SyncContext);
+
     }
     List<World> Worlds = new List<World>();
     public void InitEngine(string[] args, Dictionary<string, object> objects)
@@ -45,6 +51,7 @@ public partial class Engine : Singleton<Engine>
     }
     public void Update(double DeltaTime)
     {
+        SyncContext.Tick();
         Worlds.ForEach(world => world.Update(DeltaTime));
     }
 
