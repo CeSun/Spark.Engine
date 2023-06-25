@@ -5,6 +5,7 @@ using System.Drawing;
 using Silk.NET.Input;
 using Spark.Engine.Platform;
 using Spark.Engine.Render;
+using Spark.Engine.GUI;
 
 namespace Spark.Engine;
 
@@ -12,6 +13,7 @@ public partial class Engine : Singleton<Engine>
 {
     public RenderTarget? _GlobalRenderTarget;
     SingleThreadSyncContext SyncContext;
+    NoesisGUI GUI = new NoesisGUI();
     public RenderTarget ViewportRenderTarget
     {
         get
@@ -58,16 +60,20 @@ public partial class Engine : Singleton<Engine>
     public void Render(double DeltaTime)
     {
         Worlds.ForEach(world => world.Render(DeltaTime));
+        GUI.Render(DeltaTime);
     }
 
     public void Start()
     {
         Worlds.ForEach(world => world.BeginPlay());
+        GUI.Init();
+        GUI.OnResize(WindowSize.X, WindowSize.Y);
     }
 
     public void Stop()
     {
         Worlds.ForEach(world => world.Destory());
+        GUI.Fini();
     }
 
     public void Resize(int Width, int Height)
@@ -75,8 +81,9 @@ public partial class Engine : Singleton<Engine>
         ViewportRenderTarget.Width = Width;
         ViewportRenderTarget.Height = Height;
         WindowSize = new(Width, Height);
+        GUI.OnResize(Width, Height);
     }
-    
+
     public Point WindowSize { get; private set; }
 }
 
@@ -166,4 +173,72 @@ public class StaticEngine
     }
 
 
+}
+
+public static class GLExternFunctions
+{
+    public static void PushDebugGroup(this GL gl, string DebugInfo)
+    {
+        gl.PushDebugGroup(DebugSource.DebugSourceApplication,1, (uint)DebugInfo.Length,  DebugInfo);
+    }
+
+    static OpenGLStates? States = null;
+    public static void PushAttribute(this GL gl)
+    {
+        if (States == null)
+            States = new OpenGLStates();
+        else
+        {
+            var newStates = new OpenGLStates();
+            newStates.Next = States;
+            States = newStates;
+        }
+        States.Blend = gl.GetInteger(GLEnum.Blend);
+        States.BlendDstAlpha = gl.GetInteger(GLEnum.BlendDstAlpha);
+        States.BlendDstRGB = gl.GetInteger(GLEnum.BlendDstRgb);
+        States.BlendEquationAlpha = gl.GetInteger(GLEnum.BlendEquationAlpha);
+        States.BlendEquationRgb = gl.GetInteger(GLEnum.BlendEquationRgb);
+        States.BlendSrcAlpha = gl.GetInteger(GLEnum.BlendSrcAlpha);
+        States.BlendSrcRGB = gl.GetInteger(GLEnum.BlendSrcRgb);
+
+        States.DepthTest = gl.GetInteger(GLEnum.DepthTest);
+        States.DepthFunc = gl.GetInteger(GLEnum.DepthFunc);
+        States.DepthWriteMask = gl.GetInteger(GLEnum.DepthWritemask);
+        States.CullFace = gl.GetInteger(GLEnum.CullFace);
+    }
+
+    public static void PopAttribute(this GL gl)
+    {
+        if (States == null)
+            return;
+        gl.BlendEquationSeparate((GLEnum)States.BlendEquationRgb, (GLEnum)States.BlendEquationAlpha);
+        gl.BlendFuncSeparate((GLEnum)States.BlendSrcRGB, (GLEnum)States.BlendDstRGB, (GLEnum)States.BlendSrcAlpha, (GLEnum)States.BlendDstAlpha);
+        gl.Enable(GLEnum.Blend, (uint)States.Blend);
+        gl.Enable(GLEnum.DepthTest, (uint)States.DepthTest);
+        gl.DepthFunc((GLEnum)States.DepthFunc);
+        gl.DepthMask(States.DepthWriteMask == 1);
+        gl.Enable(GLEnum.CullFace, (uint)States.CullFace);
+
+        States = States.Next;
+
+    }
+}
+
+class OpenGLStates
+{
+
+    public int Blend;
+    public int BlendDstAlpha;
+    public int BlendDstRGB;
+    public int BlendEquationAlpha;
+    public int BlendEquationRgb;
+    public int BlendSrcAlpha;
+    public int BlendSrcRGB;
+
+    public int DepthTest;
+    public int DepthFunc;
+    public int DepthWriteMask;
+    public int CullFace;
+
+    public OpenGLStates? Next;
 }

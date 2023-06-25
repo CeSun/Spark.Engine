@@ -124,28 +124,46 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
+
+        gl.PushDebugGroup("Init Buffers");
         GlobalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer2.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer3.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         SceneBackFaceDepthBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        gl.PopDebugGroup();
+
+
+        gl.PushDebugGroup("Init Status");
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Back);
         gl.Enable(GLEnum.DepthTest);
+        gl.PopDebugGroup();
+
+        gl.PushDebugGroup("Shadow Depth Pass");
         // 生成ShadowMap
         DepthPass(DeltaTime);
+        gl.PopDebugGroup();
+        gl.PushDebugGroup("Base Pass");
         // 生成GBuffer
         BasePass(DeltaTime);
+        gl.PopDebugGroup();
 
         PostProcessBuffer1.Render(() =>
         {
+            gl.PushDebugGroup("Lighting Pass");
             // 延迟光照
             LightingPass(DeltaTime);
+            gl.PopDebugGroup();
+            gl.PushDebugGroup("Skybox Pass");
             // 天空盒
             SkyboxPass(DeltaTime);
+            gl.PopDebugGroup();
         });
+        gl.PushDebugGroup("PostProcess Pass");
         // 后处理
         PostProcessPass(DeltaTime);
+        gl.PopDebugGroup();
         // 渲染到摄像机的RenderTarget上
         RenderToCameraRenderTarget(DeltaTime);
     }
@@ -182,8 +200,12 @@ public class DeferredSceneRenderer : IRenderer
     }
     private void PostProcessPass(double DeltaTime)
     {
+        gl.PushDebugGroup("Bloom Effect");
         BloomPass(DeltaTime);
+        gl.PopDebugGroup();
+        gl.PushDebugGroup("ScreenSpaceReflection");
         ScreenSpaceReflection(DeltaTime);
+        gl.PopDebugGroup();
     }
     private void SkyboxPass(double DeltaTime)
     {

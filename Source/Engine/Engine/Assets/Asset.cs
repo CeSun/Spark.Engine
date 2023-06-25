@@ -33,6 +33,16 @@ public abstract class Asset
 
     }
 
+    public void Load()
+    {
+
+    }
+
+    public async ValueTask LoadAsync()
+    {
+
+    }
+
     protected Asset()
     {
         Path = "";

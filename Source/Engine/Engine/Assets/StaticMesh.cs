@@ -250,6 +250,7 @@ public class StaticMesh : Asset
         if (IsValid == false)
             return;
         int index = 0;
+        gl.PushDebugGroup("Render Static Mesh:" + Path);
         foreach(var mesh in Meshes)
         {
             Materials[index].Use();
@@ -257,6 +258,7 @@ public class StaticMesh : Asset
             gl.DrawElements(GLEnum.Triangles, (uint)IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
             index++;
         }
+        gl.PopDebugGroup();
     }
 
 

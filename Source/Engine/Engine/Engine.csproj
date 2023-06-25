@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Noesis.App" Version="3.2.1" />
     <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0028" />
     <PackageReference Include="Silk.NET.OpenGL" Version="2.16.0" />
 	<PackageReference Include="Silk.NET.Input.Common" Version="2.16.0" />
