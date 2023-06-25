@@ -171,44 +171,6 @@ public class NoesisGUI
     {
         _view.Char(word);
     }
-    int Blend;
-    int BlendDstAlpha;
-    int BlendDstRGB;
-    int BlendEquationAlpha;
-    int BlendEquationRgb;
-    int BlendSrcAlpha;
-    int BlendSrcRGB;
 
-    int DepthTest;
-    int DepthFunc;
-    int DepthWriteMask;
-    int CullFace;
-    public void StateSave()
-    {
-        Blend = gl.GetInteger(GLEnum.Blend);
-        BlendDstAlpha = gl.GetInteger(GLEnum.BlendDstAlpha);
-        BlendDstRGB = gl.GetInteger(GLEnum.BlendDstRgb);
-        BlendEquationAlpha = gl.GetInteger(GLEnum.BlendEquationAlpha);
-        BlendEquationRgb = gl.GetInteger(GLEnum.BlendEquationRgb);
-        BlendSrcAlpha = gl.GetInteger(GLEnum.BlendSrcAlpha);  
-        BlendSrcRGB = gl.GetInteger(GLEnum.BlendSrcRgb);
-
-        DepthTest = gl.GetInteger(GLEnum.DepthTest);
-        DepthFunc = gl.GetInteger(GLEnum.DepthFunc);
-        DepthWriteMask = gl.GetInteger(GLEnum.DepthWritemask);
-        CullFace = gl.GetInteger(GLEnum.CullFace);
-    }
-
-
-    public void StateRestore()
-    {
-        gl.BlendEquationSeparate((GLEnum)BlendEquationRgb, (GLEnum)BlendEquationAlpha);
-        gl.BlendFuncSeparate((GLEnum)BlendSrcRGB, (GLEnum)BlendDstRGB, (GLEnum)BlendSrcAlpha, (GLEnum)BlendDstAlpha);
-        gl.Enable(GLEnum.Blend, (uint)Blend);
-        gl.Enable(GLEnum.DepthTest, (uint)DepthTest);
-        gl.DepthFunc((GLEnum)DepthFunc);
-        gl.DepthMask(DepthWriteMask == 1);
-        gl.Enable(GLEnum.CullFace, (uint)CullFace);
-    }
 
 }
