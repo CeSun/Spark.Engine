@@ -9,6 +9,14 @@
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <EnableLLVM>True</EnableLLVM>
+    <AndroidLinkTool>r8</AndroidLinkTool>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <EnableLLVM>True</EnableLLVM>
+  </PropertyGroup>
   <ItemGroup>
     <AndroidAsset Remove="Content\Shader\Deferred\Base.vert" />
     <AndroidAsset Remove="Content\Shader\Deferred\BrightnessLighting.frag" />
