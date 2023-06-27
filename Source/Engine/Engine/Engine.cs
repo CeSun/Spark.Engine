@@ -6,6 +6,7 @@ using Silk.NET.Input;
 using Spark.Engine.Platform;
 using Spark.Engine.Render;
 using Spark.Engine.GUI;
+using Silk.NET.Windowing;
 
 namespace Spark.Engine;
 
@@ -13,7 +14,6 @@ public partial class Engine : Singleton<Engine>
 {
     public RenderTarget? _GlobalRenderTarget;
     SingleThreadSyncContext SyncContext;
-    NoesisGUI GUI = new NoesisGUI();
     public RenderTarget ViewportRenderTarget
     {
         get
@@ -28,6 +28,16 @@ public partial class Engine : Singleton<Engine>
         SyncContext = new SingleThreadSyncContext();
         SynchronizationContext.SetSynchronizationContext(SyncContext);
 
+    }
+    private IView? _view;
+    public IView View
+    {
+        get
+        {
+            if (_view == null)
+                throw new Exception();
+            return _view;
+        }
     }
     List<World> Worlds = new List<World>();
     public void InitEngine(string[] args, Dictionary<string, object> objects)
@@ -48,6 +58,7 @@ public partial class Engine : Singleton<Engine>
         WindowSize = (Point)objects["WindowSize"];
         Input = (IInputContext)objects["InputContext"];
         FileSystem = (FileSystem)objects["FileSystem"];
+        _view = (IView)objects["View"];
         _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y, true);
         Worlds.Add(new World());
     }
@@ -60,20 +71,16 @@ public partial class Engine : Singleton<Engine>
     public void Render(double DeltaTime)
     {
         Worlds.ForEach(world => world.Render(DeltaTime));
-        GUI.Render(DeltaTime);
     }
 
     public void Start()
     {
         Worlds.ForEach(world => world.BeginPlay());
-        GUI.Init();
-        GUI.OnResize(WindowSize.X, WindowSize.Y);
     }
 
     public void Stop()
     {
         Worlds.ForEach(world => world.Destory());
-        GUI.Fini();
     }
 
     public void Resize(int Width, int Height)
@@ -81,7 +88,6 @@ public partial class Engine : Singleton<Engine>
         ViewportRenderTarget.Width = Width;
         ViewportRenderTarget.Height = Height;
         WindowSize = new(Width, Height);
-        GUI.OnResize(Width, Height);
     }
 
     public Point WindowSize { get; private set; }

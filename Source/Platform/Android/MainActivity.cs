@@ -1,9 +1,11 @@
 using Android.App.Roles;
 using Android.Views;
 using Silk.NET.Input;
+using Silk.NET.Input.Sdl;
 using Silk.NET.OpenGL;
 using Silk.NET.SDL;
 using Silk.NET.Windowing;
+using Silk.NET.Windowing.Sdl;
 using Silk.NET.Windowing.Sdl.Android;
 using Spark.Engine;
 using System.Drawing;
@@ -16,6 +18,8 @@ public class MainActivity : SilkActivity
     protected override void OnRun()
     {
 
+        SdlWindowing.RegisterPlatform();
+        SdlInput.RegisterPlatform();
         var options = ViewOptions.Default;
 
         options.API = new GraphicsAPI(ContextAPI.OpenGLES, ContextProfile.Core, ContextFlags.Default, new APIVersion(3, 2));
@@ -29,7 +33,8 @@ public class MainActivity : SilkActivity
                 { "OpenGL", GL.GetApi(view) },
                 { "WindowSize", new System.Drawing.Point(view.Size.X , view.Size.Y) },
                 { "InputContext", view.CreateInput()},
-                { "FileSystem", new AndroidFileSystem(Assets)}
+                { "FileSystem", new AndroidFileSystem(Assets)},
+                { "View", view }
                 });
             };
 

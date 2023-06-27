@@ -21,10 +21,11 @@
     <AndroidAsset Remove="Content\Shader\Deferred\SpotLighting.vert" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Silk.NET" Version="2.16.0" />
+    <PackageReference Include="Silk.NET" Version="2.17.1" />
+	  <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.17.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
+	  <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
   </ItemGroup>
   <ItemGroup>
     <AndroidAsset Include="Content\**\*">

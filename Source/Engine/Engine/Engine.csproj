@@ -1,23 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
+      <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+      </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Noesis.App" Version="3.2.1" />
-    <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0028" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.16.0" />
-	<PackageReference Include="Silk.NET.Input.Common" Version="2.16.0" />
-    <PackageReference Include="StbImageSharp" Version="2.27.13" />
-  </ItemGroup>
+      <ItemGroup>
+        <PackageReference Include="Noesis.App" Version="3.2.1" />
+        <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0029" />
+        <PackageReference Include="Silk.NET.OpenGL" Version="2.17.1" />
+	    <PackageReference Include="Silk.NET.Input.Common" Version="2.17.1" />
+	    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.17.1" />
+        <PackageReference Include="StbImageSharp" Version="2.27.13" />
+      </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Util\Util.csproj" />
-  </ItemGroup>
-
+      <ItemGroup>
+        <ProjectReference Include="..\Util\Util.csproj" />
+      </ItemGroup>
+    <ItemGroup>
+	    <TrimmerRootAssembly  Include="SharpGLTF.Schema2" />
+    </ItemGroup>
 </Project>

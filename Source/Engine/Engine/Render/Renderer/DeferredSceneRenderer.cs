@@ -177,7 +177,7 @@ public class DeferredSceneRenderer : IRenderer
             gl.ClearColor(Color.Black);
             gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             gl.Enable(GLEnum.CullFace);
-            gl.CullFace(CullFaceMode.Front);
+            gl.CullFace(GLEnum.Front);
 
             gl.Disable(EnableCap.Blend);
             if (CurrentCameraComponent != null)
@@ -195,7 +195,7 @@ public class DeferredSceneRenderer : IRenderer
             }
 
             BackFaceDepthShader.UnUse();
-            gl.CullFace(CullFaceMode.Back);
+            gl.CullFace(GLEnum.Back);
         });
     }
     private void PostProcessPass(double DeltaTime)
@@ -343,7 +343,7 @@ public class DeferredSceneRenderer : IRenderer
             gl.ClearColor(Color.Black);
             gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             gl.Enable(GLEnum.CullFace);
-            gl.CullFace(CullFaceMode.Back);
+            gl.CullFace(GLEnum.Back);
             gl.Disable(EnableCap.Blend);
             if (CurrentCameraComponent != null)
             {

@@ -7,12 +7,15 @@ using Silk.NET.Maths;
 using System.Drawing;
 using Silk.NET.Input;
 using Spark.Util;
-
+using Silk.NET.Windowing.Glfw;
+using Silk.NET.Input.Glfw;
 
 var option = WindowOptions.Default;
 option.FramesPerSecond = 0;
 option.UpdatesPerSecond = 0;
 
+GlfwWindowing.RegisterPlatform();
+GlfwInput.RegisterPlatform();
 option.Size = new Vector2D<int>(800, 600);
 var window = Window.Create(option);
 var InitFun = () =>
@@ -22,7 +25,8 @@ var InitFun = () =>
         { "OpenGL", GL.GetApi(window) },
         { "WindowSize", new Point(option.Size.X , option.Size.Y) },
         { "InputContext", window.CreateInput()},
-        { "FileSystem",new Desktop.DesktopFileSystem()}
+        { "FileSystem",new Desktop.DesktopFileSystem()},
+        { "View", window }
     });
 };
 window.Render += Engine.Instance.Render;
