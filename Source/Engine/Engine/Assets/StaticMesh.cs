@@ -38,10 +38,9 @@ public class StaticMesh : Asset
 
     protected override void LoadAsset()
     {
-        using var sr = FileSystem.GetStreamReader("Content" + Path);
+        using var sr = FileSystem.GetStream("Content" + Path);
 
-        
-        var model = ModelRoot.ReadGLB(sr.BaseStream);
+        var model = ModelRoot.ReadGLB(sr);
         foreach (var glMesh in model.LogicalMeshes)
         {
             foreach(var glPrimitive in glMesh.Primitives)

@@ -9,6 +9,11 @@ namespace Desktop;
 
 public class DesktopFileSystem : FileSystem
 {
+    public Stream GetStream(string path)
+    {
+        return new StreamReader(path).BaseStream;
+    }
+
     public StreamReader GetStreamReader(string path)
     {
         return new StreamReader(path);

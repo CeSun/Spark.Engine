@@ -30,4 +30,9 @@ public class AndroidFileSystem : FileSystem
             return sr.ReadToEnd();
         }
     }
+
+    public Stream GetStream(string path)
+    {
+        return AssetManager.Open(path);
+    }
 }

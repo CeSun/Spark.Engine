@@ -11,5 +11,7 @@ public interface FileSystem
     string LoadText(string path);
 
     StreamReader GetStreamReader(string path);
+
+    Stream GetStream(string path);
 }
 
