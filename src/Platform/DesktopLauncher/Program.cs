@@ -1,2 +1,5 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using DesktopLauncher;
+using Spark.Engine;
+
+var Engine = new Engine(new DesktopPlatform());
+Engine.Run();

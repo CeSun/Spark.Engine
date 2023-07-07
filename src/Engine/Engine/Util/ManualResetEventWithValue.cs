@@ -9,7 +9,7 @@ namespace Spark.Engine.Util;
 public class ManualResetEventWithValue<T>
 {
     ManualResetEvent Handle = new ManualResetEvent(false);
-    T Value;
+    T? Value;
     public void Set(T value)
     {
         Value = value;
@@ -18,6 +18,8 @@ public class ManualResetEventWithValue<T>
     public T WaitForValue()
     {
         Handle.WaitOne();
+        if (Value == null)
+            throw new Exception(); // todo
         return Value;
     }
 

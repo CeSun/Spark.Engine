@@ -14,6 +14,8 @@ public class DesktopPlatform : IPlatform
     {
         var options = WindowOptions.Default with {
             API = new GraphicsAPI(ContextAPI.OpenGLES, new APIVersion(3, 0)),
+            FramesPerSecond = 0,
+            UpdatesPerSecond = 0,
         };
         return Window.Create(options);
     }

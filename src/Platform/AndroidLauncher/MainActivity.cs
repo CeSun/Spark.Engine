@@ -1,14 +1,15 @@
+using Silk.NET.Windowing.Sdl.Android;
+using Spark.Engine;
+
 namespace AndroidLauncher
 {
     [Activity(Label = "@string/app_name", MainLauncher = true)]
-    public class MainActivity : Activity
+    public class MainActivity : SilkActivity
     {
-        protected override void OnCreate(Bundle? savedInstanceState)
+        protected override void OnRun()
         {
-            base.OnCreate(savedInstanceState);
-
-            // Set our view from the "main" layout resource
-            SetContentView(Resource.Layout.activity_main);
+            Engine engine = new(new AndroidPlatform(this));
+            engine.Run();
         }
     }
 }
