@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 
 namespace Spark.Engine.Render;
 
+public delegate void RenderCommand(RenderThread renderThread);
 public class RenderThread
 {
     List<RenderCommand> RenderCommands { get; set; }
@@ -17,6 +18,16 @@ public class RenderThread
     private Engine Engine;
 
     private LocakFrame LocakFrame;
+
+    public RenderScene Scene { private set; get; } = new RenderScene();
+    public void AddCommand(RenderCommand command)
+    {
+        lock(RenderCommands)
+        {
+            RenderCommands.Add(command);
+        }
+    }
+
     public RenderThread(Func<IView> CreateView, Engine engine)
     {
         RenderCommands = new List<RenderCommand>();
@@ -38,8 +49,6 @@ public class RenderThread
     void Render(double deltaTime)
     {
         Engine.WaitForGameThread.WaitOne();
-        gl.ClearColor(System.Drawing.Color.Red);
-        gl.Clear(ClearBufferMask.ColorBufferBit);
         TempRenderCommands.Clear();
         lock (RenderCommands)
         {
@@ -47,6 +56,7 @@ public class RenderThread
             RenderCommands.Clear();
         }
         TempRenderCommands.ForEach(command => command(this));
+        Scene.Render(deltaTime);
         Engine.WaitForRenderThread.Set();
         Engine.WaitForGameThread.Reset();
     }

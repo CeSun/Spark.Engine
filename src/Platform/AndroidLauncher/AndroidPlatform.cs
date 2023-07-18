@@ -20,7 +20,7 @@ namespace AndroidLauncher
 
         public IFileSystem CreateFileSystem()
         {
-            throw new NotImplementedException();
+            return new AndroidFileSystem(Activity);
         }
 
         public IView CreateView()

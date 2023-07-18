@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spark.Engine.Render;
+namespace Spark.Engine.Assets;
 
-public delegate void RenderCommand(RenderThread renderThread);
+public class AssetBase
+{
+}
