@@ -26,9 +26,9 @@ namespace Spark.Engine.Util
             {
                 var idleTime = FrameTime - deltaTime;
 
-                if (idleTime > 5)
+                if (idleTime > 8)
                 {
-                    Thread.Sleep((int)(idleTime - 5));
+                    Thread.Sleep((int)(idleTime - 8));
                 }
                 else
                 {

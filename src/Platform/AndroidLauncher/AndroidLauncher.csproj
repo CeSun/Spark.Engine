@@ -16,4 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Engine\Engine\Engine.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Resources\layout\" />
+  </ItemGroup>
 </Project>

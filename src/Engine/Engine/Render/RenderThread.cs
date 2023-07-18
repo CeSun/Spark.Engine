@@ -2,7 +2,6 @@
 using Silk.NET.OpenGLES;
 using Silk.NET.Windowing;
 using Spark.Engine.Util;
-using System.Collections.Concurrent;
 
 namespace Spark.Engine.Render;
 
@@ -19,7 +18,7 @@ public class RenderThread
 
     private LocakFrame LocakFrame;
 
-    public RenderScene Scene { private set; get; } = new RenderScene();
+    public RenderScene Scene { private set; get; }
     public void AddCommand(RenderCommand command)
     {
         lock(RenderCommands)
@@ -40,6 +39,7 @@ public class RenderThread
         LocakFrame = new LocakFrame(Engine.FrameTime);
         View.Render += _ => Render(LocakFrame.Wait());
         View.Closing += Closing;
+        Scene = new RenderScene(this);
     }
     public void Run()
     {
