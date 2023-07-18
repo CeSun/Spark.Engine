@@ -1,20 +1,29 @@
-﻿using Spark.Engine.Actors;
+﻿using Silk.NET.Core.Native;
+using Spark.Engine.Actors;
 using Spark.Engine.GameLevel;
+using Spark.Engine.Render;
+using Spark.Engine.Render.Proxy;
 using System.Numerics;
 
 namespace Spark.Engine.Components;
 
 public partial class PrimitiveComponent
 {
+    protected RenderThread RenderThread { get => CurrentLevel.Engine.RenderThread; }
     public Level CurrentLevel { get; private set; }
+    public PrimitiveProxy PrimitiveProxy { get; private set; }
     public PrimitiveComponent(Level level) 
     { 
         CurrentLevel = level;
         Children = new List<PrimitiveComponent>();
+        PrimitiveProxy = CreateProxy();
         level.AddComponent(this);
     }
-     
-
+    
+    protected PrimitiveProxy CreateProxy()
+    {
+        return new PrimitiveProxy();
+    }
     public bool NeedUpdateTransformToRenderThread { private set; get; }
 
     private PrimitiveComponent? _Parent;
@@ -152,16 +161,29 @@ public partial class PrimitiveComponent
 {
     public void Start()
     {
-
+        RenderThread.AddCommand(rt =>
+        {
+            rt.Scene.AddPrimitive(PrimitiveProxy);
+        });
     }
 
     public void Update(double DeltaTime)
     {
-        
+        if (NeedUpdateTransformToRenderThread)
+        {
+            var localTransform = WorldTransform;
+            RenderThread.AddCommand(rt =>
+            {
+                PrimitiveProxy.Transform = localTransform;
+            });
+        }
     }
 
     public void End()
     {
-
+        RenderThread.AddCommand(rt =>
+        {
+            rt.Scene.RemovePrimitive(PrimitiveProxy);
+        });
     }
 }

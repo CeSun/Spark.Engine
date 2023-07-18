@@ -9,5 +9,6 @@ namespace Spark.Engine.Render.Proxy;
 
 public class StaticMeshProxy : PrimitiveProxy
 {
-
+    public Vector3 BoundLocation1;
+    public Vector3 BoundLocation2;
 }

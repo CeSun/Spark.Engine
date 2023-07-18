@@ -27,6 +27,7 @@ public class RenderThread
         }
     }
 
+
     public RenderThread(Func<IView> CreateView, Engine engine)
     {
         RenderCommands = new List<RenderCommand>();

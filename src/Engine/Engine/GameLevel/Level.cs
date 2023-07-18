@@ -23,11 +23,13 @@ public class Level
     public void AddComponent(PrimitiveComponent Component)
     {
         _PrimitiveComponents.Add(Component);
+        Component.Start();
 
     }
 
     public void RemoveComponent(PrimitiveComponent Component)
     {
+        Component.End();
         if (_PrimitiveComponents.Contains(Component))
         {
             _PrimitiveComponents.Remove(Component);
@@ -36,6 +38,10 @@ public class Level
 
     public void Update(double DeltaTime)
     {
+        foreach(var component in _PrimitiveComponents)
+        {
+            component.Update(DeltaTime);
+        }
         _PrimitiveComponents.Update();
     }
 }

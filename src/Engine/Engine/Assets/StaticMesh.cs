@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spark.Engine.Render.Proxy;
+namespace Spark.Engine.Assets;
 
-public class PrimitiveProxy
+public class StaticMesh : AssetBase
 {
-    public Matrix4x4 Transform;
+
 }

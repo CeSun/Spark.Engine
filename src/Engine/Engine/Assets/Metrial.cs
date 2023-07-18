@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class SkeletalMesh : AssetBase
+public class Metrial : AssetBase
 {
-
 }

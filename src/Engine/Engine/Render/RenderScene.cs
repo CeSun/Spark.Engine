@@ -15,8 +15,35 @@ namespace Spark.Engine.Render
         {
             RenderThread = renderThread;
         }
-        public List<StaticMeshProxy> StaticMeshProxy = new List<StaticMeshProxy>();
 
+        public void AddPrimitive(PrimitiveProxy primitiveProxy)
+        {
+            if (primitiveProxy is StaticMeshProxy staticMeshProxy)
+            {
+                StaticMeshProxys.Add(staticMeshProxy);
+            }
+            else
+            {
+                PrimitiveProxys.Add(primitiveProxy);
+            }
+
+               
+        }
+
+        public void RemovePrimitive(PrimitiveProxy primitiveProxy)
+        {
+            if (primitiveProxy is StaticMeshProxy staticMeshProxy)
+            {
+                StaticMeshProxys.Remove(staticMeshProxy);
+            }
+            else
+            {
+                PrimitiveProxys.Remove(primitiveProxy);
+            }
+        }
+
+        private List<StaticMeshProxy> StaticMeshProxys = new List<StaticMeshProxy>();
+        private List<PrimitiveProxy> PrimitiveProxys = new List<PrimitiveProxy>();
         public void Render(double DeltaTime)
         {
             RenderThread.gl.ClearColor(Color.DeepPink);

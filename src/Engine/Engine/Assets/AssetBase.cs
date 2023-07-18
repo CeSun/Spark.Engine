@@ -8,4 +8,5 @@ namespace Spark.Engine.Assets;
 
 public class AssetBase
 {
+
 }

@@ -3,7 +3,6 @@ using Silk.NET.Windowing;
 using Spark.Engine.Platform;
 using Spark.Engine.Render;
 using Spark.Engine.Util;
-using System.Diagnostics;
 using ManualResetEvent = Spark.Engine.Util.ManualResetEvent;
 
 namespace Spark.Engine;
@@ -56,7 +55,6 @@ public class Engine
     {
         WaitForRenderThread.WaitOne();
         SyncContext.Tick();
-        Console.WriteLine("GameThread:" + deltaTime);
         WaitForGameThread.Set();
         WaitForRenderThread.Reset();
     }
