@@ -27,6 +27,7 @@ namespace AndroidLauncher
         {
             var options = ViewOptions.Default;
             options.API = new GraphicsAPI(ContextAPI.OpenGLES, ContextProfile.Compatability, ContextFlags.Default, new APIVersion(3, 0));
+            options.VSync = false;
             return Silk.NET.Windowing.Window.GetView(options);
         }
     }
