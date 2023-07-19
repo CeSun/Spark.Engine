@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Spark.Engine.Assets;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -11,4 +12,6 @@ public class StaticMeshProxy : PrimitiveProxy
 {
     public Vector3 BoundLocation1;
     public Vector3 BoundLocation2;
+
+    public StaticMesh? StaticMesh;
 }

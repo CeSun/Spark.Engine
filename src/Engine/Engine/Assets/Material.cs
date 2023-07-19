@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class Metrial : AssetBase
+
+public class Material : AssetBase
 {
+    public Dictionary<string, Texture> Textures { get; private set; } = new Dictionary<string, Texture>();
+
 }

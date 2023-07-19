@@ -13,6 +13,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DesktopLauncher", "src\Plat
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AndroidLauncher", "src\Platform\AndroidLauncher\AndroidLauncher.csproj", "{11C2930D-FA35-4D40-9941-0B59D66F32AA}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Editor", "Editor", "{5F243C05-99E4-4AAA-8FF3-4D60407E420F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Editor", "src\Editor\Editor\Editor.csproj", "{1C91CC13-13C4-4254-A2A4-6CECE10CCC48}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,10 @@ Global
 		{11C2930D-FA35-4D40-9941-0B59D66F32AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{11C2930D-FA35-4D40-9941-0B59D66F32AA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{11C2930D-FA35-4D40-9941-0B59D66F32AA}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{1C91CC13-13C4-4254-A2A4-6CECE10CCC48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C91CC13-13C4-4254-A2A4-6CECE10CCC48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C91CC13-13C4-4254-A2A4-6CECE10CCC48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C91CC13-13C4-4254-A2A4-6CECE10CCC48}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -41,6 +49,7 @@ Global
 		{74CE099C-112F-4D0C-B541-16C962E0992D} = {80789E3E-8132-4B3A-BA58-F5400979F282}
 		{FA0BCB1D-BFC9-412D-957D-39CF86A0D1FB} = {CACFC606-38B5-4D40-B1A0-1041C5CD4D11}
 		{11C2930D-FA35-4D40-9941-0B59D66F32AA} = {CACFC606-38B5-4D40-B1A0-1041C5CD4D11}
+		{1C91CC13-13C4-4254-A2A4-6CECE10CCC48} = {5F243C05-99E4-4AAA-8FF3-4D60407E420F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F253E7BD-AC6D-40F9-9A89-E7E731BE2AAD}

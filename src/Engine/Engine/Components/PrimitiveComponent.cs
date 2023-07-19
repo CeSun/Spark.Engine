@@ -20,7 +20,7 @@ public partial class PrimitiveComponent
         level.AddComponent(this);
     }
     
-    protected PrimitiveProxy CreateProxy()
+    protected virtual PrimitiveProxy CreateProxy()
     {
         return new PrimitiveProxy();
     }

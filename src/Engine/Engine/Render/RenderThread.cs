@@ -58,6 +58,7 @@ public class RenderThread
         }
         TempRenderCommands.ForEach(command => command(this));
         Scene.Render(deltaTime);
+        Console.WriteLine("RenderThread:" + deltaTime);
         Engine.WaitForRenderThread.Set();
         Engine.WaitForGameThread.Reset();
     }
