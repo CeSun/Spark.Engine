@@ -18,7 +18,7 @@ public class Engine
     public float UpdatesPerSecond { get; private set; } = 60;
     public float FrameTime { get; private set; }
 
-    public SingleThreadSyncContext SyncContext { get; private set; }
+    public SingleThreadSyncContext? SyncContext { get; private set; }
     private LocakFrame LocakFrame;
     public Engine(IPlatform platform)
     {
@@ -27,34 +27,33 @@ public class Engine
         FrameTime = 1000f / UpdatesPerSecond;
         Platform = platform;
         ManualResetEventWithValue<RenderThread> ViewWaitHandle = new ManualResetEventWithValue<RenderThread>();
-        var thread = new Thread (() =>
-        {
-            var renderThread = new RenderThread(platform.CreateView, this);
-            ViewWaitHandle.Set(renderThread);
-            renderThread.Run();
-        });
-        thread.Start();
-
-        RenderThread = ViewWaitHandle.WaitForValue();
+        RenderThread = new RenderThread(platform.CreateView, this);
         InputContext = RenderThread.InputContext;
         View = RenderThread.View;
         LocakFrame = new LocakFrame(FrameTime);
-        SyncContext = new SingleThreadSyncContext();
+        var thread = new Thread(() =>
+        {
+            SyncContext = new SingleThreadSyncContext();
+            Start();
+            while (View.IsClosing == false)
+            {
+                Update(LocakFrame.Wait());
+            }
+            Stop();
+        });
+        thread.Start();
     }
 
+    
     public void Run()
     {
-        Start();
-        while (View.IsClosing == false)
-        {
-            Update(LocakFrame.Wait());
-        }
-        Stop();
+        RenderThread.Run();
     }
     private void Update(double deltaTime)
     {
         WaitForRenderThread.WaitOne();
-        SyncContext.Tick();
+        SyncContext?.Tick();
+        Console.WriteLine("GameThread:" + deltaTime);
         WaitForGameThread.Set();
         WaitForRenderThread.Reset();
     }
