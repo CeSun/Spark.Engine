@@ -1,11 +1,7 @@
 ﻿using Spark.Engine.Assets;
 using Spark.Engine.GameLevel;
 using Spark.Engine.Render.Proxy;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using static Spark.Engine.Assets.StaticMesh;
 
 namespace Spark.Engine.Components;
 
@@ -19,8 +15,8 @@ public class StaticMeshComponent : PrimitiveComponent
 
     protected override PrimitiveProxy CreateProxy()
     {
-        return new StaticMeshProxy();
-        
+        var proxy = new StaticMeshProxy();
+        return proxy;
     }
     private StaticMesh? _StaticMesh;
     public StaticMesh? StaticMesh 
@@ -28,13 +24,26 @@ public class StaticMeshComponent : PrimitiveComponent
         get => _StaticMesh;
         set
         {
+            List<MaterialProxy> materials = new List<MaterialProxy>();
+            List<Sector> sectors = new List<Sector>();
+            if (value != null)
+            {
+                value.Sectors.ForEach(sector => materials.Add(new MaterialProxy(sector.Material)));
+                sectors.AddRange(value.Sectors);
+            }
             RenderThread.AddCommand(rt =>
             {
-                StaticMeshProxy.StaticMesh = value;
+                StaticMeshProxy.Sectors.Clear();
+                StaticMeshProxy.MaterialProxies.Clear();
+                if (value != null)
+                {
+                    StaticMeshProxy.Sectors = sectors;
+                    StaticMeshProxy.MaterialProxies = materials;
+                }
             });
             _StaticMesh = value;
         }
     }
 
-
+    
 }

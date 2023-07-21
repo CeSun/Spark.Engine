@@ -153,6 +153,10 @@ public partial class PrimitiveComponent
         _RelativeQuaternion = _RelativeTransform.Rotation();
         _RelativeScale = _RelativeTransform.Scale();
     }
+
+    public Vector3 Up => Vector3.Transform(Vector3.UnitY, Matrix4x4.CreateFromQuaternion(WorldRotation));
+    public Vector3 Forward => Vector3.Transform(Vector3.UnitZ, Matrix4x4.CreateFromQuaternion(WorldRotation));
+    public Vector3 Right => Vector3.Transform(Vector3.UnitX * -1, Matrix4x4.CreateFromQuaternion(WorldRotation));
 }
 
 

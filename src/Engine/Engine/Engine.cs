@@ -15,7 +15,7 @@ public class Engine
     public IView View { get; private set; }
     public IInputContext InputContext { get; private set; }
     public RenderThread RenderThread { get; private set; }
-    public float UpdatesPerSecond { get; private set; } = 60;
+    public float UpdatesPerSecond { get; private set; } = 3000;
     public float FrameTime { get; private set; }
 
     public SingleThreadSyncContext? SyncContext { get; private set; }

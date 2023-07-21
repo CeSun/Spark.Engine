@@ -18,6 +18,7 @@ public class RenderThread
 
     private LocakFrame LocakFrame;
 
+    private RendererBase Renderer;
     public RenderScene Scene { private set; get; }
     public void AddCommand(RenderCommand command)
     {
@@ -41,6 +42,7 @@ public class RenderThread
         View.Render += _ => Render(LocakFrame.Wait());
         View.Closing += Closing;
         Scene = new RenderScene(this);
+        Renderer = new RendererBase(this);
     }
     public void Run()
     {
@@ -58,7 +60,7 @@ public class RenderThread
         }
         TempRenderCommands.ForEach(command => command(this));
         Scene.Render(deltaTime);
-        Console.WriteLine("RenderThread:" + deltaTime);
+        Renderer.Render(deltaTime);
         Engine.WaitForRenderThread.Set();
         Engine.WaitForGameThread.Reset();
     }

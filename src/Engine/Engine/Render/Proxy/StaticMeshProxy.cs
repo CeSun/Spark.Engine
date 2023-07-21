@@ -5,13 +5,17 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using static Spark.Engine.Assets.StaticMesh;
 
 namespace Spark.Engine.Render.Proxy;
 
 public class StaticMeshProxy : PrimitiveProxy
 {
-    public Vector3 BoundLocation1;
-    public Vector3 BoundLocation2;
-
-    public StaticMesh? StaticMesh;
+    public StaticMeshProxy() 
+    {
+        Sectors = new List<Sector>();
+        MaterialProxies = new List<MaterialProxy>();
+    }
+    public List<Sector> Sectors;
+    public List<MaterialProxy> MaterialProxies; 
 }

@@ -25,12 +25,11 @@ namespace Spark.Engine.Util
             while (deltaTime < FrameTime)
             {
                 var idleTime = FrameTime - deltaTime;
-
                 if (idleTime > 8)
                 {
                     Thread.Sleep((int)(idleTime - 8));
                 }
-                else
+                else if (deltaTime > 0)
                 {
                     Thread.Sleep(0);
                 }
