@@ -9,6 +9,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Silk.NET.OpenGL;
 using static Spark.Engine.StaticEngine;
+using Spark.Engine.Physics;
+using System.Collections.ObjectModel;
 
 namespace Spark.Engine.Assets;
 
@@ -18,10 +20,14 @@ public class StaticMesh : Asset
     List<List<uint>> IndicesList = new List<List<uint>>();
     public List<Material> Materials = new List<Material>();
 
-    List<uint> VertexArrayObjectIndexes = new List<uint>();
+    List<uint> _VertexArrayObjectIndexes = new List<uint>();
     List<uint> VertexBufferObjectIndexes = new List<uint>();
     List<uint> ElementBufferObjectIndexes = new List<uint>();
 
+    public IReadOnlyCollection<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
+    public Box Box { get; private set; }
+
+    public List<Box> Boxes { get; private set; } = new List<Box>();
     public StaticMesh(string path) : base(path)
     {
     }
@@ -108,6 +114,16 @@ public class StaticMesh : Asset
                         }
                     }
                 }
+                Box box = new Box();
+                if (staticMeshVertices.Count > 0)
+                {
+                    box.MaxPoint = box.MinPoint = staticMeshVertices[0].Location;
+                }
+                foreach(var Vertex in staticMeshVertices)
+                {
+                    box += Vertex.Location;
+                }
+                Boxes.Add(box);
                 Meshes.Add(staticMeshVertices);
 
                 List<uint> Indices= new List<uint>();
@@ -136,6 +152,14 @@ public class StaticMesh : Asset
         }
         InitTBN();
         InitRender();
+        if (Boxes.Count > 0)
+        {
+            Box = Boxes[0];
+            foreach(var box in Boxes)
+            {
+                Box += box;
+            }
+        }
     }
 
     private void InitTBN()
@@ -235,7 +259,7 @@ public class StaticMesh : Asset
             gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(5 * sizeof(Vector3)));
             gl.BindVertexArray(0);
 
-            VertexArrayObjectIndexes.Add(vao);
+            _VertexArrayObjectIndexes.Add(vao);
             VertexBufferObjectIndexes.Add(vbo);
             ElementBufferObjectIndexes.Add(ebo);
         }
@@ -253,7 +277,7 @@ public class StaticMesh : Asset
         foreach(var mesh in Meshes)
         {
             Materials[index].Use();
-            gl.BindVertexArray(VertexArrayObjectIndexes[index]);
+            gl.BindVertexArray(_VertexArrayObjectIndexes[index]);
             gl.DrawElements(GLEnum.Triangles, (uint)IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
             index++;
         }
