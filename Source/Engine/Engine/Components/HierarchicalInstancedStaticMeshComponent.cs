@@ -193,18 +193,35 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         gl.EnableVertexAttribArray(9);
         gl.VertexAttribPointer(9, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4), (void*)(sizeof(Vector4) * 3));
 
+        gl.BindVertexArray(0);
+        gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
     }
 
 
     List<ClustreeNode> ClustreeNodes { get; set; } = new List<ClustreeNode>();
     ClustreeNode Clustree { get; set; } = new ClustreeNode();
 
+    List<ClustreeNode> RenderList = new List<ClustreeNode>();
 
+
+    public void CameraCulling(CameraComponent camera)
+    {
+        RenderList.Clear();
+
+
+        // ...
+
+    }
     public override void Render(double DeltaTime)
     {
         base.Render(DeltaTime);
-
-
+        gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes.FirstOrDefault());
+        StaticMesh.Materials.FirstOrDefault()?.Use();
+        foreach (var node in RenderList)
+        {
+            gl.DrawElementsInstanced(GLEnum.Triangles, (uint)StaticMesh.ElementBufferObjectIndexes.Count, GLEnum.UnsignedInt, (uint)node.FirstInstance, (uint)(node.LastInstance - node.FirstInstance));
+        }
+        gl.BindVertexArray(0);
     }
 
 

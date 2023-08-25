@@ -34,6 +34,7 @@ public class DeferredSceneRenderer : IRenderer
     Shader RenderToCamera;
     Shader ScreenSpaceReflectionShader;
     Shader BackFaceDepthShader;
+    Shader HISMShader;
     RenderBuffer PostProcessBuffer1;
     RenderBuffer PostProcessBuffer2;
     RenderBuffer PostProcessBuffer3;
@@ -61,7 +62,7 @@ public class DeferredSceneRenderer : IRenderer
         RenderToCamera = new Shader("/Shader/Deferred/RenderToCamera");
         ScreenSpaceReflectionShader = new Shader("/Shader/Deferred/ssr");
         BackFaceDepthShader = new Shader("/Shader/Deferred/BackFaceDepth");
-
+        HISMShader = new Shader("");
         GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 3);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -363,6 +364,10 @@ public class DeferredSceneRenderer : IRenderer
                     component.Render(DeltaTime);
                 }
             }
+
+            gl.PushDebugGroup("HierarchicalInstancedStaticMesh Render");
+
+            gl.PopDebugGroup();
         });
 
     }

@@ -95,6 +95,57 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
             return -1;
         return this.Order - other.Order;
     }
+
+
+
+    Vector4[] tmpPlanes = new Vector4[6];
+
+
+    public Vector4[] GetPlanes(Matrix4x4 ViewTransform)
+    {
+        GetPlanes(View * Projection, ref tmpPlanes);
+        return tmpPlanes;
+    }
+    public void GetPlanes(Matrix4x4 ViewTransform, ref Vector4[] Planes)
+    {
+        if (Planes.Length < 6)
+        {
+            Planes = new Vector4[6];
+        }
+
+        //左侧  
+        Planes[0].X = ViewTransform[0,3] + ViewTransform[0,0];
+        Planes[0].Y = ViewTransform[1,3] + ViewTransform[1,0];
+        Planes[0].Z = ViewTransform[2,3] + ViewTransform[2,0];
+        Planes[0].W = ViewTransform[3,3] + ViewTransform[3,0];
+        //右侧
+        Planes[1].X = ViewTransform[0,3] - ViewTransform[0,0];
+        Planes[1].Y = ViewTransform[1,3] - ViewTransform[1,0];
+        Planes[1].Z = ViewTransform[2,3] - ViewTransform[2,0];
+        Planes[1].W = ViewTransform[3,3] - ViewTransform[3,0];
+        //上侧
+        Planes[2].X = ViewTransform[0,3] - ViewTransform[0,1];
+        Planes[2].Y = ViewTransform[1,3] - ViewTransform[1,1];
+        Planes[2].Z = ViewTransform[2,3] - ViewTransform[2,1];
+        Planes[2].W = ViewTransform[3,3] - ViewTransform[3,1];
+        //下侧
+        Planes[3].X = ViewTransform[0,3] + ViewTransform[0,1];
+        Planes[3].Y = ViewTransform[1,3] + ViewTransform[1,1];
+        Planes[3].Z = ViewTransform[2,3] + ViewTransform[2,1];
+        Planes[3].W = ViewTransform[3,3] + ViewTransform[3,1];
+        //Near
+        Planes[4].X = ViewTransform[0,3] + ViewTransform[0,2];
+        Planes[4].Y = ViewTransform[1,3] + ViewTransform[1,2];
+        Planes[4].Z = ViewTransform[2,3] + ViewTransform[2,2];
+        Planes[4].W = ViewTransform[3,3] + ViewTransform[3,2];
+        //Far
+        Planes[5].X = ViewTransform[0,3] - ViewTransform[0,2];
+        Planes[5].Y = ViewTransform[1,3] - ViewTransform[1,2];
+        Planes[5].Z = ViewTransform[2,3] - ViewTransform[2,2];
+        Planes[5].W = ViewTransform[3,3] - ViewTransform[3,2];
+    }
+
+
 }
 
 

@@ -22,8 +22,9 @@ public class StaticMesh : Asset
 
     List<uint> _VertexArrayObjectIndexes = new List<uint>();
     List<uint> VertexBufferObjectIndexes = new List<uint>();
-    List<uint> ElementBufferObjectIndexes = new List<uint>();
+    List<uint> _ElementBufferObjectIndexes = new List<uint>();
 
+    public IReadOnlyCollection<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
     public IReadOnlyCollection<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
     public Box Box { get; private set; }
 
@@ -261,7 +262,7 @@ public class StaticMesh : Asset
 
             _VertexArrayObjectIndexes.Add(vao);
             VertexBufferObjectIndexes.Add(vbo);
-            ElementBufferObjectIndexes.Add(ebo);
+            _ElementBufferObjectIndexes.Add(ebo);
         }
         
 
@@ -295,7 +296,7 @@ public class StaticMesh : Asset
         {
             gl.DeleteBuffer(vbo);
         }
-        foreach (var ebo in ElementBufferObjectIndexes)
+        foreach (var ebo in _ElementBufferObjectIndexes)
         {
             gl.DeleteBuffer(ebo);
         }

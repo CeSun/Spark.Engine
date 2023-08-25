@@ -281,6 +281,8 @@ public partial class Level
     private List<DirectionLightComponent> _DirectionLightComponents = new List<DirectionLightComponent>();
     private List<PointLightComponent> _PointLightComponents = new List<PointLightComponent>();
     private List<SpotLightComponent> _SpotLightComponents = new List<SpotLightComponent>();
+    private List<HierarchicalInstancedStaticMeshComponent> _HISMComponents = new List<HierarchicalInstancedStaticMeshComponent>();
+
     public IReadOnlyList<CameraComponent> CameraComponents => _CameraComponents;
     public IReadOnlyList<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
     public IReadOnlyList<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
@@ -322,6 +324,13 @@ public partial class Level
             if (!_SpotLightComponents.Contains(spotLightComponent))
             {
                 _SpotLightComponents.Add(spotLightComponent);
+            }
+        }
+        else if (component is HierarchicalInstancedStaticMeshComponent hierarchicalInstancedStaticMeshComponent)
+        {
+            if (!_HISMComponents.Contains(hierarchicalInstancedStaticMeshComponent))
+            {
+                _HISMComponents.Add(hierarchicalInstancedStaticMeshComponent);  
             }
         }
 
@@ -369,6 +378,10 @@ public partial class Level
             {
                 _SpotLightComponents.Remove(spotLightComponent);
             }
+        }
+        else if (component is HierarchicalInstancedStaticMeshComponent hierarchicalInstancedStaticMeshComponent) 
+        {
+            
         }
         if (component is SkyboxComponent && CurrentSkybox == component)
         {
