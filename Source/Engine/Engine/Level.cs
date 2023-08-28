@@ -68,7 +68,7 @@ public partial class Level
     }
     public void BeginPlay()
     {
-        //InitGrass();
+        // InitGrass();
         InitHISM();
         MainMouse.MouseMove += OnMouseMove;
         MainMouse.MouseDown += OnMouseKeyDown;
@@ -169,7 +169,7 @@ public partial class Level
 
     public void InitHISM()
     {
-        int grassLen = 10000;
+        int grassLen = 30000;
         int len = (int)Math.Sqrt(grassLen);
         var hismactor = new Actor(this);
         var hismcomponent = new HierarchicalInstancedStaticMeshComponent(hismactor);

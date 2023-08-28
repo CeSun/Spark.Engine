@@ -13,10 +13,12 @@ using Silk.NET.Input.Glfw;
 var option = WindowOptions.Default;
 option.FramesPerSecond = 0;
 option.UpdatesPerSecond = 0;
-
+option.API = new GraphicsAPI(ContextAPI.OpenGL, new APIVersion(3, 3));
+option.VSync = false;
 GlfwWindowing.RegisterPlatform();
 GlfwInput.RegisterPlatform();
 option.Size = new Vector2D<int>(800, 600);
+
 var window = Window.Create(option);
 var InitFun = () =>
 {

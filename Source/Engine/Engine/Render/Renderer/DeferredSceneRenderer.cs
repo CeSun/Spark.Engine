@@ -364,6 +364,8 @@ public class DeferredSceneRenderer : IRenderer
                     }
                 }
 
+                gl.Disable(GLEnum.CullFace);
+                gl.PushDebugGroup("HierarchicalInstancedStaticMesh Render");
                 HISMShader.SetInt("Diffuse", 0);
                 HISMShader.SetInt("Normal", 1);
                 HISMShader.SetInt("Parallax", 2);
@@ -375,10 +377,9 @@ public class DeferredSceneRenderer : IRenderer
                     hism.CameraCulling(CurrentCameraComponent);
                     hism.RenderHISM(DeltaTime);
                 }
+                gl.PopDebugGroup();
             }
-            gl.PushDebugGroup("HierarchicalInstancedStaticMesh Render");
 
-            gl.PopDebugGroup();
         });
 
     }

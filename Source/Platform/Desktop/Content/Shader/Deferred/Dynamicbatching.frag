@@ -25,6 +25,9 @@ void main()
     if (NewTexCoord.x > 1 || NewTexCoord.x < 0 || NewTexCoord.y > 1 || NewTexCoord.y < 0)
         discard;
     vec3 TextureNormal = texture(Normal, NewTexCoord).rgb;
+    vec4 color = texture(Diffuse, NewTexCoord).rgba;
+    if (color.a < 0.1f)
+        discard;
     if (TextureNormal == vec3(0, 0, 0))
         TextureNormal = vec3(0.5, 0.5, 1); 
 	TextureNormal = normalize(TextureNormal * 2.0 - 1.0);  
