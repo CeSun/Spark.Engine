@@ -62,7 +62,7 @@ public class DeferredSceneRenderer : IRenderer
         RenderToCamera = new Shader("/Shader/Deferred/RenderToCamera");
         ScreenSpaceReflectionShader = new Shader("/Shader/Deferred/ssr");
         BackFaceDepthShader = new Shader("/Shader/Deferred/BackFaceDepth");
-        HISMShader = new Shader("");
+        HISMShader = new Shader("/Shader/Deferred/Dynamicbatching");
         GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 3);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -354,17 +354,28 @@ public class DeferredSceneRenderer : IRenderer
                 BaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 BaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 BaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-            }
-            foreach (var component in World.CurrentLevel.PrimitiveComponents)
-            {
-                if (component.IsDestoryed == false)
+                foreach (var component in World.CurrentLevel.PrimitiveComponents)
                 {
-                    BaseShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    BaseShader.SetMatrix("NormalTransform", component.NormalTransform);
-                    component.Render(DeltaTime);
+                    if (component.IsDestoryed == false)
+                    {
+                        BaseShader.SetMatrix("ModelTransform", component.WorldTransform);
+                        BaseShader.SetMatrix("NormalTransform", component.NormalTransform);
+                        component.Render(DeltaTime);
+                    }
+                }
+
+                HISMShader.SetInt("Diffuse", 0);
+                HISMShader.SetInt("Normal", 1);
+                HISMShader.SetInt("Parallax", 2);
+                HISMShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+                HISMShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+                HISMShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+                foreach (var hism in World.CurrentLevel.HISMComponents)
+                {
+                    hism.CameraCulling(CurrentCameraComponent);
+                    hism.RenderHISM(DeltaTime);
                 }
             }
-
             gl.PushDebugGroup("HierarchicalInstancedStaticMesh Render");
 
             gl.PopDebugGroup();

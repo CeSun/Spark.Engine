@@ -40,7 +40,7 @@ public abstract class Asset
 
     public async ValueTask LoadAsync()
     {
-
+        await Task.Yield();
     }
 
     protected Asset()

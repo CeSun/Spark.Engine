@@ -11,7 +11,7 @@ namespace Spark.Engine.GUI;
 
 public class NoesisGUI
 {
-    static Noesis.View _view = default;
+    static Noesis.View? _view = default;
     public void Init()
     {
         Noesis.Log.SetLogCallback((level, channel, message) =>

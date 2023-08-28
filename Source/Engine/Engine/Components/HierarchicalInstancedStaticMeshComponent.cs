@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using SharpGLTF.Schema2;
+using Silk.NET.OpenGL;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Physics;
@@ -30,7 +31,8 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
     }
     public StaticMesh? _StaticMesh;
 
-    public int NodeMinLength = 8;
+    public int NodeLength = 0;
+    public int NodeMinLength = 1000;
     List<ClustreeNode> NodeList { get; set; } = new List<ClustreeNode>();
     List<PrimitiveComponent> PrimitiveComponents;
     public ClustreeNode Root = new ClustreeNode()
@@ -49,7 +51,7 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         PrimitiveComponents = new List<PrimitiveComponent>();
     }
 
-    public void AddStaticMeshComponent(PrimitiveComponent primitivce)
+    public void AddComponent(PrimitiveComponent primitivce)
     {
         if (primitivce == null)
             return;
@@ -59,14 +61,18 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
     protected override void OnBeginGame()
     {
         base.OnBeginGame();
+    }
+
+    public void RefreshTree()
+    {
         BuildTree();
         BuildInstances();
     }
-
     public void BuildTree()
     {
 
         Split(0, PrimitiveComponents.Count - 1);
+        NodeLength = NodeList.Count;
         int left = 0;
         int right = NodeList.Count - 1;
         int length = 0;
@@ -85,6 +91,8 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
 
     private void Split(int left, int right)
     {
+        if (StaticMesh == null)
+            return;
         var SortComponents = CollectionsMarshal.AsSpan(PrimitiveComponents).Slice(left, right - left);
         bool IsBoxInit = false;
         var box = new Box(); 
@@ -121,7 +129,7 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
                 MainAxis = i;
             }
         }
-        SortComponents.Sort((left, right) =>  (StaticMesh.Box * left.WorldTransform).ComperaTo(StaticMesh.Box * right.WorldTransform, MainAxis));
+        SortComponents.Sort((LeftComp, RightComp) =>  (StaticMesh.Box * LeftComp.WorldTransform).ComperaTo(StaticMesh.Box * RightComp.WorldTransform, MainAxis));
         int middle = SortComponents.Length / 2;
         Split(left, left + middle);
         Split(left + middle + 1, right);
@@ -171,10 +179,13 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
 
     public unsafe void BuildInstances()
     {
+        if (StaticMesh == null)
+            return;
         List<Matrix4x4> WorldTransforms = new List<Matrix4x4> ();
         foreach(var component in PrimitiveComponents)
         {
             WorldTransforms.Add(component.WorldTransform);
+            WorldTransforms.Add(component.NormalTransform);
         }
         var vbo = gl.GenBuffer();
         gl.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
@@ -193,6 +204,14 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         gl.EnableVertexAttribArray(9);
         gl.VertexAttribPointer(9, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4), (void*)(sizeof(Vector4) * 3));
 
+        gl.EnableVertexAttribArray(10);
+        gl.VertexAttribPointer(10, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 4));
+        gl.EnableVertexAttribArray(11);
+        gl.VertexAttribPointer(11, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 5));
+        gl.EnableVertexAttribArray(12);
+        gl.VertexAttribPointer(12, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 6));
+        gl.EnableVertexAttribArray(13);
+        gl.VertexAttribPointer(13, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 7));
         gl.BindVertexArray(0);
         gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
     }
@@ -208,20 +227,23 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
     {
         RenderList.Clear();
 
-
-        // ...
+        foreach(var node in CollectionsMarshal.AsSpan(NodeList).Slice(0, NodeLength))
+        {
+            RenderList.Add(node);
+        }
 
     }
-    public override void Render(double DeltaTime)
+    public void RenderHISM(double DeltaTime)
     {
-        base.Render(DeltaTime);
-        gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes.FirstOrDefault());
+        if (StaticMesh == null)
+            return;
         StaticMesh.Materials.FirstOrDefault()?.Use();
         foreach (var node in RenderList)
         {
-            gl.DrawElementsInstanced(GLEnum.Triangles, (uint)StaticMesh.ElementBufferObjectIndexes.Count, GLEnum.UnsignedInt, (uint)node.FirstInstance, (uint)(node.LastInstance - node.FirstInstance));
+            gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes.FirstOrDefault());
+            gl.DrawElementsInstanced(GLEnum.Triangles, (uint)StaticMesh.IndicesList.First().Count, GLEnum.UnsignedInt, (uint)node.FirstInstance, (uint)(node.LastInstance - node.FirstInstance) + 1);
+            gl.BindVertexArray(0);
         }
-        gl.BindVertexArray(0);
     }
 
 
@@ -241,4 +263,11 @@ public class ClustreeNode
     public Box Box;
 
     public bool IsLeftNode => FirstChild == -1 && LastChild == -1 && FirstInstance != -1 && LastInstance != -1;
+}
+
+public class SubHierarchicalInstancedStaticMeshComponent : PrimitiveComponent
+{
+    public SubHierarchicalInstancedStaticMeshComponent(Actor actor) : base(actor)
+    {
+    }
 }

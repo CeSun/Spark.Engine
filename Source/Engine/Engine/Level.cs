@@ -68,6 +68,8 @@ public partial class Level
     }
     public void BeginPlay()
     {
+        //InitGrass();
+        InitHISM();
         MainMouse.MouseMove += OnMouseMove;
         MainMouse.MouseDown += OnMouseKeyDown;
 
@@ -122,7 +124,7 @@ public partial class Level
         var DirectionActor = new Actor(this);
         var DirectionComp = new DirectionLightComponent(DirectionActor);
         DirectionActor.RootComponent = DirectionComp;
-        DirectionComp.Color = Color.Green;
+        DirectionComp.Color = Color.White;
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
         DirectionComp.LightStrength = 0.7f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
@@ -130,7 +132,7 @@ public partial class Level
         var PointLight = new Actor(this);
         var PointLightComp = new PointLightComponent(PointLight);
         PointLight.RootComponent = PointLightComp;
-        PointLightComp.Color = Color.DeepPink;
+        PointLightComp.Color = Color.White;
         PointLightComp.LightStrength =1f;
         PointLightComp.WorldLocation += PointLightComp.UpVector * 10 - PointLightComp.RightVector * 2;
 
@@ -149,6 +151,42 @@ public partial class Level
 
     }
 
+
+    public void InitGrass()
+    {
+        int grassLen = 100;
+        int len = (int)Math.Sqrt(grassLen);
+        for (int i = 0; i < grassLen; i++)
+        {
+            var GrassActor = new Actor(this);
+            var GrassComponent = new StaticMeshComponent(GrassActor);
+            GrassComponent.StaticMesh = new StaticMesh("/StaticMesh/grass.glb");
+            GrassActor.RootComponent = GrassComponent;
+            GrassComponent.WorldLocation = new Vector3((i / len - len / 2) * 1.5f, -3, (i % len - len /2 ) * 1.5f);
+        }
+    }
+
+
+    public void InitHISM()
+    {
+        int grassLen = 10000;
+        int len = (int)Math.Sqrt(grassLen);
+        var hismactor = new Actor(this);
+        var hismcomponent = new HierarchicalInstancedStaticMeshComponent(hismactor);
+        hismcomponent.StaticMesh = new StaticMesh("/StaticMesh/grass.glb");
+
+        hismcomponent.WorldLocation = new Vector3(0, 0, 0);
+        for (int i = 0; i < grassLen; i++)
+        {
+            var GrassComponent = new SubHierarchicalInstancedStaticMeshComponent(hismactor);
+            hismcomponent.AddComponent(GrassComponent);
+            GrassComponent.ParentComponent = hismcomponent;
+            GrassComponent.RelativeLocation = new Vector3((i / len - len / 2) * 1.5f, -3, (i % len - len / 2) * 1.5f);
+        }
+
+        hismcomponent.RefreshTree();
+
+    }
     public void Destory() 
     { 
     }
@@ -288,6 +326,7 @@ public partial class Level
     public IReadOnlyList<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
     public IReadOnlyList<PointLightComponent> PointLightComponents => _PointLightComponents;
     public IReadOnlyList<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
+    public IReadOnlyList<HierarchicalInstancedStaticMeshComponent> HISMComponents => _HISMComponents;
 
     public SkyboxComponent?  CurrentSkybox { get; private set; }
     public void RegistComponent(PrimitiveComponent component)
@@ -296,7 +335,8 @@ public partial class Level
         {
             return;
         }
-        _PrimitiveComponents.Add(component);
+        if (component is SubHierarchicalInstancedStaticMeshComponent == false)
+            _PrimitiveComponents.Add(component);
         if (component is CameraComponent cameraComponent)
         {
             if (!_CameraComponents.Contains(cameraComponent))
@@ -352,7 +392,8 @@ public partial class Level
         {
             return;
         }
-        _PrimitiveComponents.Remove(component);
+        if (component is SubHierarchicalInstancedStaticMeshComponent == false)
+            _PrimitiveComponents.Remove(component);
         if (component is CameraComponent cameraComponent)
         {
             if (_CameraComponents.Contains(cameraComponent))
@@ -381,7 +422,10 @@ public partial class Level
         }
         else if (component is HierarchicalInstancedStaticMeshComponent hierarchicalInstancedStaticMeshComponent) 
         {
-            
+            if (_HISMComponents.Contains(hierarchicalInstancedStaticMeshComponent))
+            {
+                _HISMComponents.Remove(hierarchicalInstancedStaticMeshComponent);
+            }
         }
         if (component is SkyboxComponent && CurrentSkybox == component)
         {

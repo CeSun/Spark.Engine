@@ -10,14 +10,13 @@ using System.Threading.Tasks;
 using Silk.NET.OpenGL;
 using static Spark.Engine.StaticEngine;
 using Spark.Engine.Physics;
-using System.Collections.ObjectModel;
 
 namespace Spark.Engine.Assets;
 
 public class StaticMesh : Asset
 {
     List<List<StaticMeshVertex>> Meshes = new List<List<StaticMeshVertex>>();
-    List<List<uint>> IndicesList = new List<List<uint>>();
+    List<List<uint>> _IndicesList = new List<List<uint>>();
     public List<Material> Materials = new List<Material>();
 
     List<uint> _VertexArrayObjectIndexes = new List<uint>();
@@ -25,6 +24,7 @@ public class StaticMesh : Asset
     List<uint> _ElementBufferObjectIndexes = new List<uint>();
 
     public IReadOnlyCollection<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
+    public IReadOnlyCollection<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
     public IReadOnlyCollection<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
     public Box Box { get; private set; }
 
@@ -36,7 +36,7 @@ public class StaticMesh : Asset
     public StaticMesh(List<StaticMeshVertex> mesh, List<uint> indices, Material material)
     {
         Meshes.Add(mesh);
-        IndicesList.Add(indices);
+        _IndicesList.Add(indices);
         Materials.Add(material);
         IsValid = true;
         IsLoaded = true;
@@ -132,7 +132,7 @@ public class StaticMesh : Asset
                 {
                     Indices.Add(index);
                 }
-                IndicesList.Add(Indices);
+                _IndicesList.Add(Indices);
                 var Material = new Material();
                 foreach(var glChannel in glPrimitive.Material.Channels)
                 {
@@ -174,7 +174,7 @@ public class StaticMesh : Asset
     private void InitMeshTBN(int index)
     {
         var vertics = Meshes[index];
-        var indices = IndicesList[index];
+        var indices = _IndicesList[index];
 
         for(int i = 0; i < indices.Count; i += 3)
         {
@@ -232,9 +232,9 @@ public class StaticMesh : Asset
                 gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Meshes[index].Count * sizeof(StaticMeshVertex)), p, GLEnum.StaticDraw);
             }
             gl.BindBuffer(GLEnum.ElementArrayBuffer, ebo);
-            fixed (uint* p = CollectionsMarshal.AsSpan(IndicesList[index]))
+            fixed (uint* p = CollectionsMarshal.AsSpan(_IndicesList[index]))
             {
-                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(IndicesList[index].Count * sizeof(uint)), p, GLEnum.StaticDraw);
+                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(_IndicesList[index].Count * sizeof(uint)), p, GLEnum.StaticDraw);
             }
 
             // Location
@@ -279,7 +279,7 @@ public class StaticMesh : Asset
         {
             Materials[index].Use();
             gl.BindVertexArray(_VertexArrayObjectIndexes[index]);
-            gl.DrawElements(GLEnum.Triangles, (uint)IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
+            gl.DrawElements(GLEnum.Triangles, (uint)_IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
             index++;
         }
         gl.PopDebugGroup();

@@ -29,7 +29,7 @@ public class Octree
 
     public IReadOnlyList<Octree>? Children => _Children;
 
-    Octree[]? _Children;
+    Octree[]? _Children = null;
 
     public void InsertObject(BoundingBox Box)
     {
