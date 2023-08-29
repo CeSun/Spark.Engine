@@ -38,6 +38,31 @@ public struct Box :
     private Vector3 _MinPoint;
     private Vector3 _MaxPoint;
     public Vector3 MiddlePoint { get; private set; }
+
+    public Vector3 this[int index]
+    {
+        get
+        {
+            switch (index)
+            {
+                case 0:
+                    return _MinPoint;
+                case 1:
+                    return _MaxPoint;
+                case 2:
+                    return new  Vector3() { X = MinPoint.X, Y = MinPoint.Y, Z = MaxPoint.Z };
+                case 3:
+                    return new Vector3() { X = MinPoint.X, Y = MaxPoint.Y, Z = MaxPoint.Z };
+                case 4:
+                    return new Vector3() { X = MaxPoint.X, Y = MaxPoint.Y, Z = MinPoint.Z };
+                case 5:
+                    return new Vector3() { X = MaxPoint.X, Y = MinPoint.Y, Z = MinPoint.Z };
+                default:
+                    throw new IndexOutOfRangeException();
+            }
+
+        }
+    }
     public static Box operator +(Box left, Vector3 right)
     {
         for(var i = 0; i < 3; i ++)
@@ -73,4 +98,23 @@ public struct Box :
         return left;
     }
 
+
+    public bool TestPlanes(Plane[] Planes)
+    {
+        for(var i = 0; i < 6; i ++)
+        {
+            var num = 0;
+            for(var j = 0; j < 6; j ++)
+            {
+                if (Planes[i].Point2Plane(this[j]) == false)
+                {
+                    num++;
+                }
+            }
+            if (num >= 6)
+                return false;
+        }
+        return true;
+    }
 }
+

@@ -169,7 +169,7 @@ public partial class Level
 
     public void InitHISM()
     {
-        int grassLen = 30000;
+        int grassLen = 300000;
         int len = (int)Math.Sqrt(grassLen);
         var hismactor = new Actor(this);
         var hismcomponent = new HierarchicalInstancedStaticMeshComponent(hismactor);

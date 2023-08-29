@@ -85,3 +85,11 @@ public static class MatrixHelper
         return ScaleMatrix * RotationMatrix * LocationMatrix;
     }
 }
+
+public static class PlaneHelper
+{
+    public static bool Point2Plane(this Plane plane, Vector3 Point)
+    {
+        return plane.Normal.X * Point.X + plane.Normal.Y * Point.Y + plane.Normal.Z * Point.Z + plane.D >= 0;
+    }
+}

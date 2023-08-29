@@ -5,6 +5,7 @@ using Spark.Engine.Assets;
 using Spark.Engine.Physics;
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
 using static Spark.Engine.StaticEngine;
@@ -80,9 +81,9 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         int length = 0;
         do
         {
+            length = SplitNode(left, right);
             left = right + 1;
             right = left + length;
-            length = SplitNode(left, right);
         } while (length > 1);
         var root = NodeList.LastOrDefault();
         if (root !=  null)
@@ -240,12 +241,24 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
     public void CameraCulling(CameraComponent camera)
     {
         RenderList.Clear();
+        TestBox(camera.GetPlanes(), Root);
 
-        foreach(var node in CollectionsMarshal.AsSpan(NodeList).Slice(0, NodeLength))
+    }
+
+
+    public void TestBox(Plane[] Planes, ClustreeNode Node)
+    {
+        if (Node.Box.TestPlanes(Planes) == false)
+            return;
+        if (Node.IsLeftNode == true)
         {
-            RenderList.Add(node);
+            RenderList.Add(Node);
+            return;
         }
-
+        for(var i = Node.FirstChild; i <= Node.LastChild; i ++ )
+        {
+            TestBox(Planes, NodeList[i]);
+        }
     }
     public unsafe void RenderHISM(double DeltaTime)
     {
@@ -256,8 +269,6 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes.FirstOrDefault());
         foreach (var node in RenderList)
         {
-            //(uint)(node.LastInstance - node.FirstInstance) + 1
-            // gl.DrawElementsInstanced(GLEnum.Triangles, (uint)StaticMesh.IndicesList.First().Count, GLEnum.UnsignedInt, (void*)0, (uint)PrimitiveComponents.Count);
             gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.IndicesList.First().Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
         }
         gl.BindVertexArray(0);
