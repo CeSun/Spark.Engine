@@ -23,9 +23,9 @@ public class StaticMesh : Asset
     List<uint> VertexBufferObjectIndexes = new List<uint>();
     List<uint> _ElementBufferObjectIndexes = new List<uint>();
 
-    public IReadOnlyCollection<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
-    public IReadOnlyCollection<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
-    public IReadOnlyCollection<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
+    public IReadOnlyList<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
+    public IReadOnlyList<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
+    public IReadOnlyList<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
     public Box Box { get; private set; }
 
     public List<Box> Boxes { get; private set; } = new List<Box>();

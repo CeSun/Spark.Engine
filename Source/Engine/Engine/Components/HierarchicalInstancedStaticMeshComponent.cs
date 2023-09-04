@@ -4,6 +4,7 @@ using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Physics;
 using System;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -26,8 +27,6 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
             }
             if (_StaticMesh != value)
             {
-                if (value.VertexArrayObjectIndexes.Count != 1)
-                    throw new Exception();
                 _StaticMesh = value;
             }
         }
@@ -68,8 +67,13 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
 
     public void RefreshTree()
     {
+        var sw = Stopwatch.StartNew();
+
         BuildTree();
         BuildInstances();
+
+        sw.Stop();
+        Console.WriteLine("build Tree: " + sw.ElapsedMilliseconds);
     }
     public void BuildTree()
     {
@@ -265,13 +269,17 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         if (StaticMesh == null)
             return;
 
-        StaticMesh.Materials.FirstOrDefault()?.Use();
-        gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes.FirstOrDefault());
-        foreach (var node in RenderList)
+        for (int index = 0; index < StaticMesh.VertexArrayObjectIndexes.Count; index++)
         {
-            gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.IndicesList.First().Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
+
+            StaticMesh.Materials[index].Use();
+            gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[index]);
+            foreach (var node in RenderList)
+            {
+                gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
+            }
+            gl.BindVertexArray(0);
         }
-        gl.BindVertexArray(0);
     }
 
 

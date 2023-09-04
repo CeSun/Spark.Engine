@@ -75,6 +75,7 @@ public class Texture : Asset
             gl.BindTexture(GLEnum.Texture2D, 0);
 
         }
+
     }
 
     ~Texture()
