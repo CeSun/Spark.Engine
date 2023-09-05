@@ -35,6 +35,8 @@ void main()
     
     BufferCustom = vec4(0.0, 0.0, 0.0, 0.0);
     BufferColor = texture(Diffuse, NewTexCoord).rgb;
+    if (gl_FrontFacing == false)
+        TextureNormal = -1.0f * TextureNormal;
     BufferNormal =  (TextureNormal + 1.0f) / 2.0f;
 }
 

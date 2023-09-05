@@ -278,9 +278,7 @@ public partial class PrimitiveComponent
             _WorldTransform = _RelativeTransform * ParentComponent._WorldTransform;
         }
         // 计算法线矩阵
-        var Translation = Matrix4x4.CreateTranslation(_WorldTransform.Translation);
-        Matrix4x4.Invert(_WorldTransform * Translation, out _NormalTransform);
-        _NormalTransform = Matrix4x4.Transpose(_NormalTransform);
+        _NormalTransform = Matrix4x4.CreateFromQuaternion(_WorldTransform.Rotation());
 
         _WorldLocation = _WorldTransform.Translation;
         _WorldRotation = _WorldTransform.Rotation();
