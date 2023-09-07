@@ -150,7 +150,7 @@ public class DeferredSceneRenderer : IRenderer
         BasePass(DeltaTime);
         gl.PopDebugGroup();
 
-        PostProcessBuffer1.Render(() =>
+        using(PostProcessBuffer1.Begin())
         {
             gl.PushDebugGroup("Lighting Pass");
             // 延迟光照
@@ -160,7 +160,7 @@ public class DeferredSceneRenderer : IRenderer
             // 天空盒
             SkyboxPass(DeltaTime);
             gl.PopDebugGroup();
-        });
+        }
         gl.PushDebugGroup("PostProcess Pass");
         // 后处理
         PostProcessPass(DeltaTime);
@@ -171,7 +171,7 @@ public class DeferredSceneRenderer : IRenderer
 
     private void BackFaceDepthPass(double DeltaTime)
     {
-        SceneBackFaceDepthBuffer.Render(() =>
+        using(SceneBackFaceDepthBuffer.Begin())
         {
             BackFaceDepthShader.Use();
             gl.Enable(EnableCap.DepthTest);
@@ -197,7 +197,7 @@ public class DeferredSceneRenderer : IRenderer
 
             BackFaceDepthShader.UnUse();
             gl.CullFace(GLEnum.Back);
-        });
+        }
     }
     private void PostProcessPass(double DeltaTime)
     {
@@ -338,7 +338,7 @@ public class DeferredSceneRenderer : IRenderer
     }
     private void BasePass(double DeltaTime)
     {
-        GlobalBuffer.Render(() =>
+        using (GlobalBuffer.Begin())
         {
             gl.Enable(EnableCap.DepthTest);
             gl.ClearColor(Color.Black);
@@ -379,9 +379,7 @@ public class DeferredSceneRenderer : IRenderer
                 }
                 gl.PopDebugGroup();
             }
-
-        });
-
+        }
     }
 
     private unsafe void RenderToCameraRenderTarget(double DeltaTime)
@@ -419,7 +417,7 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null) return;
         BackFaceDepthPass(DeltaTime);
-        PostProcessBuffer2.Render(() =>
+        using(PostProcessBuffer2.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
             ScreenSpaceReflectionShader.Use();
@@ -464,7 +462,7 @@ public class DeferredSceneRenderer : IRenderer
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
             ScreenSpaceReflectionShader.UnUse();
-        });
+        }
 
         LastPostProcessBuffer = PostProcessBuffer2;
 
@@ -580,7 +578,7 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null) return;
         gl.Disable(EnableCap.DepthTest);
-        PostProcessBuffer2.Render(() =>
+        using(PostProcessBuffer2.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
             BloomPreShader.Use();
@@ -598,7 +596,7 @@ public class DeferredSceneRenderer : IRenderer
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
             BloomPreShader.UnUse();
-        });
+        }
 
         RenderBuffer[] buffer = new RenderBuffer[2] {
             PostProcessBuffer3,
@@ -607,7 +605,7 @@ public class DeferredSceneRenderer : IRenderer
         for (int i = 0; i < 2; i++)
         {
             int next = i == 1 ? 0 : 1;
-            buffer[i].Render(() =>
+            using(buffer[i].Begin())
             {
                 gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
                 BloomShader.Use();
@@ -626,9 +624,9 @@ public class DeferredSceneRenderer : IRenderer
                 gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
                 gl.ActiveTexture(GLEnum.Texture0);
                 BloomShader.UnUse();
-            });
+            }
         }
-        PostProcessBuffer1.Render(() =>
+        using (PostProcessBuffer1.Begin()) 
         {
             gl.Enable(EnableCap.Blend);
             gl.BlendEquation(GLEnum.FuncAdd);
@@ -648,8 +646,7 @@ public class DeferredSceneRenderer : IRenderer
             gl.ActiveTexture(GLEnum.Texture0);
             RenderToCamera.UnUse();
 
-        });
-
+        }
         LastPostProcessBuffer = PostProcessBuffer1;
 
     }

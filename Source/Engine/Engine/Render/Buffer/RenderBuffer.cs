@@ -8,7 +8,7 @@ using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Render.Buffer;
 
-public class RenderBuffer
+public class RenderBuffer : IDisposable
 {
     public int BufferWidth { private set; get; }
     public int BufferHeight { private set; get; }
@@ -105,6 +105,13 @@ public class RenderBuffer
         gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0 + index, GLEnum.Texture2D, GBufferIds[index], 0);
     }
 
+    public RenderBuffer Begin()
+    {
+        gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
+        return this;
+    }
+
+
     ~RenderBuffer()
     {
         foreach (var id in GBufferIds)
@@ -128,6 +135,11 @@ public class RenderBuffer
     {
         gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
         RenderAction();
+        gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+    }
+
+    public void Dispose()
+    {
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
     }
 }

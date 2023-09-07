@@ -30,13 +30,15 @@ void main()
         discard;
     if (TextureNormal == vec3(0, 0, 0))
         TextureNormal = vec3(0.5, 0.5, 1); 
-	TextureNormal = normalize(TextureNormal * 2.0 - 1.0);  
+	TextureNormal = normalize(TextureNormal * 2.0 - 1.0); 
+    
+    if (gl_FrontFacing == false)
+        TextureNormal = vec3(1, 1, -1) * TextureNormal;
+
 	TextureNormal = normalize(TBNMat * TextureNormal);
     
     BufferCustom = vec4(0.0, 0.0, 0.0, 0.0);
     BufferColor = texture(Diffuse, NewTexCoord).rgb;
-    if (gl_FrontFacing == false)
-        TextureNormal = -1.0f * TextureNormal;
     BufferNormal =  (TextureNormal + 1.0f) / 2.0f;
 }
 
