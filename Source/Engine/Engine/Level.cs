@@ -87,8 +87,8 @@ public partial class Level
         var CameraActor = new Actor(this);
         CameraComponent = new CameraComponent(RobotActor);
         CameraActor.RootComponent = CameraComponent;
-        CameraComponent.NearPlaneDistance = 1;
-        CameraComponent.FarPlaneDistance =  100f;
+        CameraComponent.NearPlaneDistance = 10;
+        CameraComponent.FarPlaneDistance =  1000f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
         CameraComponent.RelativeLocation += (new Vector3(0, 5f, 2) - CameraComponent.ForwardVector * 10);
         CameraComponent.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
@@ -154,26 +154,26 @@ public partial class Level
 
     public void InitGrass()
     {
-        int grassLen = 100;
+        int grassLen = 1;
         int len = (int)Math.Sqrt(grassLen);
         for (int i = 0; i < grassLen; i++)
         {
             var GrassActor = new Actor(this);
             var GrassComponent = new StaticMeshComponent(GrassActor);
-            GrassComponent.StaticMesh = new StaticMesh("/StaticMesh/grass.glb");
+            GrassComponent.StaticMesh = new StaticMesh("/StaticMesh/flower.glb");
             GrassActor.RootComponent = GrassComponent;
-            GrassComponent.WorldLocation = new Vector3((i / len - len / 2) * 1.5f, -3, (i % len - len /2 ) * 1.5f);
+            GrassComponent.WorldLocation = new Vector3((i / len - len / 2) * 5f, -3, (i % len - len /2 ) * 5f);
         }
     }
 
 
     public void InitHISM()
     {
-        int grassLen = 10000;
+        int grassLen = 100000;
         int len = (int)Math.Sqrt(grassLen);
         var hismactor = new Actor(this);
         var hismcomponent = new HierarchicalInstancedStaticMeshComponent(hismactor);
-        hismcomponent.StaticMesh = new StaticMesh("/StaticMesh/grass.glb");
+        hismcomponent.StaticMesh = new StaticMesh("/StaticMesh/flower.glb");
 
         hismcomponent.WorldLocation = new Vector3(0, 0, 0);
         for (int i = 0; i < grassLen; i++)
@@ -181,7 +181,7 @@ public partial class Level
             var GrassComponent = new SubHierarchicalInstancedStaticMeshComponent(hismactor);
             hismcomponent.AddComponent(GrassComponent);
             GrassComponent.ParentComponent = hismcomponent;
-            GrassComponent.RelativeLocation = new Vector3((i / len - len / 2) * 1.5f, -3, (i % len - len / 2) * 1.5f);
+            GrassComponent.RelativeLocation = new Vector3((i / len - len / 2) * 15f, -3, (i % len - len / 2) * 15f);
         }
 
         hismcomponent.RefreshTree();

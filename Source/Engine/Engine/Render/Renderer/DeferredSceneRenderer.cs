@@ -1,11 +1,6 @@
 ﻿using Spark.Engine.Assets;
 using Spark.Engine.Components;
-using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Silk.NET.OpenGL;
 using static Spark.Engine.StaticEngine;
 using Shader = Spark.Engine.Assets.Shader;
@@ -13,6 +8,7 @@ using static Spark.Engine.Components.CameraComponent;
 using System.Numerics;
 using Spark.Util;
 using Spark.Engine.Render.Buffer;
+using SharpGLTF.Schema2;
 
 namespace Spark.Engine.Render.Renderer;
 
@@ -38,7 +34,7 @@ public class DeferredSceneRenderer : IRenderer
     RenderBuffer PostProcessBuffer1;
     RenderBuffer PostProcessBuffer2;
     RenderBuffer PostProcessBuffer3;
-
+    RenderBuffer AOBuffer;
     RenderBuffer SceneBackFaceDepthBuffer;
     World World { get; set; }
 
@@ -67,7 +63,7 @@ public class DeferredSceneRenderer : IRenderer
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
-
+        AOBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
         InitRender();
     }
@@ -149,8 +145,8 @@ public class DeferredSceneRenderer : IRenderer
         // 生成GBuffer
         BasePass(DeltaTime);
         gl.PopDebugGroup();
-
-        using(PostProcessBuffer1.Begin())
+        AOPass(DeltaTime);
+        using (PostProcessBuffer1.Begin())
         {
             gl.PushDebugGroup("Lighting Pass");
             // 延迟光照
@@ -228,6 +224,14 @@ public class DeferredSceneRenderer : IRenderer
         World.CurrentLevel.CurrentSkybox?.RenderSkybox(DeltaTime);
         SkyboxShader.UnUse();
 
+    }
+
+    private void AOPass(double deltaTime)
+    {
+        using(AOBuffer.Begin())
+        {
+
+        }
     }
     private void DepthPass(double DeltaTime)
     {
@@ -375,7 +379,7 @@ public class DeferredSceneRenderer : IRenderer
                 foreach (var hism in World.CurrentLevel.HISMComponents)
                 {
                     hism.CameraCulling(CurrentCameraComponent);
-                    hism.RenderHISM(DeltaTime);
+                    hism.RenderHISM(CurrentCameraComponent, DeltaTime);
                 }
                 gl.PopDebugGroup();
             }

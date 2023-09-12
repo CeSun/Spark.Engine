@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using Silk.NET.Maths;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 
@@ -278,7 +279,8 @@ public partial class PrimitiveComponent
             _WorldTransform = _RelativeTransform * ParentComponent._WorldTransform;
         }
         // 计算法线矩阵
-        _NormalTransform = Matrix4x4.CreateFromQuaternion(_WorldTransform.Rotation());
+        Matrix4x4.Invert(_WorldTransform, out _NormalTransform);
+        _NormalTransform = Matrix4x4.Transpose(_NormalTransform);
 
         _WorldLocation = _WorldTransform.Translation;
         _WorldRotation = _WorldTransform.Rotation();

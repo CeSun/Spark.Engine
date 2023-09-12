@@ -18,7 +18,6 @@ public class SpotLightComponent : LightComponent
         ShadowMapSize = new Point(1920, 1920);
         InitShadowMap();
     }
-
     public float Constant;
 
     public float Linear;

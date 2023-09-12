@@ -39,6 +39,18 @@ public struct Box :
     private Vector3 _MaxPoint;
     public Vector3 MiddlePoint { get; private set; }
 
+    public float GetDistance(Vector3 location)
+    {
+        float min = (MinPoint - location).Length();
+
+        for(int i = 1; i < 6; i ++)
+        {
+            float tmp = (this[i] - location).Length();
+            if (tmp < min)
+                min = tmp;
+        }
+        return min;
+    }
     public Vector3 this[int index]
     {
         get

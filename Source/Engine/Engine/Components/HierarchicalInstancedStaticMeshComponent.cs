@@ -6,6 +6,7 @@ using Spark.Engine.Physics;
 using System;
 using System.Diagnostics;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
@@ -201,36 +202,41 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         {
             gl.BufferData(GLEnum.ArrayBuffer, (nuint)(sizeof(Matrix4x4) * WorldTransforms.Count), p, BufferUsageARB.StaticDraw);
         }
-        gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes.FirstOrDefault());
-        gl.EnableVertexAttribArray(6);
-        gl.VertexAttribPointer(6, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)0);
-        gl.EnableVertexAttribArray(7);
-        gl.VertexAttribPointer(7, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)sizeof(Vector4));
-        gl.EnableVertexAttribArray(8);
-        gl.VertexAttribPointer(8, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 2));
-        gl.EnableVertexAttribArray(9);
-        gl.VertexAttribPointer(9, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 3));
 
-        gl.EnableVertexAttribArray(10);
-        gl.VertexAttribPointer(10, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 4));
-        gl.EnableVertexAttribArray(11);
-        gl.VertexAttribPointer(11, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 5));
-        gl.EnableVertexAttribArray(12);
-        gl.VertexAttribPointer(12, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 6));
-        gl.EnableVertexAttribArray(13);
-        gl.VertexAttribPointer(13, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 7));
-        
+        foreach(var vao in StaticMesh.VertexArrayObjectIndexes)
+        {
+            gl.BindVertexArray(vao);
+            gl.EnableVertexAttribArray(6);
+            gl.VertexAttribPointer(6, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)0);
+            gl.EnableVertexAttribArray(7);
+            gl.VertexAttribPointer(7, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)sizeof(Vector4));
+            gl.EnableVertexAttribArray(8);
+            gl.VertexAttribPointer(8, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 2));
+            gl.EnableVertexAttribArray(9);
+            gl.VertexAttribPointer(9, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 3));
+
+            gl.EnableVertexAttribArray(10);
+            gl.VertexAttribPointer(10, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 4));
+            gl.EnableVertexAttribArray(11);
+            gl.VertexAttribPointer(11, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 5));
+            gl.EnableVertexAttribArray(12);
+            gl.VertexAttribPointer(12, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 6));
+            gl.EnableVertexAttribArray(13);
+            gl.VertexAttribPointer(13, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 7));
 
 
-        gl.VertexAttribDivisor(6, 1);
-        gl.VertexAttribDivisor(7, 1);
-        gl.VertexAttribDivisor(8, 1);
-        gl.VertexAttribDivisor(9, 1);
 
-        gl.VertexAttribDivisor(10, 1);
-        gl.VertexAttribDivisor(11, 1);
-        gl.VertexAttribDivisor(12, 1);
-        gl.VertexAttribDivisor(13, 1);
+            gl.VertexAttribDivisor(6, 1);
+            gl.VertexAttribDivisor(7, 1);
+            gl.VertexAttribDivisor(8, 1);
+            gl.VertexAttribDivisor(9, 1);
+
+            gl.VertexAttribDivisor(10, 1);
+            gl.VertexAttribDivisor(11, 1);
+            gl.VertexAttribDivisor(12, 1);
+            gl.VertexAttribDivisor(13, 1);
+        }
+       
         gl.BindVertexArray(0);
         gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
     }
@@ -264,22 +270,29 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
             TestBox(Planes, NodeList[i]);
         }
     }
-    public unsafe void RenderHISM(double DeltaTime)
+    public unsafe void RenderHISM(CameraComponent cameraComponent, double DeltaTime)
     {
         if (StaticMesh == null)
             return;
+        var distance = cameraComponent.FarPlaneDistance - cameraComponent.NearPlaneDistance;
+        var d = (int)(distance / StaticMesh.VertexArrayObjectIndexes.Count);
 
-        for (int index = 0; index < StaticMesh.VertexArrayObjectIndexes.Count; index++)
-        {
 
-            StaticMesh.Materials[index].Use();
-            gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[index]);
             foreach (var node in RenderList)
             {
-                gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
+                var Len = (int)node.Box.GetDistance(cameraComponent.WorldLocation);
+                var level = Len / d;
+                if (level >= StaticMesh.VertexArrayObjectIndexes.Count)
+                {
+                    level = StaticMesh.VertexArrayObjectIndexes.Count - 1;
+                }
+                StaticMesh.Materials[level].Use();
+                gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[level]);
+                gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.IndicesList[level].Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
+
+
             }
             gl.BindVertexArray(0);
-        }
     }
 
 
