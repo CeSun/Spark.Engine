@@ -531,8 +531,8 @@ public class DeferredSceneRenderer : IRenderer
             DirectionalLightingShader.SetMatrix("VPInvert", VPInvert);
 
             var LightLocation = CurrentCameraComponent.RelativeLocation - DirectionalLight.ForwardVector * 20;
-            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
-            var Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
+            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation - 1000 * DirectionalLight.ForwardVector, DirectionalLight.UpVector);
+            var Projection = Matrix4x4.CreateOrthographic(1000, 1000, 1.0f, 1000f);
 
             var WorldToLight = View * Projection;
             DirectionalLightingShader.SetMatrix("WorldToLight", WorldToLight);

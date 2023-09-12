@@ -43,8 +43,6 @@ public partial class Level
         {
             if (CameraComponent == null)
                 return;
-            if (RobotActor == null)
-                return;
             var moveable = position - LastPosition;
             LastPosition = position;
 
@@ -69,10 +67,10 @@ public partial class Level
     public void BeginPlay()
     {
         // InitGrass();
-        InitHISM();
+        Test();
         MainMouse.MouseMove += OnMouseMove;
         MainMouse.MouseDown += OnMouseKeyDown;
-
+        /*
         // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this);
         var RobotMeshComp = new StaticMeshComponent(RobotActor);
@@ -82,10 +80,10 @@ public partial class Level
         RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
         RobotMeshComp.WorldLocation -= RobotMeshComp.UpVector * 2;
         this.RobotActor = RobotActor;
-
+        */
         // 相机actor
         var CameraActor = new Actor(this);
-        CameraComponent = new CameraComponent(RobotActor);
+        CameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = CameraComponent;
         CameraComponent.NearPlaneDistance = 10;
         CameraComponent.FarPlaneDistance =  1000f;
@@ -95,10 +93,10 @@ public partial class Level
 
         // 加载个cube作为地板
         var CubeActor = new Actor(this);
-        var CubeMeshComp = new StaticMeshComponent(RobotActor);
+        var CubeMeshComp = new StaticMeshComponent(CubeActor);
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeActor.RootComponent = CubeMeshComp;
-        CubeMeshComp.WorldScale = new Vector3(30, 1, 30);
+        CubeMeshComp.WorldScale = new Vector3(1000, 1, 1000);
         CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4F;
         // CubeMeshComp.StaticMesh.Materials[0].IsReflection = 1;
         var skybox = new SkyboxComponent(CubeActor);
@@ -167,25 +165,42 @@ public partial class Level
     }
 
 
-    public void InitHISM()
+    public async void InitHISM(string model, int num, Vector2 area, float scale = 1)
     {
-        int grassLen = 100000;
+        int grassLen = num;
         int len = (int)Math.Sqrt(grassLen);
         var hismactor = new Actor(this);
         var hismcomponent = new HierarchicalInstancedStaticMeshComponent(hismactor);
-        hismcomponent.StaticMesh = new StaticMesh("/StaticMesh/flower.glb");
+        hismcomponent.StaticMesh = new StaticMesh(model);
 
         hismcomponent.WorldLocation = new Vector3(0, 0, 0);
         for (int i = 0; i < grassLen; i++)
         {
+            if (i % 10 == 0)
+                await Task.Yield();
             var GrassComponent = new SubHierarchicalInstancedStaticMeshComponent(hismactor);
             hismcomponent.AddComponent(GrassComponent);
             GrassComponent.ParentComponent = hismcomponent;
-            GrassComponent.RelativeLocation = new Vector3((i / len - len / 2) * 15f, -3, (i % len - len / 2) * 15f);
+            var x = Random.Shared.Next((int)(area.X), (int)(area.Y));
+            var y = Random.Shared.Next((int)(area.X), (int)(area.Y));
+            var yaw = Random.Shared.Next(0, 180);
+            GrassComponent.RelativeRotation = Quaternion.CreateFromYawPitchRoll(yaw, 0, 0);
+            GrassComponent.RelativeLocation = new Vector3(x, -3, y);
+            GrassComponent.RelativeScale = new Vector3(scale, scale, scale);
         }
 
         hismcomponent.RefreshTree();
 
+    }
+
+
+
+    async void Test()
+    {
+        int num = 100000;
+        int len = (int)Math.Sqrt(num);
+        InitHISM("/StaticMesh/flower.glb", 10000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        InitHISM("/StaticMesh/grass.glb", 50000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
     }
     public void Destory() 
     { 

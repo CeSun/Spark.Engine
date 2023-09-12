@@ -33,7 +33,7 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         }
     }
     public StaticMesh? _StaticMesh;
-
+    public bool CanRender = false;
     public int NodeLength = 0;
     public int NodeMinLength = 1000;
     List<ClustreeNode> NodeList { get; set; } = new List<ClustreeNode>();
@@ -66,13 +66,13 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         base.OnBeginGame();
     }
 
-    public void RefreshTree()
+    public async void RefreshTree()
     {
         var sw = Stopwatch.StartNew();
 
-        BuildTree();
+        await Task.Run(BuildTree);
         BuildInstances();
-
+        CanRender = true;
         sw.Stop();
         Console.WriteLine("build Tree: " + sw.ElapsedMilliseconds);
     }
@@ -145,7 +145,7 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
 
     private int SplitNode(int left, int right)
     {
-        var Nodes = CollectionsMarshal.AsSpan(NodeList).Slice(left, right - left);
+        var Nodes = CollectionsMarshal.AsSpan(NodeList).Slice(left, right - left + 1);
         var IsBoxInit = false;
         var box = new Box();
         foreach(var node in Nodes)
@@ -272,6 +272,8 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
     }
     public unsafe void RenderHISM(CameraComponent cameraComponent, double DeltaTime)
     {
+        if (CanRender == false)
+            return;
         if (StaticMesh == null)
             return;
         var distance = cameraComponent.FarPlaneDistance - cameraComponent.NearPlaneDistance;

@@ -39,7 +39,7 @@ public class LightComponent : PrimitiveComponent
         }
     }
 
-    float _AmbientStength = 0.1f;
+    float _AmbientStength = 0.3f;
 
     public Color Color
     {
