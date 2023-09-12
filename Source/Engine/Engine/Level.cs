@@ -16,17 +16,27 @@ using Silk.NET.Input;
 using static Spark.Engine.StaticEngine;
 using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Manager;
+using Jitter.Collision;
+using PhyWorld = Jitter.World;
+using Jitter.Collision.Shapes;
+using Jitter.Dynamics;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace Spark.Engine;
 
 public partial class Level
 {
-
+    PhyWorld PhyWorld;
+    CollisionSystem CollisionSystem;
     public World CurrentWorld { private set; get; }
     public Level(World world)
     {
         CurrentWorld = world;
         UpdateManager = new UpdateManager();
+        CollisionSystem = new CollisionSystemSAP();
+        PhyWorld = new PhyWorld(CollisionSystem);
+
     }
     public UpdateManager UpdateManager { private set; get; }
 
@@ -64,10 +74,13 @@ public partial class Level
             LastPosition = mouse.Position;
         }
     }
+
+    public Actor MinCube;
+    public RigidBody MinCubeRigidBody;
     public void BeginPlay()
     {
         // InitGrass();
-        Test();
+        //Test();
         MainMouse.MouseMove += OnMouseMove;
         MainMouse.MouseDown += OnMouseKeyDown;
         /*
@@ -88,7 +101,7 @@ public partial class Level
         CameraComponent.NearPlaneDistance = 10;
         CameraComponent.FarPlaneDistance =  1000f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
-        CameraComponent.RelativeLocation += (new Vector3(0, 5f, 2) - CameraComponent.ForwardVector * 10);
+        CameraComponent.RelativeLocation += (new Vector3(0, 10f, 2) - CameraComponent.ForwardVector * 10);
         CameraComponent.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
 
         // 加载个cube作为地板
@@ -96,12 +109,34 @@ public partial class Level
         var CubeMeshComp = new StaticMeshComponent(CubeActor);
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeActor.RootComponent = CubeMeshComp;
-        CubeMeshComp.WorldScale = new Vector3(1000, 1, 1000);
-        CubeMeshComp.WorldLocation -= CubeMeshComp.UpVector * 4F;
+        CubeMeshComp.RelativeScale = new Vector3(1000, 1, 1000);
         // CubeMeshComp.StaticMesh.Materials[0].IsReflection = 1;
         var skybox = new SkyboxComponent(CubeActor);
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
 
+        Shape shape = new BoxShape(2000, 2, 2000);
+        RigidBody body = new RigidBody(shape);
+        body.Position = new Jitter.LinearMath.JVector(CubeMeshComp.WorldLocation.X, CubeMeshComp.WorldLocation.Y, CubeMeshComp.WorldLocation.Z);
+        body.IsStatic = true;
+        PhyWorld.AddBody(body);
+
+
+        MinCube = new Actor(this);
+        var CubeMeshComp2 = new StaticMeshComponent(MinCube);
+        MinCube.RootComponent = CubeMeshComp2;
+        CubeMeshComp2.StaticMesh = CubeMeshComp.StaticMesh;
+        CubeMeshComp2.RelativeScale = new Vector3(1, 1, 1);
+        CubeMeshComp2.RelativeLocation += CubeMeshComp.UpVector * 20F;
+
+
+
+
+        Shape shape2 = new BoxShape(2, 2, 2);
+        MinCubeRigidBody = new RigidBody(shape2);
+        MinCubeRigidBody.Position = new Jitter.LinearMath.JVector(CubeMeshComp2.WorldLocation.X, CubeMeshComp2.WorldLocation.Y, CubeMeshComp2.WorldLocation.Z);
+        MinCubeRigidBody.IsStatic = false;
+
+        PhyWorld.AddBody(MinCubeRigidBody);
         /*
         // 时差贴图
 
@@ -199,8 +234,8 @@ public partial class Level
     {
         int num = 100000;
         int len = (int)Math.Sqrt(num);
-        InitHISM("/StaticMesh/flower.glb", 10000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
-        InitHISM("/StaticMesh/grass.glb", 50000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        InitHISM("/StaticMesh/flower.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        InitHISM("/StaticMesh/grass.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
     }
     public void Destory() 
     { 
@@ -208,6 +243,35 @@ public partial class Level
     float a = 0;
     public void Update(double DeltaTime)
     {
+        PhyWorld.Step((float)DeltaTime, false);
+
+
+        unsafe
+        {
+            var rotationM = new Matrix4x4
+            {
+                M11 = MinCubeRigidBody.Orientation.M11,
+                M12 = MinCubeRigidBody.Orientation.M12,
+                M13 = MinCubeRigidBody.Orientation.M13,
+                M14 = 0,
+                M21 = MinCubeRigidBody.Orientation.M21,
+                M22 = MinCubeRigidBody.Orientation.M22,
+                M23 = MinCubeRigidBody.Orientation.M23,
+                M24 = 0,
+                M31 = MinCubeRigidBody.Orientation.M31,
+                M32 = MinCubeRigidBody.Orientation.M32,
+                M33 = MinCubeRigidBody.Orientation.M33,
+                M34 = 0,
+                M41 = 0,
+                M42 = 0,
+                M43 = 0,
+                M44 = 1,
+            };
+
+            MinCube.WorldRotation = rotationM.Rotation();
+            MinCube.WorldLocation = new Vector3(MinCubeRigidBody.Position.X, MinCubeRigidBody.Position.Y, MinCubeRigidBody.Position.Z);
+        }
+
         CameraMove(DeltaTime);
         RobotMove(DeltaTime);
         ActorUpdate(DeltaTime);
