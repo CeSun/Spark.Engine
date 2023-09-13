@@ -182,7 +182,7 @@ public class DeferredSceneRenderer : IRenderer
                 BackFaceDepthShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 BackFaceDepthShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
             }
-            foreach (var component in World.CurrentLevel.PrimitiveComponents)
+            foreach (var component in World.CurrentLevel.PrimitiveComponents.ToList())
             {
                 if (component.IsDestoryed == false)
                 {
@@ -253,8 +253,10 @@ public class DeferredSceneRenderer : IRenderer
             gl.Clear(ClearBufferMask.DepthBufferBit);
             DLShadowMapShader.SetMatrix("ViewTransform", View);
             DLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
-            foreach (var component in World.CurrentLevel.PrimitiveComponents)
+            foreach (var component in World.CurrentLevel.PrimitiveComponents.ToList())
             {
+                if (component == null)
+                    continue;
                 if (component.IsDestoryed == false)
                 {
                     DLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
@@ -280,8 +282,10 @@ public class DeferredSceneRenderer : IRenderer
             SpotLightingShader.SetMatrix("ViewTransform", View);
             SpotLightingShader.SetMatrix("ProjectionTransform", Projection);
 
-            foreach (var component in World.CurrentLevel.PrimitiveComponents)
+            foreach (var component in World.CurrentLevel.PrimitiveComponents.ToList())
             {
+                if (component == null)
+                    continue;
                 if (component.IsDestoryed == false)
                 {
                     SpotLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
@@ -321,8 +325,10 @@ public class DeferredSceneRenderer : IRenderer
 
             PontLightShadowShader.SetVector3("LightLocation", PointLight.WorldLocation);
             PontLightShadowShader.SetFloat("FarPlan", 1000);
-            foreach (var component in World.CurrentLevel.PrimitiveComponents)
+            foreach (var component in World.CurrentLevel.PrimitiveComponents.ToList())
             {
+                if (component == null)
+                    continue;
                 if (component.IsDestoryed == false)
                 {
                     PontLightShadowShader.SetMatrix("ModelTransform", component.WorldTransform);
@@ -358,7 +364,7 @@ public class DeferredSceneRenderer : IRenderer
                 BaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 BaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 BaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-                foreach (var component in World.CurrentLevel.PrimitiveComponents)
+                foreach (var component in World.CurrentLevel.PrimitiveComponents.ToList())
                 {
                     if (component.IsDestoryed == false)
                     {

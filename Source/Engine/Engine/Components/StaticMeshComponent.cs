@@ -85,7 +85,7 @@ public class StaticMeshComponent : PrimitiveComponent
         {
             base.WorldRotation = value;
             if (RigidBody != null)
-            {
+            { 
                 RigidBody.Orientation = new JMatrix
                 {
                     M11 = WorldTransform.M11,

@@ -98,6 +98,10 @@ public partial class Level
             {
                 NeedPrintFPS = true;
             }
+            if (MainKeyBoard.IsKeyPressed(Key.C))
+            {
+                CreateCubes();
+            }
         };
         /*
         // 定义一个actor和并挂载静态网格体组件
@@ -114,7 +118,7 @@ public partial class Level
         var CameraActor = new Actor(this);
         CameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = CameraComponent;
-        CameraComponent.NearPlaneDistance = 10;
+        CameraComponent.NearPlaneDistance = 1;
         CameraComponent.FarPlaneDistance =  1000f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
         CameraComponent.WorldLocation += (new Vector3(0, 20, 0) - CameraComponent.ForwardVector * 10);
@@ -129,21 +133,10 @@ public partial class Level
         CubeMeshComp.WorldScale = new Vector3(100, 1, 100);
         CubeMeshComp.WorldLocation = new Vector3(0, 0, 0);
 
+   
 
-        var CubeActor2 = new Actor(this);
-        var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
-        CubeActor2.RootComponent = CubeMeshComp2;
-        CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
-        CubeMeshComp2.IsStatic = false;
-        CubeMeshComp2.WorldScale = new Vector3(1, 1, 1);
-        CubeMeshComp2.WorldLocation = new Vector3(10, 50, 0);
-
-        Task.Delay(10000).ContinueWith((t, o) =>
-        {
-            CubeActor2.Destory();
-        }, null);
         /*
-        // 时差贴图
+        // 视差贴图
 
         var CubeActor2 = new Actor(this);
         var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
@@ -172,7 +165,7 @@ public partial class Level
         PointLight.RootComponent = PointLightComp;
         PointLightComp.Color = Color.White;
         PointLightComp.LightStrength =1f;
-        PointLightComp.WorldLocation += PointLightComp.UpVector * 10 - PointLightComp.RightVector * 2;
+        PointLightComp.WorldLocation += PointLightComp.UpVector * 50 - PointLightComp.RightVector * 2;
 
 
 
@@ -181,7 +174,7 @@ public partial class Level
         spotLight.RootComponent = SpotLightComponent;
         SpotLightComponent.Color = Color.Purple;
         SpotLightComponent.LightStrength = 1f;
-        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 10;
+        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 80;
         SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
 
         var SkyBoxActor = new Actor(this);
@@ -189,6 +182,25 @@ public partial class Level
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
     }
 
+
+    void CreateCubes()
+    {
+        var SM = new StaticMesh("/StaticMesh/WoodenCrate.glb");
+        for (int i = 0; i < 1; i++)
+        {
+
+            var CubeActor2 = new Actor(this);
+            var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
+            CubeActor2.RootComponent = CubeMeshComp2;
+            CubeMeshComp2.StaticMesh = SM;
+            CubeMeshComp2.IsStatic = false;
+            float Scale = (float)Random.Shared.NextDouble() ;
+            CubeMeshComp2.WorldScale = new Vector3(2F, 2F, 1F);
+            CubeMeshComp2.WorldRotation = Quaternion.CreateFromYawPitchRoll(Random.Shared.Next(0, 360), Random.Shared.Next(0, 360), Random.Shared.Next(0, 360));
+            CubeMeshComp2.WorldLocation = new Vector3(Random.Shared.Next(-10, 10), Random.Shared.Next(50, 60), 0);
+            temp.Add(CubeActor2);
+        }
+    }
 
     public void InitGrass()
     {
