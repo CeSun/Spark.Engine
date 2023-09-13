@@ -14,30 +14,11 @@ using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Components;
 
-public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
+public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshComponent
 {
-    public StaticMesh? StaticMesh 
-    {
-        get => _StaticMesh;
-        set
-        {
-            if (value == null)
-            {
-                _StaticMesh = null;
-                return;
-            }
-            if (_StaticMesh != value)
-            {
-                _StaticMesh = value;
-            }
-        }
-    }
-    public StaticMesh? _StaticMesh;
-    public bool CanRender = false;
     public int NodeLength = 0;
     public int NodeMinLength = 1000;
     List<ClustreeNode> NodeList { get; set; } = new List<ClustreeNode>();
-    List<PrimitiveComponent> PrimitiveComponents;
     public ClustreeNode Root = new ClustreeNode()
     {
         Box = new Box
@@ -51,22 +32,15 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
 
     public HierarchicalInstancedStaticMeshComponent(Actor actor) : base(actor)
     {
-        PrimitiveComponents = new List<PrimitiveComponent>();
     }
 
-    public void AddComponent(PrimitiveComponent primitivce)
-    {
-        if (primitivce == null)
-            return;
-        PrimitiveComponents.Add(primitivce);
-    }
-
+    
     protected override void OnBeginGame()
     {
         base.OnBeginGame();
     }
 
-    public async void RefreshTree()
+    public override async void Build()
     {
         var sw = Stopwatch.StartNew();
 
@@ -76,7 +50,7 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         sw.Stop();
         Console.WriteLine("build Tree: " + sw.ElapsedMilliseconds);
     }
-    public void BuildTree()
+    protected void BuildTree()
     {
 
         Split(0, PrimitiveComponents.Count - 1);
@@ -270,8 +244,9 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
             TestBox(Planes, NodeList[i]);
         }
     }
-    public unsafe void RenderHISM(CameraComponent cameraComponent, double DeltaTime)
+    public override unsafe void RenderHISM(CameraComponent cameraComponent, double DeltaTime)
     {
+        CameraCulling(cameraComponent);
         if (CanRender == false)
             return;
         if (StaticMesh == null)
@@ -280,21 +255,21 @@ public class HierarchicalInstancedStaticMeshComponent : PrimitiveComponent
         var d = (int)(distance / StaticMesh.VertexArrayObjectIndexes.Count);
 
 
-            foreach (var node in RenderList)
+        foreach (var node in RenderList)
+        {
+            var Len = (int)node.Box.GetDistance(cameraComponent.WorldLocation);
+            var level = Len / d;
+            if (level >= StaticMesh.VertexArrayObjectIndexes.Count)
             {
-                var Len = (int)node.Box.GetDistance(cameraComponent.WorldLocation);
-                var level = Len / d;
-                if (level >= StaticMesh.VertexArrayObjectIndexes.Count)
-                {
-                    level = StaticMesh.VertexArrayObjectIndexes.Count - 1;
-                }
-                StaticMesh.Materials[level].Use();
-                gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[level]);
-                gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.IndicesList[level].Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
-
-
+                level = StaticMesh.VertexArrayObjectIndexes.Count - 1;
             }
-            gl.BindVertexArray(0);
+            StaticMesh.Materials[level].Use();
+            gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[level]);
+            gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.IndicesList[level].Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
+
+
+        }
+        gl.BindVertexArray(0);
     }
 
 
@@ -316,9 +291,3 @@ public class ClustreeNode
     public bool IsLeftNode => FirstChild == -1 && LastChild == -1 && FirstInstance != -1 && LastInstance != -1;
 }
 
-public class SubHierarchicalInstancedStaticMeshComponent : PrimitiveComponent
-{
-    public SubHierarchicalInstancedStaticMeshComponent(Actor actor) : base(actor)
-    {
-    }
-}

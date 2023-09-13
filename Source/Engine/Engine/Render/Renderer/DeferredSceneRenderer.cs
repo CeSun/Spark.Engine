@@ -369,16 +369,15 @@ public class DeferredSceneRenderer : IRenderer
                 }
 
                 gl.Disable(GLEnum.CullFace);
-                gl.PushDebugGroup("HierarchicalInstancedStaticMesh Render");
+                gl.PushDebugGroup("InstancedStaticMesh Render");
                 HISMShader.SetInt("Diffuse", 0);
                 HISMShader.SetInt("Normal", 1);
                 HISMShader.SetInt("Parallax", 2);
                 HISMShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 HISMShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 HISMShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-                foreach (var hism in World.CurrentLevel.HISMComponents)
+                foreach (var hism in World.CurrentLevel.ISMComponents)
                 {
-                    hism.CameraCulling(CurrentCameraComponent);
                     hism.RenderHISM(CurrentCameraComponent, DeltaTime);
                 }
                 gl.PopDebugGroup();

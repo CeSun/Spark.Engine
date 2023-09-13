@@ -14,6 +14,7 @@ public partial class Engine : Singleton<Engine>
 {
     public RenderTarget? _GlobalRenderTarget;
     SingleThreadSyncContext SyncContext;
+
     public RenderTarget ViewportRenderTarget
     {
         get
@@ -61,6 +62,8 @@ public partial class Engine : Singleton<Engine>
         _view = (IView)objects["View"];
         _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y, true);
         Worlds.Add(new World());
+
+
     }
     public void Update(double DeltaTime)
     {

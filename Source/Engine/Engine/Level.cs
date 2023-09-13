@@ -18,10 +18,7 @@ using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Manager;
 using Jitter.Collision;
 using PhyWorld = Jitter.World;
-using Jitter.Collision.Shapes;
-using Jitter.Dynamics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
+using System.ComponentModel;
 
 namespace Spark.Engine;
 
@@ -75,13 +72,29 @@ public partial class Level
         }
     }
 
-    public Actor MinCube;
     public void BeginPlay()
     {
         // InitGrass();
-        //Test();
+        // Test();
         MainMouse.MouseMove += OnMouseMove;
         MainMouse.MouseDown += OnMouseKeyDown;
+
+        MainKeyBoard.KeyDown += (_, key, _) =>
+        {
+            if (MainKeyBoard.IsKeyPressed(Key.H) && !MainKeyBoard.IsKeyPressed(Key.D))
+            {
+                CreateHISM();
+            }
+            if (MainKeyBoard.IsKeyPressed(Key.I) && !MainKeyBoard.IsKeyPressed(Key.D))
+            {
+                CreateISM();
+            }
+
+            if (MainKeyBoard.IsKeyPressed(Key.K))
+            {
+                Delete();
+            }
+        };
         /*
         // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this);
@@ -188,7 +201,7 @@ public partial class Level
     }
 
 
-    public async void InitHISM(string model, int num, Vector2 area, float scale = 1)
+    public async Task<Actor> InitHISM(string model, int num, Vector2 area, float scale = 1)
     {
         int grassLen = num;
         int len = (int)Math.Sqrt(grassLen);
@@ -201,7 +214,7 @@ public partial class Level
         {
             if (i % 10 == 0)
                 await Task.Yield();
-            var GrassComponent = new SubHierarchicalInstancedStaticMeshComponent(hismactor);
+            var GrassComponent = new SubInstancedStaticMeshComponent(hismactor);
             hismcomponent.AddComponent(GrassComponent);
             GrassComponent.ParentComponent = hismcomponent;
             var x = Random.Shared.Next((int)(area.X), (int)(area.Y));
@@ -212,19 +225,80 @@ public partial class Level
             GrassComponent.WorldScale = new Vector3(scale, scale, scale);
         }
 
-        hismcomponent.RefreshTree();
+        hismcomponent.Build();
 
+
+        return hismactor;
     }
 
+    public async Task<Actor> InitISM(string model, int num, Vector2 area, float scale = 1)
+    {
+        int grassLen = num;
+        int len = (int)Math.Sqrt(grassLen);
+        var ismactor = new Actor(this);
+        var ismcomponent = new InstancedStaticMeshComponent(ismactor);
+        ismcomponent.StaticMesh = new StaticMesh(model);
 
+        ismcomponent.WorldLocation = new Vector3(0, 0, 0);
+        for (int i = 0; i < grassLen; i++)
+        {
+            if (i % 10 == 0)
+                await Task.Yield();
+            var GrassComponent = new SubInstancedStaticMeshComponent(ismactor);
+            ismcomponent.AddComponent(GrassComponent);
+            GrassComponent.ParentComponent = ismcomponent;
+            var x = Random.Shared.Next((int)(area.X), (int)(area.Y));
+            var y = Random.Shared.Next((int)(area.X), (int)(area.Y));
+            var yaw = Random.Shared.Next(0, 180);
+            GrassComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(yaw, 0, 0);
+            GrassComponent.WorldLocation = new Vector3(x, -3, y);
+            GrassComponent.WorldScale = new Vector3(scale, scale, scale);
+        }
 
-    async void Test()
+        ismcomponent.Build();
+        return ismactor;
+    }
+
+    List<Actor> temp = new List<Actor>();
+    async void CreateHISM()
     {
         int num = 100000;
         int len = (int)Math.Sqrt(num);
-        InitHISM("/StaticMesh/flower.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
-        InitHISM("/StaticMesh/grass.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        var task1 = InitHISM("/StaticMesh/flower.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        var task2 = InitHISM("/StaticMesh/grass.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+
+        await Task.WhenAll(task1, task2);
+
+        temp.Add(task1.Result);
+        temp.Add(task2.Result);
     }
+    async void CreateISM()
+    {
+        int num = 100000;
+        int len = (int)Math.Sqrt(num);
+        var task1 = InitISM("/StaticMesh/flower.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        var task2 = InitISM("/StaticMesh/grass.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+
+        await Task.WhenAll(task1, task2);
+        temp.Add(task1.Result);
+        temp.Add(task2.Result);
+    }
+
+
+    void Delete()
+    {
+        foreach(var actor in temp)
+        {
+            actor.Destory();
+        }
+        temp.Clear();
+    }
+    public void ImGUIUpdate()
+    {
+        
+
+    }
+
     public void Destory() 
     { 
     }
@@ -298,7 +372,8 @@ public partial class Level
 
     public void Render(double DeltaTime)
     {
-       
+        ImGUIUpdate();
+
         foreach (var camera in CameraComponents)
         {
             camera.RenderScene(DeltaTime);
@@ -358,14 +433,14 @@ public partial class Level
     private List<DirectionLightComponent> _DirectionLightComponents = new List<DirectionLightComponent>();
     private List<PointLightComponent> _PointLightComponents = new List<PointLightComponent>();
     private List<SpotLightComponent> _SpotLightComponents = new List<SpotLightComponent>();
-    private List<HierarchicalInstancedStaticMeshComponent> _HISMComponents = new List<HierarchicalInstancedStaticMeshComponent>();
+    private List<InstancedStaticMeshComponent> _ISMComponents = new List<InstancedStaticMeshComponent>();
 
     public IReadOnlyList<CameraComponent> CameraComponents => _CameraComponents;
     public IReadOnlyList<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
     public IReadOnlyList<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
     public IReadOnlyList<PointLightComponent> PointLightComponents => _PointLightComponents;
     public IReadOnlyList<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
-    public IReadOnlyList<HierarchicalInstancedStaticMeshComponent> HISMComponents => _HISMComponents;
+    public IReadOnlyList<InstancedStaticMeshComponent> ISMComponents => _ISMComponents;
 
     public SkyboxComponent?  CurrentSkybox { get; private set; }
     public void RegistComponent(PrimitiveComponent component)
@@ -374,7 +449,7 @@ public partial class Level
         {
             return;
         }
-        if (component is SubHierarchicalInstancedStaticMeshComponent == false)
+        if (component is SubInstancedStaticMeshComponent == false)
             _PrimitiveComponents.Add(component);
         if (component is CameraComponent cameraComponent)
         {
@@ -405,11 +480,11 @@ public partial class Level
                 _SpotLightComponents.Add(spotLightComponent);
             }
         }
-        else if (component is HierarchicalInstancedStaticMeshComponent hierarchicalInstancedStaticMeshComponent)
+        else if (component is InstancedStaticMeshComponent InstancedStaticMeshComponent)
         {
-            if (!_HISMComponents.Contains(hierarchicalInstancedStaticMeshComponent))
+            if (!_ISMComponents.Contains(InstancedStaticMeshComponent))
             {
-                _HISMComponents.Add(hierarchicalInstancedStaticMeshComponent);  
+                _ISMComponents.Add(InstancedStaticMeshComponent);  
             }
         }
 
@@ -431,7 +506,7 @@ public partial class Level
         {
             return;
         }
-        if (component is SubHierarchicalInstancedStaticMeshComponent == false)
+        if (component is SubInstancedStaticMeshComponent == false)
             _PrimitiveComponents.Remove(component);
         if (component is CameraComponent cameraComponent)
         {
@@ -459,11 +534,11 @@ public partial class Level
                 _SpotLightComponents.Remove(spotLightComponent);
             }
         }
-        else if (component is HierarchicalInstancedStaticMeshComponent hierarchicalInstancedStaticMeshComponent) 
+        else if (component is InstancedStaticMeshComponent InstancedStaticMeshComponent) 
         {
-            if (_HISMComponents.Contains(hierarchicalInstancedStaticMeshComponent))
+            if (_ISMComponents.Contains(InstancedStaticMeshComponent))
             {
-                _HISMComponents.Remove(hierarchicalInstancedStaticMeshComponent);
+                _ISMComponents.Remove(InstancedStaticMeshComponent);
             }
         }
         if (component is SkyboxComponent && CurrentSkybox == component)
