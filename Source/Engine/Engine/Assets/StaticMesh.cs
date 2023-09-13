@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 using Silk.NET.OpenGL;
 using static Spark.Engine.StaticEngine;
 using Spark.Engine.Physics;
+using Jitter.Collision.Shapes;
+using Jitter.LinearMath;
+using Jitter.Dynamics;
 
 namespace Spark.Engine.Assets;
 
@@ -18,11 +21,12 @@ public class StaticMesh : Asset
     List<List<StaticMeshVertex>> Meshes = new List<List<StaticMeshVertex>>();
     List<List<uint>> _IndicesList = new List<List<uint>>();
     public List<Material> Materials = new List<Material>();
-
+    List<JVector> ConvexHullSourceData = new List<JVector>();
     List<uint> _VertexArrayObjectIndexes = new List<uint>();
     List<uint> VertexBufferObjectIndexes = new List<uint>();
     List<uint> _ElementBufferObjectIndexes = new List<uint>();
 
+    public ConvexHullShape? Shape;
     public IReadOnlyList<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
     public IReadOnlyList<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
     public IReadOnlyList<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
@@ -41,8 +45,27 @@ public class StaticMesh : Asset
         IsValid = true;
         IsLoaded = true;
         InitRender();
+        InitPhysics();
     }
 
+    protected virtual void InitPhysics()
+    {
+        List<JVector> points = new List<JVector>();
+        foreach (var Mesh in Meshes)
+        {
+            foreach (var vertex in Mesh)
+            {
+                points.Add(new JVector(vertex.Location.X, vertex.Location.Y, vertex.Location.Z));
+            }
+        }
+        var indexes = JConvexHull.Build(points, JConvexHull.Approximation.Level1);
+
+        foreach(var i in indexes)
+        {
+            ConvexHullSourceData.Add(points[i]);
+        }
+        Shape = new ConvexHullShape(ConvexHullSourceData);
+    }
     protected override void LoadAsset()
     {
         using var sr = FileSystem.GetStream("Content" + Path);
@@ -161,6 +184,8 @@ public class StaticMesh : Asset
                 Box += box;
             }
         }
+
+        InitPhysics();
     }
 
     private void InitTBN()
@@ -290,15 +315,15 @@ public class StaticMesh : Asset
     {
         foreach(var vao in VertexArrayObjectIndexes)
         {
-            gl.DeleteVertexArray(vao);
+            // gl.DeleteVertexArray(vao);
         }
         foreach(var vbo in VertexBufferObjectIndexes)
         {
-            gl.DeleteBuffer(vbo);
+            //gl.DeleteBuffer(vbo);
         }
         foreach (var ebo in _ElementBufferObjectIndexes)
         {
-            gl.DeleteBuffer(ebo);
+            //gl.DeleteBuffer(ebo);
         }
     }
 }

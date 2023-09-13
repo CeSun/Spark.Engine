@@ -57,7 +57,7 @@ public partial class Actor
     public void Destory()
     {
         OnEndPlay();
-        foreach (var component in PrimitiveComponents)
+        foreach (var component in PrimitiveComponents.ToList())
         {
             UnregistComponent(component);
         }
