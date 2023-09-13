@@ -71,7 +71,7 @@ public partial class Level
             LastPosition = mouse.Position;
         }
     }
-
+    bool NeedPrintFPS = false;
     public void BeginPlay()
     {
         // InitGrass();
@@ -93,6 +93,10 @@ public partial class Level
             if (MainKeyBoard.IsKeyPressed(Key.K))
             {
                 Delete();
+            }
+            if (MainKeyBoard.IsKeyPressed(Key.F))
+            {
+                NeedPrintFPS = true;
             }
         };
         /*
@@ -262,10 +266,13 @@ public partial class Level
     List<Actor> temp = new List<Actor>();
     async void CreateHISM()
     {
-        int num = 100000;
-        int len = (int)Math.Sqrt(num);
-        var task1 = InitHISM("/StaticMesh/flower.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
-        var task2 = InitHISM("/StaticMesh/grass.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        await Console.Out.WriteAsync("[HISM]请输入实例数量:");
+        var str = await Console.In.ReadLineAsync();
+        int num = int.Parse(str);
+        await Console.Out.WriteLineAsync("[HISM]正在生成:" + num);
+        int len = (int)Math.Sqrt(100000);
+        var task1 = InitHISM("/StaticMesh/flower.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        var task2 = InitHISM("/StaticMesh/grass.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
 
         await Task.WhenAll(task1, task2);
 
@@ -274,10 +281,13 @@ public partial class Level
     }
     async void CreateISM()
     {
-        int num = 100000;
-        int len = (int)Math.Sqrt(num);
-        var task1 = InitISM("/StaticMesh/flower.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
-        var task2 = InitISM("/StaticMesh/grass.glb", 100000, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        await Console.Out.WriteAsync("[ISM]请输入实例数量:");
+        var str = await Console.In.ReadLineAsync();
+        int num = int.Parse(str);
+        await Console.Out.WriteLineAsync("[ISM]正在生成:" + num);
+        int len = (int)Math.Sqrt(100000);
+        var task1 = InitISM("/StaticMesh/flower.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
+        var task2 = InitISM("/StaticMesh/grass.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
 
         await Task.WhenAll(task1, task2);
         temp.Add(task1.Result);
@@ -292,11 +302,6 @@ public partial class Level
             actor.Destory();
         }
         temp.Clear();
-    }
-    public void ImGUIUpdate()
-    {
-        
-
     }
 
     public void Destory() 
@@ -372,7 +377,11 @@ public partial class Level
 
     public void Render(double DeltaTime)
     {
-        ImGUIUpdate();
+        if (NeedPrintFPS == true)
+        {
+            NeedPrintFPS = false;
+            Console.Out.WriteLineAsync((1 / DeltaTime) + "FPS");
+        }
 
         foreach (var camera in CameraComponents)
         {
