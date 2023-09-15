@@ -18,7 +18,9 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
 {
     public int NodeLength = 0;
     public int NodeMinLength = 1000;
+    uint Vbo = 0;
     List<ClustreeNode> NodeList { get; set; } = new List<ClustreeNode>();
+    List<ClustreeNode> AsyncNodeList { get; set; }  = new List<ClustreeNode> { };
     public ClustreeNode Root = new ClustreeNode()
     {
         Box = new Box
@@ -45,18 +47,30 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
         var sw = Stopwatch.StartNew();
 
         await Task.Run(BuildTree);
+        (NodeList, AsyncNodeList) = (AsyncNodeList, NodeList);
         BuildInstances();
         CanRender = true;
         sw.Stop();
         Console.WriteLine("build Tree: " + sw.ElapsedMilliseconds);
     }
+
+    public async void ReBuild()
+    {
+        Console.WriteLine("begin Rebuild");
+        var sw = Stopwatch.StartNew();
+        await Task.Run(BuildTree);
+        (NodeList, AsyncNodeList) = (AsyncNodeList, NodeList);
+        UpdateInstances();
+        sw.Stop();
+        Console.WriteLine("Rebuild ok:" + sw.ElapsedMilliseconds);
+    }
     protected void BuildTree()
     {
-
+        AsyncNodeList.Clear();
         Split(0, PrimitiveComponents.Count - 1);
-        NodeLength = NodeList.Count;
+        NodeLength = AsyncNodeList.Count;
         int left = 0;
-        int right = NodeList.Count - 1;
+        int right = AsyncNodeList.Count - 1;
         int length = 0;
         do
         {
@@ -64,7 +78,7 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
             left = right + 1;
             right = left + length;
         } while (length > 1);
-        var root = NodeList.LastOrDefault();
+        var root = AsyncNodeList.LastOrDefault();
         if (root !=  null)
         {
             Root = root;
@@ -96,7 +110,7 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
             Node.Box = box;
             Node.FirstInstance = left;
             Node.LastInstance = right;
-            NodeList.Add(Node);
+            AsyncNodeList.Add(Node);
             return;
         }
         int MainAxis = 0;
@@ -119,7 +133,7 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
 
     private int SplitNode(int left, int right)
     {
-        var Nodes = CollectionsMarshal.AsSpan(NodeList).Slice(left, right - left + 1);
+        var Nodes = CollectionsMarshal.AsSpan(AsyncNodeList).Slice(left, right - left + 1);
         var IsBoxInit = false;
         var box = new Box();
         foreach(var node in Nodes)
@@ -139,7 +153,7 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
             Node.Box = box;
             Node.FirstChild = left;
             Node.LastChild = right;
-            NodeList.Add(Node);
+            AsyncNodeList.Add(Node);
             return 1;
         }
         int MainAxis = 0;
@@ -159,58 +173,86 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
         return SplitNode(left, left + middle) + SplitNode(left + middle + 1, right); 
     }
 
-    public unsafe void BuildInstances()
+    public async void UpdateInstances()
+    {
+        List<Matrix4x4> WorldTransforms = new List<Matrix4x4>();
+        await Task.Run(() =>
+        {
+            foreach (var component in PrimitiveComponents.ToList())
+            {
+                WorldTransforms.Add(component.WorldTransform);
+                WorldTransforms.Add(component.NormalTransform);
+            }
+        });
+        gl.BindBuffer(GLEnum.ArrayBuffer, Vbo);
+       
+        unsafe
+        {
+            fixed (void* p = CollectionsMarshal.AsSpan(WorldTransforms))
+            {
+                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(sizeof(Matrix4x4) * WorldTransforms.Count), p, BufferUsageARB.DynamicDraw);
+            }
+        }
+        gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+    }
+    public async void BuildInstances()
     {
         if (StaticMesh == null)
             return;
-        List<Matrix4x4> WorldTransforms = new List<Matrix4x4> ();
-        foreach(var component in PrimitiveComponents)
+        List<Matrix4x4> WorldTransforms = new List<Matrix4x4>();
+        await Task.Run(() =>
         {
-            WorldTransforms.Add(component.WorldTransform);
-            WorldTransforms.Add(component.NormalTransform);
-        }
-        var vbo = gl.GenBuffer();
-        gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
-        
-        fixed(void* p = CollectionsMarshal.AsSpan(WorldTransforms))
+            foreach (var component in PrimitiveComponents.ToList())
+            {
+                WorldTransforms.Add(component.WorldTransform);
+                WorldTransforms.Add(component.NormalTransform);
+            }
+        });
+        Vbo = gl.GenBuffer();
+        gl.BindBuffer(GLEnum.ArrayBuffer, Vbo);
+        unsafe
         {
-            gl.BufferData(GLEnum.ArrayBuffer, (nuint)(sizeof(Matrix4x4) * WorldTransforms.Count), p, BufferUsageARB.StaticDraw);
+
+            fixed (void* p = CollectionsMarshal.AsSpan(WorldTransforms))
+            {
+                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(sizeof(Matrix4x4) * WorldTransforms.Count), p, BufferUsageARB.DynamicDraw);
+            }
+
+            foreach(var vao in StaticMesh.VertexArrayObjectIndexes)
+            {
+                gl.BindVertexArray(vao);
+                gl.EnableVertexAttribArray(6);
+                gl.VertexAttribPointer(6, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)0);
+                gl.EnableVertexAttribArray(7);
+                gl.VertexAttribPointer(7, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)sizeof(Vector4));
+                gl.EnableVertexAttribArray(8);
+                gl.VertexAttribPointer(8, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 2));
+                gl.EnableVertexAttribArray(9);
+                gl.VertexAttribPointer(9, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 3));
+
+                gl.EnableVertexAttribArray(10);
+                gl.VertexAttribPointer(10, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 4));
+                gl.EnableVertexAttribArray(11);
+                gl.VertexAttribPointer(11, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 5));
+                gl.EnableVertexAttribArray(12);
+                gl.VertexAttribPointer(12, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 6));
+                gl.EnableVertexAttribArray(13);
+                gl.VertexAttribPointer(13, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 7));
+
+
+
+                gl.VertexAttribDivisor(6, 1);
+                gl.VertexAttribDivisor(7, 1);
+                gl.VertexAttribDivisor(8, 1);
+                gl.VertexAttribDivisor(9, 1);
+
+                gl.VertexAttribDivisor(10, 1);
+                gl.VertexAttribDivisor(11, 1);
+                gl.VertexAttribDivisor(12, 1);
+                gl.VertexAttribDivisor(13, 1);
+            }
+
         }
-
-        foreach(var vao in StaticMesh.VertexArrayObjectIndexes)
-        {
-            gl.BindVertexArray(vao);
-            gl.EnableVertexAttribArray(6);
-            gl.VertexAttribPointer(6, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)0);
-            gl.EnableVertexAttribArray(7);
-            gl.VertexAttribPointer(7, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)sizeof(Vector4));
-            gl.EnableVertexAttribArray(8);
-            gl.VertexAttribPointer(8, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 2));
-            gl.EnableVertexAttribArray(9);
-            gl.VertexAttribPointer(9, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 3));
-
-            gl.EnableVertexAttribArray(10);
-            gl.VertexAttribPointer(10, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 4));
-            gl.EnableVertexAttribArray(11);
-            gl.VertexAttribPointer(11, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 5));
-            gl.EnableVertexAttribArray(12);
-            gl.VertexAttribPointer(12, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 6));
-            gl.EnableVertexAttribArray(13);
-            gl.VertexAttribPointer(13, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)(sizeof(Vector4) * 7));
-
-
-
-            gl.VertexAttribDivisor(6, 1);
-            gl.VertexAttribDivisor(7, 1);
-            gl.VertexAttribDivisor(8, 1);
-            gl.VertexAttribDivisor(9, 1);
-
-            gl.VertexAttribDivisor(10, 1);
-            gl.VertexAttribDivisor(11, 1);
-            gl.VertexAttribDivisor(12, 1);
-            gl.VertexAttribDivisor(13, 1);
-        }
-       
         gl.BindVertexArray(0);
         gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
     }
@@ -225,12 +267,13 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
     public void CameraCulling(CameraComponent camera)
     {
         RenderList.Clear();
-        TestBox(camera.GetPlanes(), Root);
+        if (NodeList.Count == 0)
+            return;
+        TestBox(NodeList, camera.GetPlanes(), Root);
 
     }
 
-
-    public void TestBox(Plane[] Planes, ClustreeNode Node)
+    public void TestBox(List<ClustreeNode> List ,Plane[] Planes, ClustreeNode Node)
     {
         if (Node.Box.TestPlanes(Planes) == false)
             return;
@@ -241,7 +284,7 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
         }
         for(var i = Node.FirstChild; i <= Node.LastChild; i ++ )
         {
-            TestBox(Planes, NodeList[i]);
+            TestBox(List, Planes, List[i]);
         }
     }
     public override unsafe void RenderHISM(CameraComponent cameraComponent, double DeltaTime)

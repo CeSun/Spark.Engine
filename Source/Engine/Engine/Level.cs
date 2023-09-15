@@ -81,26 +81,42 @@ public partial class Level
 
         MainKeyBoard.KeyDown += (_, key, _) =>
         {
-            if (MainKeyBoard.IsKeyPressed(Key.H) && !MainKeyBoard.IsKeyPressed(Key.D))
+            if (key == Key.H)
             {
                 CreateHISM();
             }
-            if (MainKeyBoard.IsKeyPressed(Key.I) && !MainKeyBoard.IsKeyPressed(Key.D))
+            if (key == Key.I)
             {
                 CreateISM();
             }
 
-            if (MainKeyBoard.IsKeyPressed(Key.K))
+            if (key == Key.K)
             {
                 Delete();
             }
-            if (MainKeyBoard.IsKeyPressed(Key.F))
+            if (key == Key.F)
             {
                 NeedPrintFPS = true;
             }
-            if (MainKeyBoard.IsKeyPressed(Key.C))
+            if (key == Key.C)
             {
                 CreateCubes();
+            }
+            if (key == Key.M)
+            {
+                foreach(var actor in temp)
+                {
+                    if (actor.RootComponent is HierarchicalInstancedStaticMeshComponent hism)
+                    {
+                        var x = Random.Shared.Next(-100, 100);
+                        var y = Random.Shared.Next(-100, 100);
+                        hism.AddComponent(new SubInstancedStaticMeshComponent(actor)
+                        {
+                            WorldLocation = new Vector3 (x, 40, y)
+                        });
+                        hism.ReBuild();
+                    }
+                }
             }
         };
         /*
@@ -186,7 +202,7 @@ public partial class Level
     void CreateCubes()
     {
         var SM = new StaticMesh("/StaticMesh/WoodenCrate.glb");
-        for (int i = 0; i < 1; i++)
+        for (int i = 0; i < 20; i++)
         {
 
             var CubeActor2 = new Actor(this);
@@ -195,10 +211,14 @@ public partial class Level
             CubeMeshComp2.StaticMesh = SM;
             CubeMeshComp2.IsStatic = false;
             float Scale = (float)Random.Shared.NextDouble() ;
-            CubeMeshComp2.WorldScale = new Vector3(2F, 2F, 1F);
+            CubeMeshComp2.WorldScale = new Vector3(1F, 1F, 1F);
             CubeMeshComp2.WorldRotation = Quaternion.CreateFromYawPitchRoll(Random.Shared.Next(0, 360), Random.Shared.Next(0, 360), Random.Shared.Next(0, 360));
             CubeMeshComp2.WorldLocation = new Vector3(Random.Shared.Next(-10, 10), Random.Shared.Next(50, 60), 0);
-            temp.Add(CubeActor2);
+            // temp.Add(CubeActor2);
+
+            Task.Delay(3000).Then(CubeActor2.Destory);
+
+            
         }
     }
 
@@ -223,13 +243,12 @@ public partial class Level
         int len = (int)Math.Sqrt(grassLen);
         var hismactor = new Actor(this);
         var hismcomponent = new HierarchicalInstancedStaticMeshComponent(hismactor);
+        hismactor.RootComponent = hismcomponent;
         hismcomponent.StaticMesh = new StaticMesh(model);
 
         hismcomponent.WorldLocation = new Vector3(0, 0, 0);
         for (int i = 0; i < grassLen; i++)
         {
-            if (i % 10 == 0)
-                await Task.Yield();
             var GrassComponent = new SubInstancedStaticMeshComponent(hismactor);
             hismcomponent.AddComponent(GrassComponent);
             GrassComponent.ParentComponent = hismcomponent;
@@ -283,6 +302,7 @@ public partial class Level
         int num = int.Parse(str);
         await Console.Out.WriteLineAsync("[HISM]正在生成:" + num);
         int len = (int)Math.Sqrt(100000);
+
         var task1 = InitHISM("/StaticMesh/flower.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
         var task2 = InitHISM("/StaticMesh/grass.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
 
