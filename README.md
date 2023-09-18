@@ -52,4 +52,4 @@ Spark引擎是一个使用Opnegl开发的开源游戏引擎(虽然也没法商�
 2. Silk.Net: 集图形，声音等高性能的低级api绑定库 [https://github.com/dotnet/Silk.NET](https://github.com/dotnet/Silk.NET)
 3. StbImageSharp: stb 图像库的绑定 [https://github.com/StbSharp/StbImageSharp](https://github.com/StbSharp/StbImageSharp)
 4. SharpGLTF: 解析gltf格式模型的库 [https://github.com/vpenades/SharpGLTF](https://github.com/vpenades/SharpGLTF)
-5. JitterPhysics: 纯C#的物理引擎 [GitHub - notgiven688/jitterphysics: A cross-platform, realtime physics engine for all .NET apps.](https://github.com/notgiven688/jitterphysics)
+5. JitterPhysics: 纯C#的物理引擎 [https://github.com/notgiven688/jitterphysics](https://github.com/notgiven688/jitterphysics)
