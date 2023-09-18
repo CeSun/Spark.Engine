@@ -26,7 +26,6 @@ public class StaticMesh : Asset
     List<uint> VertexBufferObjectIndexes = new List<uint>();
     List<uint> _ElementBufferObjectIndexes = new List<uint>();
 
-    public ConvexHullShape? Shape;
     public IReadOnlyList<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
     public IReadOnlyList<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
     public IReadOnlyList<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
@@ -64,7 +63,11 @@ public class StaticMesh : Asset
         {
             ConvexHullSourceData.Add(points[i]);
         }
-        Shape = new ConvexHullShape(ConvexHullSourceData);
+    }
+
+    public List<JVector> GetConvexHull()
+    {
+        return ConvexHullSourceData.ToList();
     }
     protected override void LoadAsset()
     {

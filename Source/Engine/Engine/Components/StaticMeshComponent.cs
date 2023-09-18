@@ -1,4 +1,5 @@
-﻿using Jitter.Dynamics;
+﻿using Jitter.Collision.Shapes;
+using Jitter.Dynamics;
 using Jitter.LinearMath;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
@@ -6,8 +7,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using static Noesis.Shader;
 
 namespace Spark.Engine.Components;
 
@@ -39,9 +42,9 @@ public class StaticMeshComponent : PrimitiveComponent
             }
             RigidBody = null;
             _StaticMesh = value;
-            if (value != null && value.Shape != null)
+            if (value != null)
             {
-                RigidBody = new RigidBody(value.Shape);
+                RigidBody = new RigidBody(GetShape(value.GetConvexHull()));
                 RigidBody.Position = new JVector(WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
                 RigidBody.Orientation = new JMatrix
                 {
@@ -60,6 +63,27 @@ public class StaticMeshComponent : PrimitiveComponent
             }
 
         }
+    }
+
+    public unsafe Shape GetShape(List<JVector> Vertics)
+    {
+        var span = CollectionsMarshal.AsSpan(Vertics);
+        for (int i = 0; i < Vertics.Count; i ++)
+        {
+            unsafe
+            {
+                fixed (JVector* p = span)
+                {
+
+                    p[i].X *= WorldScale.X;
+                    p[i].Y *= WorldScale.Y;
+                    p[i].Z *= WorldScale.Z;
+                }
+            }
+
+        }
+        return new ConvexHullShape(Vertics);
+
     }
     public StaticMeshComponent(Actor actor) : base(actor)
     {
@@ -85,18 +109,20 @@ public class StaticMeshComponent : PrimitiveComponent
         {
             base.WorldRotation = value;
             if (RigidBody != null)
-            { 
+            {
+                var Matrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
+
                 RigidBody.Orientation = new JMatrix
                 {
-                    M11 = WorldTransform.M11,
-                    M12 = WorldTransform.M12,
-                    M13 = WorldTransform.M13,
-                    M21 = WorldTransform.M21,
-                    M22 = WorldTransform.M22,
-                    M23 = WorldTransform.M23,
-                    M31 = WorldTransform.M31,
-                    M32 = WorldTransform.M32,
-                    M33 = WorldTransform.M33,
+                    M11 = Matrix.M11,
+                    M12 = Matrix.M12,
+                    M13 = Matrix.M13,
+                    M21 = Matrix.M21,
+                    M22 = Matrix.M22,
+                    M23 = Matrix.M23,
+                    M31 = Matrix.M31,
+                    M32 = Matrix.M32,
+                    M33 = Matrix.M33,
                 };
             }
         }
@@ -107,20 +133,9 @@ public class StaticMeshComponent : PrimitiveComponent
         set 
         { 
             base.WorldScale = value;
-            if (RigidBody != null)
+            if (RigidBody != null && StaticMesh != null)
             {
-                RigidBody.Orientation = new JMatrix
-                {
-                    M11 = WorldTransform.M11,
-                    M12 = WorldTransform.M12,
-                    M13 = WorldTransform.M13,
-                    M21 = WorldTransform.M21,
-                    M22 = WorldTransform.M22,
-                    M23 = WorldTransform.M23,
-                    M31 = WorldTransform.M31,
-                    M32 = WorldTransform.M32,
-                    M33 = WorldTransform.M33,
-                };
+                RigidBody.Shape = GetShape(StaticMesh.GetConvexHull());
             }
         }
     }

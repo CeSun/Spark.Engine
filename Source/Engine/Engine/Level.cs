@@ -201,7 +201,7 @@ public partial class Level
 
     void CreateCubes()
     {
-        var SM = new StaticMesh("/StaticMesh/WoodenCrate.glb");
+        var SM = new StaticMesh("/StaticMesh/cube2.glb");
         for (int i = 0; i < 20; i++)
         {
 
@@ -210,14 +210,11 @@ public partial class Level
             CubeActor2.RootComponent = CubeMeshComp2;
             CubeMeshComp2.StaticMesh = SM;
             CubeMeshComp2.IsStatic = false;
-            float Scale = (float)Random.Shared.NextDouble() ;
-            CubeMeshComp2.WorldScale = new Vector3(1F, 1F, 1F);
+            var scale = (float)Random.Shared.NextDouble();
+            CubeMeshComp2.WorldScale = new Vector3(scale, scale, scale);
             CubeMeshComp2.WorldRotation = Quaternion.CreateFromYawPitchRoll(Random.Shared.Next(0, 360), Random.Shared.Next(0, 360), Random.Shared.Next(0, 360));
             CubeMeshComp2.WorldLocation = new Vector3(Random.Shared.Next(-10, 10), Random.Shared.Next(50, 60), 0);
-            // temp.Add(CubeActor2);
-
-            Task.Delay(3000).Then(CubeActor2.Destory);
-
+            temp.Add(CubeActor2);
             
         }
     }
@@ -469,19 +466,19 @@ public partial class Level
 
 public partial class Level
 {
-    private List<PrimitiveComponent> _PrimitiveComponents = new List<PrimitiveComponent>();
-    private List<CameraComponent> _CameraComponents = new List<CameraComponent>();
-    private List<DirectionLightComponent> _DirectionLightComponents = new List<DirectionLightComponent>();
-    private List<PointLightComponent> _PointLightComponents = new List<PointLightComponent>();
-    private List<SpotLightComponent> _SpotLightComponents = new List<SpotLightComponent>();
-    private List<InstancedStaticMeshComponent> _ISMComponents = new List<InstancedStaticMeshComponent>();
+    private HashSet<PrimitiveComponent> _PrimitiveComponents = new HashSet<PrimitiveComponent>();
+    private HashSet<CameraComponent> _CameraComponents = new HashSet<CameraComponent>();
+    private HashSet<DirectionLightComponent> _DirectionLightComponents = new HashSet<DirectionLightComponent>();
+    private HashSet<PointLightComponent> _PointLightComponents = new HashSet<PointLightComponent>();
+    private HashSet<SpotLightComponent> _SpotLightComponents = new HashSet<SpotLightComponent>();
+    private HashSet<InstancedStaticMeshComponent> _ISMComponents = new HashSet<InstancedStaticMeshComponent>();
 
-    public IReadOnlyList<CameraComponent> CameraComponents => _CameraComponents;
-    public IReadOnlyList<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
-    public IReadOnlyList<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
-    public IReadOnlyList<PointLightComponent> PointLightComponents => _PointLightComponents;
-    public IReadOnlyList<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
-    public IReadOnlyList<InstancedStaticMeshComponent> ISMComponents => _ISMComponents;
+    public IReadOnlySet<CameraComponent> CameraComponents => _CameraComponents;
+    public IReadOnlySet<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
+    public IReadOnlySet<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
+    public IReadOnlySet<PointLightComponent> PointLightComponents => _PointLightComponents;
+    public IReadOnlySet<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
+    public IReadOnlySet<InstancedStaticMeshComponent> ISMComponents => _ISMComponents;
 
     public SkyboxComponent?  CurrentSkybox { get; private set; }
     public void RegistComponent(PrimitiveComponent component)
