@@ -562,7 +562,7 @@ public class DeferredSceneRenderer : IRenderer
         DirectionalLight();
         // 点光源
         PointLight();
-        // 
+        // 聚光
         SpotLight();
         gl.Disable(EnableCap.Blend);
 
