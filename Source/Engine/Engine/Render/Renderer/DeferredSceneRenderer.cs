@@ -150,7 +150,6 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-        gl.Disable(GLEnum.CullFace);
         gl.PushDebugGroup("Decal Pass");
         gl.PushDebugGroup("Decal PrePass");
         using (PostProcessBuffer1.Begin())
@@ -221,6 +220,7 @@ public class DeferredSceneRenderer : IRenderer
         PostProcessBuffer2.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer3.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         SceneBackFaceDepthBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        AOBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         gl.PopDebugGroup();
 
 
@@ -327,8 +327,8 @@ public class DeferredSceneRenderer : IRenderer
             SSAOShader.SetVector2("TexCoordScale",
             new Vector2
             {
-                X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
-                Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
+                X = AOBuffer.Width / (float)AOBuffer.BufferWidth,
+                Y = AOBuffer.Height / (float)AOBuffer.BufferHeight
             });
 
             var ViewRotationTransform = Matrix4x4.CreateFromQuaternion( CurrentCameraComponent.View.Rotation());
