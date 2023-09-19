@@ -37,7 +37,6 @@ public class DeferredSceneRenderer : IRenderer
     RenderBuffer PostProcessBuffer1;
     RenderBuffer PostProcessBuffer2;
     RenderBuffer PostProcessBuffer3;
-    RenderBuffer AOBuffer;
     RenderBuffer SceneBackFaceDepthBuffer;
     World World { get; set; }
 
@@ -72,7 +71,6 @@ public class DeferredSceneRenderer : IRenderer
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
-        AOBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
 
         NoiseTexture = Texture.CreateNoiseTexture(20, 20);
@@ -158,6 +156,8 @@ public class DeferredSceneRenderer : IRenderer
 
             Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
             DecalShader.SetMatrix("VPInvert", VPInvert);
+
+            DecalShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
             DecalShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
@@ -220,7 +220,6 @@ public class DeferredSceneRenderer : IRenderer
         PostProcessBuffer2.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer3.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         SceneBackFaceDepthBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        AOBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         gl.PopDebugGroup();
 
 
@@ -320,25 +319,28 @@ public class DeferredSceneRenderer : IRenderer
         if (CurrentCameraComponent == null)
             return;
         gl.PushDebugGroup("SSAO Pass");
-        using (AOBuffer.Begin())
+        using (PostProcessBuffer2.Begin())
         {
+            gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
             Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
             SSAOShader.SetMatrix("VPInvert", VPInvert);
             SSAOShader.SetVector2("TexCoordScale",
             new Vector2
             {
-                X = AOBuffer.Width / (float)AOBuffer.BufferWidth,
-                Y = AOBuffer.Height / (float)AOBuffer.BufferHeight
+                X = PostProcessBuffer2.Width / (float)PostProcessBuffer2.BufferWidth,
+                Y = PostProcessBuffer2.Height / (float)PostProcessBuffer2.BufferHeight
             });
 
             var ViewRotationTransform = Matrix4x4.CreateFromQuaternion( CurrentCameraComponent.View.Rotation());
             SSAOShader.SetMatrix("ViewRotationTransform", ViewRotationTransform);
+            SSAOShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+            SSAOShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
 
             SSAOShader.SetInt("NormalTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
 
-            SSAOShader.SetInt("DetpthTexture", 1);
+            SSAOShader.SetInt("DepthTexture", 1);
             gl.ActiveTexture(GLEnum.Texture1);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 

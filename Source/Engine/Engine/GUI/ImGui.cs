@@ -54,7 +54,7 @@ public class ImGuiWarp
         ImGui.End();
     }
 
-    private Actor SelectedActor;
+    private Actor? SelectedActor;
 
 
     
