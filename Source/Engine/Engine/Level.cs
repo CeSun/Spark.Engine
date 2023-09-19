@@ -146,13 +146,14 @@ public partial class Level
         CubeActor.RootComponent = CubeMeshComp;
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeMeshComp.IsStatic = true;
-        CubeMeshComp.WorldScale = new Vector3(2F, 0.9F, 2F);
+        CubeMeshComp.WorldScale = new Vector3(100F, 1F, 100F);
         CubeMeshComp.WorldLocation = new Vector3(0, 0, 0);
 
         var DecalActor = new Actor(this);
         var DecalComponent = new DecalComponent(DecalActor);
         DecalActor.RootComponent = DecalComponent;
-
+        DecalActor.WorldScale = new Vector3(1F, 1F, 1F);
+        DecalActor.WorldLocation = new Vector3(0, 0.9F, 0);
         DecalComponent.Material = new Assets.Material()
         {
             Diffuse = new Texture("/Texture/02pdW5Mdq9.png")

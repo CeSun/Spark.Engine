@@ -172,6 +172,7 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
+        gl.Disable(GLEnum.CullFace);
         gl.PushDebugGroup("Decal Pass");
         gl.PushDebugGroup("Decal PrePass");
         using (PostProcessBuffer1.Begin())
