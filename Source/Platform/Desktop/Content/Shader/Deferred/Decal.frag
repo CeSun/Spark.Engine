@@ -8,13 +8,14 @@ uniform sampler2D DepthTexture;
 uniform mat4 VPInvert;
 
 in mat4 ModelInvertTransform;
-in vec3 NDC;
+in vec2 OutTexCoord;
+in vec2 OutTrueTexCoord;
 
 vec3 GetWorldLocation(vec3 ScreenLocation);
 
 void main() 
 {
-	vec2 uv = ((NDC.xy + vec2(1.0f, 1.0f))/ 2.0f) * TexCoordScale;
+	vec2 uv = OutTexCoord;
 	float depth = texture(DepthTexture, uv).r;
 	
 	if (depth < gl_FragCoord.z)

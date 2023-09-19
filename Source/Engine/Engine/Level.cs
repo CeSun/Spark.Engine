@@ -152,13 +152,13 @@ public partial class Level
         var DecalActor = new Actor(this);
         var DecalComponent = new DecalComponent(DecalActor);
         DecalActor.RootComponent = DecalComponent;
-        DecalActor.WorldScale = new Vector3(1F, 1F, 1F);
+        DecalActor.WorldScale = new Vector3(10F, 10F, 1F);
         DecalActor.WorldLocation = new Vector3(0, 0.9F, 0);
         DecalComponent.Material = new Assets.Material()
         {
-            Diffuse = new Texture("/Texture/02pdW5Mdq9.png")
+            Diffuse = new Texture("/Texture/Half-Life.png")
         };
-        DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0.0F, -90F.DegreeToRadians(), 0.0F);
+        DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0.0F, 90F.DegreeToRadians(), 0.0F);
 
         /*
         // 视差贴图

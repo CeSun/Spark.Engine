@@ -199,9 +199,8 @@ public class DeferredSceneRenderer : IRenderer
                     continue;
                 DecalShader.SetMatrix("ModelTransform", DecalComponent.WorldTransform);
                 DecalComponent.Material.Diffuse.Use(0);
-
-                gl.BindVertexArray(DecalVAO);
-                gl.DrawElements(GLEnum.Triangles, 36, GLEnum.UnsignedInt, (void*)0);
+                gl.BindVertexArray(PostProcessVAO);
+                gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
 
             }
         }
