@@ -145,7 +145,7 @@ public partial class Level
         DecalActor.WorldLocation = new Vector3(0, 0.9F, 0);
         DecalComponent.Material = new Assets.Material()
         {
-            Diffuse = new Texture("/Texture/Half-Life.png")
+            Diffuse = new Texture("/Texture/bear.png")
         };
         DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 90F.DegreeToRadians(), 0.0F);
 

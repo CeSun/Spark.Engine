@@ -127,6 +127,7 @@ public class Shader : Asset
         gl.Uniform2(location, value);
     }
 
+
     public void SetVector3(string name, Vector3 value)
     {
         gl.UseProgram(ProgramId);

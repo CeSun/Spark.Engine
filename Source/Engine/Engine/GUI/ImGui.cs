@@ -192,7 +192,7 @@ public class ImGuiWarp
         for (int i = 0; i < 20; i++)
         {
 
-            var CubeActor2 = new Actor(this.CurrentLevel, "CubeActor" + i);
+            var CubeActor2 = new Actor(this.CurrentLevel, "CubeActor" + cubeList.Count);
             var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
             CubeActor2.RootComponent = CubeMeshComp2;
             CubeMeshComp2.StaticMesh = SM;

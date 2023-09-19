@@ -9,6 +9,7 @@ using System.Numerics;
 using Spark.Util;
 using Spark.Engine.Render.Buffer;
 using SharpGLTF.Schema2;
+using Texture = Spark.Engine.Assets.Texture;
 
 namespace Spark.Engine.Render.Renderer;
 
@@ -32,12 +33,16 @@ public class DeferredSceneRenderer : IRenderer
     Shader HISMShader;
     Shader DecalShader;
     Shader DecalPostShader;
+    Shader SSAOShader;
     RenderBuffer PostProcessBuffer1;
     RenderBuffer PostProcessBuffer2;
     RenderBuffer PostProcessBuffer3;
     RenderBuffer AOBuffer;
     RenderBuffer SceneBackFaceDepthBuffer;
     World World { get; set; }
+
+    Texture NoiseTexture;
+    List<Vector3> HalfSpherical = new List<Vector3>();
 
     uint PostProcessVAO = 0;
     uint PostProcessVBO = 0;
@@ -62,15 +67,36 @@ public class DeferredSceneRenderer : IRenderer
         HISMShader = new Shader("/Shader/Deferred/Dynamicbatching");
         DecalShader = new Shader("/Shader/Deferred/Decal");
         DecalPostShader = new Shader("/Shader/Deferred/DecalPost");
+        SSAOShader = new Shader("/Shader/Deferred/SSAO");
         GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 3);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         AOBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
+
+        NoiseTexture = Texture.CreateNoiseTexture(20, 20);
         InitRender();
+        InitSSAORender();
     }
 
+    void InitSSAORender()
+    {
+        for(int i = 0; i < 64; i ++)
+        {
+            HalfSpherical.Add(new Vector3
+            {
+                X = (float)Random.Shared.NextDouble(),
+                Y = (float)Random.Shared.NextDouble(),
+                Z = (float)Random.Shared.NextDouble()
+            });
+        }
+
+        for (int i = 0; i < 64; i++)
+        {
+            SSAOShader.SetVector3($"samples[{i}]", HalfSpherical[i]);
+        }
+    }
 
     ~DeferredSceneRenderer()
     {
@@ -289,12 +315,47 @@ public class DeferredSceneRenderer : IRenderer
 
     }
 
-    private void AOPass(double deltaTime)
+    private unsafe void AOPass(double deltaTime)
     {
-        using(AOBuffer.Begin())
+        if (CurrentCameraComponent == null)
+            return;
+        gl.PushDebugGroup("SSAO Pass");
+        using (AOBuffer.Begin())
         {
+            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
+            SSAOShader.SetMatrix("VPInvert", VPInvert);
+            SSAOShader.SetVector2("TexCoordScale",
+            new Vector2
+            {
+                X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
+                Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
+            });
+
+            var ViewRotationTransform = Matrix4x4.CreateFromQuaternion( CurrentCameraComponent.View.Rotation());
+            SSAOShader.SetMatrix("ViewRotationTransform", ViewRotationTransform);
+
+            SSAOShader.SetInt("NormalTexture", 0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+
+            SSAOShader.SetInt("DetpthTexture", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+
+            SSAOShader.SetInt("NoiseTexture", 2);
+            gl.ActiveTexture(GLEnum.Texture2);
+            gl.BindTexture(GLEnum.Texture2D, NoiseTexture.TextureId);
+
+
+
+
+            gl.BindVertexArray(PostProcessVAO);
+            gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+            gl.ActiveTexture(GLEnum.Texture0);
+
 
         }
+        gl.PopDebugGroup();
     }
     private void DepthPass(double DeltaTime)
     {

@@ -7,13 +7,14 @@ using System.Text;
 using System.Threading.Tasks;
 using static Spark.Engine.StaticEngine;
 using static Spark.Engine.Assets.Shader;
+using System.Numerics;
 
 
 namespace Spark.Engine.Assets;
 
 public class Texture : Asset
 {
-    uint TextureId;
+    public uint TextureId { get; protected set; }
     protected override void  LoadAsset()
     {
         using (var StreamReader = FileSystem.GetStreamReader("Content" + Path))
@@ -26,10 +27,53 @@ public class Texture : Asset
         }
 
     }
-    public Texture()
+    internal Texture()
     {
 
     }
+
+
+    public unsafe static Texture CreateNoiseTexture(int Width, int Height)
+    {
+        var texture = new Texture();
+        var data = new byte[Width * Height * 3];
+
+        for (int j = 0; j < Height; j++)
+        {
+            for (int i = 0; i < Width; i++)
+            {
+                var index = (j * Width + i) * 3;
+                Vector3 v = new Vector3
+                {
+                    X = (float)Random.Shared.NextDouble(),
+                    Y = (float)Random.Shared.NextDouble(),
+                    Z = (float)Random.Shared.NextDouble()
+                };
+
+                data[index] = (byte)(255 * v.X);
+                data[index + 1] = (byte)(255 * v.Y);
+                data[index + 2] = (byte)(255 * v.Z);
+
+
+
+            }
+        }
+
+        texture.TextureId = gl.GenTexture();
+        gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+        fixed (void* p = data)
+        {
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgb, (uint)Width, (uint)Height, 0, GLEnum.Rgb, GLEnum.UnsignedByte, p);
+        }
+        gl.BindTexture(GLEnum.Texture2D, 0);
+
+        return texture;
+    }
+
     public Texture(string path) : base(path) 
     {
         
