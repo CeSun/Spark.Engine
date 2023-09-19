@@ -12,4 +12,8 @@ public static class MathHelper
     {
         return (float)(Math.PI / 180) * Degree;
     }
+    public static float RadiansToDegree(this float Radians)
+    {
+        return Radians / (float)(Math.PI / 180);
+    }
 }

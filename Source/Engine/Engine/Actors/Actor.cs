@@ -19,6 +19,7 @@ public partial class Actor
 
     private bool _ReceieveUpdate;
 
+    public string Name { get ; private set; }
     protected void ReceieveUpdate()
     {
         if (_ReceieveUpdate) return;
@@ -30,8 +31,9 @@ public partial class Actor
     /// </summary>
     public World CurrentWorld { get => CurrentLevel.CurrentWorld; }
 
-    public Actor(Level level)
+    public Actor(Level level, string Name)
     {
+        this.Name = Name;
         CurrentLevel = level;
         level.RegistActor(this);
     }

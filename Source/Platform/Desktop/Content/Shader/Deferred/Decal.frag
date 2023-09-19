@@ -28,6 +28,8 @@ void main()
 		discard;
 	if (ModelLocation.y > 1 || ModelLocation.y < -1)
 		discard;
+	if (ModelLocation.z > 1 || ModelLocation.z < -1)
+		discard;
 	
 	uv = (ModelLocation.xy + vec2(1.0f, 1.0f)) / 2.0f;
 	vec4 tColor = texture(Diffuse, uv);

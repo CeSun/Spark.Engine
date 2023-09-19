@@ -19,6 +19,8 @@ using Spark.Engine.Manager;
 using Jitter.Collision;
 using PhyWorld = Jitter.World;
 using System.ComponentModel;
+using Spark.Engine.GUI;
+using ImGuiNET;
 
 namespace Spark.Engine;
 
@@ -27,12 +29,14 @@ public partial class Level
     public PhyWorld PhyWorld { get; private set; }
     CollisionSystem CollisionSystem;
     public World CurrentWorld { private set; get; }
+    ImGuiWarp imgui;
     public Level(World world)
     {
         CurrentWorld = world;
         UpdateManager = new UpdateManager();
         CollisionSystem = new CollisionSystemSAP();
         PhyWorld = new PhyWorld(CollisionSystem);
+        imgui = new ImGuiWarp(this);
 
     }
     public UpdateManager UpdateManager { private set; get; }
@@ -46,7 +50,7 @@ public partial class Level
 
     public void OnMouseMove(IMouse mouse,  Vector2 position)
     {
-        if (MainMouse.IsButtonPressed(MouseButton.Left))
+        if (MainMouse.IsButtonPressed(MouseButton.Right))
         {
             if (CameraComponent == null)
                 return;
@@ -66,7 +70,7 @@ public partial class Level
 
     public void OnMouseKeyDown(IMouse mouse, MouseButton key)
     {
-        if (key == MouseButton.Left)
+        if (key == MouseButton.Right)
         {
             LastPosition = mouse.Position;
         }
@@ -74,6 +78,7 @@ public partial class Level
     bool NeedPrintFPS = false;
     public void BeginPlay()
     {
+        imgui.Init();
         // InitGrass();
         // Test();
         MainMouse.MouseMove += OnMouseMove;
@@ -81,26 +86,10 @@ public partial class Level
 
         MainKeyBoard.KeyDown += (_, key, _) =>
         {
-            if (key == Key.H)
-            {
-                CreateHISM();
-            }
-            if (key == Key.I)
-            {
-                CreateISM();
-            }
 
-            if (key == Key.K)
-            {
-                Delete();
-            }
             if (key == Key.F)
             {
                 NeedPrintFPS = true;
-            }
-            if (key == Key.C)
-            {
-                CreateCubes();
             }
             if (key == Key.M)
             {
@@ -131,7 +120,7 @@ public partial class Level
         this.RobotActor = RobotActor;
         */
         // 相机actor
-        var CameraActor = new Actor(this);
+        var CameraActor = new Actor(this, "Camera Actor");
         CameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = CameraComponent;
         CameraComponent.NearPlaneDistance = 1;
@@ -141,7 +130,7 @@ public partial class Level
         CameraComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
 
         // 加载个cube作为地板
-        var CubeActor = new Actor(this);
+        var CubeActor = new Actor(this, "Plane Actor");
         var CubeMeshComp = new StaticMeshComponent(CubeActor);
         CubeActor.RootComponent = CubeMeshComp;
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
@@ -149,7 +138,7 @@ public partial class Level
         CubeMeshComp.WorldScale = new Vector3(100F, 1F, 100F);
         CubeMeshComp.WorldLocation = new Vector3(0, 0, 0);
 
-        var DecalActor = new Actor(this);
+        var DecalActor = new Actor(this, "DecalActor");
         var DecalComponent = new DecalComponent(DecalActor);
         DecalActor.RootComponent = DecalComponent;
         DecalActor.WorldScale = new Vector3(10F, 10F, 1F);
@@ -158,7 +147,7 @@ public partial class Level
         {
             Diffuse = new Texture("/Texture/Half-Life.png")
         };
-        DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0.0F, 90F.DegreeToRadians(), 0.0F);
+        DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 90F.DegreeToRadians(), 0.0F);
 
         /*
         // 视差贴图
@@ -177,7 +166,7 @@ public partial class Level
         */
         //CubeMeshComp2.StaticMesh.Materials
         // 创建定向光源
-        var DirectionActor = new Actor(this);
+        var DirectionActor = new Actor(this, "Direction Actor");
         var DirectionComp = new DirectionLightComponent(DirectionActor);
         DirectionActor.RootComponent = DirectionComp;
         DirectionComp.Color = Color.White;
@@ -185,7 +174,7 @@ public partial class Level
         DirectionComp.LightStrength = 0.7f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
         
-        var PointLight = new Actor(this);
+        var PointLight = new Actor(this, "PointLight Actor");
         var PointLightComp = new PointLightComponent(PointLight);
         PointLight.RootComponent = PointLightComp;
         PointLightComp.Color = Color.White;
@@ -194,7 +183,7 @@ public partial class Level
 
 
 
-        var spotLight = new Actor(this);
+        var spotLight = new Actor(this, "SpotLight Actor");
         var SpotLightComponent = new SpotLightComponent(spotLight);
         spotLight.RootComponent = SpotLightComponent;
         SpotLightComponent.Color = Color.Purple;
@@ -202,31 +191,12 @@ public partial class Level
         SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 80;
         SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
 
-        var SkyBoxActor = new Actor(this);
+        var SkyBoxActor = new Actor(this, "SkyBox Actor");
         var skybox = new SkyboxComponent(SkyBoxActor);
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
     }
 
 
-    void CreateCubes()
-    {
-        var SM = new StaticMesh("/StaticMesh/cube2.glb");
-        for (int i = 0; i < 20; i++)
-        {
-
-            var CubeActor2 = new Actor(this);
-            var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
-            CubeActor2.RootComponent = CubeMeshComp2;
-            CubeMeshComp2.StaticMesh = SM;
-            CubeMeshComp2.IsStatic = false;
-            var scale = (float)Random.Shared.NextDouble();
-            CubeMeshComp2.WorldScale = new Vector3(scale, scale, scale);
-            CubeMeshComp2.WorldRotation = Quaternion.CreateFromYawPitchRoll(Random.Shared.Next(0, 360), Random.Shared.Next(0, 360), Random.Shared.Next(0, 360));
-            CubeMeshComp2.WorldLocation = new Vector3(Random.Shared.Next(-10, 10), Random.Shared.Next(50, 60), 0);
-            temp.Add(CubeActor2);
-            
-        }
-    }
 
     public void InitGrass()
     {
@@ -234,7 +204,7 @@ public partial class Level
         int len = (int)Math.Sqrt(grassLen);
         for (int i = 0; i < grassLen; i++)
         {
-            var GrassActor = new Actor(this);
+            var GrassActor = new Actor(this, "Grass Actor");
             var GrassComponent = new StaticMeshComponent(GrassActor);
             GrassComponent.StaticMesh = new StaticMesh("/StaticMesh/flower.glb");
             GrassActor.RootComponent = GrassComponent;
@@ -243,95 +213,10 @@ public partial class Level
     }
 
 
-    public async Task<Actor> InitHISM(string model, int num, Vector2 area, float scale = 1)
-    {
-        int grassLen = num;
-        int len = (int)Math.Sqrt(grassLen);
-        var hismactor = new Actor(this);
-        var hismcomponent = new HierarchicalInstancedStaticMeshComponent(hismactor);
-        hismactor.RootComponent = hismcomponent;
-        hismcomponent.StaticMesh = new StaticMesh(model);
-
-        hismcomponent.WorldLocation = new Vector3(0, 0, 0);
-        for (int i = 0; i < grassLen; i++)
-        {
-            var GrassComponent = new SubInstancedStaticMeshComponent(hismactor);
-            hismcomponent.AddComponent(GrassComponent);
-            GrassComponent.ParentComponent = hismcomponent;
-            var x = Random.Shared.Next((int)(area.X), (int)(area.Y));
-            var y = Random.Shared.Next((int)(area.X), (int)(area.Y));
-            var yaw = Random.Shared.Next(0, 180);
-            GrassComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(yaw, 0, 0);
-            GrassComponent.WorldLocation = new Vector3(x, -3, y);
-            GrassComponent.WorldScale = new Vector3(scale, scale, scale);
-        }
-
-        hismcomponent.Build();
-
-
-        return hismactor;
-    }
-
-    public async Task<Actor> InitISM(string model, int num, Vector2 area, float scale = 1)
-    {
-        int grassLen = num;
-        int len = (int)Math.Sqrt(grassLen);
-        var ismactor = new Actor(this);
-        var ismcomponent = new InstancedStaticMeshComponent(ismactor);
-        ismcomponent.StaticMesh = new StaticMesh(model);
-
-        ismcomponent.WorldLocation = new Vector3(0, 0, 0);
-        for (int i = 0; i < grassLen; i++)
-        {
-            if (i % 10 == 0)
-                await Task.Yield();
-            var GrassComponent = new SubInstancedStaticMeshComponent(ismactor);
-            ismcomponent.AddComponent(GrassComponent);
-            GrassComponent.ParentComponent = ismcomponent;
-            var x = Random.Shared.Next((int)(area.X), (int)(area.Y));
-            var y = Random.Shared.Next((int)(area.X), (int)(area.Y));
-            var yaw = Random.Shared.Next(0, 180);
-            GrassComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(yaw, 0, 0);
-            GrassComponent.WorldLocation = new Vector3(x, -3, y);
-            GrassComponent.WorldScale = new Vector3(scale, scale, scale);
-        }
-
-        ismcomponent.Build();
-        return ismactor;
-    }
+    
 
     List<Actor> temp = new List<Actor>();
-    async void CreateHISM()
-    {
-        await Console.Out.WriteAsync("[HISM]请输入实例数量:");
-        var str = await Console.In.ReadLineAsync();
-        int num = int.Parse(str);
-        await Console.Out.WriteLineAsync("[HISM]正在生成:" + num);
-        int len = (int)Math.Sqrt(100000);
-
-        var task1 = InitHISM("/StaticMesh/flower.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
-        var task2 = InitHISM("/StaticMesh/grass.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
-
-        await Task.WhenAll(task1, task2);
-
-        temp.Add(task1.Result);
-        temp.Add(task2.Result);
-    }
-    async void CreateISM()
-    {
-        await Console.Out.WriteAsync("[ISM]请输入实例数量:");
-        var str = await Console.In.ReadLineAsync();
-        int num = int.Parse(str);
-        await Console.Out.WriteLineAsync("[ISM]正在生成:" + num);
-        int len = (int)Math.Sqrt(100000);
-        var task1 = InitISM("/StaticMesh/flower.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
-        var task2 = InitISM("/StaticMesh/grass.glb", num, new Vector2((-len / 2) * 15f, (len / 2) * 15f));
-
-        await Task.WhenAll(task1, task2);
-        temp.Add(task1.Result);
-        temp.Add(task2.Result);
-    }
-
+    
 
     void Delete()
     {
@@ -343,7 +228,8 @@ public partial class Level
     }
 
     public void Destory() 
-    { 
+    {
+        imgui.Fini();
     }
     float a = 0;
     public void Update(double DeltaTime)
@@ -425,6 +311,7 @@ public partial class Level
         {
             camera.RenderScene(DeltaTime);
         }
+        imgui.Render(DeltaTime);
     }
 }
 
@@ -442,16 +329,14 @@ public partial class Level
             return;
         if (_AddActors.Contains(actor))
             return;
-        if (!_DelActors.Contains(actor))
+        if (_DelActors.Contains(actor))
             return;
         _AddActors.Add(actor);
     }
 
     public void UnregistActor(Actor actor)
     {
-        if (!_Actors.Contains(actor))
-            return;
-        if (!_AddActors.Contains(actor))
+        if (!_Actors.Contains(actor) && !_AddActors.Contains(actor))
             return;
         if (_DelActors.Contains(actor))
             return;

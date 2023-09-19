@@ -26,6 +26,10 @@ public class Texture : Asset
         }
 
     }
+    public Texture()
+    {
+
+    }
     public Texture(string path) : base(path) 
     {
         
