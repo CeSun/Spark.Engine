@@ -1,14 +1,10 @@
-using Android.App.Roles;
-using Android.Views;
 using Silk.NET.Input;
 using Silk.NET.Input.Sdl;
 using Silk.NET.OpenGL;
-using Silk.NET.SDL;
 using Silk.NET.Windowing;
 using Silk.NET.Windowing.Sdl;
 using Silk.NET.Windowing.Sdl.Android;
 using Spark.Engine;
-using System.Drawing;
 
 namespace Android;
 

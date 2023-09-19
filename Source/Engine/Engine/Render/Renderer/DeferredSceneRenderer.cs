@@ -16,7 +16,6 @@ public class DeferredSceneRenderer : IRenderer
 {
     RenderBuffer GlobalBuffer;
     Shader BaseShader;
-    Shader BrightnessLightingShader;
     Shader DirectionalLightingShader;
     Shader SpotLightingShader;
     Shader PointLightingShader;
@@ -48,7 +47,6 @@ public class DeferredSceneRenderer : IRenderer
     {
         World = world;
         BaseShader = new Shader("/Shader/Deferred/Base");
-        BrightnessLightingShader = new Shader("/Shader/Deferred/BrightnessLighting");
         DirectionalLightingShader = new Shader("/Shader/Deferred/DirectionalLighting");
         SpotLightingShader = new Shader("/Shader/Deferred/SpotLighting");
         PointLightingShader = new Shader("/Shader/Deferred/PointLighting");
@@ -560,8 +558,6 @@ public class DeferredSceneRenderer : IRenderer
         gl.BlendFunc(GLEnum.One, GLEnum.One);
         gl.Enable(EnableCap.Blend);
 
-        // 间接光
-        AmbientLightingPass();
         // 定向光
         DirectionalLight();
         // 点光源
@@ -572,28 +568,6 @@ public class DeferredSceneRenderer : IRenderer
 
     }
 
-    private unsafe void AmbientLightingPass()
-    {
-        if (CurrentCameraComponent == null)
-            return;
-        BrightnessLightingShader.Use();
-        BrightnessLightingShader.SetVector2("TexCoordScale",
-            new Vector2
-            {
-                X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
-                Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
-            });
-        BrightnessLightingShader.SetFloat("Brightness", 0.0f);
-        BrightnessLightingShader.SetInt("ColorTexture", 0);
-        gl.ActiveTexture(GLEnum.Texture0);
-        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
-
-
-        gl.BindVertexArray(PostProcessVAO);
-        gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
-        gl.ActiveTexture(GLEnum.Texture0);
-        BrightnessLightingShader.UnUse();
-    }
 
     private unsafe void DirectionalLight()
     {
