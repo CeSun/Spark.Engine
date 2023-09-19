@@ -37,13 +37,13 @@ public class RenderBuffer : IDisposable
     {
         Width = width;
         Height = height;
-        if (BufferWidth < Width || BufferHeight < Height)
+        if (BufferWidth < Width || BufferHeight < Height || true)
         {
-            if (BufferWidth < width)
+            if (BufferWidth < width || true)
             {
                 BufferWidth = width;
             }
-            if (BufferHeight < height)
+            if (BufferHeight < height || true)
             {
                 BufferHeight = height;
             }

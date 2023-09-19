@@ -183,7 +183,12 @@ public class DeferredSceneRenderer : IRenderer
             DecalShader.SetMatrix("VPInvert", VPInvert);
             DecalShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
             DecalShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-
+            DecalShader.SetVector2("TexCoordScale",
+                new Vector2
+                {
+                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
+                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                });
             DecalShader.SetInt("DepthTexture", 3);
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
