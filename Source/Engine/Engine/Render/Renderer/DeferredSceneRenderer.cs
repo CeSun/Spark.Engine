@@ -44,10 +44,6 @@ public class DeferredSceneRenderer : IRenderer
     uint PostProcessVBO = 0;
     uint PostProcessEBO = 0;
 
-
-    uint DecalVAO = 0;
-    uint DecalVBO = 0;
-    uint DecalEBO = 0;
     public DeferredSceneRenderer(World world)
     {
         World = world;
@@ -75,7 +71,6 @@ public class DeferredSceneRenderer : IRenderer
         AOBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
         InitRender();
-        InitDecalRender();
     }
 
 
@@ -127,47 +122,6 @@ public class DeferredSceneRenderer : IRenderer
 
     }
 
-    public unsafe void InitDecalRender()
-    {
-        Vector3[] Vertices = new Vector3[] {
-            new Vector3(-1, 1, 1),
-            new Vector3(-1, -1, 1),
-            new Vector3(1, -1, 1),
-            new Vector3(1, 1, 1),
-            new Vector3(-1, 1, -1),
-            new Vector3(-1, -1, -1),
-            new Vector3(1, -1, -1),
-            new Vector3(1, 1, -1),
-        };
-
-        uint[] Indices = new uint[]
-        {
-            0, 1, 2, 2, 3, 0,
-            7, 6, 5, 5, 4, 7,
-            3, 2, 6, 6, 7, 3,
-            4, 5, 1, 1, 0, 4,
-            4, 0, 3, 3, 7, 4,
-            1, 5, 6, 6, 2, 1
-        };
-        DecalVAO = gl.GenVertexArray();
-        DecalVBO = gl.GenBuffer();
-        DecalEBO = gl.GenBuffer();
-        gl.BindVertexArray(DecalVAO);
-        gl.BindBuffer(GLEnum.ArrayBuffer, DecalVBO);
-        fixed (Vector3* p = Vertices)
-        {
-            gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Vertices.Length * sizeof(Vector3)), p, GLEnum.StaticDraw);
-        }
-        gl.BindBuffer(GLEnum.ElementArrayBuffer, DecalEBO);
-        fixed (uint* p = Indices)
-        {
-            gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(Indices.Length * sizeof(uint)), p, GLEnum.StaticDraw);
-        }
-        // Location
-        gl.EnableVertexAttribArray(0);
-        gl.VertexAttribPointer(0, 3, GLEnum.Float, false, (uint)sizeof(Vector3), (void*)0);
-        gl.BindVertexArray(0);
-    }
     public unsafe void DecalPass(double DeltaTime)
     {
         if (CurrentCameraComponent == null)
@@ -181,13 +135,11 @@ public class DeferredSceneRenderer : IRenderer
 
             Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
             DecalShader.SetMatrix("VPInvert", VPInvert);
-            DecalShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
-            DecalShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
             DecalShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
-                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                    X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
+                    Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
                 });
             DecalShader.SetInt("DepthTexture", 3);
             gl.ActiveTexture(GLEnum.Texture3);

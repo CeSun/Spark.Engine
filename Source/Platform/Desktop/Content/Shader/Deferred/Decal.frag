@@ -2,14 +2,13 @@
 
 out vec4 Color;
 
-uniform vec2 TexCoordScale;
 uniform sampler2D Diffuse;
 uniform sampler2D DepthTexture;
 uniform mat4 VPInvert;
 
-in mat4 ModelInvertTransform;
 in vec2 OutTexCoord;
 in vec2 OutTrueTexCoord;
+in mat4 ModelInvertTransform;
 
 vec3 GetWorldLocation(vec3 ScreenLocation);
 
@@ -20,7 +19,7 @@ void main()
 	
 	if (depth < gl_FragCoord.z)
 		discard;
-	vec3 WorldLocation = GetWorldLocation(vec3(uv, depth));
+	vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
 
 	vec4 ModelLocation = ModelInvertTransform * vec4(WorldLocation, 1.0f);
 	ModelLocation = ModelLocation / ModelLocation.w;
