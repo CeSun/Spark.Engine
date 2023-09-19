@@ -31,6 +31,8 @@ public class DeferredSceneRenderer : IRenderer
     Shader ScreenSpaceReflectionShader;
     Shader BackFaceDepthShader;
     Shader HISMShader;
+    Shader DecalShader;
+    Shader DecalPostShader;
     RenderBuffer PostProcessBuffer1;
     RenderBuffer PostProcessBuffer2;
     RenderBuffer PostProcessBuffer3;
@@ -41,6 +43,11 @@ public class DeferredSceneRenderer : IRenderer
     uint PostProcessVAO = 0;
     uint PostProcessVBO = 0;
     uint PostProcessEBO = 0;
+
+
+    uint DecalVAO = 0;
+    uint DecalVBO = 0;
+    uint DecalEBO = 0;
     public DeferredSceneRenderer(World world)
     {
         World = world;
@@ -59,6 +66,8 @@ public class DeferredSceneRenderer : IRenderer
         ScreenSpaceReflectionShader = new Shader("/Shader/Deferred/ssr");
         BackFaceDepthShader = new Shader("/Shader/Deferred/BackFaceDepth");
         HISMShader = new Shader("/Shader/Deferred/Dynamicbatching");
+        DecalShader = new Shader("/Shader/Deferred/Decal");
+        DecalPostShader = new Shader("/Shader/Deferred/DecalPost");
         GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 3);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -66,6 +75,7 @@ public class DeferredSceneRenderer : IRenderer
         AOBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
         InitRender();
+        InitDecalRender();
     }
 
 
@@ -117,6 +127,108 @@ public class DeferredSceneRenderer : IRenderer
 
     }
 
+    public unsafe void InitDecalRender()
+    {
+        Vector3[] Vertices = new Vector3[] {
+            new Vector3(-1, 1, 1),
+            new Vector3(-1, -1, 1),
+            new Vector3(1, -1, 1),
+            new Vector3(1, 1, 1),
+            new Vector3(-1, 1, -1),
+            new Vector3(-1, -1, -1),
+            new Vector3(1, -1, -1),
+            new Vector3(1, 1, -1),
+        };
+
+        uint[] Indices = new uint[]
+        {
+            0, 1, 2, 2, 3, 0,
+            7, 6, 5, 5, 4, 7,
+            3, 2, 6, 6, 7, 3,
+            4, 5, 1, 1, 0, 4,
+            4, 0, 3, 3, 7, 4,
+            1, 5, 6, 6, 2, 1
+        };
+        DecalVAO = gl.GenVertexArray();
+        DecalVBO = gl.GenBuffer();
+        DecalEBO = gl.GenBuffer();
+        gl.BindVertexArray(DecalVAO);
+        gl.BindBuffer(GLEnum.ArrayBuffer, DecalVBO);
+        fixed (Vector3* p = Vertices)
+        {
+            gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Vertices.Length * sizeof(Vector3)), p, GLEnum.StaticDraw);
+        }
+        gl.BindBuffer(GLEnum.ElementArrayBuffer, DecalEBO);
+        fixed (uint* p = Indices)
+        {
+            gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(Indices.Length * sizeof(uint)), p, GLEnum.StaticDraw);
+        }
+        // Location
+        gl.EnableVertexAttribArray(0);
+        gl.VertexAttribPointer(0, 3, GLEnum.Float, false, (uint)sizeof(Vector3), (void*)0);
+        gl.BindVertexArray(0);
+    }
+    public unsafe void DecalPass(double DeltaTime)
+    {
+        if (CurrentCameraComponent == null)
+            return;
+        gl.PushDebugGroup("Decal Pass");
+        gl.PushDebugGroup("Decal PrePass");
+        using (PostProcessBuffer1.Begin())
+        {
+            gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+
+            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
+            DecalShader.SetMatrix("VPInvert", VPInvert);
+            DecalShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+            DecalShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+
+            DecalShader.SetInt("DepthTexture", 3);
+            gl.ActiveTexture(GLEnum.Texture3);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+
+            foreach (var DecalComponent in World.CurrentLevel.DecalComponents)
+            {
+                if (DecalComponent.Material == null)
+                    continue;
+                DecalShader.SetMatrix("ModelTransform", DecalComponent.WorldTransform);
+                DecalComponent.Material.Diffuse.Use(0);
+
+                gl.BindVertexArray(DecalVAO);
+                gl.DrawElements(GLEnum.Triangles, 36, GLEnum.UnsignedInt, (void*)0);
+
+            }
+        }
+        gl.PopDebugGroup();
+
+        gl.PushDebugGroup("Decal PostPass");
+        using (GlobalBuffer.Begin())
+        {
+            gl.DepthMask(false);
+            DecalPostShader.Use();
+            DecalPostShader.SetVector2("TexCoordScale",
+                new Vector2
+                {
+                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
+                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                });
+
+            DecalPostShader.SetInt("DecalTexture", 0);
+            gl.ActiveTexture(GLEnum.Texture0);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer1.GBufferIds[0]);
+            DecalPostShader.SetInt("DecalDepthTexture", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer1.DepthId);
+
+            gl.BindVertexArray(PostProcessVAO);
+            gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+            gl.ActiveTexture(GLEnum.Texture0);
+
+            gl.DepthMask(true);
+        }
+        gl.PopDebugGroup();
+        gl.PopDebugGroup();
+    }
     public void Render(double DeltaTime)
     {
         if (CurrentCameraComponent == null)
@@ -137,14 +249,10 @@ public class DeferredSceneRenderer : IRenderer
         gl.Enable(GLEnum.DepthTest);
         gl.PopDebugGroup();
 
-        gl.PushDebugGroup("Shadow Depth Pass");
         // 生成ShadowMap
         DepthPass(DeltaTime);
-        gl.PopDebugGroup();
-        gl.PushDebugGroup("Base Pass");
-        // 生成GBuffer
         BasePass(DeltaTime);
-        gl.PopDebugGroup();
+        DecalPass(DeltaTime);
         AOPass(DeltaTime);
         using (PostProcessBuffer1.Begin())
         {
@@ -237,6 +345,8 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
+
+        gl.PushDebugGroup("Shadow Depth Pass");
         gl.Enable(GLEnum.DepthTest);
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Front);
@@ -345,9 +455,12 @@ public class DeferredSceneRenderer : IRenderer
 
 
         gl.CullFace(GLEnum.Back);
+        gl.PopDebugGroup();
     }
     private void BasePass(double DeltaTime)
     {
+        // 生成GBuffer
+        gl.PushDebugGroup("Base Pass");
         using (GlobalBuffer.Begin())
         {
             gl.Enable(EnableCap.DepthTest);
@@ -389,6 +502,7 @@ public class DeferredSceneRenderer : IRenderer
                 gl.PopDebugGroup();
             }
         }
+        gl.PopDebugGroup();
     }
 
     private unsafe void RenderToCameraRenderTarget(double DeltaTime)

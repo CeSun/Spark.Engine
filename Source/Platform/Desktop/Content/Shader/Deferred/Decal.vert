@@ -1,0 +1,16 @@
+#version 330 core
+layout (location = 0) in vec3 Location;
+
+
+uniform mat4 ModelTransform;
+uniform mat4 ViewTransform;
+uniform mat4 ProjectionTransform;
+
+out mat4 ModelInvertTransform;
+out vec3 NDC;
+void main()
+{
+    ModelInvertTransform = inverse(ModelTransform);
+    gl_Position = ProjectionTransform * ViewTransform * ModelTransform * vec4(Location, 1.0);
+    NDC = gl_Position.xyz / gl_Position.w;
+}

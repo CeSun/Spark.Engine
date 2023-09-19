@@ -104,7 +104,7 @@ public partial class Level
             }
             if (key == Key.M)
             {
-                foreach(var actor in temp)
+                foreach (var actor in temp)
                 {
                     if (actor.RootComponent is HierarchicalInstancedStaticMeshComponent hism)
                     {
@@ -112,7 +112,7 @@ public partial class Level
                         var y = Random.Shared.Next(-100, 100);
                         hism.AddComponent(new SubInstancedStaticMeshComponent(actor)
                         {
-                            WorldLocation = new Vector3 (x, 40, y)
+                            WorldLocation = new Vector3(x, 40, y)
                         });
                         hism.ReBuild();
                     }
@@ -135,7 +135,7 @@ public partial class Level
         CameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = CameraComponent;
         CameraComponent.NearPlaneDistance = 1;
-        CameraComponent.FarPlaneDistance =  1000f;
+        CameraComponent.FarPlaneDistance = 1000f;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
         CameraComponent.WorldLocation += (new Vector3(0, 20, 0) - CameraComponent.ForwardVector * 10);
         CameraComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
@@ -146,10 +146,18 @@ public partial class Level
         CubeActor.RootComponent = CubeMeshComp;
         CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeMeshComp.IsStatic = true;
-        CubeMeshComp.WorldScale = new Vector3(100, 1, 100);
+        CubeMeshComp.WorldScale = new Vector3(2F, 0.9F, 2F);
         CubeMeshComp.WorldLocation = new Vector3(0, 0, 0);
 
-   
+        var DecalActor = new Actor(this);
+        var DecalComponent = new DecalComponent(DecalActor);
+        DecalActor.RootComponent = DecalComponent;
+
+        DecalComponent.Material = new Assets.Material()
+        {
+            Diffuse = new Texture("/Texture/02pdW5Mdq9.png")
+        };
+        DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0.0F, -90F.DegreeToRadians(), 0.0F);
 
         /*
         // 视差贴图
@@ -472,6 +480,7 @@ public partial class Level
     private HashSet<PointLightComponent> _PointLightComponents = new HashSet<PointLightComponent>();
     private HashSet<SpotLightComponent> _SpotLightComponents = new HashSet<SpotLightComponent>();
     private HashSet<InstancedStaticMeshComponent> _ISMComponents = new HashSet<InstancedStaticMeshComponent>();
+    private HashSet<DecalComponent> _DecalComponents = new HashSet<DecalComponent>();
 
     public IReadOnlySet<CameraComponent> CameraComponents => _CameraComponents;
     public IReadOnlySet<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
@@ -479,6 +488,7 @@ public partial class Level
     public IReadOnlySet<PointLightComponent> PointLightComponents => _PointLightComponents;
     public IReadOnlySet<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
     public IReadOnlySet<InstancedStaticMeshComponent> ISMComponents => _ISMComponents;
+    public IReadOnlySet<DecalComponent> DecalComponents => _DecalComponents;
 
     public SkyboxComponent?  CurrentSkybox { get; private set; }
     public void RegistComponent(PrimitiveComponent component)
@@ -523,6 +533,13 @@ public partial class Level
             if (!_ISMComponents.Contains(InstancedStaticMeshComponent))
             {
                 _ISMComponents.Add(InstancedStaticMeshComponent);  
+            }
+        }
+        else if (component is DecalComponent DecalComponent)
+        {
+            if (!_DecalComponents.Contains(DecalComponent))
+            {
+                _DecalComponents.Add(DecalComponent);
             }
         }
 
@@ -579,6 +596,14 @@ public partial class Level
                 _ISMComponents.Remove(InstancedStaticMeshComponent);
             }
         }
+        else if (component is DecalComponent DecalComponent)
+        {
+            if (!_DecalComponents.Contains(DecalComponent))
+            {
+                _DecalComponents.Remove(DecalComponent);
+            }
+        }
+
         if (component is SkyboxComponent && CurrentSkybox == component)
         {
             CurrentSkybox = null;
