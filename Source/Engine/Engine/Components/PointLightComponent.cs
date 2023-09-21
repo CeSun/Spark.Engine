@@ -6,8 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Silk.NET.OpenGL;
 using static Spark.Engine.StaticEngine;
-
-
+using Spark.Engine.Attributes;
 
 namespace Spark.Engine.Components;
 
@@ -22,11 +21,14 @@ public class PointLightComponent : LightComponent
         InitRender();
     }
 
-    public float Constant;
+    [Property(DisplayName = "Constant", IsDispaly = true, IsReadOnly = false)]
+    public float Constant { get; set; }
 
-    public float Linear;
+    [Property(DisplayName = "Linear", IsDispaly = true, IsReadOnly = false)]
+    public float Linear { get; set; }
 
-    public float Quadratic;
+    [Property(DisplayName = "Quadratic", IsDispaly = true, IsReadOnly = false)]
+    public float Quadratic { get; set; }
 
 
 

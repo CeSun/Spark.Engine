@@ -3,8 +3,10 @@ using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
+using Spark.Engine.Attributes;
 using Spark.Engine.Components;
 using Spark.Util;
+using System.ComponentModel;
 using System.Numerics;
 using static Spark.Engine.StaticEngine;
 
@@ -58,7 +60,39 @@ public class ImGuiWarp
     private Actor? SelectedActor;
 
 
-    
+    void RenderComponent(PrimitiveComponent component)
+    {
+        var type = component.GetType();
+        int index = 0;
+        foreach(var property in type.GetProperties())
+        {
+            var att = property.GetAttribute<PropertyAttribute>();
+            if (att == null)
+                continue;
+            if (att.IsDispaly == false)
+                continue;
+            string Name = property.Name;
+            if (att.DisplayName != null)
+                Name = att.DisplayName;
+
+            if (att.IsReadOnly == false)
+            {
+                if (property.PropertyType == typeof(float))
+                {
+                    float value = 0;
+                    var OldValue = property.GetValue(component);
+                    if (OldValue != null)
+                        value = (float)OldValue;
+                    ImGui.Text(Name + ":");
+                    ImGui.SameLine();
+                    ImGui.InputFloat("##att" + index++, ref value);
+                    property.SetValue(component, value);
+                }
+            }
+            
+        }
+    }
+
     public void renderDetail()
     {
         ImGui.Begin("Detail");
@@ -142,11 +176,11 @@ public class ImGuiWarp
                 ImGui.PopID();
             }
             
-
+            int i = 0;
             foreach (var comp in SelectedActor.GetComponents<PrimitiveComponent>())
             {
                 ImGui.Text("Compoent: " + comp.GetType().Name);
-
+                RenderComponent(comp);
             }
 
 
@@ -209,6 +243,7 @@ public class ImGuiWarp
     }
     List<Actor> tmpList = new List<Actor>();
     List<Actor> cubeList = new List<Actor>();
+
     async void CreateHISM()
     {
         await Console.Out.WriteLineAsync("[HISM]正在生成:" + num);

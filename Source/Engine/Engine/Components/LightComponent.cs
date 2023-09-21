@@ -1,4 +1,5 @@
 ﻿using Spark.Engine.Actors;
+using Spark.Engine.Attributes;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -11,6 +12,7 @@ namespace Spark.Engine.Components;
 
 public class LightComponent : PrimitiveComponent
 {
+    [Property (DisplayName = "LightStrength", IsDispaly = true, IsReadOnly = false)]
     public float LightStrength
     {
         get => _LightStrength;
@@ -26,6 +28,7 @@ public class LightComponent : PrimitiveComponent
     }
 
     public float _LightStrength = 0.7f;
+    [Property(DisplayName = "AmbientStrength", IsDispaly = true, IsReadOnly = false)]
     public float AmbientStrength 
     {
         get => _AmbientStength; 
@@ -41,6 +44,7 @@ public class LightComponent : PrimitiveComponent
 
     float _AmbientStength = 0.3f;
 
+    [Property(DisplayName = "Color", IsDispaly = true, IsReadOnly = false)]
     public Color Color
     {
         get
