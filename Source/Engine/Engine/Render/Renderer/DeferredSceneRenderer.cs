@@ -778,6 +778,7 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
+        gl.PushDebugGroup("PointLight Pass");
         PointLightingShader.Use();
         foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
         {
@@ -831,12 +832,14 @@ public class DeferredSceneRenderer : IRenderer
 
         }
         PointLightingShader.UnUse();
+        gl.PopDebugGroup();
     }
 
 
     public unsafe void SpotLight()
     {
 
+        gl.PushDebugGroup("SpotLight Pass");
         if (CurrentCameraComponent == null)
             return;
         SpotLightingShader.Use();
@@ -905,6 +908,7 @@ public class DeferredSceneRenderer : IRenderer
 
         }
         SpotLightingShader.UnUse();
+        gl.PopDebugGroup();
     }
 }
 

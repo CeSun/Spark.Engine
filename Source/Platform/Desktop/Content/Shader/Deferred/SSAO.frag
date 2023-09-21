@@ -14,8 +14,8 @@ uniform vec3 samples[64];
 
 
 int samplesLen = 64;
-float radius = 0.3;
-float bias = 0.2;
+float radius = 0.5;
+float bias = 0.025;
 
 vec3 GetViewLocation(vec3 ScreenLocation);
 

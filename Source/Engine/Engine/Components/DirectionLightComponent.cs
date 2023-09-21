@@ -15,7 +15,7 @@ public class DirectionLightComponent : LightComponent
 {
     public DirectionLightComponent(Actor actor) : base(actor)
     {
-        ShadowMapSize = new Point(1024, 1024);
+        ShadowMapSize = new Point(2048, 2048);
         InitShadowMap();
     }
 

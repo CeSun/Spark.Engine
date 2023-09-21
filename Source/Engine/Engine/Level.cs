@@ -108,23 +108,27 @@ public partial class Level
                 }
             }
         };
-        /*
+        
         // 定义一个actor和并挂载静态网格体组件
-        var RobotActor = new Actor(this);
+        var RobotActor = new Actor(this, "Robot Actor");
         var RobotMeshComp = new StaticMeshComponent(RobotActor);
         RobotMeshComp.StaticMesh = new StaticMesh("/StaticMesh/untitled.glb");
         RobotActor.RootComponent = RobotMeshComp;
-        RobotMeshComp.WorldScale = new Vector3(5, 5, 5);
-        RobotMeshComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
-        RobotMeshComp.WorldLocation -= RobotMeshComp.UpVector * 2;
+        RobotActor.WorldScale = new Vector3(5, 5, 5);
+        RobotMeshComp.IsStatic = true;
+        RobotActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), 90F.DegreeToRadians(), 0F.DegreeToRadians());
+        RobotActor.WorldLocation = new Vector3(0, 1.8f, 10);
         this.RobotActor = RobotActor;
-        */
+        
+
+
         // 相机actor
         var CameraActor = new Actor(this, "Camera Actor");
         CameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = CameraComponent;
         CameraComponent.NearPlaneDistance = 1;
         CameraComponent.FarPlaneDistance = 1000f;
+        CameraComponent.FieldOfView = 75;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
         CameraComponent.WorldLocation += (new Vector3(0, 20, 0) - CameraComponent.ForwardVector * 10);
         CameraComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
@@ -141,13 +145,13 @@ public partial class Level
         var DecalActor = new Actor(this, "DecalActor");
         var DecalComponent = new DecalComponent(DecalActor);
         DecalActor.RootComponent = DecalComponent;
-        DecalActor.WorldScale = new Vector3(10F, 10F, 1F);
+        DecalActor.WorldScale = new Vector3(1, 1, 1);
         DecalActor.WorldLocation = new Vector3(0, 0.9F, 0);
         DecalComponent.Material = new Assets.Material()
         {
             Diffuse = new Texture("/Texture/bear.png")
         };
-        DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 90F.DegreeToRadians(), 0.0F);
+        DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 90F.DegreeToRadians(), 90F.DegreeToRadians());
 
         /*
         // 视差贴图
@@ -171,7 +175,7 @@ public partial class Level
         DirectionActor.RootComponent = DirectionComp;
         DirectionComp.Color = Color.White;
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
-        DirectionComp.LightStrength = 0.7f;
+        DirectionComp.LightStrength = 0.9f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
 
         /*

@@ -1,4 +1,5 @@
 ﻿using ImGuiNET;
+using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
@@ -33,7 +34,9 @@ public class ImGuiWarp
         renderDebugPanel();
         renderActorList();
         renderDetail();
+        gl.PushDebugGroup("GUI Pass");
         Controller?.Render();
+        gl.PopDebugGroup();
 
     }
 
@@ -86,13 +89,13 @@ public class ImGuiWarp
             Rotation.Y = Rotation.Y.RadiansToDegree();
             Rotation.Z = Rotation.Z.RadiansToDegree();
             ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("rx", ref Rotation.X);
+            ImGui.InputFloat("yaw", ref Rotation.Y);
             ImGui.SameLine();
             ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("ry", ref Rotation.Y);
+            ImGui.InputFloat("pitch", ref Rotation.Z);
             ImGui.SameLine();
             ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("rz", ref Rotation.Z);
+            ImGui.InputFloat("roll", ref Rotation.X);
             
             SelectedActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Rotation.Y.DegreeToRadians(), Rotation.Z.DegreeToRadians(), Rotation.X.DegreeToRadians());
 
