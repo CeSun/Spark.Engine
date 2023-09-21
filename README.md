@@ -6,7 +6,7 @@ Spark引擎是一个使用Opnegl开发的开源游戏引擎(虽然也没法商�
 
 ![运行截图](/Images/ScreenShot1.png "屏幕空间反射")
 ![运行截图](/Images/ScreenShot3.png "实例化渲染")
-![运行截图](/Images/ScreenShot2.png "物理引擎")
+![运行截图](/Images/SSAO.png "物理引擎和环境光遮蔽")
 
 # 已完成功能
 
@@ -24,6 +24,7 @@ Spark引擎是一个使用Opnegl开发的开源游戏引擎(虽然也没法商�
 - [x] 实例化渲染
 - [x] 接入物理系统
 - [x] 延迟贴花 
+- [x] 环境光遮蔽
 
 # 正在做的功能
 
