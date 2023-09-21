@@ -634,6 +634,7 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
+        gl.PushDebugGroup("DirectionalLight Pass");
         DirectionalLightingShader.Use();
         foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
@@ -642,9 +643,9 @@ public class DeferredSceneRenderer : IRenderer
             DirectionalLightingShader.SetMatrix("VPInvert", VPInvert);
 
             var LightLocation = CurrentCameraComponent.RelativeLocation - DirectionalLight.ForwardVector * 20;
-            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation - 100 * DirectionalLight.ForwardVector, DirectionalLight.UpVector);
-            var Projection = Matrix4x4.CreateOrthographic(1000, 1000, 0.0f, 1000f);
-
+            var View = Matrix4x4.CreateLookAt(LightLocation, CurrentCameraComponent.WorldLocation + DirectionalLight.ForwardVector * -1, DirectionalLight.UpVector);
+            var Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
+            
             var WorldToLight = View * Projection;
             DirectionalLightingShader.SetMatrix("WorldToLight", WorldToLight);
             DirectionalLightingShader.SetVector2("TexCoordScale",
@@ -692,7 +693,7 @@ public class DeferredSceneRenderer : IRenderer
 
         }
         DirectionalLightingShader.UnUse();
-
+        gl.PopDebugGroup();
     }
 
     private unsafe void BloomPass(double DeltaTime)

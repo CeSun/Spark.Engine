@@ -173,14 +173,14 @@ public partial class Level
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
         DirectionComp.LightStrength = 0.7f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
-        
+
+        /*
         var PointLight = new Actor(this, "PointLight Actor");
         var PointLightComp = new PointLightComponent(PointLight);
         PointLight.RootComponent = PointLightComp;
         PointLightComp.Color = Color.White;
         PointLightComp.LightStrength =1f;
         PointLightComp.WorldLocation += PointLightComp.UpVector * 50 - PointLightComp.RightVector * 2;
-
 
 
         var spotLight = new Actor(this, "SpotLight Actor");
@@ -190,7 +190,7 @@ public partial class Level
         SpotLightComponent.LightStrength = 1f;
         SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 80;
         SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
-
+        */
         var SkyBoxActor = new Actor(this, "SkyBox Actor");
         var skybox = new SkyboxComponent(SkyBoxActor);
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
