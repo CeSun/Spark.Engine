@@ -99,7 +99,7 @@ public class InstancedStaticMeshComponent : PrimitiveComponent
     }
 
 
-    public virtual unsafe void RenderHISM(CameraComponent cameraComponent, double DeltaTime)
+    public virtual unsafe void RenderISM(CameraComponent cameraComponent, double DeltaTime)
     {
         if (StaticMesh == null)
             return;

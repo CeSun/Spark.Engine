@@ -10,7 +10,6 @@ using Spark.Util;
 using Spark.Engine.Render.Buffer;
 using SharpGLTF.Schema2;
 using Texture = Spark.Engine.Assets.Texture;
-
 namespace Spark.Engine.Render.Renderer;
 
 public class DeferredSceneRenderer : IRenderer
@@ -319,7 +318,7 @@ public class DeferredSceneRenderer : IRenderer
         SkyboxShader.UnUse();
 
     }
-
+    private Plane[] Planes = new Plane[6];
     private unsafe void AOPass(double deltaTime)
     {
         if (CurrentCameraComponent == null)
@@ -399,9 +398,12 @@ public class DeferredSceneRenderer : IRenderer
 
             InstanceDLShadowMapShader.SetMatrix("ViewTransform", View);
             InstanceDLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
-            foreach (var hism in World.CurrentLevel.ISMComponents)
+            foreach (var ism in World.CurrentLevel.ISMComponents)
             {
-                hism.RenderHISM(CurrentCameraComponent, DeltaTime);
+                GetPlanes(View * Projection, ref Planes);
+                if (ism is HierarchicalInstancedStaticMeshComponent hism)
+                    hism.CameraCulling(Planes);
+                ism.RenderISM(CurrentCameraComponent, DeltaTime);
             }
             gl.PopDebugGroup();
 
@@ -437,9 +439,12 @@ public class DeferredSceneRenderer : IRenderer
             
             InstanceSpotShadowMapShader.SetMatrix("ViewTransform", View);
             InstanceSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
-            foreach (var hism in World.CurrentLevel.ISMComponents)
+            foreach (var ism in World.CurrentLevel.ISMComponents)
             {
-                hism.RenderHISM(CurrentCameraComponent, DeltaTime);
+                GetPlanes(View * Projection, ref Planes);
+                if (ism is HierarchicalInstancedStaticMeshComponent hism)
+                    hism.CameraCulling(Planes);
+                ism.RenderISM(CurrentCameraComponent, DeltaTime);
             }
             
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
@@ -495,7 +500,9 @@ public class DeferredSceneRenderer : IRenderer
             InstancePointLightingShader.Use();
             foreach (var hism in World.CurrentLevel.ISMComponents)
             {
-                hism.RenderHISM(CurrentCameraComponent, DeltaTime);
+                if (hism == null) 
+                    continue;
+                hism.RenderISM(CurrentCameraComponent, DeltaTime);
             }
             
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
@@ -547,9 +554,11 @@ public class DeferredSceneRenderer : IRenderer
                 HISMShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 HISMShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 HISMShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-                foreach (var hism in World.CurrentLevel.ISMComponents)
+                foreach (var ism in World.CurrentLevel.ISMComponents)
                 {
-                    hism.RenderHISM(CurrentCameraComponent, DeltaTime);
+                    if (ism is HierarchicalInstancedStaticMeshComponent hism)
+                        hism.CameraCulling(CurrentCameraComponent.GetPlanes());
+                    ism.RenderISM(CurrentCameraComponent, DeltaTime);
                 }
                 gl.PopDebugGroup();
             }

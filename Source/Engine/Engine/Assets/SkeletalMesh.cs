@@ -1,24 +1,19 @@
-﻿using SharpGLTF.Schema2;
+﻿using Jitter.LinearMath;
+using SharpGLTF.Schema2;
+using Spark.Engine.Physics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
-using Silk.NET.OpenGL;
 using static Spark.Engine.StaticEngine;
-using Spark.Engine.Physics;
-using Jitter.Collision.Shapes;
-using Jitter.LinearMath;
-using Jitter.Dynamics;
+using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class StaticMesh : Asset
+public class SkeletalMesh : Asset
 {
-    List<List<StaticMeshVertex>> Meshes = new List<List<StaticMeshVertex>>();
+    List<List<SkeletalMeshVertex>> Meshes = new List<List<SkeletalMeshVertex>>();
     List<List<uint>> _IndicesList = new List<List<uint>>();
     public List<Material> Materials = new List<Material>();
     List<JVector> ConvexHullSourceData = new List<JVector>();
@@ -29,45 +24,9 @@ public class StaticMesh : Asset
     public IReadOnlyList<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
     public IReadOnlyList<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
     public IReadOnlyList<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
-    public Box Box { get; private set; }
-
-    public List<Box> Boxes { get; private set; } = new List<Box>();
-    public StaticMesh(string path) : base(path)
+    public SkeletalMesh(string Path) : base(Path)
     {
-    }
 
-    public StaticMesh(List<StaticMeshVertex> mesh, List<uint> indices, Material material)
-    {
-        Meshes.Add(mesh);
-        _IndicesList.Add(indices);
-        Materials.Add(material);
-        IsValid = true;
-        IsLoaded = true;
-        InitRender();
-        InitPhysics();
-    }
-
-    protected virtual void InitPhysics()
-    {
-        List<JVector> points = new List<JVector>();
-        foreach (var Mesh in Meshes)
-        {
-            foreach (var vertex in Mesh)
-            {
-                points.Add(new JVector(vertex.Location.X, vertex.Location.Y, vertex.Location.Z));
-            }
-        }
-        var indexes = JConvexHull.Build(points, JConvexHull.Approximation.Level1);
-
-        foreach(var i in indexes)
-        {
-            ConvexHullSourceData.Add(points[i]);
-        }
-    }
-
-    public List<JVector> GetConvexHull()
-    {
-        return ConvexHullSourceData.ToList();
     }
     protected override void LoadAsset()
     {
@@ -76,9 +35,9 @@ public class StaticMesh : Asset
         var model = ModelRoot.ReadGLB(sr);
         foreach (var glMesh in model.LogicalMeshes)
         {
-            foreach(var glPrimitive in glMesh.Primitives)
+            foreach (var glPrimitive in glMesh.Primitives)
             {
-                List<StaticMeshVertex> staticMeshVertices = new List<StaticMeshVertex>();
+                List<SkeletalMeshVertex> staticMeshVertices = new List<SkeletalMeshVertex>();
                 foreach (var kv in glPrimitive.VertexAccessors)
                 {
                     int index = 0;
@@ -86,7 +45,7 @@ public class StaticMesh : Asset
                     {
                         foreach (var v in kv.Value.AsVector3Array())
                         {
-                            var Vertex = new StaticMeshVertex();
+                            var Vertex = new SkeletalMeshVertex();
                             if (staticMeshVertices.Count > index)
                             {
                                 Vertex = staticMeshVertices[index];
@@ -107,7 +66,7 @@ public class StaticMesh : Asset
                     {
                         foreach (var v in kv.Value.AsVector3Array())
                         {
-                            var Vertex = new StaticMeshVertex();
+                            var Vertex = new SkeletalMeshVertex();
                             if (staticMeshVertices.Count > index)
                             {
                                 Vertex = staticMeshVertices[index];
@@ -126,7 +85,7 @@ public class StaticMesh : Asset
                         foreach (var v in kv.Value.AsVector2Array())
                         {
 
-                            var Vertex = new StaticMeshVertex();
+                            var Vertex = new SkeletalMeshVertex();
                             if (staticMeshVertices.Count > index)
                             {
                                 Vertex = staticMeshVertices[index];
@@ -135,7 +94,47 @@ public class StaticMesh : Asset
                             {
                                 staticMeshVertices.Add(Vertex);
                             }
-                            Vertex.TexCoord = new Vector2 { X = v.X, Y = v.Y};
+                            Vertex.TexCoord = new Vector2 { X = v.X, Y = v.Y };
+                            staticMeshVertices[index] = Vertex;
+                            index++;
+                        }
+                    }
+
+                    if (kv.Key == "JOINTS_0")
+                    {
+                        foreach (var v in kv.Value.AsVector4Array())
+                        {
+
+                            var Vertex = new SkeletalMeshVertex();
+                            if (staticMeshVertices.Count > index)
+                            {
+                                Vertex = staticMeshVertices[index];
+                            }
+                            else
+                            {
+                                staticMeshVertices.Add(Vertex);
+                            }
+                            Vertex.BoneIds = new Vector4 { X = v.X, Y = v.Y, Z = v.Z, W = v.W };
+                            staticMeshVertices[index] = Vertex;
+                            index++;
+                        }
+                    }
+
+                    if (kv.Key == "WEIGHTS_0")
+                    {
+                        foreach (var v in kv.Value.AsVector4Array())
+                        {
+
+                            var Vertex = new SkeletalMeshVertex();
+                            if (staticMeshVertices.Count > index)
+                            {
+                                Vertex = staticMeshVertices[index];
+                            }
+                            else
+                            {
+                                staticMeshVertices.Add(Vertex);
+                            }
+                            Vertex.BoneWeights = new Vector4 { X = v.X, Y = v.Y, Z = v.Z, W = v.W };
                             staticMeshVertices[index] = Vertex;
                             index++;
                         }
@@ -146,21 +145,21 @@ public class StaticMesh : Asset
                 {
                     box.MaxPoint = box.MinPoint = staticMeshVertices[0].Location;
                 }
-                foreach(var Vertex in staticMeshVertices)
+                foreach (var Vertex in staticMeshVertices)
                 {
                     box += Vertex.Location;
                 }
-                Boxes.Add(box);
+                //Boxes.Add(box);
                 Meshes.Add(staticMeshVertices);
 
-                List<uint> Indices= new List<uint>();
-                foreach(var index in glPrimitive.IndexAccessor.AsIndicesArray())
+                List<uint> Indices = new List<uint>();
+                foreach (var index in glPrimitive.IndexAccessor.AsIndicesArray())
                 {
                     Indices.Add(index);
                 }
                 _IndicesList.Add(Indices);
                 var Material = new Material();
-                foreach(var glChannel in glPrimitive.Material.Channels)
+                foreach (var glChannel in glPrimitive.Material.Channels)
                 {
                     if (glChannel.Texture == null)
                         continue;
@@ -171,40 +170,38 @@ public class StaticMesh : Asset
                     }
                     if (glChannel.Key == "Normal")
                     {
-                        Material.Normal = texture; 
+                        Material.Normal = texture;
                     }
                 }
                 Materials.Add(Material);
             }
         }
+
         InitTBN();
-        InitRender();
-        if (Boxes.Count > 0)
-        {
-            Box = Boxes[0];
-            foreach(var box in Boxes)
-            {
-                Box += box;
-            }
-        }
-
-        InitPhysics();
+        LoadBones(model);
     }
-
     private void InitTBN()
     {
-        for (int i = 0; i < IndicesList.Count; i ++)
+        for (int i = 0; i < IndicesList.Count; i++)
         {
             InitMeshTBN(i);
         }
     }
+    protected void LoadBones(ModelRoot model)
+    {
+        for(int i = 0; i < model.LogicalNodes.Count; i++)
+        {
+
+        }
+    }
+
 
     private void InitMeshTBN(int index)
     {
         var vertics = Meshes[index];
         var indices = _IndicesList[index];
 
-        for(int i = 0; i < indices.Count; i += 3)
+        for (int i = 0; i < indices.Count; i += 3)
         {
             var p1 = vertics[(int)indices[i]];
             var p2 = vertics[(int)indices[i + 1]];
@@ -246,90 +243,17 @@ public class StaticMesh : Asset
         }
 
     }
-    private unsafe void InitRender()
-    {
-        for (var index = 0; index < Meshes.Count; index++)
-        {
-            uint vao = gl.GenVertexArray();
-            uint vbo = gl.GenBuffer();
-            uint ebo = gl.GenBuffer();
-            gl.BindVertexArray(vao);
-            gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
-            fixed (StaticMeshVertex* p = CollectionsMarshal.AsSpan(Meshes[index]))
-            {
-                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Meshes[index].Count * sizeof(StaticMeshVertex)), p, GLEnum.StaticDraw);
-            }
-            gl.BindBuffer(GLEnum.ElementArrayBuffer, ebo);
-            fixed (uint* p = CollectionsMarshal.AsSpan(_IndicesList[index]))
-            {
-                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(_IndicesList[index].Count * sizeof(uint)), p, GLEnum.StaticDraw);
-            }
 
-            // Location
-            gl.EnableVertexAttribArray(0);
-            gl.VertexAttribPointer(0, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)0);
-            // Normal
-            gl.EnableVertexAttribArray(1);
-            gl.VertexAttribPointer(1, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)sizeof(Vector3));
-
-
-            gl.EnableVertexAttribArray(2);
-            gl.VertexAttribPointer(2, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(2 * sizeof(Vector3)));
-
-
-            gl.EnableVertexAttribArray(3);
-            gl.VertexAttribPointer(3, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(3 * sizeof(Vector3)));
-
-            // Color
-            gl.EnableVertexAttribArray(4);
-            gl.VertexAttribPointer(4, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(4 * sizeof(Vector3)));
-            // TexCoord
-            gl.EnableVertexAttribArray(5);
-            gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(5 * sizeof(Vector3)));
-            gl.BindVertexArray(0);
-
-            _VertexArrayObjectIndexes.Add(vao);
-            VertexBufferObjectIndexes.Add(vbo);
-            _ElementBufferObjectIndexes.Add(ebo);
-        }
-    }
-
-    public unsafe void Render(double DeltaTime)
-    {
-        if (IsValid == false)
-            return;
-        int index = 0;
-        gl.PushDebugGroup("Render Static Mesh:" + Path);
-        foreach(var mesh in Meshes)
-        {
-            Materials[index].Use();
-            gl.BindVertexArray(_VertexArrayObjectIndexes[index]);
-            gl.DrawElements(GLEnum.Triangles, (uint)_IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
-            index++;
-        }
-        gl.PopDebugGroup();
-    }
-
-
-    ~StaticMesh()
-    {
-        foreach(var vao in VertexArrayObjectIndexes)
-        {
-            // gl.DeleteVertexArray(vao);
-        }
-        foreach(var vbo in VertexBufferObjectIndexes)
-        {
-            //gl.DeleteBuffer(vbo);
-        }
-        foreach (var ebo in _ElementBufferObjectIndexes)
-        {
-            //gl.DeleteBuffer(ebo);
-        }
-    }
+    
 }
 
 
-public struct StaticMeshVertex
+public class BoneNode
+{
+
+}
+
+public struct SkeletalMeshVertex
 {
     public Vector3 Location;
 
@@ -342,4 +266,8 @@ public struct StaticMeshVertex
     public Vector3 Color;
 
     public Vector2 TexCoord;
+
+    public Vector4 BoneIds;
+
+    public Vector4 BoneWeights;
 }

@@ -264,12 +264,12 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
     List<ClustreeNode> RenderList = new List<ClustreeNode>();
 
 
-    public void CameraCulling(CameraComponent camera)
+    public void CameraCulling(Plane[] planes)
     {
         RenderList.Clear();
         if (NodeList.Count == 0)
             return;
-        TestBox(NodeList, camera.GetPlanes(), Root);
+        TestBox(NodeList, planes, Root);
 
     }
 
@@ -287,24 +287,34 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
             TestBox(List, Planes, List[i]);
         }
     }
-    public override unsafe void RenderHISM(CameraComponent cameraComponent, double DeltaTime)
+    public override unsafe void RenderISM(CameraComponent? cameraComponent, double DeltaTime)
     {
-        CameraCulling(cameraComponent);
         if (CanRender == false)
             return;
         if (StaticMesh == null)
             return;
-        var distance = cameraComponent.FarPlaneDistance - cameraComponent.NearPlaneDistance;
-        var d = (int)(distance / StaticMesh.VertexArrayObjectIndexes.Count);
+        var d = 0;
+        if (cameraComponent != null)
+        {
+            var distance = 0f;
+            distance = cameraComponent.FarPlaneDistance - cameraComponent.NearPlaneDistance;
+            d = (int)(distance / StaticMesh.VertexArrayObjectIndexes.Count);
+        }
+
 
 
         foreach (var node in RenderList)
         {
-            var Len = (int)node.Box.GetDistance(cameraComponent.WorldLocation);
-            var level = Len / d;
-            if (level >= StaticMesh.VertexArrayObjectIndexes.Count)
+            int level = 0;
+            
+            if (cameraComponent != null)
             {
-                level = StaticMesh.VertexArrayObjectIndexes.Count - 1;
+                var Len = (int)node.Box.GetDistance(cameraComponent.WorldLocation);
+                level = Len / d;
+                if (level >= StaticMesh.VertexArrayObjectIndexes.Count)
+                {
+                    level = StaticMesh.VertexArrayObjectIndexes.Count - 1;
+                }
             }
             StaticMesh.Materials[level].Use();
             gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[level]);

@@ -106,7 +106,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         GetPlanes(View * Projection, ref tmpPlanes);
         return tmpPlanes;
     }
-    public void GetPlanes(Matrix4x4 ViewTransform, ref Plane[] Planes)
+    public static void GetPlanes(Matrix4x4 ViewTransform, ref Plane[] Planes)
     {
         if (Planes.Length < 6)
         {
