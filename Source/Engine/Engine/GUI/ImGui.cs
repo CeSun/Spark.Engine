@@ -69,49 +69,85 @@ public class ImGuiWarp
         else
         {
             ImGui.Text(SelectedActor.Name);
-            ImGui.Text("Location:");
-            ImGui.SameLine();
-            Vector3 Location = SelectedActor.WorldLocation;
-            ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("lx", ref Location.X);
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("ly", ref Location.Y);
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("lz", ref Location.Z);
-            SelectedActor.WorldLocation = Location;
+            ImGui.PushID("Location");
+            {
+                ImGui.Text("Location:");
+                ImGui.SameLine();
+                Vector3 Location = SelectedActor.WorldLocation;
+                ImGui.Text("X:");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(50);
+                ImGui.InputFloat("##x", ref Location.X);
+                ImGui.SameLine();
+                ImGui.Text("Y:");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(50);
+                ImGui.InputFloat("##y", ref Location.Y);
+                ImGui.SameLine();
+                ImGui.Text("Z:");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(50);
+                ImGui.InputFloat("##z", ref Location.Z);
+                SelectedActor.WorldLocation = Location;
+                ImGui.PopID();
+            }
+            ImGui.PushID("Rotation");
+            {
+                ImGui.Text("Rotation:");
+                ImGui.SameLine();
+                Vector3 Rotation = SelectedActor.WorldRotation.ToEuler();
+                Rotation.X = Rotation.X.RadiansToDegree();
+                Rotation.Y = Rotation.Y.RadiansToDegree();
+                Rotation.Z = Rotation.Z.RadiansToDegree();
+                ImGui.Text("Yaw:");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(50);
+                ImGui.InputFloat("##yaw", ref Rotation.Y);
+                ImGui.SameLine();
+                ImGui.Text("Pitch:");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(50);
+                ImGui.InputFloat("##pitch", ref Rotation.Z);
+                ImGui.SameLine();
+                ImGui.Text("Roll:");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(50);
+                ImGui.InputFloat("##roll", ref Rotation.X);
 
-            ImGui.Text("Rotation:");
-            ImGui.SameLine();
-            Vector3 Rotation = SelectedActor.WorldRotation.ToEuler();
-            Rotation.X = Rotation.X.RadiansToDegree();
-            Rotation.Y = Rotation.Y.RadiansToDegree();
-            Rotation.Z = Rotation.Z.RadiansToDegree();
-            ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("yaw", ref Rotation.Y);
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("pitch", ref Rotation.Z);
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("roll", ref Rotation.X);
+                SelectedActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Rotation.Y.DegreeToRadians(), Rotation.Z.DegreeToRadians(), Rotation.X.DegreeToRadians());
+
+                ImGui.PopID();
+
+            }
+            ImGui.PushID("Scale");
+            {
+                ImGui.Text("Scale:");
+                ImGui.SameLine();
+                Vector3 Scale = SelectedActor.WorldScale;
+                ImGui.Text("X:");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(50);
+                ImGui.InputFloat("##x", ref Scale.X);
+                ImGui.SameLine();
+                ImGui.Text("Y:");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(50);
+                ImGui.InputFloat("##y", ref Scale.Y);
+                ImGui.SameLine();
+                ImGui.Text("Z:");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(50);
+                ImGui.InputFloat("##z", ref Scale.Z);
+                SelectedActor.WorldScale = Scale;
+                ImGui.PopID();
+            }
             
-            SelectedActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Rotation.Y.DegreeToRadians(), Rotation.Z.DegreeToRadians(), Rotation.X.DegreeToRadians());
 
-            ImGui.Text("Scale:");
-            ImGui.SameLine();
-            Vector3 Scale = SelectedActor.WorldScale;
-            ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("sx", ref Scale.X);
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("sy", ref Scale.Y);
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(50);
-            ImGui.InputFloat("sz", ref Scale.Z);
-            SelectedActor.WorldScale = Scale;
+            foreach (var comp in SelectedActor.GetComponents<PrimitiveComponent>())
+            {
+                ImGui.Text("Compoent: " + comp.GetType().Name);
 
+            }
 
 
 
