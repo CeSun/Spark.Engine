@@ -15,7 +15,7 @@ public class SpotLightComponent : LightComponent
         Quadratic = 0.0075F;
         InnerAngle = 12.5f;
         OuterAngle = 17.5f;
-        ShadowMapSize = new Point(1920, 1920);
+        ShadowMapSize = new Point(1024, 1024);
         InitShadowMap();
     }
     public float Constant;

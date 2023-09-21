@@ -154,8 +154,8 @@ public class Shader : Asset
 
     ~Shader()
     {
-        if (ProgramId != 0)
-            gl.DeleteProgram(ProgramId);
+        //if (ProgramId != 0)
+        //    gl.DeleteProgram(ProgramId);
     }
 
 }

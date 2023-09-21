@@ -22,7 +22,10 @@ public class DeferredSceneRenderer : IRenderer
     Shader PointLightingShader;
 
     Shader DLShadowMapShader;
+    Shader InstanceDLShadowMapShader;
     Shader SpotShadowMapShader;
+    Shader InstanceSpotShadowMapShader;
+    Shader InstancePointLightingShader;
     Shader SkyboxShader;
     Shader PontLightShadowShader;
     Shader BloomPreShader;
@@ -67,6 +70,9 @@ public class DeferredSceneRenderer : IRenderer
         DecalShader = new Shader("/Shader/Deferred/Decal");
         DecalPostShader = new Shader("/Shader/Deferred/DecalPost");
         SSAOShader = new Shader("/Shader/Deferred/SSAO");
+        InstancePointLightingShader = new Shader("/Shader/ShadowMap/Instance/PointLightShadow");
+        InstanceDLShadowMapShader = new Shader("/Shader/ShadowMap/Instance/DirectionLightShadow");
+        InstanceSpotShadowMapShader = new Shader("/Shader/ShadowMap/Instance/SpotLightShadow");
         GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 3);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -372,7 +378,7 @@ public class DeferredSceneRenderer : IRenderer
         foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
             var LightLocation = CurrentCameraComponent.RelativeLocation - DirectionalLight.ForwardVector * 20;
-            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
+            var View = Matrix4x4.CreateLookAt(LightLocation, CurrentCameraComponent.WorldLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
             var Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
             gl.Viewport(new Rectangle(0, 0, DirectionalLight.ShadowMapSize.X, DirectionalLight.ShadowMapSize.Y));
             gl.BindFramebuffer(GLEnum.Framebuffer, DirectionalLight.ShadowMapFrameBufferID);
@@ -391,12 +397,21 @@ public class DeferredSceneRenderer : IRenderer
                 }
             }
 
+            InstanceDLShadowMapShader.SetMatrix("ViewTransform", View);
+            InstanceDLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            foreach (var hism in World.CurrentLevel.ISMComponents)
+            {
+                hism.RenderHISM(CurrentCameraComponent, DeltaTime);
+            }
+            gl.PopDebugGroup();
+
+
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }
         DLShadowMapShader.UnUse();
 
-        SpotLightingShader.Use();
+        SpotShadowMapShader.Use();
         foreach (var SpotLight in World.CurrentLevel.SpotLightComponents)
         {
             var View = Matrix4x4.CreateLookAt(SpotLight.WorldLocation, SpotLight.WorldLocation + SpotLight.ForwardVector, SpotLight.UpVector);
@@ -405,8 +420,8 @@ public class DeferredSceneRenderer : IRenderer
             gl.BindFramebuffer(GLEnum.Framebuffer, SpotLight.ShadowMapFrameBufferID);
             gl.Clear(ClearBufferMask.DepthBufferBit);
 
-            SpotLightingShader.SetMatrix("ViewTransform", View);
-            SpotLightingShader.SetMatrix("ProjectionTransform", Projection);
+            SpotShadowMapShader.SetMatrix("ViewTransform", View);
+            SpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
 
             foreach (var component in World.CurrentLevel.PrimitiveComponents)
             {
@@ -414,12 +429,19 @@ public class DeferredSceneRenderer : IRenderer
                     continue;
                 if (component.IsDestoryed == false)
                 {
-                    SpotLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    SpotLightingShader.SetMatrix("NormalTransform", component.NormalTransform);
+                    SpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    SpotShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
                     component.Render(DeltaTime);
                 }
             }
-
+            
+            InstanceSpotShadowMapShader.SetMatrix("ViewTransform", View);
+            InstanceSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            foreach (var hism in World.CurrentLevel.ISMComponents)
+            {
+                hism.RenderHISM(CurrentCameraComponent, DeltaTime);
+            }
+            
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
 
@@ -462,6 +484,20 @@ public class DeferredSceneRenderer : IRenderer
                 }
             }
 
+            
+            for (var i = 0; i < 6; i++)
+            {
+                InstancePointLightingShader.SetMatrix("shadowMatrices[" + i + "]", ShadowMatrices[i]);
+            }
+
+            InstancePointLightingShader.SetVector3("LightLocation", PointLight.WorldLocation);
+            InstancePointLightingShader.SetFloat("FarPlan", 1000);
+            InstancePointLightingShader.Use();
+            foreach (var hism in World.CurrentLevel.ISMComponents)
+            {
+                hism.RenderHISM(CurrentCameraComponent, DeltaTime);
+            }
+            
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }

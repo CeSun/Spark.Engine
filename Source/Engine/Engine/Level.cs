@@ -169,32 +169,33 @@ public partial class Level
         }
         */
         //CubeMeshComp2.StaticMesh.Materials
+
+        
         // 创建定向光源
         var DirectionActor = new Actor(this, "Direction Actor");
         var DirectionComp = new DirectionLightComponent(DirectionActor);
         DirectionActor.RootComponent = DirectionComp;
         DirectionComp.Color = Color.White;
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
-        DirectionComp.LightStrength = 0.9f;
+        DirectionComp.LightStrength = 0.6f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
-
-        /*
+      
         var PointLight = new Actor(this, "PointLight Actor");
         var PointLightComp = new PointLightComponent(PointLight);
         PointLight.RootComponent = PointLightComp;
-        PointLightComp.Color = Color.White;
-        PointLightComp.LightStrength =1f;
-        PointLightComp.WorldLocation += PointLightComp.UpVector * 50 - PointLightComp.RightVector * 2;
-
-
+        PointLightComp.Color = Color.YellowGreen;
+        PointLightComp.LightStrength = 0.7f;
+        PointLightComp.WorldLocation += PointLightComp.UpVector * 10 ;
+         
         var spotLight = new Actor(this, "SpotLight Actor");
         var SpotLightComponent = new SpotLightComponent(spotLight);
         spotLight.RootComponent = SpotLightComponent;
-        SpotLightComponent.Color = Color.Purple;
-        SpotLightComponent.LightStrength = 1f;
-        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 80;
-        SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
-        */
+        SpotLightComponent.Color = Color.SteelBlue;
+        SpotLightComponent.LightStrength = 0.7f;
+        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 20;
+        SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -90f.DegreeToRadians(), 0);
+        SpotLightComponent.InnerAngle = 90;
+        SpotLightComponent.OuterAngle = 110;
         var SkyBoxActor = new Actor(this, "SkyBox Actor");
         var skybox = new SkyboxComponent(SkyBoxActor);
         skybox.SkyboxCube = new TextureCube("/Skybox/pm");
