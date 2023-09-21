@@ -1,73 +1,80 @@
 #version 330 core
-out vec4 glColor;
+out float FragColor;
 
+uniform vec2 TexCoordScale;
 
 in vec2 OutTexCoord;
 in vec2 OutTrueTexCoord;
 uniform sampler2D DepthTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D NoiseTexture;
-uniform mat4 VPInvert;
-uniform mat4 ViewRotationTransform;
-uniform mat4 ViewTransform;
 uniform mat4 ProjectionTransform;
+uniform mat4 InvertProjectionTransform;
 uniform vec3 samples[64];
-int samplesLen = 64;
 
-vec3 GetWorldLocation(vec3 ScreenLocation);
+
+int samplesLen = 64;
+float radius = 0.3;
+float bias = 0.2;
+
+vec3 GetViewLocation(vec3 ScreenLocation);
+
 void main()
 {
-    float depth = texture(DepthTexture, OutTexCoord).r;
-    vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
-    vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
-    Normal = (ViewRotationTransform * vec4(Normal, 1.0f)).xyz;
+	float Depth = texture(DepthTexture, OutTexCoord).x;
+	if (Depth >= 1.0f)
+		discard;
 
-    vec3 ViewLocation = (ViewTransform * vec4(WorldLocation, 1.0f)).xyz;
-    vec2 size = textureSize(NoiseTexture, 0);
-	vec2 uv = vec2(0.0f, 0.0f);
-	uv.x = int(gl_FragCoord.x) % int(size.x);
-	uv.y = int(gl_FragCoord.y) % int(size.y);
-	uv.x = uv.x / size.x;
-	uv.y = uv.y / size.y;
 
-    vec3 RandomVec = texture(NoiseTexture, uv).xyz;
-    RandomVec = normalize(RandomVec);
-    vec3 Tangent = normalize(RandomVec -  Normal * dot(RandomVec, Normal));
-    vec3 Bitangent = cross(Normal, Tangent);
+	vec3 Normal = normalize(texture(NormalTexture, OutTexCoord).xyz * 2.0f - vec3(1.0f, 1.0f, 1.0f));
 
-    mat3 TBN = mat3(Tangent, Bitangent, Normal);
-    float occlusion = 0.0;
-    for (int i = 0; i < 64; i++)
+	vec3 FragViewLocation = GetViewLocation(vec3(OutTrueTexCoord, Depth));
+
+
+	vec2 size = textureSize(NoiseTexture, 0);
+	vec2 uv = vec2(gl_FragCoord.x / size.x, gl_FragCoord.y / size.y);
+
+	vec3 RandomVec = normalize(texture(NoiseTexture, uv * TexCoordScale)).xyz;
+	vec3 Tangent = normalize(RandomVec - Normal * dot(RandomVec, Normal));
+	vec3 BitTanget = cross(Normal, Tangent);
+
+	mat3 TBN = mat3(Tangent, BitTanget, Normal);
+
+	float occlusion = 0.0;
+	for(int i = 0; i < samplesLen; ++i)
 	{
-		vec3 sample =  TBN * samples[i];
-        sample = ViewLocation + sample;
-
-        vec4 NDC = ProjectionTransform * vec4(sample, 1.0f);
-        if (NDC.x > NDC.w || NDC.x < -NDC.w)
-            continue;
-        if (NDC.y > NDC.w || NDC.y < -NDC.w)
-            continue;
-        if (NDC.z > NDC.w || NDC.z < -NDC.w)
-            continue;
-        NDC = NDC / NDC.w;
-        float sampleDepth = (NDC.z + 1.0f ) / 2;
-
-        uv = (NDC.xy + vec2(1.0f, 1.0f)) /2.0f;
-        float targetDepth = texture(DepthTexture, uv).r;
-
-        if (sampleDepth > depth)
-            occlusion +=1.0f;
+		// get sample position
+        vec3 samplePos = TBN * samples[i]; // from tangent to view-space
+        samplePos = FragViewLocation + samplePos * radius; 
+        
+        // project sample position (to sample texture) (to get position on screen/texture)
+        vec4 offset = vec4(samplePos, 1.0);
+        offset = ProjectionTransform * offset; // from view to clip-space
+        offset.xyz /= offset.w; // perspective divide
+        offset.xyz = offset.xyz * 0.5 + 0.5; // transform to range 0.0 - 1.0
+        
+		float sampleDepth =  texture(DepthTexture, offset.xy).x;
+        // get sample depth
+        sampleDepth = GetViewLocation(vec3(offset.xy, sampleDepth)).z; // get depth value of kernel sample
+        
+        // range check & accumulate
+        float rangeCheck = smoothstep(0.0, 1.0, radius / abs(FragViewLocation.z - sampleDepth));
+        occlusion += (sampleDepth >= samplePos.z + bias ? 1.0 : 0.0) * rangeCheck;     
 	}
     occlusion = 1.0 - (occlusion / samplesLen);
+    
+    FragColor = occlusion;
 
-	glColor = vec4(occlusion, 0.0f, 0.0f, 1.0f); //vec4(uv, 0.0f, 1.0f);
+
 }
 
-vec3 GetWorldLocation(vec3 ScreenLocation)
-{
-    ScreenLocation = ScreenLocation * 2.0f - vec3(1.0f, 1.0f, 1.0f);
-    vec4 tempWorldLocation = VPInvert * vec4(ScreenLocation, 1.0f);
-    vec3 WorldLocation =  tempWorldLocation.xyz / tempWorldLocation.w;
 
-    return WorldLocation;
+vec3 GetViewLocation(vec3 ScreenLocation)
+{
+	ScreenLocation = ScreenLocation * 2.0f - vec3(1.0f, 1.0f, 1.0f);
+
+	vec4 tmpViewLocation =  InvertProjectionTransform * vec4(ScreenLocation, 1.0f);
+
+	return tmpViewLocation.xyz / tmpViewLocation.w;
+	
 }

@@ -42,7 +42,6 @@ public class ImGuiWarp
         ImGui.Begin("Tree:");
 
         
-        ImGui.BeginListBox("");
         foreach (var actor in CurrentLevel.Actors)
         {
             if(ImGui.Button(actor.Name))
@@ -50,7 +49,6 @@ public class ImGuiWarp
                 SelectedActor = actor;
             }
         }
-        ImGui.EndListBox();
         ImGui.End();
     }
 

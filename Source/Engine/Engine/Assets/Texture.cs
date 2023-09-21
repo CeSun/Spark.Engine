@@ -45,9 +45,9 @@ public class Texture : Asset
                 var index = (j * Width + i) * 3;
                 Vector3 v = new Vector3
                 {
-                    X = (float)Random.Shared.NextDouble(),
-                    Y = (float)Random.Shared.NextDouble(),
-                    Z = (float)Random.Shared.NextDouble()
+                    X = (float)Random.Shared.NextDouble() * 2 - 1,
+                    Y = (float)Random.Shared.NextDouble() * 2 - 1,
+                    Z = 0
                 };
 
                 data[index] = (byte)(255 * v.X);

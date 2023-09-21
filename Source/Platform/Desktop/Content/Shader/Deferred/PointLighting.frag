@@ -8,6 +8,7 @@ uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
 uniform samplerCube ShadowMapTextue;
+uniform sampler2D SSAOTexture;
 uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
@@ -36,6 +37,7 @@ void main()
     //vec3 WorldLocation =texture(DepthTexture, OutTexCoord).xyz;
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
+    float AO = texture(SSAOTexture, OutTexCoord).r;
 
     float Distance    = length(LightLocation - WorldLocation);
     float Attenuation = 1.0 / (Constant + Linear * Distance + Quadratic * (Distance * Distance));
@@ -43,7 +45,7 @@ void main()
 
     Normal = normalize(Normal);
 
-    vec3  Ambient = AmbientStrength * Attenuation * LightColor.rgb;
+    vec3  Ambient = AmbientStrength * AO * Attenuation * LightColor.rgb;
     
     vec3 LightDirection = normalize(WorldLocation - LightLocation);
     // mfs

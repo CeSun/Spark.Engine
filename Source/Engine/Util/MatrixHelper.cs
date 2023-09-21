@@ -85,7 +85,11 @@ public static class MatrixHelper
         return ScaleMatrix * RotationMatrix * LocationMatrix;
     }
 
-
+    public static Matrix4x4 Inverse(this Matrix4x4 m)
+    {
+        Matrix4x4.Invert(m, out var r);
+        return r;
+    }
     public static Vector3 ToEuler(this Quaternion quaternion)
     {
         float yaw, pitch, roll;

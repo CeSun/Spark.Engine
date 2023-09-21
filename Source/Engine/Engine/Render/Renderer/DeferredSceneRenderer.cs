@@ -73,7 +73,7 @@ public class DeferredSceneRenderer : IRenderer
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
 
-        NoiseTexture = Texture.CreateNoiseTexture(20, 20);
+        NoiseTexture = Texture.CreateNoiseTexture(4, 4);
         InitRender();
         InitSSAORender();
     }
@@ -84,9 +84,9 @@ public class DeferredSceneRenderer : IRenderer
         {
             HalfSpherical.Add(new Vector3
             {
-                X = (float)Random.Shared.NextDouble(),
-                Y = (float)Random.Shared.NextDouble(),
-                Z = (float)Random.Shared.NextDouble()
+                X = (float)Random.Shared.NextDouble() * 2 - 1,
+                Y = (float)Random.Shared.NextDouble() * 2 - 1,
+                Z = (float)Random.Shared.NextDouble() * 2 - 1
             });
         }
 
@@ -322,8 +322,7 @@ public class DeferredSceneRenderer : IRenderer
         using (PostProcessBuffer2.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-            SSAOShader.SetMatrix("VPInvert", VPInvert);
+           
             SSAOShader.SetVector2("TexCoordScale",
             new Vector2
             {
@@ -331,10 +330,9 @@ public class DeferredSceneRenderer : IRenderer
                 Y = PostProcessBuffer2.Height / (float)PostProcessBuffer2.BufferHeight
             });
 
-            var ViewRotationTransform = Matrix4x4.CreateFromQuaternion( CurrentCameraComponent.View.Rotation());
-            SSAOShader.SetMatrix("ViewRotationTransform", ViewRotationTransform);
             SSAOShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-            SSAOShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+            SSAOShader.SetMatrix("InvertProjectionTransform", CurrentCameraComponent.Projection.Inverse());
+
 
             SSAOShader.SetInt("NormalTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
@@ -644,8 +642,8 @@ public class DeferredSceneRenderer : IRenderer
             DirectionalLightingShader.SetMatrix("VPInvert", VPInvert);
 
             var LightLocation = CurrentCameraComponent.RelativeLocation - DirectionalLight.ForwardVector * 20;
-            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation - 1000 * DirectionalLight.ForwardVector, DirectionalLight.UpVector);
-            var Projection = Matrix4x4.CreateOrthographic(1000, 1000, 1.0f, 1000f);
+            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation - 100 * DirectionalLight.ForwardVector, DirectionalLight.UpVector);
+            var Projection = Matrix4x4.CreateOrthographic(1000, 1000, 0.0f, 1000f);
 
             var WorldToLight = View * Projection;
             DirectionalLightingShader.SetMatrix("WorldToLight", WorldToLight);
@@ -676,6 +674,12 @@ public class DeferredSceneRenderer : IRenderer
             DirectionalLightingShader.SetInt("ShadowMapTexture", 3);
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, DirectionalLight.ShadowMapTextureID);
+
+
+            DirectionalLightingShader.SetInt("SSAOTexture", 4);
+            gl.ActiveTexture(GLEnum.Texture4);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+
 
             DirectionalLightingShader.SetVector3("LightDirection", LightInfo.Direction);
             DirectionalLightingShader.SetVector3("LightColor", LightInfo.Color);
@@ -809,6 +813,10 @@ public class DeferredSceneRenderer : IRenderer
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.TextureCubeMap, PointLightComponent.ShadowMapTextureID);
 
+            PointLightingShader.SetInt("SSAOTexture", 4);
+            gl.ActiveTexture(GLEnum.Texture4);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+
             PointLightingShader.SetFloat("FarPlan", 1000);
 
             PointLightingShader.SetVector3("LightLocation", PointLightComponent.WorldLocation);
@@ -876,6 +884,11 @@ public class DeferredSceneRenderer : IRenderer
             gl.ActiveTexture(GLEnum.Texture2);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
             SpotLightingShader.SetInt("ShadowMapTexture", 3);
+
+            SpotLightingShader.SetInt("SSAOTexture", 4);
+            gl.ActiveTexture(GLEnum.Texture4);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+
 
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, SpotLightComponent.ShadowMapTextureID);
