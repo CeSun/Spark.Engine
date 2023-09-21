@@ -27,10 +27,8 @@ public class PointLightComponent : LightComponent
     [Property(DisplayName = "Linear", IsDispaly = true, IsReadOnly = false)]
     public float Linear { get; set; }
 
-    [Property(DisplayName = "Quadratic", IsDispaly = true, IsReadOnly = false)]
+    [Property(DisplayName = "Quadratic", IsDispaly = true, IsReadOnly = true)]
     public float Quadratic { get; set; }
-
-
 
     public uint ShadowMapTextureID = default;
     public uint ShadowMapFrameBufferID = default;

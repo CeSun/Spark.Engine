@@ -75,18 +75,58 @@ public class ImGuiWarp
             if (att.DisplayName != null)
                 Name = att.DisplayName;
 
-            if (att.IsReadOnly == false)
+           
+            if (property.PropertyType == typeof(float))
             {
-                if (property.PropertyType == typeof(float))
+                float value = 0;
+                var OldValue = property.GetValue(component);
+                if (OldValue != null)
+                    value = (float)OldValue;
+                ImGui.Text(Name + ":");
+                ImGui.SameLine();
+                if (att.IsReadOnly == false)
                 {
-                    float value = 0;
-                    var OldValue = property.GetValue(component);
-                    if (OldValue != null)
-                        value = (float)OldValue;
-                    ImGui.Text(Name + ":");
-                    ImGui.SameLine();
                     ImGui.InputFloat("##att" + index++, ref value);
                     property.SetValue(component, value);
+                }
+                else
+                {
+                    ImGui.Text(value + "");
+                }
+            }
+            else if (property.PropertyType == typeof(int))
+            {
+                int value = 0;
+                var OldValue = property.GetValue(component);
+                if (OldValue != null)
+                    value = (int)OldValue;
+                ImGui.Text(Name + ":");
+                ImGui.SameLine();
+                if (att.IsReadOnly == false)
+                {
+                    ImGui.InputInt("##att" + index++, ref value);
+                    property.SetValue(component, value);
+                }
+                else
+                {
+                    ImGui.Text(value + "");
+                }
+            }
+            else if (property.PropertyType == typeof(string))
+            {
+                string value = "";
+                var OldValue = property.GetValue(component);
+                if (OldValue != null)
+                    value = (string)OldValue;
+                ImGui.Text(Name + ":");
+                ImGui.SameLine(); if (att.IsReadOnly == false)
+                {
+                    ImGui.InputText("##att" + index++, ref value, 255);
+                    property.SetValue(component, value);
+                }
+                else
+                {
+                    ImGui.Text(value + "");
                 }
             }
             
@@ -176,7 +216,6 @@ public class ImGuiWarp
                 ImGui.PopID();
             }
             
-            int i = 0;
             foreach (var comp in SelectedActor.GetComponents<PrimitiveComponent>())
             {
                 ImGui.Text("Compoent: " + comp.GetType().Name);

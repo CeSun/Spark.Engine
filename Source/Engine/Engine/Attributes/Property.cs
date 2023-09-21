@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Attributes;
 
-[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
 public class PropertyAttribute : Attribute
 {
     public bool IsDispaly = false;
