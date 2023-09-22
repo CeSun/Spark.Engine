@@ -12,10 +12,10 @@ using System.Numerics;
 
 namespace Spark.Engine.Assets;
 
-public class Texture : Asset
+public class Texture
 {
     public uint TextureId { get; protected set; }
-    protected override void  LoadAsset()
+    protected  void  LoadAsset()
     {
         using (var StreamReader = FileSystem.GetStreamReader("Content" + Path))
         {
@@ -29,7 +29,7 @@ public class Texture : Asset
     }
     internal Texture()
     {
-
+        Path = "";
     }
 
 
@@ -73,25 +73,19 @@ public class Texture : Asset
 
         return texture;
     }
-
-    public Texture(string path) : base(path) 
+    public string Path { get; private set; }
+    public Texture(string path)
     {
-        
+        Path = path;
+        LoadAsset();
     }
     internal Texture(byte[] memory)
     {
-        try
+        Path = "";
+        var image = ImageResult.FromMemory(memory);
+        if (image != null)
         {
-            var image = ImageResult.FromMemory(memory);
-            if (image != null)
-            {
-                ProcessImage(image);
-                IsValid = true;
-            }
-        } 
-        catch
-        {
-            IsValid = false;
+            ProcessImage(image);
         }
     }
 

@@ -16,9 +16,9 @@ using Jitter.Dynamics;
 
 namespace Spark.Engine.Assets;
 
-public class StaticMesh : Asset
+public class StaticMesh
 {
-    List<List<StaticMeshVertex>> Meshes = new List<List<StaticMeshVertex>>();
+    List<List<StaticMeshVertex>> _Meshes = new List<List<StaticMeshVertex>>();
     List<List<uint>> _IndicesList = new List<List<uint>>();
     public List<Material> Materials = new List<Material>();
     List<JVector> ConvexHullSourceData = new List<JVector>();
@@ -29,20 +29,23 @@ public class StaticMesh : Asset
     public IReadOnlyList<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
     public IReadOnlyList<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
     public IReadOnlyList<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
+    public IReadOnlyList<List<StaticMeshVertex>> Meshes => _Meshes;
     public Box Box { get; private set; }
 
     public List<Box> Boxes { get; private set; } = new List<Box>();
-    public StaticMesh(string path) : base(path)
+    public string Path { get; private set; }
+    public StaticMesh(string path)
     {
+        Path = path;
+        LoadAsset();
     }
 
     public StaticMesh(List<StaticMeshVertex> mesh, List<uint> indices, Material material)
     {
-        Meshes.Add(mesh);
+        Path = string.Empty;
+        _Meshes.Add(mesh);
         _IndicesList.Add(indices);
         Materials.Add(material);
-        IsValid = true;
-        IsLoaded = true;
         InitRender();
         InitPhysics();
     }
@@ -69,7 +72,7 @@ public class StaticMesh : Asset
     {
         return ConvexHullSourceData.ToList();
     }
-    protected override void LoadAsset()
+    protected void LoadAsset()
     {
         using var sr = FileSystem.GetStream("Content" + Path);
 
@@ -151,7 +154,7 @@ public class StaticMesh : Asset
                     box += Vertex.Location;
                 }
                 Boxes.Add(box);
-                Meshes.Add(staticMeshVertices);
+                _Meshes.Add(staticMeshVertices);
 
                 List<uint> Indices= new List<uint>();
                 foreach(var index in glPrimitive.IndexAccessor.AsIndicesArray())
@@ -292,22 +295,6 @@ public class StaticMesh : Asset
             VertexBufferObjectIndexes.Add(vbo);
             _ElementBufferObjectIndexes.Add(ebo);
         }
-    }
-
-    public unsafe void Render(double DeltaTime)
-    {
-        if (IsValid == false)
-            return;
-        int index = 0;
-        gl.PushDebugGroup("Render Static Mesh:" + Path);
-        foreach(var mesh in Meshes)
-        {
-            Materials[index].Use();
-            gl.BindVertexArray(_VertexArrayObjectIndexes[index]);
-            gl.DrawElements(GLEnum.Triangles, (uint)_IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
-            index++;
-        }
-        gl.PopDebugGroup();
     }
 
 

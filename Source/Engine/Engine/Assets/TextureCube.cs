@@ -10,7 +10,7 @@ using System.Text.Json.Nodes;
 
 namespace Spark.Engine.Assets;
 
-public class TextureCube : Asset
+public class TextureCube
 {
     static string[] Attributes = new[]{
             "Right",
@@ -21,11 +21,14 @@ public class TextureCube : Asset
             "Front",
 
         };
-    public TextureCube(string Path) : base(Path)
+    public string Path { get; private set; }
+    public TextureCube(string Path)
     {
+        this.Path = Path;
+        LoadAsset();
     }
     private uint TextureId;
-    protected override unsafe void LoadAsset()
+    protected unsafe void LoadAsset()
     {
         using var sr = FileSystem.GetStreamReader("Content" + Path + ".TextureCube");
         

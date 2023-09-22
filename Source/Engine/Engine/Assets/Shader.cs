@@ -9,18 +9,20 @@ using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Assets;
 
-public class Shader : Asset
+public class Shader
 {
     public uint ProgramId;
     public string? VertShaderSource;
     public string? FragShaderSource;
     public string? GeomShaderSource;
-    public Shader(string Path) : base(Path)
+    public string Path {  get; private set; }
+    public Shader(string Path)
     {
-        
+        this.Path = Path;
+        LoadAsset();
     }
     
-    protected override void LoadAsset()
+    protected void LoadAsset()
     {
         using (var sr = FileSystem.GetStreamReader("Content" + Path + ".vert"))
         {

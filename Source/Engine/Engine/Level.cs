@@ -108,7 +108,7 @@ public partial class Level
                 }
             }
         };
-        
+        var sm = new SkeletalMesh("/StaticMesh/untitled.glb");
         // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this, "Robot Actor");
         var RobotMeshComp = new StaticMeshComponent(RobotActor);

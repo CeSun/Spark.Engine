@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class SkeletalMesh : Asset
+public class SkeletalMesh
 {
     List<List<SkeletalMeshVertex>> Meshes = new List<List<SkeletalMeshVertex>>();
     List<List<uint>> _IndicesList = new List<List<uint>>();
@@ -24,11 +24,15 @@ public class SkeletalMesh : Asset
     public IReadOnlyList<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
     public IReadOnlyList<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
     public IReadOnlyList<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
-    public SkeletalMesh(string Path) : base(Path)
-    {
 
+    public Skeleton? Skeleton { get; set; }
+    public string Path { get; private set; }
+    public SkeletalMesh(string Path)
+    {
+        this.Path = Path;
+        LoadAsset();
     }
-    protected override void LoadAsset()
+    protected void LoadAsset()
     {
         using var sr = FileSystem.GetStream("Content" + Path);
 
@@ -189,10 +193,46 @@ public class SkeletalMesh : Asset
     }
     protected void LoadBones(ModelRoot model)
     {
+        List<BoneNode> BoneList = new List<BoneNode>();
         for(int i = 0; i < model.LogicalNodes.Count; i++)
         {
+            var LogicalNode = model.LogicalNodes[i];
+            var BoneNode = new BoneNode()
+            {
+                Name = LogicalNode.Name
+            };
+            BoneNode.BoneId = LogicalNode.LogicalIndex;
 
+            BoneNode.RelativeScale = LogicalNode.LocalTransform.Scale;
+            BoneNode.RelativeLocation = LogicalNode.LocalTransform.Translation;
+            BoneNode.RelativeRotation = LogicalNode.LocalTransform.Rotation;
+
+            BoneNode.RelativeTransform = LogicalNode.LocalTransform.Matrix;
+            BoneNode.LocalToWorldTransform = LogicalNode.WorldMatrix;
+            if (LogicalNode.VisualParent != null)
+            {
+                BoneNode.ParentId = LogicalNode.VisualParent.LogicalIndex;
+            }
+            
+            BoneList.Add(BoneNode);
         }
+        foreach(BoneNode Bone in BoneList)
+        {
+            if (Bone.ParentId > 0)
+            {
+                var ParentBone = BoneList[Bone.ParentId];
+                ParentBone.ChildrenBone.Add(Bone);
+                Bone.Parent = ParentBone;
+            }
+        }
+        List<BoneNode> TreeRoots = new List<BoneNode>();
+        foreach(BoneNode Bone in BoneList)
+        {
+            if (Bone.ParentId < 0)
+                TreeRoots.Add(Bone);
+        }
+        Console.WriteLine(TreeRoots.Count);
+        Skeleton = new Skeleton(TreeRoots[0]);
     }
 
 
@@ -247,11 +287,6 @@ public class SkeletalMesh : Asset
     
 }
 
-
-public class BoneNode
-{
-
-}
 
 public struct SkeletalMeshVertex
 {

@@ -1,6 +1,8 @@
 ﻿using Jitter.Collision.Shapes;
 using Jitter.Dynamics;
 using Jitter.LinearMath;
+using SharpGLTF.Schema2;
+using Silk.NET.OpenGL;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using System;
@@ -10,7 +12,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using static Noesis.Shader;
+using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Components;
 
@@ -141,6 +143,7 @@ public class StaticMeshComponent : PrimitiveComponent
     }
     public override void Render(double DeltaTime)
     {
+        base.Render(DeltaTime);
         if (RigidBody != null)
         {
             unsafe
@@ -169,8 +172,22 @@ public class StaticMeshComponent : PrimitiveComponent
             }
         }
         
-        base.Render(DeltaTime);
-        StaticMesh?.Render(DeltaTime);
+        if (StaticMesh != null)
+        {
+            int index = 0;
+            gl.PushDebugGroup("Render Static Mesh:" + StaticMesh.Path);
+            foreach (var mesh in StaticMesh.Meshes)
+            {
+                StaticMesh.Materials[index].Use();
+                gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[index]);
+                unsafe
+                {
+                    gl.DrawElements(GLEnum.Triangles, (uint)StaticMesh.IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
+                }
+                index++;
+            }
+            gl.PopDebugGroup();
+        }
     }
 
     protected override void OnEndGame()
