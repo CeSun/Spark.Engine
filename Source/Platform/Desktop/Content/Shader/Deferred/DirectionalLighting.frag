@@ -41,7 +41,9 @@ void main()
     vec4 tmpLightSpaceLocation = WorldToLight * vec4(WorldLocation, 1.0);
     vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
     LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
-
+    
+	if (LightSpaceLocation.z > 1.0f)
+		LightSpaceLocation.z = 1.0f;
 
     float Shadow = 0.0;
     vec2 texelSize = 1.0 / textureSize(ShadowMapTexture, 0);
