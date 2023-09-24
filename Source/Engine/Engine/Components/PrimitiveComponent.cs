@@ -11,7 +11,7 @@ namespace Spark.Engine.Components;
 
 public partial class PrimitiveComponent
 {
-
+    protected virtual bool ReceieveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
     
     /// <summary>
@@ -24,6 +24,10 @@ public partial class PrimitiveComponent
         _Owner = actor;
         _Owner.RegistComponent(this);
         OnBeginGame();
+        if (ReceieveUpdate)
+        {
+            this.Owner.CurrentLevel.UpdateManager.RegistUpdate(Update);
+        }
     }
 
     public virtual void AddForce(Vector3 Force)
@@ -42,6 +46,10 @@ public partial class PrimitiveComponent
         if (ParentComponent != null)
         {
             ParentComponent = null;
+        }
+        if (ReceieveUpdate)
+        {
+            this.Owner.CurrentLevel.UpdateManager.UnregistUpdate(Update);
         }
         IsDestoryed = true;
     }
@@ -64,7 +72,15 @@ public partial class PrimitiveComponent
     public virtual void Render(double DeltaTime)
     {
     }
-    
+
+    /// <summary>
+    /// 更新
+    /// </summary>
+    /// <param name="DeltaTime"></param>
+    public virtual void Update(double DeltaTime)
+    {
+    }
+
     /// <summary>
     /// 组件拥有者
     /// </summary>

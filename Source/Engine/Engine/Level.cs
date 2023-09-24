@@ -108,7 +108,13 @@ public partial class Level
                 }
             }
         };
-        var sm = new SkeletalMesh("/StaticMesh/untitled.glb");
+
+        var (skm, sk, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/untitled.glb");
+        var SkeletalActor = new Actor(this, "Skeletal Mesh");
+        var Comp = new SkeletalMeshComponent(SkeletalActor);
+        Comp.SkeletalMesh = skm;
+        Comp.AnimSequence = anim[0];
+
         // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this, "Robot Actor");
         var RobotMeshComp = new StaticMeshComponent(RobotActor);
@@ -242,7 +248,8 @@ public partial class Level
         PhyWorld.Step((float)DeltaTime, false);
         CameraMove(DeltaTime);
         RobotMove(DeltaTime);
-        ActorUpdate(DeltaTime);
+        // ActorUpdate(DeltaTime);
+        UpdateManager.Update(DeltaTime);
     }
 
     private void CameraMove(double DeltaTime)
@@ -351,10 +358,10 @@ public partial class Level
 
     public void ActorUpdate(double DeltaTime)
     {
-        foreach (Actor actor in _Actors)
-        {
-            actor.Update(DeltaTime);
-        }
+        //foreach (Actor actor in _Actors)
+        //{
+        //    actor.Update(DeltaTime);
+        //}
         _Actors.AddRange(_AddActors);
         _AddActors.Clear();
         _DelActors.ForEach(actor => _Actors.Remove(actor));
@@ -372,6 +379,8 @@ public partial class Level
     private HashSet<SpotLightComponent> _SpotLightComponents = new HashSet<SpotLightComponent>();
     private HashSet<InstancedStaticMeshComponent> _ISMComponents = new HashSet<InstancedStaticMeshComponent>();
     private HashSet<DecalComponent> _DecalComponents = new HashSet<DecalComponent>();
+    private HashSet<StaticMeshComponent> _StaticMeshComponents = new HashSet<StaticMeshComponent>();
+    private HashSet<SkeletalMeshComponent> _SkeletalMeshComponents = new HashSet<SkeletalMeshComponent>();
 
     public IReadOnlySet<CameraComponent> CameraComponents => _CameraComponents;
     public IReadOnlySet<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
@@ -380,6 +389,8 @@ public partial class Level
     public IReadOnlySet<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
     public IReadOnlySet<InstancedStaticMeshComponent> ISMComponents => _ISMComponents;
     public IReadOnlySet<DecalComponent> DecalComponents => _DecalComponents;
+    public IReadOnlySet<StaticMeshComponent> StaticMeshComponents => _StaticMeshComponents;
+    public IReadOnlySet<SkeletalMeshComponent> SkeletalMeshComponents => _SkeletalMeshComponents;
 
     public SkyboxComponent?  CurrentSkybox { get; private set; }
     public void RegistComponent(PrimitiveComponent component)
@@ -431,6 +442,20 @@ public partial class Level
             if (!_DecalComponents.Contains(DecalComponent))
             {
                 _DecalComponents.Add(DecalComponent);
+            }
+        }
+        else if (component is SkeletalMeshComponent SkeletalMeshComponent)
+        {
+            if (!_SkeletalMeshComponents.Contains(SkeletalMeshComponent))
+            {
+                _SkeletalMeshComponents.Add(SkeletalMeshComponent);
+            }
+        }
+        else if (component is StaticMeshComponent StaticMeshComponent)
+        {
+            if (!_StaticMeshComponents.Contains(StaticMeshComponent))
+            {
+                _StaticMeshComponents.Add(StaticMeshComponent);
             }
         }
 
@@ -494,7 +519,20 @@ public partial class Level
                 _DecalComponents.Remove(DecalComponent);
             }
         }
-
+        else if (component is SkeletalMeshComponent SkeletalMeshComponent)
+        {
+            if (!_SkeletalMeshComponents.Contains(SkeletalMeshComponent))
+            {
+                _SkeletalMeshComponents.Remove(SkeletalMeshComponent);
+            }
+        }
+        else if (component is StaticMeshComponent StaticMeshComponent)
+        {
+            if (!_StaticMeshComponents.Contains(StaticMeshComponent))
+            {
+                _StaticMeshComponents.Remove(StaticMeshComponent);
+            }
+        }
         if (component is SkyboxComponent && CurrentSkybox == component)
         {
             CurrentSkybox = null;

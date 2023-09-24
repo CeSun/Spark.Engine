@@ -8,5 +8,5 @@ namespace Spark.Engine.Assets;
 
 public abstract class AnimBase
 {
-    public abstract void Update(double DeltaTime);
+
 }

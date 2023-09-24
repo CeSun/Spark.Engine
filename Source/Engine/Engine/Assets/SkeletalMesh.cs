@@ -8,35 +8,157 @@ using System.Numerics;
 using System.Text;
 using static Spark.Engine.StaticEngine;
 using System.Threading.Tasks;
+using Silk.NET.OpenGL;
+using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
 
-public class SkeletalMesh
+public partial class SkeletalMesh
 {
-    List<List<SkeletalMeshVertex>> Meshes = new List<List<SkeletalMeshVertex>>();
-    List<List<uint>> _IndicesList = new List<List<uint>>();
+    public List<List<SkeletalMeshVertex>> Meshes = new List<List<SkeletalMeshVertex>>();
+    public List<List<uint>> _IndicesList = new List<List<uint>>();
     public List<Material> Materials = new List<Material>();
     List<JVector> ConvexHullSourceData = new List<JVector>();
     List<uint> _VertexArrayObjectIndexes = new List<uint>();
     List<uint> VertexBufferObjectIndexes = new List<uint>();
     List<uint> _ElementBufferObjectIndexes = new List<uint>();
-
+    
     public IReadOnlyList<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
     public IReadOnlyList<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
     public IReadOnlyList<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
 
     public Skeleton? Skeleton { get; set; }
-    public string Path { get; private set; }
-    public SkeletalMesh(string Path)
+    public SkeletalMesh()
     {
-        this.Path = Path;
-        LoadAsset();
     }
-    protected void LoadAsset()
+
+    public unsafe void InitRender()
+    {
+
+        for (var index = 0; index < Meshes.Count; index++)
+        {
+            uint vao = gl.GenVertexArray();
+            uint vbo = gl.GenBuffer();
+            uint ebo = gl.GenBuffer();
+            gl.BindVertexArray(vao);
+            gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
+            fixed (SkeletalMeshVertex* p = CollectionsMarshal.AsSpan(Meshes[index]))
+            {
+                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Meshes[index].Count * sizeof(SkeletalMeshVertex)), p, GLEnum.StaticDraw);
+            }
+            gl.BindBuffer(GLEnum.ElementArrayBuffer, ebo);
+            fixed (uint* p = CollectionsMarshal.AsSpan(_IndicesList[index]))
+            {
+                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(_IndicesList[index].Count * sizeof(uint)), p, GLEnum.StaticDraw);
+            }
+
+            // Location
+            gl.EnableVertexAttribArray(0);
+            gl.VertexAttribPointer(0, 3, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)0);
+            // Normal
+            gl.EnableVertexAttribArray(1);
+            gl.VertexAttribPointer(1, 3, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)sizeof(Vector3));
+
+
+            gl.EnableVertexAttribArray(2);
+            gl.VertexAttribPointer(2, 3, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(2 * sizeof(Vector3)));
+
+
+            gl.EnableVertexAttribArray(3);
+            gl.VertexAttribPointer(3, 3, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(3 * sizeof(Vector3)));
+
+            // Color
+            gl.EnableVertexAttribArray(4);
+            gl.VertexAttribPointer(4, 3, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(4 * sizeof(Vector3)));
+            // TexCoord
+            gl.EnableVertexAttribArray(5);
+            gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(5 * sizeof(Vector3)));
+            // BoneId
+            gl.EnableVertexAttribArray(6);
+            gl.VertexAttribPointer(6, 4, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(5 * sizeof(Vector3) + sizeof(Vector2)));
+            // BoneWeight
+            gl.EnableVertexAttribArray(7);
+            gl.VertexAttribPointer(7, 4, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(5 * sizeof(Vector3) + sizeof(Vector2) + sizeof(Vector4)));
+            gl.BindVertexArray(0);
+
+            _VertexArrayObjectIndexes.Add(vao);
+            VertexBufferObjectIndexes.Add(vbo);
+            _ElementBufferObjectIndexes.Add(ebo);
+        }
+    }
+   
+   
+
+
+ 
+
+    
+}
+
+public partial class SkeletalMesh
+{
+    public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(string Path)
     {
         using var sr = FileSystem.GetStream("Content" + Path);
+        return ImportFromGLB(sr);
+    }
+    public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(Stream stream)
+    {
+        SkeletalMesh sk = new SkeletalMesh();
+        var model = ModelRoot.ReadGLB(stream);
+        LoadVertics(sk, model);
+        var skeleton = LoadBones(model);
+        sk.Skeleton = skeleton;
+        var anims = LoadAnimSequence(model, skeleton);
+        sk.InitRender();
+        return (sk, skeleton, anims);
+    }
 
-        var model = ModelRoot.ReadGLB(sr);
+    static List<AnimSequence> LoadAnimSequence(ModelRoot model, Skeleton skeleton)
+    {
+        List<AnimSequence> list = new List<AnimSequence>();
+        foreach(var logicAnim in model.LogicalAnimations)
+        {
+            
+            Dictionary<int, BoneChannel> dict = new Dictionary<int, BoneChannel>();
+            
+            foreach (var channel in logicAnim.Channels)
+            {
+                if(!dict.TryGetValue(channel.TargetNode.LogicalIndex, out var boneChannel))
+                {
+                    boneChannel = new BoneChannel();
+                    boneChannel.BoneId = channel.TargetNode.LogicalIndex;
+                    dict.Add(channel.TargetNode.LogicalIndex, boneChannel);
+                }
+
+                if (channel.GetTranslationSampler() != null)
+                {
+                    var translations = channel.GetTranslationSampler().GetLinearKeys();
+                    boneChannel.Translation.AddRange(translations);
+                }
+                if (channel.GetRotationSampler() != null)
+                {
+                    var rotations = channel.GetRotationSampler().GetLinearKeys();
+                    boneChannel.Rotation.AddRange(rotations);
+                }
+                if (channel.GetScaleSampler() != null)
+                {
+                    var scales = channel.GetScaleSampler().GetLinearKeys();
+                    boneChannel.Scale.AddRange(scales);
+                }
+
+            }
+            var anim = new AnimSequence(logicAnim.Name, logicAnim.Duration, skeleton, dict)
+            {
+                AnimName = logicAnim.Name
+            };
+            list.Add(anim);
+        }
+        return list;
+    }
+
+    static void LoadVertics(SkeletalMesh SkeletalMesh, ModelRoot model )
+    {
         foreach (var glMesh in model.LogicalMeshes)
         {
             foreach (var glPrimitive in glMesh.Primitives)
@@ -154,14 +276,14 @@ public class SkeletalMesh
                     box += Vertex.Location;
                 }
                 //Boxes.Add(box);
-                Meshes.Add(staticMeshVertices);
+                SkeletalMesh.Meshes.Add(staticMeshVertices);
 
                 List<uint> Indices = new List<uint>();
                 foreach (var index in glPrimitive.IndexAccessor.AsIndicesArray())
                 {
                     Indices.Add(index);
                 }
-                _IndicesList.Add(Indices);
+                SkeletalMesh._IndicesList.Add(Indices);
                 var Material = new Material();
                 foreach (var glChannel in glPrimitive.Material.Channels)
                 {
@@ -177,69 +299,23 @@ public class SkeletalMesh
                         Material.Normal = texture;
                     }
                 }
-                Materials.Add(Material);
+                SkeletalMesh.Materials.Add(Material);
             }
         }
-
-        InitTBN();
-        LoadBones(model);
-    }
-    private void InitTBN()
-    {
-        for (int i = 0; i < IndicesList.Count; i++)
-        {
-            InitMeshTBN(i);
-        }
-    }
-    protected void LoadBones(ModelRoot model)
-    {
-        List<BoneNode> BoneList = new List<BoneNode>();
-        for(int i = 0; i < model.LogicalNodes.Count; i++)
-        {
-            var LogicalNode = model.LogicalNodes[i];
-            var BoneNode = new BoneNode()
-            {
-                Name = LogicalNode.Name
-            };
-            BoneNode.BoneId = LogicalNode.LogicalIndex;
-
-            BoneNode.RelativeScale = LogicalNode.LocalTransform.Scale;
-            BoneNode.RelativeLocation = LogicalNode.LocalTransform.Translation;
-            BoneNode.RelativeRotation = LogicalNode.LocalTransform.Rotation;
-
-            BoneNode.RelativeTransform = LogicalNode.LocalTransform.Matrix;
-            BoneNode.LocalToWorldTransform = LogicalNode.WorldMatrix;
-            if (LogicalNode.VisualParent != null)
-            {
-                BoneNode.ParentId = LogicalNode.VisualParent.LogicalIndex;
-            }
-            
-            BoneList.Add(BoneNode);
-        }
-        foreach(BoneNode Bone in BoneList)
-        {
-            if (Bone.ParentId > 0)
-            {
-                var ParentBone = BoneList[Bone.ParentId];
-                ParentBone.ChildrenBone.Add(Bone);
-                Bone.Parent = ParentBone;
-            }
-        }
-        List<BoneNode> TreeRoots = new List<BoneNode>();
-        foreach(BoneNode Bone in BoneList)
-        {
-            if (Bone.ParentId < 0)
-                TreeRoots.Add(Bone);
-        }
-        Console.WriteLine(TreeRoots.Count);
-        Skeleton = new Skeleton(TreeRoots[0]);
+        InitTBN(SkeletalMesh);
     }
 
-
-    private void InitMeshTBN(int index)
+    private static void InitTBN(SkeletalMesh SkeletalMesh)
     {
-        var vertics = Meshes[index];
-        var indices = _IndicesList[index];
+        for (int i = 0; i < SkeletalMesh.IndicesList.Count; i++)
+        {
+            InitMeshTBN(SkeletalMesh, i);
+        }
+    }
+    private static void InitMeshTBN(SkeletalMesh SkeletalMesh, int index)
+    {
+        var vertics = SkeletalMesh.Meshes[index];
+        var indices = SkeletalMesh._IndicesList[index];
 
         for (int i = 0; i < indices.Count; i += 3)
         {
@@ -284,9 +360,70 @@ public class SkeletalMesh
 
     }
 
-    
-}
+    protected static Skeleton LoadBones(ModelRoot model)
+    {
+        List<BoneNode> BoneList = new List<BoneNode>();
+        for (int i = 0; i < model.LogicalNodes.Count; i++)
+        {
+            var LogicalNode = model.LogicalNodes[i];
+            var BoneNode = new BoneNode()
+            {
+                Name = LogicalNode.Name
+            };
+            BoneNode.BoneId = LogicalNode.LogicalIndex;
 
+            BoneNode.RelativeScale = LogicalNode.LocalTransform.Scale;
+            BoneNode.RelativeLocation = LogicalNode.LocalTransform.Translation;
+            BoneNode.RelativeRotation = LogicalNode.LocalTransform.Rotation;
+            BoneNode.RelativeTransform = MatrixHelper.CreateTransform(BoneNode.RelativeLocation, BoneNode.RelativeRotation, BoneNode.RelativeScale);
+            if (LogicalNode.VisualParent != null)
+            {
+                BoneNode.ParentId = LogicalNode.VisualParent.LogicalIndex;
+            }
+
+            BoneList.Add(BoneNode);
+        }
+        foreach (BoneNode Bone in BoneList)
+        {
+            if (Bone.ParentId >= 0)
+            {
+                Bone.Parent = BoneList[Bone.ParentId];
+                Bone.Parent.ChildrenBone.Add(Bone);
+            }
+        }
+        List<BoneNode> TreeRoots = new List<BoneNode>();
+        foreach (BoneNode Bone in BoneList)
+        {
+            if (Bone.ParentId < 0)
+                TreeRoots.Add(Bone);
+        }
+
+        ProcessBoneTransform(TreeRoots[0]);
+        return new Skeleton(TreeRoots[0], BoneList);
+    }
+
+    public static void ProcessBoneTransform(BoneNode Bone)
+    {
+
+        if (Bone.Parent != null)
+        {
+            Bone.LocalToWorldTransform = Bone.RelativeTransform * Bone.Parent.LocalToWorldTransform;
+        }
+        else
+        {
+            Bone.LocalToWorldTransform = Bone.RelativeTransform;
+        }
+
+
+        if(Matrix4x4.Invert(Bone.LocalToWorldTransform, out Bone.WorldToLocalTransform) == false)
+        {
+        }
+        foreach(var child in Bone.ChildrenBone)
+        {
+            ProcessBoneTransform(child);
+        }
+    }
+}
 
 public struct SkeletalMeshVertex
 {

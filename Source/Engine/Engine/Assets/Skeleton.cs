@@ -9,11 +9,12 @@ namespace Spark.Engine.Assets;
 
 public class Skeleton
 {
-    public Skeleton(BoneNode root)
+    public Skeleton(BoneNode root, List<BoneNode> list)
     {
+        BoneList = list;
         Root = root;
     }
-
+    public List<BoneNode> BoneList;
     public BoneNode Root;
 }
 
@@ -39,5 +40,7 @@ public class BoneNode
     public Matrix4x4 RelativeTransform;
 
     public Matrix4x4 LocalToWorldTransform;
+    public Matrix4x4 WorldToLocalTransform;
+
 
 }

@@ -17,15 +17,10 @@ public partial class Actor
     /// </summary>
     public Level CurrentLevel { get; private set; }
 
-    private bool _ReceieveUpdate;
+    protected virtual bool ReceieveUpdate => false;
 
     public string Name { get ; private set; }
-    protected void ReceieveUpdate()
-    {
-        if (_ReceieveUpdate) return;
-        _ReceieveUpdate = true;
-        CurrentLevel.UpdateManager.RegistUpdate(Update);
-    }
+ 
     /// <summary>
     /// Actor所在世界
     /// </summary>
@@ -36,6 +31,10 @@ public partial class Actor
         this.Name = Name;
         CurrentLevel = level;
         level.RegistActor(this);
+        if (ReceieveUpdate == true)
+        {
+            CurrentLevel.UpdateManager.RegistUpdate(Update);
+        }
     }
 
     public void BeginPlay()
@@ -63,7 +62,7 @@ public partial class Actor
         {
             UnregistComponent(component);
         }
-        if (_ReceieveUpdate)
+        if (ReceieveUpdate)
         {
             CurrentLevel.UpdateManager.UnregistUpdate(Update);
         }

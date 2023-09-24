@@ -15,7 +15,7 @@ namespace Spark.Engine.Render.Renderer;
 public class DeferredSceneRenderer : IRenderer
 {
     RenderBuffer GlobalBuffer;
-    Shader BaseShader;
+    Shader StaticMeshBaseShader;
     Shader DirectionalLightingShader;
     Shader SpotLightingShader;
     Shader PointLightingShader;
@@ -36,6 +36,10 @@ public class DeferredSceneRenderer : IRenderer
     Shader DecalShader;
     Shader DecalPostShader;
     Shader SSAOShader;
+
+
+    Shader SkeletalMeshBaseShader;
+
     RenderBuffer PostProcessBuffer1;
     RenderBuffer PostProcessBuffer2;
     RenderBuffer PostProcessBuffer3;
@@ -52,7 +56,7 @@ public class DeferredSceneRenderer : IRenderer
     public DeferredSceneRenderer(World world)
     {
         World = world;
-        BaseShader = new Shader("/Shader/Deferred/Base");
+        StaticMeshBaseShader = new Shader("/Shader/Deferred/Base");
         DirectionalLightingShader = new Shader("/Shader/Deferred/DirectionalLighting");
         SpotLightingShader = new Shader("/Shader/Deferred/SpotLighting");
         PointLightingShader = new Shader("/Shader/Deferred/PointLighting");
@@ -69,6 +73,8 @@ public class DeferredSceneRenderer : IRenderer
         DecalShader = new Shader("/Shader/Deferred/Decal");
         DecalPostShader = new Shader("/Shader/Deferred/DecalPost");
         SSAOShader = new Shader("/Shader/Deferred/SSAO");
+
+        SkeletalMeshBaseShader = new Shader("/Shader/Deferred/BaseSkeletalMesh");
         InstancePointLightingShader = new Shader("/Shader/ShadowMap/Instance/PointLightShadow");
         InstanceDLShadowMapShader = new Shader("/Shader/ShadowMap/Instance/DirectionLightShadow");
         InstanceSpotShadowMapShader = new Shader("/Shader/ShadowMap/Instance/SpotLightShadow");
@@ -275,7 +281,7 @@ public class DeferredSceneRenderer : IRenderer
                 BackFaceDepthShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 BackFaceDepthShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
             }
-            foreach (var component in World.CurrentLevel.PrimitiveComponents)
+            foreach (var component in World.CurrentLevel.StaticMeshComponents)
             {
                 if (component.IsDestoryed == false)
                 {
@@ -384,7 +390,7 @@ public class DeferredSceneRenderer : IRenderer
             gl.Clear(ClearBufferMask.DepthBufferBit);
             DLShadowMapShader.SetMatrix("ViewTransform", View);
             DLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
-            foreach (var component in World.CurrentLevel.PrimitiveComponents)
+            foreach (var component in World.CurrentLevel.StaticMeshComponents)
             {
                 if (component == null)
                     continue;
@@ -425,7 +431,7 @@ public class DeferredSceneRenderer : IRenderer
             SpotShadowMapShader.SetMatrix("ViewTransform", View);
             SpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
 
-            foreach (var component in World.CurrentLevel.PrimitiveComponents)
+            foreach (var component in World.CurrentLevel.StaticMeshComponents)
             {
                 if (component == null)
                     continue;
@@ -478,7 +484,7 @@ public class DeferredSceneRenderer : IRenderer
 
             PontLightShadowShader.SetVector3("LightLocation", PointLight.WorldLocation);
             PontLightShadowShader.SetFloat("FarPlan", 1000);
-            foreach (var component in World.CurrentLevel.PrimitiveComponents)
+            foreach (var component in World.CurrentLevel.StaticMeshComponents)
             {
                 if (component == null)
                     continue;
@@ -530,18 +536,41 @@ public class DeferredSceneRenderer : IRenderer
             gl.Disable(EnableCap.Blend);
             if (CurrentCameraComponent != null)
             {
-                BaseShader.SetInt("Diffuse", 0);
-                BaseShader.SetInt("Normal", 1);
-                BaseShader.SetInt("Parallax", 2);
-                BaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
-                BaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-                BaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-                foreach (var component in World.CurrentLevel.PrimitiveComponents)
+                StaticMeshBaseShader.SetInt("Diffuse", 0);
+                StaticMeshBaseShader.SetInt("Normal", 1);
+                StaticMeshBaseShader.SetInt("Parallax", 2);
+                StaticMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+                StaticMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+                StaticMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+                foreach (var component in World.CurrentLevel.StaticMeshComponents)
                 {
                     if (component.IsDestoryed == false)
                     {
-                        BaseShader.SetMatrix("ModelTransform", component.WorldTransform);
-                        BaseShader.SetMatrix("NormalTransform", component.NormalTransform);
+                        StaticMeshBaseShader.SetMatrix("ModelTransform", component.WorldTransform);
+                        StaticMeshBaseShader.SetMatrix("NormalTransform", component.NormalTransform);
+                        component.Render(DeltaTime);
+                    }
+                }
+
+                SkeletalMeshBaseShader.SetInt("Diffuse", 0);
+                SkeletalMeshBaseShader.SetInt("Normal", 1);
+                SkeletalMeshBaseShader.SetInt("Parallax", 2);
+                SkeletalMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+                SkeletalMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+                SkeletalMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+                foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
+                {
+                    if (component.IsDestoryed == false)
+                    {
+                        if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                        {
+                            for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
+                            {
+                                SkeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
+                            }
+                        }
+                        SkeletalMeshBaseShader.SetMatrix("ModelTransform", component.WorldTransform);
+                        SkeletalMeshBaseShader.SetMatrix("NormalTransform", component.NormalTransform);
                         component.Render(DeltaTime);
                     }
                 }
