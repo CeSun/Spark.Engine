@@ -94,34 +94,24 @@ public class AnimSampler
 
     public void Update(double DeltaTime)
     {
-        ProcessBuffer(Skeleton.Root);
-        SpeedTime += DeltaTime / DurationScale;
-    }
-
-
-    private void ProcessBuffer(BoneNode bone)
-    {
         if (SpeedTime >= Duration)
         {
             if (IsLoop == false)
                 return;
             Clear();
         }
-
-        var index = bone.BoneId;
-        var transform = bone.RelativeTransform;
-        if (Sequence.ChannelsTransform.TryGetValue(index,  out var ChannelTransform))
+        foreach (var bone in Skeleton.BoneList)
         {
-            //transform =  ChannelTransform.Transforms[0].Item2;
+            var index = bone.BoneId;
+            var transform = bone.RelativeTransform;
+            if (Sequence.Channels.TryGetValue(index, out var channel))
+            {
+                transform = MatrixHelper.CreateTransform(channel.Translation[0].Item2, channel.Rotation[0].Item2, channel.Scale[0].Item2);
+            }
+            TransfomrBuffer[index] = transform;
         }
-        TransfomrBuffer[index] = transform;
-
-        foreach (var child in bone.ChildrenBone)
-        {
-            ProcessBuffer(child);
-        }
-
-
-
+        SpeedTime += DeltaTime / DurationScale;
     }
+
+
 }

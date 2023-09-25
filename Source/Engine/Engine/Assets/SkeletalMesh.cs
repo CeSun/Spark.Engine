@@ -414,9 +414,9 @@ public partial class SkeletalMesh
             Bone.LocalToWorldTransform = Bone.RelativeTransform;
         }
 
-
-        if(Matrix4x4.Invert(Bone.LocalToWorldTransform, out Bone.WorldToLocalTransform) == false)
+        if(Matrix4x4.Invert(Bone.LocalToWorldTransform, out Bone.WorldToLocalTransform) )
         {
+
         }
         foreach(var child in Bone.ChildrenBone)
         {

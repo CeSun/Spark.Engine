@@ -13,7 +13,7 @@ uniform mat4 ViewTransform;
 uniform mat4 ProjectionTransform;
 uniform mat4 NormalTransform;
 uniform vec3 CameraLocation;
-uniform mat4 AnimTransform[75];
+uniform mat4 AnimTransform[100];
 out vec2 OutTexCoord;
 out vec3 OutColor;
 out vec3 OutNormal;
@@ -29,6 +29,7 @@ void main()
     AnimMatrix += AnimTransform[int(BoneIds[1])] * BoneWeights[1];
     AnimMatrix += AnimTransform[int(BoneIds[2])] * BoneWeights[2];
     AnimMatrix += AnimTransform[int(BoneIds[3])] * BoneWeights[3];
+
     vec3 T = normalize(mat3(NormalTransform) * Tangent);
     vec3 B = normalize(mat3(NormalTransform) * BitTangent);
     OutNormal = normalize(mat3(NormalTransform) * Normal);
@@ -38,7 +39,7 @@ void main()
 
     OutTexCoord = TexCoord;
     OutColor =  Color;
-    // OutNormal = mat3(transpose(inverse(ModelTransform))) * Normal;
+    // OutNormal = mat3(transpose(inverse(ModelTransform * AnimMatrix))) * Normal;
 
     OutPosition = (ModelTransform * vec4(Location, 1.0)).xyz;
 

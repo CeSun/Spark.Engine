@@ -1,4 +1,5 @@
 ﻿using Noesis;
+using SharpGLTF.Schema2;
 using Silk.NET.OpenGL;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
@@ -84,6 +85,14 @@ public class SkeletalMeshComponent : PrimitiveComponent
         {
             AnimSampler.Update(DeltaTime);
             ProcessNode(AnimSampler.Skeleton.Root);
+
+            foreach(var bone in SkeletalMesh.Skeleton.BoneList)
+            {
+                AnimBuffer[bone.BoneId] = bone.WorldToLocalTransform * AnimBuffer[bone.BoneId];
+                Vector3 v = new Vector3(1, 2, 3);
+                v = Vector3.Transform(v, AnimBuffer[bone.BoneId]);
+
+            }
         }
     }
 
@@ -94,11 +103,11 @@ public class SkeletalMeshComponent : PrimitiveComponent
         Matrix4x4 ParentTransform = Matrix4x4.Identity;
         if (node.Parent != null)
         {
-            AnimBuffer[node.BoneId] = node.WorldToLocalTransform * AnimSampler.TransfomrBuffer[node.BoneId] * AnimSampler.TransfomrBuffer[node.Parent.BoneId];
+            AnimBuffer[node.BoneId] = AnimSampler.TransfomrBuffer[node.BoneId] * AnimBuffer[node.Parent.BoneId];
         }
         else
         {
-            AnimBuffer[node.BoneId] = node.WorldToLocalTransform * AnimSampler.TransfomrBuffer[node.BoneId];
+            AnimBuffer[node.BoneId] = AnimSampler.TransfomrBuffer[node.BoneId];
         }
         foreach (var child in node.ChildrenBone)
         {

@@ -114,6 +114,7 @@ public partial class Level
         var Comp = new SkeletalMeshComponent(SkeletalActor);
         Comp.SkeletalMesh = skm;
         Comp.AnimSequence = anim[0];
+        Comp.WorldLocation = new Vector3(0, 10, 0);
 
         // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this, "Robot Actor");
@@ -248,7 +249,7 @@ public partial class Level
         PhyWorld.Step((float)DeltaTime, false);
         CameraMove(DeltaTime);
         RobotMove(DeltaTime);
-        // ActorUpdate(DeltaTime);
+        ActorUpdate(DeltaTime);
         UpdateManager.Update(DeltaTime);
     }
 
