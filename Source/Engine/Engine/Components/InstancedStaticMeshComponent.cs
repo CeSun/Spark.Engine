@@ -58,7 +58,7 @@ public class InstancedStaticMeshComponent : PrimitiveComponent
         {
             gl.BufferData(GLEnum.ArrayBuffer, (nuint)(sizeof(Matrix4x4) * WorldTransforms.Count), p, BufferUsageARB.StaticDraw);
         }
-        gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[0]);
+        gl.BindVertexArray(StaticMesh.Elements[0].VertexArrayObjectIndex);
         gl.EnableVertexAttribArray(6);
         gl.VertexAttribPointer(6, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)0);
         gl.EnableVertexAttribArray(7);
@@ -105,9 +105,9 @@ public class InstancedStaticMeshComponent : PrimitiveComponent
             return;
         if (CanRender == false)
             return;
-        StaticMesh.Materials[0].Use();
-        gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[0]);
-        gl.DrawElementsInstanced(GLEnum.Triangles, (uint)StaticMesh.IndicesList[0].Count, GLEnum.UnsignedInt, (void*)0, (uint)PrimitiveComponents.Count);
+        StaticMesh.Elements[0].Material.Use();
+        gl.BindVertexArray(StaticMesh.Elements[0].VertexArrayObjectIndex);
+        gl.DrawElementsInstanced(GLEnum.Triangles, (uint)StaticMesh.Elements[0].Indices.Count, GLEnum.UnsignedInt, (void*)0, (uint)PrimitiveComponents.Count);
     }
 
 }

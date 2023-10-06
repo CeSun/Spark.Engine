@@ -176,13 +176,13 @@ public class StaticMeshComponent : PrimitiveComponent
         {
             int index = 0;
             gl.PushDebugGroup("Render Static Mesh:" + StaticMesh.Path);
-            foreach (var mesh in StaticMesh.Meshes)
+            foreach (var element in StaticMesh.Elements)
             {
-                StaticMesh.Materials[index].Use();
-                gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[index]);
+                element.Material.Use();
+                gl.BindVertexArray(element.VertexArrayObjectIndex);
                 unsafe
                 {
-                    gl.DrawElements(GLEnum.Triangles, (uint)StaticMesh.IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
+                    gl.DrawElements(GLEnum.Triangles, (uint)element.Indices.Count, GLEnum.UnsignedInt, (void*)0);
                 }
                 index++;
             }

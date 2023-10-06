@@ -218,9 +218,9 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
                 gl.BufferData(GLEnum.ArrayBuffer, (nuint)(sizeof(Matrix4x4) * WorldTransforms.Count), p, BufferUsageARB.DynamicDraw);
             }
 
-            foreach(var vao in StaticMesh.VertexArrayObjectIndexes)
+            foreach(var element in StaticMesh.Elements)
             {
-                gl.BindVertexArray(vao);
+                gl.BindVertexArray(element.VertexArrayObjectIndex);
                 gl.EnableVertexAttribArray(6);
                 gl.VertexAttribPointer(6, 4, GLEnum.Float, false, (uint)sizeof(Matrix4x4) * 2, (void*)0);
                 gl.EnableVertexAttribArray(7);
@@ -298,7 +298,7 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
         {
             var distance = 0f;
             distance = cameraComponent.FarPlaneDistance - cameraComponent.NearPlaneDistance;
-            d = (int)(distance / StaticMesh.VertexArrayObjectIndexes.Count);
+            d = (int)(distance / StaticMesh.Elements.Count);
         }
 
 
@@ -311,14 +311,14 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
             {
                 var Len = (int)node.Box.GetDistance(cameraComponent.WorldLocation);
                 level = Len / d;
-                if (level >= StaticMesh.VertexArrayObjectIndexes.Count)
+                if (level >= StaticMesh.Elements.Count)
                 {
-                    level = StaticMesh.VertexArrayObjectIndexes.Count - 1;
+                    level = StaticMesh.Elements.Count - 1;
                 }
             }
-            StaticMesh.Materials[level].Use();
-            gl.BindVertexArray(StaticMesh.VertexArrayObjectIndexes[level]);
-            gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.IndicesList[level].Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
+            StaticMesh.Elements[level].Material.Use();
+            gl.BindVertexArray(StaticMesh.Elements[level].VertexArrayObjectIndex);
+            gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.Elements[level].Indices.Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
 
 
         }
