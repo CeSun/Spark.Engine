@@ -89,9 +89,6 @@ public class SkeletalMeshComponent : PrimitiveComponent
             foreach(var bone in SkeletalMesh.Skeleton.BoneList)
             {
                 AnimBuffer[bone.BoneId] = bone.WorldToLocalTransform * AnimBuffer[bone.BoneId];
-                Vector3 v = new Vector3(1, 2, 3);
-                v = Vector3.Transform(v, AnimBuffer[bone.BoneId]);
-
             }
         }
     }

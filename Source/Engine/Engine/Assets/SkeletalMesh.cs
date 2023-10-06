@@ -375,7 +375,9 @@ public partial class SkeletalMesh
             BoneNode.RelativeScale = LogicalNode.LocalTransform.Scale;
             BoneNode.RelativeLocation = LogicalNode.LocalTransform.Translation;
             BoneNode.RelativeRotation = LogicalNode.LocalTransform.Rotation;
-            BoneNode.RelativeTransform = MatrixHelper.CreateTransform(BoneNode.RelativeLocation, BoneNode.RelativeRotation, BoneNode.RelativeScale);
+            BoneNode.RelativeTransform = LogicalNode.LocalMatrix;//MatrixHelper.CreateTransform(BoneNode.RelativeLocation, BoneNode.RelativeRotation, BoneNode.RelativeScale);
+            BoneNode.LocalToWorldTransform = LogicalNode.WorldMatrix;
+            Matrix4x4.Invert(BoneNode.LocalToWorldTransform, out BoneNode.WorldToLocalTransform);
             if (LogicalNode.VisualParent != null)
             {
                 BoneNode.ParentId = LogicalNode.VisualParent.LogicalIndex;
@@ -398,7 +400,7 @@ public partial class SkeletalMesh
                 TreeRoots.Add(Bone);
         }
 
-        ProcessBoneTransform(TreeRoots[0]);
+       // ProcessBoneTransform(TreeRoots[0]);
         return new Skeleton(TreeRoots[0], BoneList);
     }
 
