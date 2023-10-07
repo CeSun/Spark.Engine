@@ -515,21 +515,21 @@ public partial class Level
         }
         else if (component is DecalComponent DecalComponent)
         {
-            if (!_DecalComponents.Contains(DecalComponent))
+            if (_DecalComponents.Contains(DecalComponent))
             {
                 _DecalComponents.Remove(DecalComponent);
             }
         }
         else if (component is SkeletalMeshComponent SkeletalMeshComponent)
         {
-            if (!_SkeletalMeshComponents.Contains(SkeletalMeshComponent))
+            if (_SkeletalMeshComponents.Contains(SkeletalMeshComponent))
             {
                 _SkeletalMeshComponents.Remove(SkeletalMeshComponent);
             }
         }
         else if (component is StaticMeshComponent StaticMeshComponent)
         {
-            if (!_StaticMeshComponents.Contains(StaticMeshComponent))
+            if (_StaticMeshComponents.Contains(StaticMeshComponent))
             {
                 _StaticMeshComponents.Remove(StaticMeshComponent);
             }
