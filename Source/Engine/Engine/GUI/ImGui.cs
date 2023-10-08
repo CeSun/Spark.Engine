@@ -38,7 +38,7 @@ public class ImGuiWarp
     int num = 0;
     public void Render(double DeltaTime)
     {
-        if (Controller != null)
+        if (Controller == null)
         {
             return;
         }

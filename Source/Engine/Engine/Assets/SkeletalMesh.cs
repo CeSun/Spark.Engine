@@ -100,7 +100,7 @@ public partial class SkeletalMesh
     public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(Stream stream)
     {
         SkeletalMesh sk = new SkeletalMesh();
-        var model = ModelRoot.ReadGLB(stream);
+        var model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix});
         LoadVertics(sk, model);
         var skeleton = LoadBones(model);
         sk.Skeleton = skeleton;
@@ -183,7 +183,7 @@ public partial class SkeletalMesh
                             index++;
                         }
                     }
-                    if (kv.Key == "NORMAL")
+                    else if (kv.Key == "NORMAL")
                     {
                         foreach (var v in kv.Value.AsVector3Array())
                         {
@@ -201,7 +201,7 @@ public partial class SkeletalMesh
                             index++;
                         }
                     }
-                    if (kv.Key == "TEXCOORD_0")
+                    else if (kv.Key == "TEXCOORD_0")
                     {
                         foreach (var v in kv.Value.AsVector2Array())
                         {
@@ -221,11 +221,10 @@ public partial class SkeletalMesh
                         }
                     }
 
-                    if (kv.Key == "JOINTS_0")
+                    else if (kv.Key == "JOINTS_0")
                     {
                         foreach (var v in kv.Value.AsVector4Array())
                         {
-
                             var Vertex = new SkeletalMeshVertex();
                             if (SkeletalMeshVertices.Count > index)
                             {
@@ -241,7 +240,7 @@ public partial class SkeletalMesh
                         }
                     }
 
-                    if (kv.Key == "WEIGHTS_0")
+                    else if (kv.Key == "WEIGHTS_0")
                     {
                         foreach (var v in kv.Value.AsVector4Array())
                         {
@@ -257,6 +256,7 @@ public partial class SkeletalMesh
                             }
                             Vertex.BoneWeights = new Vector4 { X = v.X, Y = v.Y, Z = v.Z, W = v.W };
                             SkeletalMeshVertices[index] = Vertex;
+
                             index++;
                         }
                     }
@@ -285,7 +285,7 @@ public partial class SkeletalMesh
                     if (glChannel.Texture == null)
                         continue;
                     var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
-                    if (glChannel.Key == "BaseColor")
+                    if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
                     {
                         Material.Diffuse = texture;
                     }
@@ -301,6 +301,7 @@ public partial class SkeletalMesh
                     Vertices = SkeletalMeshVertices,
                     Indices = Indices
                 });
+
             }
         }
         InitTBN(SkeletalMesh);
@@ -373,9 +374,9 @@ public partial class SkeletalMesh
             };
             BoneNode.BoneId = LogicalNode.LogicalIndex;
 
-            BoneNode.RelativeScale = LogicalNode.LocalTransform.Scale;
-            BoneNode.RelativeLocation = LogicalNode.LocalTransform.Translation;
-            BoneNode.RelativeRotation = LogicalNode.LocalTransform.Rotation;
+            BoneNode.RelativeScale = LogicalNode.LocalMatrix.Scale();
+            BoneNode.RelativeLocation = LogicalNode.LocalMatrix.Translation;
+            BoneNode.RelativeRotation = LogicalNode.LocalMatrix.Rotation();
             BoneNode.RelativeTransform = LogicalNode.LocalMatrix;//MatrixHelper.CreateTransform(BoneNode.RelativeLocation, BoneNode.RelativeRotation, BoneNode.RelativeScale);
             BoneNode.LocalToWorldTransform = LogicalNode.WorldMatrix;
             Matrix4x4.Invert(BoneNode.LocalToWorldTransform, out BoneNode.WorldToLocalTransform);

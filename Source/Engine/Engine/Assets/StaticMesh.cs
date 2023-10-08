@@ -147,7 +147,7 @@ public class StaticMesh
                     if (glChannel.Texture == null)
                         continue;
                     var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
-                    if (glChannel.Key == "BaseColor")
+                    if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
                     {
                         Material.Diffuse = texture;
                     }
