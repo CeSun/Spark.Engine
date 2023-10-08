@@ -11,9 +11,9 @@ namespace Spark.Engine.Assets;
 
 public class StaticMesh
 {
-    List<Element> _Elements = new List<Element>();
+    List<Element<StaticMeshVertex>> _Elements = new List<Element<StaticMeshVertex>>();
     List<JVector> ConvexHullSourceData = new List<JVector>();
-    public IReadOnlyList<Element> Elements => _Elements;
+    public IReadOnlyList<Element<StaticMeshVertex>> Elements => _Elements;
     public Box Box { get; private set; }
 
     public List<Box> Boxes { get; private set; } = new List<Box>();
@@ -24,7 +24,7 @@ public class StaticMesh
         LoadAsset();
     }
 
-    public StaticMesh(List<Element> Elementes)
+    public StaticMesh(List<Element<StaticMeshVertex>> Elementes)
     {
         Path = string.Empty;
         _Elements.AddRange(Elementes);
@@ -156,7 +156,7 @@ public class StaticMesh
                         Material.Normal = texture; 
                     }
                 }
-                _Elements.Add(new Element
+                _Elements.Add(new Element<StaticMeshVertex>
                 {
                     Vertices = staticMeshVertices,
                     Material = Material,
@@ -287,9 +287,9 @@ public class StaticMesh
     }
 }
 
-public class Element 
+public class Element<T> where T  : struct
 {
-    public required List<StaticMeshVertex> Vertices;
+    public required List<T> Vertices;
     public required List<uint> Indices;
     public required Material Material;
     public uint VertexArrayObjectIndex;

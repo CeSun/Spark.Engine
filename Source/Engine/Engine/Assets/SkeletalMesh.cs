@@ -15,17 +15,13 @@ namespace Spark.Engine.Assets;
 
 public partial class SkeletalMesh
 {
-    public List<List<SkeletalMeshVertex>> Meshes = new List<List<SkeletalMeshVertex>>();
-    public List<List<uint>> _IndicesList = new List<List<uint>>();
-    public List<Material> Materials = new List<Material>();
+
+
+    List<Element<SkeletalMeshVertex>> _Elements = new List<Element<SkeletalMeshVertex>>();
+    public IReadOnlyList<Element<SkeletalMeshVertex>> Elements => _Elements;
+
     List<JVector> ConvexHullSourceData = new List<JVector>();
-    List<uint> _VertexArrayObjectIndexes = new List<uint>();
-    List<uint> VertexBufferObjectIndexes = new List<uint>();
-    List<uint> _ElementBufferObjectIndexes = new List<uint>();
     
-    public IReadOnlyList<uint> ElementBufferObjectIndexes => _ElementBufferObjectIndexes;
-    public IReadOnlyList<IReadOnlyCollection<uint>> IndicesList => _IndicesList;
-    public IReadOnlyList<uint> VertexArrayObjectIndexes => _VertexArrayObjectIndexes;
 
     public Skeleton? Skeleton { get; set; }
     public SkeletalMesh()
@@ -35,21 +31,21 @@ public partial class SkeletalMesh
     public unsafe void InitRender()
     {
 
-        for (var index = 0; index < Meshes.Count; index++)
+        for (var index = 0; index < _Elements.Count; index++)
         {
             uint vao = gl.GenVertexArray();
             uint vbo = gl.GenBuffer();
             uint ebo = gl.GenBuffer();
             gl.BindVertexArray(vao);
             gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
-            fixed (SkeletalMeshVertex* p = CollectionsMarshal.AsSpan(Meshes[index]))
+            fixed (SkeletalMeshVertex* p = CollectionsMarshal.AsSpan(_Elements[index].Vertices))
             {
-                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Meshes[index].Count * sizeof(SkeletalMeshVertex)), p, GLEnum.StaticDraw);
+                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(_Elements[index].Vertices.Count * sizeof(SkeletalMeshVertex)), p, GLEnum.StaticDraw);
             }
             gl.BindBuffer(GLEnum.ElementArrayBuffer, ebo);
-            fixed (uint* p = CollectionsMarshal.AsSpan(_IndicesList[index]))
+            fixed (uint* p = CollectionsMarshal.AsSpan(_Elements[index].Indices))
             {
-                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(_IndicesList[index].Count * sizeof(uint)), p, GLEnum.StaticDraw);
+                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(_Elements[index].Indices.Count * sizeof(uint)), p, GLEnum.StaticDraw);
             }
 
             // Location
@@ -80,10 +76,9 @@ public partial class SkeletalMesh
             gl.EnableVertexAttribArray(7);
             gl.VertexAttribPointer(7, 4, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(5 * sizeof(Vector3) + sizeof(Vector2) + sizeof(Vector4)));
             gl.BindVertexArray(0);
-
-            _VertexArrayObjectIndexes.Add(vao);
-            VertexBufferObjectIndexes.Add(vbo);
-            _ElementBufferObjectIndexes.Add(ebo);
+            _Elements[index].VertexArrayObjectIndex = vao;
+            _Elements[index].VertexBufferObjectIndex = vbo;
+            _Elements[index].ElementBufferObjectIndex = ebo;
         }
     }
    
@@ -163,7 +158,7 @@ public partial class SkeletalMesh
         {
             foreach (var glPrimitive in glMesh.Primitives)
             {
-                List<SkeletalMeshVertex> staticMeshVertices = new List<SkeletalMeshVertex>();
+                List<SkeletalMeshVertex> SkeletalMeshVertices = new List<SkeletalMeshVertex>();
                 foreach (var kv in glPrimitive.VertexAccessors)
                 {
                     int index = 0;
@@ -172,19 +167,19 @@ public partial class SkeletalMesh
                         foreach (var v in kv.Value.AsVector3Array())
                         {
                             var Vertex = new SkeletalMeshVertex();
-                            if (staticMeshVertices.Count > index)
+                            if (SkeletalMeshVertices.Count > index)
                             {
-                                Vertex = staticMeshVertices[index];
+                                Vertex = SkeletalMeshVertices[index];
                             }
                             else
                             {
-                                staticMeshVertices.Add(Vertex);
+                                SkeletalMeshVertices.Add(Vertex);
                             }
                             Vertex.Location = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
-                            if (staticMeshVertices.Count > index)
+                            if (SkeletalMeshVertices.Count > index)
                             {
                             }
-                            staticMeshVertices[index] = Vertex;
+                            SkeletalMeshVertices[index] = Vertex;
                             index++;
                         }
                     }
@@ -193,16 +188,16 @@ public partial class SkeletalMesh
                         foreach (var v in kv.Value.AsVector3Array())
                         {
                             var Vertex = new SkeletalMeshVertex();
-                            if (staticMeshVertices.Count > index)
+                            if (SkeletalMeshVertices.Count > index)
                             {
-                                Vertex = staticMeshVertices[index];
+                                Vertex = SkeletalMeshVertices[index];
                             }
                             else
                             {
-                                staticMeshVertices.Add(Vertex);
+                                SkeletalMeshVertices.Add(Vertex);
                             }
                             Vertex.Normal = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
-                            staticMeshVertices[index] = Vertex;
+                            SkeletalMeshVertices[index] = Vertex;
                             index++;
                         }
                     }
@@ -212,16 +207,16 @@ public partial class SkeletalMesh
                         {
 
                             var Vertex = new SkeletalMeshVertex();
-                            if (staticMeshVertices.Count > index)
+                            if (SkeletalMeshVertices.Count > index)
                             {
-                                Vertex = staticMeshVertices[index];
+                                Vertex = SkeletalMeshVertices[index];
                             }
                             else
                             {
-                                staticMeshVertices.Add(Vertex);
+                                SkeletalMeshVertices.Add(Vertex);
                             }
                             Vertex.TexCoord = new Vector2 { X = v.X, Y = v.Y };
-                            staticMeshVertices[index] = Vertex;
+                            SkeletalMeshVertices[index] = Vertex;
                             index++;
                         }
                     }
@@ -232,16 +227,16 @@ public partial class SkeletalMesh
                         {
 
                             var Vertex = new SkeletalMeshVertex();
-                            if (staticMeshVertices.Count > index)
+                            if (SkeletalMeshVertices.Count > index)
                             {
-                                Vertex = staticMeshVertices[index];
+                                Vertex = SkeletalMeshVertices[index];
                             }
                             else
                             {
-                                staticMeshVertices.Add(Vertex);
+                                SkeletalMeshVertices.Add(Vertex);
                             }
                             Vertex.BoneIds = new Vector4 { X = v.X, Y = v.Y, Z = v.Z, W = v.W };
-                            staticMeshVertices[index] = Vertex;
+                            SkeletalMeshVertices[index] = Vertex;
                             index++;
                         }
                     }
@@ -252,38 +247,38 @@ public partial class SkeletalMesh
                         {
 
                             var Vertex = new SkeletalMeshVertex();
-                            if (staticMeshVertices.Count > index)
+                            if (SkeletalMeshVertices.Count > index)
                             {
-                                Vertex = staticMeshVertices[index];
+                                Vertex = SkeletalMeshVertices[index];
                             }
                             else
                             {
-                                staticMeshVertices.Add(Vertex);
+                                SkeletalMeshVertices.Add(Vertex);
                             }
                             Vertex.BoneWeights = new Vector4 { X = v.X, Y = v.Y, Z = v.Z, W = v.W };
-                            staticMeshVertices[index] = Vertex;
+                            SkeletalMeshVertices[index] = Vertex;
                             index++;
                         }
                     }
                 }
                 Box box = new Box();
-                if (staticMeshVertices.Count > 0)
+                if (SkeletalMeshVertices.Count > 0)
                 {
-                    box.MaxPoint = box.MinPoint = staticMeshVertices[0].Location;
+                    box.MaxPoint = box.MinPoint = SkeletalMeshVertices[0].Location;
                 }
-                foreach (var Vertex in staticMeshVertices)
+                foreach (var Vertex in SkeletalMeshVertices)
                 {
                     box += Vertex.Location;
                 }
                 //Boxes.Add(box);
-                SkeletalMesh.Meshes.Add(staticMeshVertices);
+                //SkeletalMesh.Meshes.Add(staticMeshVertices);
 
                 List<uint> Indices = new List<uint>();
                 foreach (var index in glPrimitive.IndexAccessor.AsIndicesArray())
                 {
                     Indices.Add(index);
                 }
-                SkeletalMesh._IndicesList.Add(Indices);
+                // SkeletalMesh._IndicesList.Add(Indices);
                 var Material = new Material();
                 foreach (var glChannel in glPrimitive.Material.Channels)
                 {
@@ -299,7 +294,13 @@ public partial class SkeletalMesh
                         Material.Normal = texture;
                     }
                 }
-                SkeletalMesh.Materials.Add(Material);
+                //SkeletalMesh.Materials.Add(Material);
+                SkeletalMesh._Elements.Add(new Element<SkeletalMeshVertex>
+                {
+                    Material = Material,
+                    Vertices = SkeletalMeshVertices,
+                    Indices = Indices
+                });
             }
         }
         InitTBN(SkeletalMesh);
@@ -307,15 +308,15 @@ public partial class SkeletalMesh
 
     private static void InitTBN(SkeletalMesh SkeletalMesh)
     {
-        for (int i = 0; i < SkeletalMesh.IndicesList.Count; i++)
+        for (int i = 0; i < SkeletalMesh.Elements.Count; i++)
         {
             InitMeshTBN(SkeletalMesh, i);
         }
     }
     private static void InitMeshTBN(SkeletalMesh SkeletalMesh, int index)
     {
-        var vertics = SkeletalMesh.Meshes[index];
-        var indices = SkeletalMesh._IndicesList[index];
+        var vertics = SkeletalMesh.Elements[index].Vertices;
+        var indices = SkeletalMesh.Elements[index].Indices;
 
         for (int i = 0; i < indices.Count; i += 3)
         {

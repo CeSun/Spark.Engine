@@ -65,13 +65,13 @@ public class SkeletalMeshComponent : PrimitiveComponent
             int index = 0;
             gl.PushDebugGroup("Render Skeletal Mesh");
            
-            foreach (var mesh in SkeletalMesh.Meshes)
+            foreach (var element in SkeletalMesh.Elements)
             {
-                SkeletalMesh.Materials[index].Use();
-                gl.BindVertexArray(SkeletalMesh.VertexArrayObjectIndexes[index]);
+                element.Material.Use();
+                gl.BindVertexArray(element.VertexArrayObjectIndex);
                 unsafe
                 {
-                    gl.DrawElements(GLEnum.Triangles, (uint)SkeletalMesh.IndicesList[index].Count, GLEnum.UnsignedInt, (void*)0);
+                    gl.DrawElements(GLEnum.Triangles, (uint)element.Indices.Count, GLEnum.UnsignedInt, (void*)0);
                 }
                 index++;
             }
