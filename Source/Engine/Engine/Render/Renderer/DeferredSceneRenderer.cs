@@ -411,8 +411,6 @@ public class DeferredSceneRenderer : IRenderer
                     hism.CameraCulling(Planes);
                 ism.RenderISM(CurrentCameraComponent, DeltaTime);
             }
-            gl.PopDebugGroup();
-
 
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));

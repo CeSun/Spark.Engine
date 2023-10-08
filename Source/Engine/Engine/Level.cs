@@ -45,7 +45,6 @@ public partial class Level
     CameraComponent? CameraComponent;
 
     Vector2 MoveData = default;
-    Vector2 MoveData2 = default;
     Vector2 LastPosition;
 
     public void OnMouseMove(IMouse mouse,  Vector2 position)

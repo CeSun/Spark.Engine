@@ -25,13 +25,23 @@ public class ImGuiWarp
     ImGuiController? Controller;
     public void Init()
     {
-        Controller = new ImGuiController(gl, Engine.Instance.View, Engine.Instance.Input);
+        try
+        {
+            Controller = new ImGuiController(gl, Engine.Instance.View, Engine.Instance.Input);
+        } 
+        catch 
+        { 
+        }
     }
 
 
     int num = 0;
     public void Render(double DeltaTime)
     {
+        if (Controller != null)
+        {
+            return;
+        }
         Controller?.Update((float)DeltaTime);
         renderDebugPanel();
         renderActorList();
@@ -369,6 +379,8 @@ public class ImGuiWarp
         hismcomponent.WorldLocation = new Vector3(0, 0, 0);
         for (int i = 0; i < grassLen; i++)
         {
+            if (i % 10 == 0)
+                await Task.Yield();
             var GrassComponent = new SubInstancedStaticMeshComponent(hismactor);
             hismcomponent.AddComponent(GrassComponent);
             GrassComponent.ParentComponent = hismcomponent;
