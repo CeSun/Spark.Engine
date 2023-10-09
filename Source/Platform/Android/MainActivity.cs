@@ -1,6 +1,6 @@
 using Silk.NET.Input;
 using Silk.NET.Input.Sdl;
-using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES;
 using Silk.NET.Windowing;
 using Silk.NET.Windowing.Sdl;
 using Silk.NET.Windowing.Sdl.Android;
