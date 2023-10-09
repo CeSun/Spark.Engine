@@ -10,6 +10,7 @@ using static Spark.Engine.StaticEngine;
 using System.Threading.Tasks;
 using Silk.NET.OpenGL;
 using System.Runtime.InteropServices;
+using System.Collections;
 
 namespace Spark.Engine.Assets;
 
@@ -111,19 +112,28 @@ public partial class SkeletalMesh
 
     static List<AnimSequence> LoadAnimSequence(ModelRoot model, Skeleton skeleton)
     {
+        Dictionary<int, int> Node2Bone = new Dictionary<int, int>();
+        for (int i = 0; i < model.LogicalSkins[0].JointsCount; i++)
+        {
+            var (LogicalNode, InversMatrix) = model.LogicalSkins[0].GetJoint(i);
+            Node2Bone.Add(LogicalNode.LogicalIndex, i);
+        }
         List<AnimSequence> list = new List<AnimSequence>();
         foreach(var logicAnim in model.LogicalAnimations)
         {
+
             
-            Dictionary<int, BoneChannel> dict = new Dictionary<int, BoneChannel>();
+             Dictionary<int, BoneChannel> dict = new Dictionary<int, BoneChannel>();
             
             foreach (var channel in logicAnim.Channels)
             {
-                if(!dict.TryGetValue(channel.TargetNode.LogicalIndex, out var boneChannel))
+                if (Node2Bone.TryGetValue(channel.TargetNode.LogicalIndex, out var BoneId) == false)
+                    continue;
+                if (!dict.TryGetValue(BoneId, out var boneChannel))
                 {
                     boneChannel = new BoneChannel();
-                    boneChannel.BoneId = channel.TargetNode.LogicalIndex;
-                    dict.Add(channel.TargetNode.LogicalIndex, boneChannel);
+                    boneChannel.BoneId = BoneId;
+                    dict.Add(BoneId, boneChannel);
                 }
 
                 if (channel.GetTranslationSampler() != null)
@@ -365,34 +375,34 @@ public partial class SkeletalMesh
     protected static Skeleton LoadBones(ModelRoot model)
     {
         List<BoneNode> BoneList = new List<BoneNode>();
-        for (int i = 0; i < model.LogicalNodes.Count; i++)
+        List<Node> Bone2Node = new List<Node>();
+        Dictionary<int, BoneNode> Node2Bone = new Dictionary<int, BoneNode>();
+        for (int i = 0; i < model.LogicalSkins[0].JointsCount; i++)
         {
-            var LogicalNode = model.LogicalNodes[i];
+            var (LogicalNode, InversMatrix) = model.LogicalSkins[0].GetJoint(i);
             var BoneNode = new BoneNode()
             {
                 Name = LogicalNode.Name
             };
-            BoneNode.BoneId = LogicalNode.LogicalIndex;
-
+            BoneNode.BoneId = i;
             BoneNode.RelativeScale = LogicalNode.LocalMatrix.Scale();
             BoneNode.RelativeLocation = LogicalNode.LocalMatrix.Translation;
             BoneNode.RelativeRotation = LogicalNode.LocalMatrix.Rotation();
             BoneNode.RelativeTransform = LogicalNode.LocalMatrix;//MatrixHelper.CreateTransform(BoneNode.RelativeLocation, BoneNode.RelativeRotation, BoneNode.RelativeScale);
             BoneNode.LocalToWorldTransform = LogicalNode.WorldMatrix;
-            Matrix4x4.Invert(BoneNode.LocalToWorldTransform, out BoneNode.WorldToLocalTransform);
-            if (LogicalNode.VisualParent != null)
-            {
-                BoneNode.ParentId = LogicalNode.VisualParent.LogicalIndex;
-            }
-
+            BoneNode.WorldToLocalTransform = InversMatrix;
             BoneList.Add(BoneNode);
+            Bone2Node.Add(LogicalNode);
+            Node2Bone.Add(LogicalNode.LogicalIndex, BoneNode);
         }
         foreach (BoneNode Bone in BoneList)
         {
-            if (Bone.ParentId >= 0)
+            var node = Bone2Node[Bone.BoneId];
+            if (node.VisualParent != null  && Node2Bone.TryGetValue(node.VisualParent.LogicalIndex, out var parentBone))
             {
-                Bone.Parent = BoneList[Bone.ParentId];
-                Bone.Parent.ChildrenBone.Add(Bone);
+                parentBone.ChildrenBone.Add(Bone);
+                Bone.Parent = parentBone;
+                Bone.ParentId = parentBone.BoneId;
             }
         }
         List<BoneNode> TreeRoots = new List<BoneNode>();
@@ -401,9 +411,7 @@ public partial class SkeletalMesh
             if (Bone.ParentId < 0)
                 TreeRoots.Add(Bone);
         }
-
-       // ProcessBoneTransform(TreeRoots[0]);
-        return new Skeleton(TreeRoots[0], BoneList);
+        return new Skeleton(TreeRoots[0], BoneList, Bone2Node[TreeRoots[0].BoneId].VisualParent.WorldMatrix);
     }
 
     public static void ProcessBoneTransform(BoneNode Bone)

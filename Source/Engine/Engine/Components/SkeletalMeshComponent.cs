@@ -88,7 +88,7 @@ public class SkeletalMeshComponent : PrimitiveComponent
 
             foreach(var bone in SkeletalMesh.Skeleton.BoneList)
             {
-                AnimBuffer[bone.BoneId] = bone.WorldToLocalTransform * AnimBuffer[bone.BoneId];
+                AnimBuffer[bone.BoneId] = bone.WorldToLocalTransform * AnimBuffer[bone.BoneId] * SkeletalMesh.Skeleton.RootParentMatrix;
             }
         }
     }

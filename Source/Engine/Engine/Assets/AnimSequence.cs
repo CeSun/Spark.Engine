@@ -65,10 +65,9 @@ public class AnimSampler
 
     public List<Matrix4x4> TransfomrBuffer;
 
-    public bool IsLoop = false;
+    public bool IsLoop = true;
 
     private double SpeedTime;
-    private int index;
     public AnimSampler(AnimSequence sequence)
     {
         Sequence = sequence;
@@ -84,7 +83,6 @@ public class AnimSampler
     public void Clear()
     {
         SpeedTime = 0;
-        index = 0;
 
     }
 
@@ -102,13 +100,41 @@ public class AnimSampler
         }
         foreach (var bone in Skeleton.BoneList)
         {
-            var index = bone.BoneId;
+            var BoneId = bone.BoneId;
             var transform = bone.RelativeTransform;
-            if (Sequence.Channels.TryGetValue(index, out var channel))
+            if (Sequence.Channels.TryGetValue(BoneId, out var channel))
             {
-                transform = MatrixHelper.CreateTransform(channel.Translation[0].Item2, channel.Rotation[0].Item2, channel.Scale[0].Item2);
+                if (Duration == 0)
+                {
+                    transform = MatrixHelper.CreateTransform(channel.Translation[0].Item2, channel.Rotation[0].Item2, channel.Scale[0].Item2);
+                }
+                else
+                {
+                    var first = 0;
+                    var second = 0;
+                    for (var i = 0; i < channel.Translation.Count - 1; i++)
+                    {
+                        if (SpeedTime > channel.Translation[i].Item1 && SpeedTime < channel.Translation[i + 1].Item1)
+                        {
+                            first = i;
+                            second = first + 1;
+                        }
+                    }
+
+                    var transform1 = MatrixHelper.CreateTransform(channel.Translation[first].Item2, channel.Rotation[first].Item2, channel.Scale[first].Item2);
+                    var transform2 = MatrixHelper.CreateTransform(channel.Translation[second].Item2, channel.Rotation[second].Item2, channel.Scale[second].Item2);
+                    var len = channel.Translation[second].Item1 - channel.Translation[first].Item1;
+                    var dt = (float)SpeedTime - channel.Translation[first].Item1;
+                    var p = dt / len;
+                    if (dt < 0)
+                    {
+                        p = 0;
+                    }
+                    transform = Matrix4x4.Lerp(transform1, transform2, p);
+                }
+
             }
-            TransfomrBuffer[index] = transform;
+            TransfomrBuffer[BoneId] = transform;
         }
         SpeedTime += DeltaTime / DurationScale;
     }

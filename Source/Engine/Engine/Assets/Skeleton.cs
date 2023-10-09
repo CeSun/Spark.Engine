@@ -9,13 +9,15 @@ namespace Spark.Engine.Assets;
 
 public class Skeleton
 {
-    public Skeleton(BoneNode root, List<BoneNode> list)
+    public Skeleton(BoneNode root, List<BoneNode> list, Matrix4x4 RootParentMatrix)
     {
         BoneList = list;
         Root = root;
+        this.RootParentMatrix = RootParentMatrix;
     }
     public List<BoneNode> BoneList;
     public BoneNode Root;
+    public Matrix4x4 RootParentMatrix;
 }
 
 
