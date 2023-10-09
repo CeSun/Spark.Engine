@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Xml.Linq;
 using static Spark.Engine.StaticEngine;
 
+
 namespace Spark.Engine.Components;
 
 public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshComponent
@@ -318,10 +319,11 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
             }
             StaticMesh.Elements[level].Material.Use();
             gl.BindVertexArray(StaticMesh.Elements[level].VertexArrayObjectIndex);
-            // todo opengl es缺少这个api
-            // gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.Elements[level].Indices.Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
-           
-
+         
+            if (ExtBaseInstance != null)
+            {
+                ExtBaseInstance.DrawElementsInstancedBaseInstance((Silk.NET.OpenGLES.Extensions.EXT.EXT)GLEnum.Triangles, (uint)StaticMesh.Elements[level].Indices.Count, (Silk.NET.OpenGLES.Extensions.EXT.EXT)GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
+            }
         }
         gl.BindVertexArray(0);
     }

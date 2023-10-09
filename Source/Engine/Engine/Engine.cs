@@ -7,6 +7,7 @@ using Spark.Engine.Platform;
 using Spark.Engine.Render;
 using Spark.Engine.GUI;
 using Silk.NET.Windowing;
+using Silk.NET.OpenGLES.Extensions.EXT;
 
 namespace Spark.Engine;
 
@@ -117,7 +118,7 @@ public partial class Engine : Singleton<Engine>
 }
 public class StaticEngine
 {
-    public static GL gl 
+    public static GL gl
     {
         get
         {
@@ -128,6 +129,20 @@ public class StaticEngine
             return Engine.Instance.Gl;
         }
     }
+
+    private static ExtBaseInstance? _ExtBaseInstance;
+    public static ExtBaseInstance? ExtBaseInstance 
+    {
+        get
+        {
+            if (_ExtBaseInstance == null)
+            {
+                gl.TryGetExtension<ExtBaseInstance>(out _ExtBaseInstance);
+            }
+            return _ExtBaseInstance;
+        }
+    }
+
 
     public static IInputContext Input
     {
@@ -231,6 +246,7 @@ public static class GLExternFunctions
         States = States.Next;
 
     }
+
 }
 
 class OpenGLStates
