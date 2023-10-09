@@ -29,10 +29,10 @@ void main()
     AnimMatrix += AnimTransform[int(BoneIds[1])] * BoneWeights[1];
     AnimMatrix += AnimTransform[int(BoneIds[2])] * BoneWeights[2];
     AnimMatrix += AnimTransform[int(BoneIds[3])] * BoneWeights[3];
-
-    vec3 T = normalize(mat3(NormalTransform) * Tangent);
-    vec3 B = normalize(mat3(NormalTransform) * BitTangent);
-    OutNormal = normalize(mat3(NormalTransform) * Normal);
+    mat4 myAnimMatrix = transpose(inverse(AnimMatrix));
+    vec3 T = normalize(mat3(NormalTransform * myAnimMatrix) * Tangent);
+    vec3 B = normalize(mat3(NormalTransform * myAnimMatrix) * BitTangent);
+    OutNormal = normalize(mat3(NormalTransform * myAnimMatrix) * Normal);
     TBNMat = mat3(T, B, OutNormal);
 
     mat3 TBNInvert = transpose(TBNMat);
