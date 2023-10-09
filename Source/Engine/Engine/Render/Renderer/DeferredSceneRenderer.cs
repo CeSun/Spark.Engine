@@ -1,7 +1,7 @@
 ﻿using Spark.Engine.Assets;
 using Spark.Engine.Components;
 using System.Drawing;
-using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES;
 using static Spark.Engine.StaticEngine;
 using Shader = Spark.Engine.Assets.Shader;
 using static Spark.Engine.Components.CameraComponent;

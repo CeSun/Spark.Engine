@@ -1,7 +1,7 @@
 ﻿using SharpGLTF.Schema2;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES;
 using static Spark.Engine.StaticEngine;
 using Spark.Engine.Physics;
 using Jitter.LinearMath;

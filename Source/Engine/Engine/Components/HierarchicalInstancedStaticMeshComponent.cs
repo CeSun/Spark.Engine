@@ -1,5 +1,5 @@
 ﻿using SharpGLTF.Schema2;
-using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Physics;
@@ -318,8 +318,9 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
             }
             StaticMesh.Elements[level].Material.Use();
             gl.BindVertexArray(StaticMesh.Elements[level].VertexArrayObjectIndex);
-            gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.Elements[level].Indices.Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
-
+            // todo opengl es缺少这个api
+            // gl.DrawElementsInstancedBaseInstance(GLEnum.Triangles, (uint)StaticMesh.Elements[level].Indices.Count, GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
+           
 
         }
         gl.BindVertexArray(0);

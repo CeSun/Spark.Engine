@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
-using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES;
 using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Assets;

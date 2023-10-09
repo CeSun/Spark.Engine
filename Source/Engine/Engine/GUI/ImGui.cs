@@ -1,6 +1,6 @@
 ﻿using ImGuiNET;
-using Silk.NET.OpenGL;
-using Silk.NET.OpenGL.Extensions.ImGui;
+using Silk.NET.OpenGLES;
+using Silk.NET.OpenGLES.Extensions.ImGui;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
@@ -29,8 +29,9 @@ public class ImGuiWarp
         {
             Controller = new ImGuiController(gl, Engine.Instance.View, Engine.Instance.Input);
         } 
-        catch 
+        catch (Exception e)
         { 
+            Console.WriteLine(e.ToString());
         }
     }
 

@@ -6,7 +6,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using SharpGLTF.Schema2;
-using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Components;
@@ -49,7 +49,7 @@ public partial class Level
 
     public void OnMouseMove(IMouse mouse,  Vector2 position)
     {
-        if (MainMouse.IsButtonPressed(MouseButton.Right))
+        if (MainMouse.IsButtonPressed(MouseButton.Left))
         {
             if (CameraComponent == null)
                 return;
@@ -69,7 +69,7 @@ public partial class Level
 
     public void OnMouseKeyDown(IMouse mouse, MouseButton key)
     {
-        if (key == MouseButton.Right)
+        if (key == MouseButton.Left)
         {
             LastPosition = mouse.Position;
         }

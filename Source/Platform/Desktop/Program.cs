@@ -1,6 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Silk.NET.Windowing;
-using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES;
 using Spark.Engine;
 using System.Numerics;
 using Silk.NET.Maths;

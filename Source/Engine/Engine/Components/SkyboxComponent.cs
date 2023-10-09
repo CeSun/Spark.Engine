@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES;
 using static Spark.Engine.StaticEngine;
 using System.Reflection;
 using StbImageSharp;
