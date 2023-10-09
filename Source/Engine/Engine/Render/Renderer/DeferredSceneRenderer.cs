@@ -37,6 +37,9 @@ public class DeferredSceneRenderer : IRenderer
     Shader DecalPostShader;
     Shader SSAOShader;
 
+    Shader SkeletakMeshDLShadowMapShader;
+    Shader SkeletakMeshSpotShadowMapShader;
+    Shader SkeletakMeshPointLightingShader;
 
     Shader SkeletalMeshBaseShader;
 
@@ -78,6 +81,9 @@ public class DeferredSceneRenderer : IRenderer
         InstancePointLightingShader = new Shader("/Shader/ShadowMap/Instance/PointLightShadow");
         InstanceDLShadowMapShader = new Shader("/Shader/ShadowMap/Instance/DirectionLightShadow");
         InstanceSpotShadowMapShader = new Shader("/Shader/ShadowMap/Instance/SpotLightShadow");
+        SkeletakMeshDLShadowMapShader = new Shader("/Shader/ShadowMap/SkeletalMesh/DirectionLightShadow");
+        SkeletakMeshSpotShadowMapShader = new Shader("/Shader/ShadowMap/SkeletalMesh/SpotLightShadow");
+        SkeletakMeshPointLightingShader = new Shader("/Shader/ShadowMap/SkeletalMesh/PointLightShadow");
         GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 3);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -412,6 +418,26 @@ public class DeferredSceneRenderer : IRenderer
                 ism.RenderISM(CurrentCameraComponent, DeltaTime);
             }
 
+
+            SkeletakMeshDLShadowMapShader.SetMatrix("ViewTransform", View);
+            SkeletakMeshDLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
+            {
+                if (component.IsDestoryed == false)
+                {
+                    if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                    {
+                        for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
+                        {
+                            SkeletakMeshDLShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
+                        }
+                    }
+                    SkeletakMeshDLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    SkeletakMeshDLShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
+                    component.Render(DeltaTime);
+                }
+            }
+
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }
@@ -450,7 +476,27 @@ public class DeferredSceneRenderer : IRenderer
                     hism.CameraCulling(Planes);
                 ism.RenderISM(CurrentCameraComponent, DeltaTime);
             }
-            
+
+            SkeletakMeshSpotShadowMapShader.SetMatrix("ViewTransform", View);
+            SkeletakMeshSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
+            {
+                if (component.IsDestoryed == false)
+                {
+                    if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                    {
+                        for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
+                        {
+                            SkeletakMeshSpotShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
+                        }
+                    }
+                    SkeletakMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    SkeletakMeshSpotShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
+                    component.Render(DeltaTime);
+                }
+            }
+
+
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
 
@@ -508,7 +554,32 @@ public class DeferredSceneRenderer : IRenderer
                     continue;
                 hism.RenderISM(CurrentCameraComponent, DeltaTime);
             }
-            
+
+            for (var i = 0; i < 6; i++)
+            {
+                SkeletakMeshPointLightingShader.SetMatrix("shadowMatrices[" + i + "]", ShadowMatrices[i]);
+            }
+            SkeletakMeshPointLightingShader.SetVector3("LightLocation", PointLight.WorldLocation);
+            SkeletakMeshPointLightingShader.SetFloat("FarPlan", 1000);
+            SkeletakMeshPointLightingShader.Use();
+            foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
+            {
+                if (component.IsDestoryed == false)
+                {
+                    if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                    {
+                        for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
+                        {
+                            SkeletakMeshPointLightingShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
+                        }
+                    }
+                    SkeletakMeshPointLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    SkeletakMeshPointLightingShader.SetMatrix("NormalTransform", component.NormalTransform);
+                    component.Render(DeltaTime);
+                }
+            }
+
+
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }
