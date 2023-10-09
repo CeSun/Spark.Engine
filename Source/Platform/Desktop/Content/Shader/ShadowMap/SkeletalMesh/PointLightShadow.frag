@@ -1,6 +1,6 @@
 #version 330 core
+#extension GL_EXT_frag_depth : enable
 in vec4 FragPos;
-
 uniform vec3 LightLocation;
 uniform float FarPlan;
 
@@ -13,5 +13,5 @@ void main()
     lightDistance = lightDistance / FarPlan;
 
     // write this as modified depth
-    gl_FragDepth = lightDistance;
+    gl_FragDepthEXT = lightDistance;
 }

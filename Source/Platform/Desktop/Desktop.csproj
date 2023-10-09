@@ -11,7 +11,8 @@
 
   <ItemGroup>
     <PackageReference Include="Silk.NET.Input" Version="2.17.1" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenGLES" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenGLES.ANGLE.Native" Version="2022.3.11" />
     <PackageReference Include="Silk.NET.Windowing" Version="2.17.1" />
   </ItemGroup>
 

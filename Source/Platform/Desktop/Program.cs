@@ -13,7 +13,7 @@ using Silk.NET.Input.Glfw;
 var option = WindowOptions.Default;
 option.FramesPerSecond = 0;
 option.UpdatesPerSecond = 0;
-option.API = new GraphicsAPI(ContextAPI.OpenGL, new APIVersion(3, 3));
+option.API = new GraphicsAPI(ContextAPI.OpenGLES, new APIVersion(3, 0));
 option.VSync = false;
 GlfwWindowing.RegisterPlatform();
 GlfwInput.RegisterPlatform();

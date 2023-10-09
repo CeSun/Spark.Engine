@@ -1,4 +1,5 @@
 #version 330 core
+#extension GL_EXT_geometry_shader : enable
 layout (triangles) in;
 layout (triangle_strip, max_vertices=18) out;
 
