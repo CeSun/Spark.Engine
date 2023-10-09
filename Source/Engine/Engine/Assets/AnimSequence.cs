@@ -120,7 +120,11 @@ public class AnimSampler
                             second = first + 1;
                         }
                     }
-
+                    if (first == second)
+                    {
+                        transform = MatrixHelper.CreateTransform(channel.Translation[first].Item2, channel.Rotation[first].Item2, channel.Scale[first].Item2);
+                        continue;
+                    }
                     var transform1 = MatrixHelper.CreateTransform(channel.Translation[first].Item2, channel.Rotation[first].Item2, channel.Scale[first].Item2);
                     var transform2 = MatrixHelper.CreateTransform(channel.Translation[second].Item2, channel.Rotation[second].Item2, channel.Scale[second].Item2);
                     var len = channel.Translation[second].Item1 - channel.Translation[first].Item1;

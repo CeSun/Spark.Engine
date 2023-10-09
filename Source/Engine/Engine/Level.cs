@@ -112,7 +112,7 @@ public partial class Level
         var SkeletalActor = new Actor(this, "Skeletal Mesh");
         var Comp = new SkeletalMeshComponent(SkeletalActor);
         Comp.SkeletalMesh = skm;
-        Comp.AnimSequence = anim[0];
+        Comp.AnimSequence = anim[2];
         Comp.WorldLocation = new Vector3(0, 10, 0);
 
         // 定义一个actor和并挂载静态网格体组件
