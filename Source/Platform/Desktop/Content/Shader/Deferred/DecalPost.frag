@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 layout (location = 0) out vec3 BufferNormal;
 layout (location = 1) out vec3 BufferColor;
 layout (location = 2) out vec4 BufferCustom;

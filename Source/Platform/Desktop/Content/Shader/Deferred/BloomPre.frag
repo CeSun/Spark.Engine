@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 layout (location = 0) out vec3 glColor;
 
 in vec2 OutTexCoord;

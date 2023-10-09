@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 out vec4 glColor;
 
 
@@ -46,7 +48,7 @@ void main()
 		LightSpaceLocation.z = 1.0f;
 
     float Shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(ShadowMapTexture, 0);
+    vec2 texelSize = 1.0f / vec2(textureSize(ShadowMapTexture, 0));
     for(int x = -1; x <= 1; ++x)
     {
         for(int y = -1; y <= 1; ++y)

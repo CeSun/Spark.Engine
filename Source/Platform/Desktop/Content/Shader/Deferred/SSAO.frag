@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 out float FragColor;
 
 uniform vec2 TexCoordScale;
@@ -31,7 +33,7 @@ void main()
 	vec3 FragViewLocation = GetViewLocation(vec3(OutTrueTexCoord, Depth));
 
 
-	vec2 size = textureSize(NoiseTexture, 0);
+	vec2 size = vec2(textureSize(NoiseTexture, 0));
 	vec2 uv = vec2(gl_FragCoord.x / size.x, gl_FragCoord.y / size.y);
 
 	vec3 RandomVec = normalize(texture(NoiseTexture, uv * TexCoordScale)).xyz;
@@ -61,7 +63,7 @@ void main()
         float rangeCheck = smoothstep(0.0, 1.0, radius / abs(FragViewLocation.z - sampleDepth));
         occlusion += (sampleDepth >= samplePos.z + bias ? 1.0 : 0.0) * rangeCheck;     
 	}
-    occlusion = 1.0 - (occlusion / samplesLen);
+    occlusion = 1.0f - (occlusion / float(samplesLen));
     
     FragColor = occlusion;
 

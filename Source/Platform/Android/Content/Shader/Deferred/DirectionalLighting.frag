@@ -1,4 +1,6 @@
 #version 300 es
+
+precision highp float;
 out vec4 glColor;
 
 
@@ -8,12 +10,14 @@ uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
 uniform sampler2D ShadowMapTexture;
+uniform sampler2D SSAOTexture;
 
 uniform mat4 WorldToLight;
 uniform mat4 VPInvert;
 uniform vec3 LightDirection;
 uniform vec3 LightColor;
 uniform vec3 CameraLocation;
+uniform float AmbientStrength;
 uniform float LightStrength;
 
 
@@ -29,21 +33,22 @@ void main()
     
     float depth = texture(DepthTexture, OutTexCoord).r;
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
+    float AO = texture(SSAOTexture, OutTexCoord).r;
     //vec3 WorldLocation =texture(DepthTexture, OutTexCoord).xyz;
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
 
     Normal = normalize(Normal);
-
     
     vec4 tmpLightSpaceLocation = WorldToLight * vec4(WorldLocation, 1.0);
     vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
     LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
-
+    
+	if (LightSpaceLocation.z > 1.0f)
+		LightSpaceLocation.z = 1.0f;
 
     float Shadow = 0.0;
-    ivec2 Size = textureSize(ShadowMapTexture, 0);
-    vec2 texelSize = 1.0 / vec2(float(Size.x), float(Size.y));
+    vec2 texelSize = 1.0f / vec2(textureSize(ShadowMapTexture, 0));
     for(int x = -1; x <= 1; ++x)
     {
         for(int y = -1; y <= 1; ++y)
@@ -54,6 +59,12 @@ void main()
     }
     Shadow /= 9.0;
 
+
+    
+
+
+
+    vec3  Ambient = AmbientStrength * AO * LightColor.rgb;
 
 
     // mfs
@@ -68,7 +79,7 @@ void main()
 
     vec3 Specular = specularStrength * spec * LightColor;
 
-    glColor = vec4(((Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color.rgb, 1.0f); 
+    glColor = vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color.rgb, 1.0f); 
 
 }
 

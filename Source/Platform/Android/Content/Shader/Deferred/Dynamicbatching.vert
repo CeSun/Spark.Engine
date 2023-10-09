@@ -1,4 +1,6 @@
 #version 300 es
+
+precision highp float;
 layout (location = 0) in vec3 Location;
 layout (location = 1) in vec3 Normal;
 layout (location = 2) in vec3 Tangent;
@@ -8,10 +10,10 @@ layout (location = 5) in vec2 TexCoord;
 layout (location = 6) in mat4 ModelTransform;
 layout (location = 10) in mat4 NormalTransform;
 
-//uniform mat4 ModelTransform;
+// uniform mat4 ModelTransform;
 uniform mat4 ViewTransform;
 uniform mat4 ProjectionTransform;
-//uniform mat4 NormalTransform;
+// uniform mat4 NormalTransform;
 uniform vec3 CameraLocation;
 
 out vec2 OutTexCoord;

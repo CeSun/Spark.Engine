@@ -1,5 +1,7 @@
-#version 330 core
+#version 300 es
 #extension GL_EXT_frag_depth : enable
+
+precision highp float;
 in vec4 FragPos;
 uniform vec3 LightLocation;
 uniform float FarPlan;

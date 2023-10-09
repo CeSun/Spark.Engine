@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 out vec4 glColor;
 
 
@@ -49,7 +51,7 @@ void main()
     
     vec3 LightDirection = normalize(WorldLocation - LightLocation);
     // mfs
-    float diff = max(dot(Normal, -1 * LightDirection), 0.0);
+    float diff = max(dot(Normal, -1.0f * LightDirection), 0.0);
     vec3 diffuse = diff * Attenuation * LightColor;
     // jmfs 
     vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
@@ -60,7 +62,7 @@ void main()
     vec3 specular = specularStrength * Attenuation * spec * LightColor;
     
     float shadow = ShadowCalculation(WorldLocation);  
-    glColor = vec4((Ambient + (1 - shadow) * (diffuse + specular)) * LightStrength * Color.rgb, 1); 
+    glColor = vec4((Ambient + (1.0f - shadow) * (diffuse + specular)) * LightStrength * Color.rgb, 1.0f); 
 
 }
 

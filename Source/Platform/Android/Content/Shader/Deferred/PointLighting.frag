@@ -1,4 +1,6 @@
 #version 300 es
+
+precision highp float;
 out vec4 glColor;
 
 
@@ -8,10 +10,12 @@ uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
 uniform samplerCube ShadowMapTextue;
+uniform sampler2D SSAOTexture;
 uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
+uniform float AmbientStrength;
 uniform float Constant;
 uniform float Linear;
 uniform float Quadratic;
@@ -35,16 +39,19 @@ void main()
     //vec3 WorldLocation =texture(DepthTexture, OutTexCoord).xyz;
     vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
+    float AO = texture(SSAOTexture, OutTexCoord).r;
 
     float Distance    = length(LightLocation - WorldLocation);
     float Attenuation = 1.0 / (Constant + Linear * Distance + Quadratic * (Distance * Distance));
 
 
     Normal = normalize(Normal);
+
+    vec3  Ambient = AmbientStrength * AO * Attenuation * LightColor.rgb;
     
     vec3 LightDirection = normalize(WorldLocation - LightLocation);
     // mfs
-    float diff = max(dot(Normal, -1.0 * LightDirection), 0.0);
+    float diff = max(dot(Normal, -1.0f * LightDirection), 0.0);
     vec3 diffuse = diff * Attenuation * LightColor;
     // jmfs 
     vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
@@ -55,7 +62,7 @@ void main()
     vec3 specular = specularStrength * Attenuation * spec * LightColor;
     
     float shadow = ShadowCalculation(WorldLocation);  
-    glColor = vec4(((1.0 - shadow) * (diffuse + specular)) * LightStrength * Color.rgb, 1.0); 
+    glColor = vec4((Ambient + (1.0f - shadow) * (diffuse + specular)) * LightStrength * Color.rgb, 1.0f); 
 
 }
 

@@ -1,4 +1,6 @@
 #version 300 es
+
+precision highp float;
 layout (location = 0) out vec3 BufferNormal;
 layout (location = 1) out vec3 BufferColor;
 layout (location = 2) out vec4 BufferCustom;
@@ -22,12 +24,18 @@ void main()
     vec3 ViewDirection =  normalize(TbnCameraLocation - TbnPosition);
     vec2 NewTexCoord = GetUVOffset(OutTexCoord, ViewDirection);
 
-    if (NewTexCoord.x > 1.0 || NewTexCoord.x < 0.0 || NewTexCoord.y > 1.0 || NewTexCoord.y < 0.0)
+    if (NewTexCoord.x > 1.0f || NewTexCoord.x < 0.0f || NewTexCoord.y > 1.0f || NewTexCoord.y < 0.0f)
         discard;
     vec3 TextureNormal = texture(Normal, NewTexCoord).rgb;
+    vec4 color = texture(Diffuse, NewTexCoord).rgba;
+    if (color.a < 0.1f)
+        discard;
     if (TextureNormal == vec3(0, 0, 0))
         TextureNormal = vec3(0.5, 0.5, 1); 
 	TextureNormal = normalize(TextureNormal * 2.0 - 1.0);  
+    if (gl_FrontFacing == false)
+        TextureNormal = vec3(1, 1, -1) * TextureNormal;
+
 	TextureNormal = normalize(TBNMat * TextureNormal);
     
     BufferCustom = vec4(0.0, 0.0, 0.0, 0.0);
@@ -38,7 +46,7 @@ void main()
 vec2 GetUVOffset(vec2 TexCoord, vec3 ViewDirection)
 {
     // number of depth layers
-    const float numLayers = 10.0;
+    const float numLayers = 10.0f;
     // calculate the size of each layer
     float layerDepth = 1.0 / numLayers;
     // depth of current layer

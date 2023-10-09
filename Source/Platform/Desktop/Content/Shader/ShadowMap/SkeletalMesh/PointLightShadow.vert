@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 layout (location = 0) in vec3 position;
 layout (location = 6) in vec4 BoneIds;
 layout (location = 7) in vec4 BoneWeights;

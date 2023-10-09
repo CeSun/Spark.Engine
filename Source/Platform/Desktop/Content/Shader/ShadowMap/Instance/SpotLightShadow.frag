@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 
 uniform sampler2D Diffuse;
 in vec2 OutTexCoord;

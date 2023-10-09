@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 layout (location = 0) in vec3 Location;
 layout (location = 5) in vec2 TexCoord;
 layout (location = 6) in mat4 ModelTransform;

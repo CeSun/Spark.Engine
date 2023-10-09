@@ -1,5 +1,7 @@
 #version 320 es
-precision mediump float;
+#extension GL_EXT_geometry_shader : enable
+
+precision highp float;
 layout (triangles) in;
 layout (triangle_strip, max_vertices=18) out;
 

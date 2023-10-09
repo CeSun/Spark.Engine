@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 out vec3 glColor;
 
 in vec2 OutTexCoord;
@@ -25,7 +27,7 @@ void main()
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
     float IsReflection = texture(ReflectionTexture, OutTexCoord).r;
 
-    if (IsReflection < 1)
+    if (IsReflection < 1.0f)
     {
         glColor = texture(ColorTexture, OutTexCoord).xyz;
         return;
@@ -37,15 +39,15 @@ void main()
     vec3 SkyboxColor = texture(SkyboxTexture, SpaceDirection).rgb;
     
     glColor = SkyboxColor;
-    float RayLength = 20;
-    float MaxLoopTimes = 10;
-    float MidLoopTimes = 10;
-    float MinLoopTimes = 10;
+    float RayLength = 20.0f;
+    float MaxLoopTimes = 10.0f;
+    float MidLoopTimes = 10.0f;
+    float MinLoopTimes = 10.0f;
     float MaxLoopStep = RayLength / MaxLoopTimes;
     float MidLoopStep = MaxLoopStep / MidLoopTimes;
     float MinLoopStep = MidLoopStep / MinLoopTimes;
 
-    for (int i = 1; i <= MaxLoopTimes; i ++)
+    for (float i = 1.0f; i <= MaxLoopTimes; i ++)
     {
         vec3 NewLocation = WorldLocation + (Direction * MaxLoopStep * i);
         vec4 ScreenLocation = Projection * View * vec4(NewLocation, 1.0) ;
@@ -59,18 +61,18 @@ void main()
         }
         ScreenLocation = ScreenLocation / ScreenLocation.w;
 
-        vec3 NewUvd = (ScreenLocation.xyz + 1.0 ) / 2;
+        vec3 NewUvd = (ScreenLocation.xyz + 1.0 ) / 2.0f;
 
         float TargetDepth = MyTexture(DepthTexture, NewUvd.xy).r;
 		
-		if (TargetDepth == 0)
+		if (TargetDepth == 0.0f)
 			break;
         if (TargetDepth <= NewUvd.z)
         {
 			
-            for (int j = 1; j <= MidLoopTimes; j ++)
+            for (float j = 1.0f; j <= MidLoopTimes; j ++)
             {
-                NewLocation = WorldLocation + (Direction * ((MaxLoopStep * (i - 1)) +  j * MidLoopStep ));
+                NewLocation = WorldLocation + (Direction * ((MaxLoopStep * (i - 1.0f)) +  j * MidLoopStep ));
                 ScreenLocation = Projection * View * vec4(NewLocation, 1.0) ;
                 if (ScreenLocation.x >= ScreenLocation.w || ScreenLocation.y >= ScreenLocation.w || ScreenLocation.z >= ScreenLocation.w)
                 {
@@ -82,18 +84,18 @@ void main()
                 }
                 ScreenLocation = ScreenLocation / ScreenLocation.w;
 
-                NewUvd = (ScreenLocation.xyz + 1.0 ) / 2;
+                NewUvd = (ScreenLocation.xyz + 1.0 ) / 2.0f;
 
                 TargetDepth = MyTexture(DepthTexture, NewUvd.xy).r;
 		
-		        if (TargetDepth == 0)
+		        if (TargetDepth == 0.0f)
 			        break;
                 if (TargetDepth <= NewUvd.z)
                 {
                     
-                    for (int k = 1; k <= MinLoopTimes; k ++)
+                    for (float k = 1.0f; k <= MinLoopTimes; k ++)
                     {
-                        NewLocation = WorldLocation + (Direction * ((MaxLoopStep * (i - 1)) +  (j -1) * MidLoopStep + k * MinLoopStep));
+                        NewLocation = WorldLocation + (Direction * ((MaxLoopStep * (i - 1.0f)) +  (j -1.0f) * MidLoopStep + k * MinLoopStep));
                         ScreenLocation = Projection * View * vec4(NewLocation, 1.0) ;
                         if (ScreenLocation.x >= ScreenLocation.w || ScreenLocation.y >= ScreenLocation.w || ScreenLocation.z >= ScreenLocation.w)
                         {
@@ -105,12 +107,12 @@ void main()
                         }
                         ScreenLocation = ScreenLocation / ScreenLocation.w;
 
-                        NewUvd = (ScreenLocation.xyz + 1.0 ) / 2;
+                        NewUvd = (ScreenLocation.xyz + 1.0 ) / 2.0f;
 
                         TargetDepth = MyTexture(DepthTexture, NewUvd.xy).r;
                         float TargetBackDepth =  MyTexture(BackDepthTexture, NewUvd.xy).r;
 		
-		                if (TargetDepth == 0)
+		                if (TargetDepth == 0.0f)
 			                break;
                         if (TargetDepth <= NewUvd.z && TargetBackDepth >= NewUvd.z)
                         {

@@ -1,8 +1,9 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 layout (location = 0) out vec3 BufferNormal;
 layout (location = 1) out vec3 BufferColor;
 layout (location = 2) out vec4 BufferCustom;
-
 in vec2 OutTexCoord;
 in vec3 OutColor;
 in mat3 TBNMat;
@@ -22,7 +23,7 @@ void main()
     vec3 ViewDirection =  normalize(TbnCameraLocation - TbnPosition);
     vec2 NewTexCoord = GetUVOffset(OutTexCoord, ViewDirection);
 
-    if (NewTexCoord.x > 1 || NewTexCoord.x < 0 || NewTexCoord.y > 1 || NewTexCoord.y < 0)
+    if (NewTexCoord.x > 1.0f || NewTexCoord.x < 0.0f || NewTexCoord.y > 1.0f || NewTexCoord.y < 0.0f)
         discard;
     vec3 TextureNormal = texture(Normal, NewTexCoord).rgb;
     vec4 color = texture(Diffuse, NewTexCoord).rgba;
@@ -45,9 +46,9 @@ void main()
 vec2 GetUVOffset(vec2 TexCoord, vec3 ViewDirection)
 {
     // number of depth layers
-    const float numLayers = 10;
+    const float numLayers = 10.0f;
     // calculate the size of each layer
-    float layerDepth = 1.0 / numLayers;
+    float layerDepth = 1.0f / numLayers;
     // depth of current layer
     float currentLayerDepth = 0.0;
     // the amount to shift the texture coordinates per layer (from vector P)

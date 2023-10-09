@@ -1,8 +1,8 @@
 #version 320 es
-precision mediump float;
+#extension GL_EXT_frag_depth : enable
 
+precision highp float;
 in vec4 FragPos;
-
 uniform vec3 LightLocation;
 uniform float FarPlan;
 

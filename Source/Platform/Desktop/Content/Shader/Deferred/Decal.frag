@@ -1,4 +1,6 @@
-#version 330 core
+#version 300 es
+
+precision highp float;
 
 out vec4 Color;
 
@@ -24,11 +26,11 @@ void main()
 	vec4 ModelLocation = ModelInvertTransform * vec4(WorldLocation, 1.0f);
 	ModelLocation = ModelLocation / ModelLocation.w;
 
-	if (ModelLocation.x > 1 || ModelLocation.x < -1)
+	if (ModelLocation.x > 1.0f || ModelLocation.x < -1.0f)
 		discard;
-	if (ModelLocation.y > 1 || ModelLocation.y < -1)
+	if (ModelLocation.y > 1.0f || ModelLocation.y < -1.0f)
 		discard;
-	if (ModelLocation.z > 1 || ModelLocation.z < -1)
+	if (ModelLocation.z > 1.0f || ModelLocation.z < -1.0f)
 		discard;
 	
 	uv = (ModelLocation.xy + vec2(1.0f, 1.0f)) / 2.0f;

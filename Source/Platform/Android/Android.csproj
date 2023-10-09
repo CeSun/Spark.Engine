@@ -17,27 +17,19 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <EnableLLVM>True</EnableLLVM>
   </PropertyGroup>
+	
+	
   <ItemGroup>
-    <AndroidAsset Remove="Content\Shader\Deferred\Base.vert" />
-    <AndroidAsset Remove="Content\Shader\Deferred\BrightnessLighting.frag" />
-    <AndroidAsset Remove="Content\Shader\Deferred\BrightnessLighting.vert" />
-    <AndroidAsset Remove="Content\Shader\Deferred\DirectionalLighting.frag" />
-    <AndroidAsset Remove="Content\Shader\Deferred\DirectionalLighting.vert" />
-    <AndroidAsset Remove="Content\Shader\Deferred\PointLighting.frag" />
-    <AndroidAsset Remove="Content\Shader\Deferred\PointLighting.vert" />
-    <AndroidAsset Remove="Content\Shader\Deferred\SpotLighting.frag" />
-    <AndroidAsset Remove="Content\Shader\Deferred\SpotLighting.vert" />
-  </ItemGroup>
-  <ItemGroup>
+	<ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
     <PackageReference Include="Silk.NET" Version="2.17.1" />
-	  <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.17.1" />
+	<PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="2.17.1" />
   </ItemGroup>
-  <ItemGroup>
-	  <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
-  </ItemGroup>
+	
+	
   <ItemGroup>
     <AndroidAsset Include="Content\**\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </AndroidAsset>
   </ItemGroup>
+	
 </Project>

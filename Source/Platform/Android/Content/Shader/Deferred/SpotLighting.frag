@@ -1,4 +1,6 @@
 #version 300 es
+
+precision highp float;
 out vec4 glColor;
 
 
@@ -8,10 +10,12 @@ uniform sampler2D ColorTexture;
 uniform sampler2D NormalTexture;
 uniform sampler2D DepthTexture;
 uniform sampler2D ShadowMapTexture;
+uniform sampler2D SSAOTexture;
 uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
+uniform float AmbientStrength;
 uniform float Constant;
 uniform float Linear;
 uniform float Quadratic;
@@ -39,6 +43,7 @@ void main()
     vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
     Normal = normalize(Normal);
     vec3 LightDirection = normalize(WorldLocation - LightLocation);
+    float AO = texture(SSAOTexture, OutTexCoord).r;
 
 
     vec4 tmpLightSpaceLocation = WorldToLight * vec4(WorldLocation, 1.0);
@@ -46,9 +51,10 @@ void main()
     vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
     LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
     
+	if (LightSpaceLocation.z > 1.0f)
+		LightSpaceLocation.z = 1.0f;
     float Shadow = 0.0;
-    ivec2 Size = textureSize(ShadowMapTexture, 0);
-    vec2 texelSize = 1.0 / vec2(float(Size.x), float(Size.y));
+    vec2 texelSize = 1.0f / vec2(textureSize(ShadowMapTexture, 0));
     for(int x = -1; x <= 1; ++x)
     {
         for(int y = -1; y <= 1; ++y)
@@ -68,9 +74,12 @@ void main()
     
     float Intensity = clamp((Theta - OuterCosine) / Epsilon, 0.0, 1.0);
 
+;
+
+    vec3  Ambient = AmbientStrength * AO * Attenuation * LightColor.rgb;
     
     // mfs
-    float diff = max(dot(Normal, -1.0 * LightDirection), 0.0);
+    float diff = max(dot(Normal, -1.0f * LightDirection), 0.0);
     vec3 diffuse = diff * Attenuation * Intensity * LightColor;
     // jmfs 
     vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
@@ -80,7 +89,7 @@ void main()
 
     vec3 specular = specularStrength * Attenuation * Intensity * spec * LightColor;
 
-    glColor = vec4(((diffuse + specular)  * (1.0 - Shadow)) * LightStrength * Color.rgb, 1); 
+    glColor = vec4((Ambient + (diffuse + specular)  * (1.0 - Shadow)) * LightStrength * Color.rgb, 1); 
 
 }
 
