@@ -29,7 +29,13 @@
     <AndroidSigningKeyAlias>cesun</AndroidSigningKeyAlias>
     <AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
   </PropertyGroup>
-	
+  <ItemGroup>
+    <AndroidAsset Include="..\Resource\**\*">
+      <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </AndroidAsset>
+  </ItemGroup>
+
 	
   <ItemGroup>
 	<ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
@@ -37,11 +43,5 @@
 	<PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="2.17.1" />
   </ItemGroup>
 	
-	
-  <ItemGroup>
-    <AndroidAsset Include="..\Resource\**\*">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AndroidAsset>
-  </ItemGroup>
 	
 </Project>
