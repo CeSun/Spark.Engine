@@ -112,7 +112,7 @@ public partial class Level
         var SkeletalActor = new Actor(this, "Skeletal Mesh");
         var Comp = new SkeletalMeshComponent(SkeletalActor);
         Comp.SkeletalMesh = skm;
-        Comp.AnimSequence = anim[1];
+        Comp.AnimSequence = anim[2];
         Comp.WorldScale = new Vector3(5, 5, 5);
         Comp.WorldLocation = new Vector3(0, 1, 0);
         Comp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180f.DegreeToRadians(), 0, 0);

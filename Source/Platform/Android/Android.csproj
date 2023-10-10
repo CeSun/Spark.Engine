@@ -39,7 +39,7 @@
 	
 	
   <ItemGroup>
-    <AndroidAsset Include="Content\**\*">
+    <AndroidAsset Include="..\Resource\**\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </AndroidAsset>
   </ItemGroup>
