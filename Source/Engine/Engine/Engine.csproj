@@ -9,7 +9,7 @@
       </PropertyGroup>
 
       <ItemGroup>
-        <PackageReference Include="JitterPhysics" Version="0.2.0.20" />
+        <PackageReference Include="Jitter2" Version="2.0.0-alpha" />
         <PackageReference Include="Noesis.App" Version="3.2.1" />
         <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0030" />
 	    <PackageReference Include="Silk.NET.Input.Common" Version="2.17.1" />

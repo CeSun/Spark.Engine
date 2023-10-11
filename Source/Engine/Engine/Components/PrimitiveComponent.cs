@@ -227,10 +227,10 @@ public partial class PrimitiveComponent
 
     private List<PrimitiveComponent> _ChildrenComponent = new List<PrimitiveComponent>();
 
-    private Vector3 _WorldLocation;
+    protected Vector3 _WorldLocation;
 
-    private Quaternion _WorldRotation;
+    protected Quaternion _WorldRotation;
 
-    private Vector3 _WorldScale = Vector3.One;
+    protected Vector3 _WorldScale = Vector3.One;
 
 }

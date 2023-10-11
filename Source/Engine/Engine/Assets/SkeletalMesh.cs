@@ -1,4 +1,4 @@
-﻿using Jitter.LinearMath;
+﻿using Jitter2.LinearMath;
 using SharpGLTF.Schema2;
 using Spark.Engine.Physics;
 using System;

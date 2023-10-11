@@ -16,8 +16,8 @@ using Silk.NET.Input;
 using static Spark.Engine.StaticEngine;
 using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Manager;
-using Jitter.Collision;
-using PhyWorld = Jitter.World;
+using Jitter2.Collision;
+using PhyWorld = Jitter2.World;
 using System.ComponentModel;
 using Spark.Engine.GUI;
 using ImGuiNET;
@@ -27,15 +27,13 @@ namespace Spark.Engine;
 public partial class Level
 {
     public PhyWorld PhyWorld { get; private set; }
-    CollisionSystem CollisionSystem;
     public World CurrentWorld { private set; get; }
     ImGuiWarp imgui;
     public Level(World world)
     {
         CurrentWorld = world;
         UpdateManager = new UpdateManager();
-        CollisionSystem = new CollisionSystemSAP();
-        PhyWorld = new PhyWorld(CollisionSystem);
+        PhyWorld = new PhyWorld();
         imgui = new ImGuiWarp(this);
 
     }
