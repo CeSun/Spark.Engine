@@ -19,7 +19,7 @@ namespace Spark.Engine.Components;
 
 public class StaticMeshComponent : PrimitiveComponent
 {
-
+    protected override bool ReceieveUpdate => true;
     public override bool IsStatic 
     {
         get => base.IsStatic;
@@ -157,9 +157,9 @@ public class StaticMeshComponent : PrimitiveComponent
             }
         }
     }
-    public override void Render(double DeltaTime)
+    public override void Update(double DeltaTime)
     {
-        base.Render(DeltaTime);
+        base.Update(DeltaTime);
         if (RigidBody != null)
         {
             unsafe
@@ -187,7 +187,11 @@ public class StaticMeshComponent : PrimitiveComponent
                 base.WorldLocation = new Vector3(RigidBody.Position.X, RigidBody.Position.Y, RigidBody.Position.Z);
             }
         }
-        
+
+    }
+    public override void Render(double DeltaTime)
+    {
+        base.Render(DeltaTime);
         if (StaticMesh != null)
         {
             int index = 0;

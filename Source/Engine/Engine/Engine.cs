@@ -16,6 +16,7 @@ public partial class Engine : Singleton<Engine>
     public RenderTarget? _GlobalRenderTarget;
     SingleThreadSyncContext SyncContext;
 
+    public bool IsMobile { private set; get; } = false;
     public RenderTarget ViewportRenderTarget
     {
         get
@@ -60,6 +61,7 @@ public partial class Engine : Singleton<Engine>
         WindowSize = (Point)objects["WindowSize"];
         Input = (IInputContext)objects["InputContext"];
         FileSystem = (FileSystem)objects["FileSystem"];
+        IsMobile = (bool)objects["IsMobile"];
         _view = (IView)objects["View"];
         _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y, true);
         Worlds.Add(new World());

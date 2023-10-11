@@ -28,7 +28,8 @@ var InitFun = () =>
         { "WindowSize", new Point(option.Size.X , option.Size.Y) },
         { "InputContext", window.CreateInput()},
         { "FileSystem",new Desktop.DesktopFileSystem()},
-        { "View", window }
+        { "View", window },
+        {"IsMobile", false }
     });
 };
 window.Render += Engine.Instance.Render;

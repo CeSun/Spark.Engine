@@ -30,7 +30,8 @@ public class MainActivity : SilkActivity
                 { "WindowSize", new System.Drawing.Point(view.Size.X , view.Size.Y) },
                 { "InputContext", view.CreateInput()},
                 { "FileSystem", new AndroidFileSystem(Assets)},
-                { "View", view }
+                { "View", view },
+                {"IsMobile", true }
                 });
             };
 

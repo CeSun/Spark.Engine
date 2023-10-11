@@ -45,9 +45,10 @@ public partial class Level
     Vector2 MoveData = default;
     Vector2 LastPosition;
 
+    private MouseButton ViewButton = MouseButton.Right;
     public void OnMouseMove(IMouse mouse,  Vector2 position)
     {
-        if (MainMouse.IsButtonPressed(MouseButton.Left))
+        if (MainMouse.IsButtonPressed(ViewButton))
         {
             if (CameraComponent == null)
                 return;
@@ -67,15 +68,30 @@ public partial class Level
 
     public void OnMouseKeyDown(IMouse mouse, MouseButton key)
     {
-        if (key == MouseButton.Left)
+        if (key == ViewButton)
         {
             LastPosition = mouse.Position;
         }
     }
     bool NeedPrintFPS = false;
+
+    public async Task MobileTest()
+    {
+        await Task.Delay(1000);
+        imgui.num = 10000;
+        imgui.CreateHISM();
+        await Task.Delay(10000);
+        imgui.CreateCubes();
+
+    }
     public void BeginPlay()
     {
         imgui.Init();
+        if (Engine.Instance.IsMobile == true)
+        {
+            ViewButton = MouseButton.Left;
+            MobileTest();
+        }
         // InitGrass();
         // Test();
         MainMouse.MouseMove += OnMouseMove;

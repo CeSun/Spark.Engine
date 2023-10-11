@@ -36,7 +36,7 @@ public class ImGuiWarp
     }
 
 
-    int num = 0;
+    public int num = 0;
     public void Render(double DeltaTime)
     {
         if (Controller == null)
@@ -294,7 +294,7 @@ public class ImGuiWarp
     List<Actor> tmpList = new List<Actor>();
     List<Actor> cubeList = new List<Actor>();
 
-    async void CreateHISM()
+    public async void CreateHISM()
     {
         await Console.Out.WriteLineAsync("[HISM]正在生成:" + num);
         int len = (int)Math.Sqrt(100000);
@@ -308,7 +308,7 @@ public class ImGuiWarp
         tmpList.Add(task2.Result);
     }
 
-    void CreateCubes()
+    public void CreateCubes()
     {
         var SM = new StaticMesh("/StaticMesh/cube2.glb");
         for (int i = 0; i < 20; i++)
@@ -328,7 +328,7 @@ public class ImGuiWarp
         }
     }
 
-    async void CreateISM()
+    public async void CreateISM()
     {
         await Console.Out.WriteLineAsync("[ISM]正在生成:" + num);
         int len = (int)Math.Sqrt(100000);
