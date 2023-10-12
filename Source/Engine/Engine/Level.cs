@@ -90,7 +90,7 @@ public partial class Level
         if (Engine.Instance.IsMobile == true)
         {
             ViewButton = MouseButton.Left;
-            MobileTest();
+            _ = MobileTest();
         }
         // InitGrass();
         // Test();

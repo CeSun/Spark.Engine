@@ -67,6 +67,8 @@ public class NoesisGUI
 
     public void Render(double DeltaTime)
     {
+        if (_view == null)
+            return;
         gl.PushAttribute();
         _view.Update(DeltaTime);
         _view.Renderer.UpdateRenderTree();
@@ -82,32 +84,43 @@ public class NoesisGUI
 
     public void OnResize(int width, int height)
     {
-
+        if (_view == null)
+            return;
         _view.SetSize(width, height);
     }
 
     public void OnMouseMove(int x, int y)
     {
+        if (_view == null)
+            return;
         _view.MouseMove(x, y);
     }
 
     public void OnMouseButtonDown(Silk.NET.Input.MouseButton button,int x, int y)
     {
+        if (_view == null)
+            return;
         if (button == Silk.NET.Input.MouseButton.Left)
             _view.MouseButtonDown(x, y, Noesis.MouseButton.Left);
     }
     public void OnMouseButtonUp(Silk.NET.Input.MouseButton button, int x, int y)
     {
+        if (_view == null)
+            return;
         if (button == Silk.NET.Input.MouseButton.Left)
             _view.MouseButtonUp(x, y, Noesis.MouseButton.Left);
     }
 
     void OnKeyDown(Silk.NET.Input.Key key)
     {
+        if (_view == null)
+            return;
         _view.KeyDown(GetUIKey(key));
     }
     void OnKeyUp(Silk.NET.Input.Key key)
     {
+        if (_view == null)
+            return;
         _view.KeyUp(GetUIKey(key));
     }
     Noesis.Key GetUIKey(Silk.NET.Input.Key key)
@@ -169,6 +182,8 @@ public class NoesisGUI
     }
     public void OnKeyChar(char word)
     {
+        if (_view == null)
+            return;
         _view.Char(word);
     }
 
