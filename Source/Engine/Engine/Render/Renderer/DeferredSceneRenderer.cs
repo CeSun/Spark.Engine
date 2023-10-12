@@ -321,9 +321,9 @@ public class DeferredSceneRenderer : IRenderer
         SkyboxShader.SetMatrix("view", View);
         SkyboxShader.SetMatrix("projection", Projection);
 
-        SkyboxShader.SetInt("GBuffer", 1);
+        SkyboxShader.SetInt("DepthTexture", 1);
         gl.ActiveTexture(GLEnum.Texture1);
-        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
         SkyboxShader.SetVector2("BufferSize", new Vector2(GlobalBuffer.BufferWidth, GlobalBuffer.BufferHeight));
         SkyboxShader.SetVector2("ScreenSize", new Vector2(GlobalBuffer.Width, GlobalBuffer.Height));

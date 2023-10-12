@@ -27,92 +27,76 @@ uniform float LightStrength;
 
 
 
-vec3 GetColor(ivec2 ScreenLocation)
+vec3 OctahedronToUnitVector( vec2 normal2d )
 {
-    ivec2 screenSize = ivec2(vec2(ScreenLocation) / OutTrueTexCoord);
-    vec2 scale = OutTexCoord / OutTrueTexCoord;
-    float grayscale = texture(GBuffer, OutTexCoord).x;
-
-    vec2 pixelOffset = scale / vec2(screenSize);
-
-    
-    vec2 RTexcoord = OutTexCoord;
-    vec2 BTexcoord = OutTexCoord;
-
-    int xparity = (ScreenLocation.x % 2);
-    int yparity = (ScreenLocation.y % 2);
-    if (xparity + yparity == 0)
-    {
-        RTexcoord = OutTexCoord;
-        BTexcoord = OutTexCoord + pixelOffset;
-    }
-    else if (xparity + yparity == 2)
-    {
-        RTexcoord = OutTexCoord - pixelOffset;
-        BTexcoord = OutTexCoord;
-    }
-    else if (xparity == 1 && yparity == 0)
-    {
-        RTexcoord = vec2(OutTexCoord.x - pixelOffset.x, OutTexCoord.y);
-        BTexcoord = vec2(OutTexCoord.x, OutTexCoord.y + pixelOffset.y);
-    }
-    else if (xparity == 0 && yparity == 1)
-    {
-        RTexcoord = vec2(OutTexCoord.x, OutTexCoord.y - pixelOffset.y);
-        BTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y);
-    }
-    
-    float r = texture(GBuffer, RTexcoord).y;
-    float b = texture(GBuffer, BTexcoord).y;
-    float g = (grayscale - (r * 0.3f + b * 0.11f)) / 0.59f;
-    return vec3(r, g, b);
-}
-
-vec3 GetNormal(ivec2 ScreenLocation)
-{
-    ivec2 screenSize = ivec2(vec2(ScreenLocation) / OutTrueTexCoord);
-    vec2 scale = OutTexCoord / OutTrueTexCoord;
-    float grayscale = texture(GBuffer, OutTexCoord).x;
-
-    vec2 pixelOffset = scale / vec2(screenSize);
-
-    
-    vec2 XTexcoord = OutTexCoord;
-    vec2 YTexcoord = OutTexCoord;
-    vec2 ZTexcoord = OutTexCoord;
-
-    int xparity = (ScreenLocation.x % 2);
-    int yparity = (ScreenLocation.y % 2);
-    if (xparity + yparity == 0)
-    {
-        XTexcoord = OutTexCoord;
-        YTexcoord = OutTexCoord + pixelOffset;
-        ZTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y);
-    }
-    else if (xparity + yparity == 2)
-    {
-        XTexcoord = OutTexCoord - pixelOffset;
-        YTexcoord = OutTexCoord;
-        ZTexcoord = vec2(OutTexCoord.x, OutTexCoord.y - pixelOffset.y);
-
-    }
-    else if (xparity == 1 && yparity == 0)
-    {
-        XTexcoord = vec2(OutTexCoord.x - pixelOffset.x, OutTexCoord.y);
-        YTexcoord = vec2(OutTexCoord.x, OutTexCoord.y + pixelOffset.y);
-        ZTexcoord = OutTexCoord;
-    }
-    else if (xparity == 0 && yparity == 1)
-    {
-        XTexcoord = vec2(OutTexCoord.x, OutTexCoord.y - pixelOffset.y);
-        YTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y);
-        ZTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y - pixelOffset.y);
-    }
-    
-    float x = texture(GBuffer, XTexcoord).z;
-    float y = texture(GBuffer, YTexcoord).z;
-    float z = texture(GBuffer, ZTexcoord).z;
+    float x = 2.0f * normal2d.x / (1.0f + normal2d.x * normal2d.x + normal2d.y * normal2d.y);
+    float y = 2.0f * normal2d.y / (1.0f + normal2d.x * normal2d.x + normal2d.y * normal2d.y);
+    float z = (-1.0f  + normal2d.x * normal2d.x + normal2d.y * normal2d.y) / (1.0f + normal2d.x * normal2d.x + normal2d.y * normal2d.y);
     return vec3(x, y, z);
+}
+float[9] GetBufferValue(ivec2 ScreenLocation)
+{
+    float[9] rtl;
+    ivec2 screenSize = ivec2(vec2(ScreenLocation) / OutTrueTexCoord);
+    vec2 scale = OutTexCoord / OutTrueTexCoord;
+    float grayscale = texture(GBuffer, OutTexCoord).x;
+
+    vec2 pixelOffset = scale / vec2(screenSize);
+
+
+    ivec2 start = ScreenLocation - ivec2(1, 1);
+
+    vec2 rb= vec2(0.0f, 0.0f);
+    vec3 normal = vec3(0.0f, 0.0f, 0.0f);
+    vec2 mr= vec2(0.0f, 0.0f);
+
+    vec2 counter = vec2(0.0f, 0.0f);
+    
+    for(int i = 0; i < 3; i ++)
+    {
+        for(int j = 0; j < 3; j ++)
+        {
+            ivec2 current = start + ivec2(i, j);
+            int parity = (current.x % 2) + (current.y % 2);
+            vec2 tempTexCoord = OutTexCoord + vec2(float(i - 1), float(j - 1)) * pixelOffset;
+            vec4 data = texture(GBuffer, tempTexCoord);
+            float tempGrayscale = data.x;
+
+            if (abs(tempGrayscale - grayscale) > 0.1)
+                continue;
+            if (parity != 1)
+            {
+                counter.x = counter.x + 1.0f;
+                rb.x += data.y;
+                mr += data.za;
+            }
+            else 
+            {
+                counter.y = counter.y + 1.0f;
+                rb.y += data.y;
+                normal += OctahedronToUnitVector((data.za) * 2.0f -1.0f);
+            }
+
+        }
+    }
+    rb.x = rb.x / counter.x;
+    rb.y = rb.y / counter.y;
+    mr = mr / counter.y;
+    normal = normal / counter.y;
+    
+    rtl[0] = rb.x;
+    rtl[1] = (grayscale - (rb.x * 0.3f + rb.y * 0.11f)) / 0.59f;
+    rtl[2] = rb.y;
+
+    rtl[3] = normal.x;
+    rtl[4] = normal.y;
+    rtl[5] = normal.z;
+
+    
+    rtl[6] = mr.x;
+    rtl[7] = mr.y;
+
+    return rtl;
 }
 
 vec3 GetWorldLocation(vec3 ScreenLocation);
@@ -126,8 +110,11 @@ void main()
     float depth = texture(DepthTexture, OutTexCoord).r;
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     //vec3 WorldLocation =texture(DepthTexture, OutTexCoord).xyz;
-      vec4 Color = vec4(GetColor(ivec2(gl_FragCoord.xy)), 1.0f);//vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
-    vec3 Normal = (GetNormal(ivec2(gl_FragCoord.xy)) * 2.0f) - 1.0f;
+    
+    float v[9] = GetBufferValue(ivec2(gl_FragCoord.xy));
+    vec4 Color = vec4(v[0], v[1],v[2], 1.0f);//vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
+    vec3 Normal = vec3(v[3], v[4],v[5]);
+
     Normal = normalize(Normal);
     vec3 LightDirection = normalize(WorldLocation - LightLocation);
     float AO = texture(SSAOTexture, OutTexCoord).r;

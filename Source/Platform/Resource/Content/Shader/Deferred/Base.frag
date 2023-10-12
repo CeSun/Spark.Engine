@@ -43,34 +43,32 @@ void main()
     vec3 BufferNormal =  (TextureNormal + 1.0f) / 2.0f;
     vec3 BufferMetallicRoughness = texture(MetallicRoughness, NewTexCoord).rgb;
 
-    GBuffer = CompressGbuffer(BufferColor, BufferNormal, BufferMetallicRoughness, ivec2(gl_FragCoord.xy));
+    GBuffer = CompressGbuffer(BufferColor, TextureNormal, BufferMetallicRoughness, ivec2(gl_FragCoord.xy));
+}
+
+vec2 UnitVectorToOctahedron( vec3 normal )
+{
+    return vec2(normal.x / (1.0f - normal.z), normal.y / (1.0f - normal.z));
 }
 
 vec4 CompressGbuffer(vec3 BaseColor, vec3 Normal, vec3 MetallicRoughness, ivec2 ScreenLocation)
 {
     float grayscale =BaseColor.r * 0.3f + BaseColor.g * 0.59f + BaseColor.b * 0.11f;
     float y = 0.0f, z = 0.0f, a = 0.0f;
-    int xparity = (ScreenLocation.x % 2);
-    int yparity = (ScreenLocation.y % 2);
-    if (xparity + yparity == 0)
+    
+    int parity = (ScreenLocation.x % 2) + (ScreenLocation.y % 2);
+    vec2 Normal2D = UnitVectorToOctahedron(Normal);
+    if (parity != 1)
     {
         y = BaseColor.r;
-        z = Normal.x;
+        z = MetallicRoughness.x;
+        a = MetallicRoughness.y;
     }
-    else if (xparity + yparity == 2)
+    else
     {
         y = BaseColor.b;
-        z = Normal.y;
-    }
-    else if (xparity == 1 && yparity == 0)
-    {
-        y = MetallicRoughness.x;
-        z = Normal.z;
-    }
-    else if (xparity == 0 && yparity == 1)
-    {
-        y = MetallicRoughness.y;
-        z = MetallicRoughness.z;
+        z = (Normal2D.x + 1.0f)/ 2.0f;
+        a = (Normal2D.y + 1.0f)/ 2.0f;
     }
     return vec4(grayscale, y, z, a);
 }
