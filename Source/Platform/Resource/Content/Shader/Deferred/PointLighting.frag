@@ -68,13 +68,13 @@ float[9] GetBufferValue(ivec2 ScreenLocation)
             {
                 counter.x = counter.x + 1.0f;
                 rb.x += data.y;
-                mr += data.za;
+                mr += data.zw;
             }
             else 
             {
                 counter.y = counter.y + 1.0f;
                 rb.y += data.y;
-                normal += OctahedronToUnitVector((data.za) * 2.0f -1.0f);
+                normal += OctahedronToUnitVector((data.zw) * 2.0f -1.0f);
             }
 
         }
