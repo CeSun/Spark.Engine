@@ -137,6 +137,10 @@ public class StaticMesh
                         {
                             Material.Normal = texture;
                         }
+                        if (glChannel.Key == "MetallicRoughness")
+                        {
+                           Material.MetallicRoughness = texture;
+                        }
                     }
                     _Elements.Add(new Element<StaticMeshVertex>
                     {

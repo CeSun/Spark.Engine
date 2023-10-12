@@ -310,7 +310,7 @@ public class ImGuiWarp
 
     public void CreateCubes()
     {
-        var SM = new StaticMesh("/StaticMesh/cube2.glb");
+        var SM = new StaticMesh("/StaticMesh/sphere.glb");
         for (int i = 0; i < 20; i++)
         {
 

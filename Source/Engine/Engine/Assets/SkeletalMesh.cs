@@ -295,13 +295,18 @@ public partial class SkeletalMesh
                     if (glChannel.Texture == null)
                         continue;
                     var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
-                    if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
+                    switch (glChannel.Key)
                     {
-                        Material.Diffuse = texture;
-                    }
-                    if (glChannel.Key == "Normal")
-                    {
-                        Material.Normal = texture;
+                        case "BaseColor":
+                        case "Diffuse":
+                            Material.Diffuse = texture;
+                            break;
+                        case "Normal":
+                            Material.Normal = texture;
+                            break;
+                        case "MetallicRoughness":
+                            Material.MetallicRoughness = texture;
+                            break;
                     }
                 }
                 //SkeletalMesh.Materials.Add(Material);
