@@ -84,7 +84,7 @@ public class DeferredSceneRenderer : IRenderer
         SkeletakMeshDLShadowMapShader = new Shader("/Shader/ShadowMap/SkeletalMesh/DirectionLightShadow");
         SkeletakMeshSpotShadowMapShader = new Shader("/Shader/ShadowMap/SkeletalMesh/SpotLightShadow");
         SkeletakMeshPointLightingShader = new Shader("/Shader/ShadowMap/SkeletalMesh/PointLightShadow");
-        GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 3);
+        GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -305,9 +305,11 @@ public class DeferredSceneRenderer : IRenderer
         gl.PushDebugGroup("Bloom Effect");
         BloomPass(DeltaTime);
         gl.PopDebugGroup();
+        /*
         gl.PushDebugGroup("ScreenSpaceReflection");
         ScreenSpaceReflection(DeltaTime);
         gl.PopDebugGroup();
+        */
     }
     private void SkyboxPass(double DeltaTime)
     {
@@ -319,7 +321,7 @@ public class DeferredSceneRenderer : IRenderer
         SkyboxShader.SetMatrix("view", View);
         SkyboxShader.SetMatrix("projection", Projection);
 
-        SkyboxShader.SetInt("NormalTexture", 1);
+        SkyboxShader.SetInt("GBuffer", 1);
         gl.ActiveTexture(GLEnum.Texture1);
         gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
 
@@ -351,7 +353,7 @@ public class DeferredSceneRenderer : IRenderer
             SSAOShader.SetMatrix("InvertProjectionTransform", CurrentCameraComponent.Projection.Inverse());
 
 
-            SSAOShader.SetInt("NormalTexture", 0);
+            SSAOShader.SetInt("GBuffer", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
 
@@ -801,14 +803,10 @@ public class DeferredSceneRenderer : IRenderer
 
             DirectionalLightingShader.SetFloat("AmbientStrength", DirectionalLight.AmbientStrength);
             DirectionalLightingShader.SetFloat("LightStrength", DirectionalLight.LightStrength);
-            DirectionalLightingShader.SetInt("ColorTexture", 0);
+            DirectionalLightingShader.SetInt("GBuffer", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
-
-
-            DirectionalLightingShader.SetInt("NormalTexture", 1);
-            gl.ActiveTexture(GLEnum.Texture1);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+
 
 
             DirectionalLightingShader.SetInt("DepthTexture", 2);
@@ -940,15 +938,9 @@ public class DeferredSceneRenderer : IRenderer
             PointLightingShader.SetFloat("Linear", PointLightComponent.Linear);
             PointLightingShader.SetFloat("Quadratic", PointLightComponent.Quadratic);
 
-            PointLightingShader.SetInt("ColorTexture", 0);
+            PointLightingShader.SetInt("GBuffer", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
-
-
-            PointLightingShader.SetInt("NormalTexture", 1);
-            gl.ActiveTexture(GLEnum.Texture1);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
-
 
             PointLightingShader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
@@ -1016,14 +1008,8 @@ public class DeferredSceneRenderer : IRenderer
             SpotLightingShader.SetFloat("OuterCosine", (float)Math.Cos(SpotLightComponent.OuterAngle.DegreeToRadians()));
             SpotLightingShader.SetVector3("ForwardVector", SpotLightComponent.ForwardVector);
 
-
-            SpotLightingShader.SetInt("ColorTexture", 0);
+            SpotLightingShader.SetInt("GBuffer", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
-
-
-            SpotLightingShader.SetInt("NormalTexture", 1);
-            gl.ActiveTexture(GLEnum.Texture1);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
 
 

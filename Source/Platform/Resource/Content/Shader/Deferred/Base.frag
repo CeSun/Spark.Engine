@@ -1,9 +1,8 @@
 #version 300 es
 
 precision highp float;
-layout (location = 0) out vec3 BufferNormal;
-layout (location = 1) out vec3 BufferColor;
-layout (location = 2) out vec4 BufferCustom;
+layout (location = 0) out vec4 GBuffer;
+
 in vec2 OutTexCoord;
 in vec3 OutColor;
 in mat3 TBNMat;
@@ -15,8 +14,10 @@ in vec3 TbnPosition;
 uniform sampler2D Diffuse;
 uniform sampler2D Normal;
 uniform sampler2D Parallax;
+uniform sampler2D MetallicRoughness;
 
 vec2 GetUVOffset(vec2 TexCoord, vec3 ViewDirection);
+vec4 CompressGbuffer(vec3 BaseColor, vec3 Normal, vec3 MetallicRoughness, ivec2 ScreenLocation);
 
 void main()
 {
@@ -38,9 +39,40 @@ void main()
 
 	TextureNormal = normalize(TBNMat * TextureNormal);
     
-    BufferCustom = vec4(0.0, 0.0, 0.0, 0.0);
-    BufferColor = texture(Diffuse, NewTexCoord).rgb;
-    BufferNormal =  (TextureNormal + 1.0f) / 2.0f;
+    vec3 BufferColor = texture(Diffuse, NewTexCoord).rgb;
+    vec3 BufferNormal =  (TextureNormal + 1.0f) / 2.0f;
+    vec3 BufferMetallicRoughness = texture(MetallicRoughness, NewTexCoord).rgb;
+
+    GBuffer = CompressGbuffer(BufferColor, BufferNormal, BufferMetallicRoughness, ivec2(gl_FragCoord.xy));
+}
+
+vec4 CompressGbuffer(vec3 BaseColor, vec3 Normal, vec3 MetallicRoughness, ivec2 ScreenLocation)
+{
+    float grayscale =BaseColor.r * 0.3f + BaseColor.g * 0.59f + BaseColor.b * 0.11f;
+    float y = 0.0f, z = 0.0f, a = 0.0f;
+    int xparity = (ScreenLocation.x % 2);
+    int yparity = (ScreenLocation.y % 2);
+    if (xparity + yparity == 0)
+    {
+        y = BaseColor.r;
+        z = Normal.x;
+    }
+    else if (xparity + yparity == 2)
+    {
+        y = BaseColor.b;
+        z = Normal.y;
+    }
+    else if (xparity == 1 && yparity == 0)
+    {
+        y = MetallicRoughness.x;
+        z = Normal.z;
+    }
+    else if (xparity == 0 && yparity == 1)
+    {
+        y = MetallicRoughness.y;
+        z = MetallicRoughness.z;
+    }
+    return vec4(grayscale, y, z, a);
 }
 
 vec2 GetUVOffset(vec2 TexCoord, vec3 ViewDirection)

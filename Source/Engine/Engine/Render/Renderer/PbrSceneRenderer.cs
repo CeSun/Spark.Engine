@@ -188,7 +188,7 @@ public class PbrSceneRenderer : IRenderer
         SkyboxShader.SetMatrix("view", View);
         SkyboxShader.SetMatrix("projection", Projection);
 
-        SkyboxShader.SetInt("NormalTexture", 1);
+        SkyboxShader.SetInt("GBuffer", 0);
         gl.ActiveTexture(GLEnum.Texture1);
         gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
 

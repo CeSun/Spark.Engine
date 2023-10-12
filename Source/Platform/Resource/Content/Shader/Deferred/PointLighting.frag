@@ -6,8 +6,8 @@ out vec4 glColor;
 
 in vec2 OutTexCoord;
 in vec2 OutTrueTexCoord;
-uniform sampler2D ColorTexture;
-uniform sampler2D NormalTexture;
+
+uniform sampler2D GBuffer;
 uniform sampler2D DepthTexture;
 uniform samplerCube ShadowMapTextue;
 uniform sampler2D SSAOTexture;
@@ -28,7 +28,93 @@ uniform float LightStrength;
 vec3 GetWorldLocation(vec3 ScreenLocation);
 float ShadowCalculation(vec3 fragPos);
 
+vec3 GetColor(ivec2 ScreenLocation)
+{
+    ivec2 screenSize = ivec2(vec2(ScreenLocation) / OutTrueTexCoord);
+    vec2 scale = OutTexCoord / OutTrueTexCoord;
+    float grayscale = texture(GBuffer, OutTexCoord).x;
 
+    vec2 pixelOffset = scale / vec2(screenSize);
+
+    
+    vec2 RTexcoord = OutTexCoord;
+    vec2 BTexcoord = OutTexCoord;
+
+    int xparity = (ScreenLocation.x % 2);
+    int yparity = (ScreenLocation.y % 2);
+    if (xparity + yparity == 0)
+    {
+        RTexcoord = OutTexCoord;
+        BTexcoord = OutTexCoord + pixelOffset;
+    }
+    else if (xparity + yparity == 2)
+    {
+        RTexcoord = OutTexCoord - pixelOffset;
+        BTexcoord = OutTexCoord;
+    }
+    else if (xparity == 1 && yparity == 0)
+    {
+        RTexcoord = vec2(OutTexCoord.x - pixelOffset.x, OutTexCoord.y);
+        BTexcoord = vec2(OutTexCoord.x, OutTexCoord.y + pixelOffset.y);
+    }
+    else if (xparity == 0 && yparity == 1)
+    {
+        RTexcoord = vec2(OutTexCoord.x, OutTexCoord.y - pixelOffset.y);
+        BTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y);
+    }
+    
+    float r = texture(GBuffer, RTexcoord).y;
+    float b = texture(GBuffer, BTexcoord).y;
+    float g = (grayscale - (r * 0.3f + b * 0.11f)) / 0.59f;
+    return vec3(r, g, b);
+}
+
+vec3 GetNormal(ivec2 ScreenLocation)
+{
+    ivec2 screenSize = ivec2(vec2(ScreenLocation) / OutTrueTexCoord);
+    vec2 scale = OutTexCoord / OutTrueTexCoord;
+    float grayscale = texture(GBuffer, OutTexCoord).x;
+
+    vec2 pixelOffset = scale / vec2(screenSize);
+
+    
+    vec2 XTexcoord = OutTexCoord;
+    vec2 YTexcoord = OutTexCoord;
+    vec2 ZTexcoord = OutTexCoord;
+
+    int xparity = (ScreenLocation.x % 2);
+    int yparity = (ScreenLocation.y % 2);
+    if (xparity + yparity == 0)
+    {
+        XTexcoord = OutTexCoord;
+        YTexcoord = OutTexCoord + pixelOffset;
+        ZTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y);
+    }
+    else if (xparity + yparity == 2)
+    {
+        XTexcoord = OutTexCoord - pixelOffset;
+        YTexcoord = OutTexCoord;
+        ZTexcoord = vec2(OutTexCoord.x, OutTexCoord.y - pixelOffset.y);
+
+    }
+    else if (xparity == 1 && yparity == 0)
+    {
+        XTexcoord = vec2(OutTexCoord.x - pixelOffset.x, OutTexCoord.y);
+        YTexcoord = vec2(OutTexCoord.x, OutTexCoord.y + pixelOffset.y);
+        ZTexcoord = OutTexCoord;
+    }
+    else if (xparity == 0 && yparity == 1)
+    {
+        XTexcoord = vec2(OutTexCoord.x, OutTexCoord.y - pixelOffset.y);
+        YTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y);
+        ZTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y - pixelOffset.y);
+    }
+    
+    float x = texture(GBuffer, XTexcoord).z;
+    float y = texture(GBuffer, YTexcoord).z;
+    float z = texture(GBuffer, ZTexcoord).z;
+    return vec3(x, y, z);
+}
 
 void main()
 {
@@ -37,8 +123,8 @@ void main()
     float depth = texture(DepthTexture, OutTexCoord).r;
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     //vec3 WorldLocation =texture(DepthTexture, OutTexCoord).xyz;
-    vec4 Color = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
-    vec3 Normal = (texture(NormalTexture, OutTexCoord).rgb * 2.0f) - 1.0f;
+    vec4 Color = vec4(GetColor(ivec2(gl_FragCoord.xy)), 1.0f);//vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
+    vec3 Normal = (GetNormal(ivec2(gl_FragCoord.xy)) * 2.0f) - 1.0f;
     float AO = texture(SSAOTexture, OutTexCoord).r;
 
     float Distance    = length(LightLocation - WorldLocation);

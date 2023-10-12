@@ -79,9 +79,9 @@ public partial class Level
     {
         await Task.Delay(1000);
         imgui.num = 10000;
-        imgui.CreateHISM();
+        //imgui.CreateHISM();
         await Task.Delay(10000);
-        imgui.CreateCubes();
+        //imgui.CreateCubes();
 
     }
     public void BeginPlay()

@@ -8,7 +8,7 @@ uniform vec2 TexCoordScale;
 in vec2 OutTexCoord;
 in vec2 OutTrueTexCoord;
 uniform sampler2D DepthTexture;
-uniform sampler2D NormalTexture;
+uniform sampler2D GBuffer;
 uniform sampler2D NoiseTexture;
 uniform mat4 ProjectionTransform;
 uniform mat4 InvertProjectionTransform;
@@ -21,14 +21,61 @@ float bias = 0.025;
 
 vec3 GetViewLocation(vec3 ScreenLocation);
 
+vec3 GetNormal(ivec2 ScreenLocation)
+{
+    ivec2 screenSize = ivec2(vec2(ScreenLocation) / OutTrueTexCoord);
+    vec2 scale = OutTexCoord / OutTrueTexCoord;
+    float grayscale = texture(GBuffer, OutTexCoord).x;
+
+    vec2 pixelOffset = scale / vec2(screenSize);
+
+    
+    vec2 XTexcoord = OutTexCoord;
+    vec2 YTexcoord = OutTexCoord;
+    vec2 ZTexcoord = OutTexCoord;
+
+    int xparity = (ScreenLocation.x % 2);
+    int yparity = (ScreenLocation.y % 2);
+    if (xparity + yparity == 0)
+    {
+        XTexcoord = OutTexCoord;
+        YTexcoord = OutTexCoord + pixelOffset;
+        ZTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y);
+    }
+    else if (xparity + yparity == 2)
+    {
+        XTexcoord = OutTexCoord - pixelOffset;
+        YTexcoord = OutTexCoord;
+        ZTexcoord = vec2(OutTexCoord.x, OutTexCoord.y - pixelOffset.y);
+
+    }
+    else if (xparity == 1 && yparity == 0)
+    {
+        XTexcoord = vec2(OutTexCoord.x - pixelOffset.x, OutTexCoord.y);
+        YTexcoord = vec2(OutTexCoord.x, OutTexCoord.y + pixelOffset.y);
+        ZTexcoord = OutTexCoord;
+    }
+    else if (xparity == 0 && yparity == 1)
+    {
+        XTexcoord = vec2(OutTexCoord.x, OutTexCoord.y - pixelOffset.y);
+        YTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y);
+        ZTexcoord = vec2(OutTexCoord.x + pixelOffset.x, OutTexCoord.y - pixelOffset.y);
+    }
+    
+    float x = texture(GBuffer, XTexcoord).z;
+    float y = texture(GBuffer, YTexcoord).z;
+    float z = texture(GBuffer, ZTexcoord).z;
+    return vec3(x, y, z);
+}
+
 void main()
 {
 	float Depth = texture(DepthTexture, OutTexCoord).x;
 	if (Depth >= 1.0f)
 		discard;
 
+    vec3 Normal = normalize((GetNormal(ivec2(gl_FragCoord.xy)) * 2.0f) - 1.0f);
 
-	vec3 Normal = normalize(texture(NormalTexture, OutTexCoord).xyz * 2.0f - vec3(1.0f, 1.0f, 1.0f));
 
 	vec3 FragViewLocation = GetViewLocation(vec3(OutTrueTexCoord, Depth));
 
