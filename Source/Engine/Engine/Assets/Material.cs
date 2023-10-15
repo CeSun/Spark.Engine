@@ -11,18 +11,11 @@ namespace Spark.Engine.Assets;
 
 public class Material
 {
-    public Texture[] Textures = new Texture[10];
-    public string[] TextureNames = new string[10]{
+    public Texture[] Textures = new Texture[3];
+    public string[] TextureNames = new string[3]{
         "BaseColor",
         "Normal",
-        "Custom",
-        "Texture3",
-        "Texture4",
-        "Texture5",
-        "Texture6",
-        "Texture7",
-        "Texture8",
-        "Texture9",
+        "Custom"
     };
 
     public Texture BaseColor { get => Textures[0]; set => Textures[0] = value; }

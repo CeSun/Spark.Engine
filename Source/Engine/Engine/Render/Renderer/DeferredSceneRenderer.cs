@@ -92,7 +92,7 @@ public class DeferredSceneRenderer : IRenderer
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
-
+        
         NoiseTexture = Texture.CreateNoiseTexture(4, 4);
         InitRender();
         InitSSAORender();
@@ -174,6 +174,12 @@ public class DeferredSceneRenderer : IRenderer
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
 
+            DecalShader.SetInt("BaseColorTexture", 0);
+            DecalShader.SetInt("NormalTexture", 1);
+            DecalShader.SetInt("CustomTexture", 2);
+            DecalShader.SetInt("DepthTexture", 3);
+            DecalShader.SetInt("GBuffer1", 4);
+            DecalShader.SetInt("GBuffer2", 5);
             Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
             DecalShader.SetMatrix("VPInvert", VPInvert);
 
@@ -184,16 +190,19 @@ public class DeferredSceneRenderer : IRenderer
                     X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
                     Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
                 });
-            DecalShader.SetInt("DepthTexture", 3);
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+            gl.ActiveTexture(GLEnum.Texture4);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+            gl.ActiveTexture(GLEnum.Texture5);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
 
             foreach (var DecalComponent in World.CurrentLevel.DecalComponents)
             {
                 if (DecalComponent.Material == null)
                     continue;
                 DecalShader.SetMatrix("ModelTransform", DecalComponent.WorldTransform);
-                DecalComponent.Material.BaseColor.Use(0);
+                DecalComponent.Material.Use();
                 gl.BindVertexArray(PostProcessVAO);
                 gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
 
