@@ -290,25 +290,46 @@ public partial class SkeletalMesh
                 }
                 // SkeletalMesh._IndicesList.Add(Indices);
                 var Material = new Material();
+                byte[]? MetallicRoughness = null;
+                byte[]? AmbientOcclusion = null;
+                byte[]? Parallax = null;
+
                 foreach (var glChannel in glPrimitive.Material.Channels)
                 {
                     if (glChannel.Texture == null)
                         continue;
-                    var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
-                    switch (glChannel.Key)
+
+                    if (glChannel.Key == "MetallicRoughness")
                     {
-                        case "BaseColor":
-                        case "Diffuse":
-                            Material.Diffuse = texture;
-                            break;
-                        case "Normal":
-                            Material.Normal = texture;
-                            break;
-                        case "MetallicRoughness":
-                            Material.MetallicRoughness = texture;
-                            break;
+                        MetallicRoughness = glChannel.Texture.PrimaryImage.Content.Content.ToArray();
+                        continue;
                     }
+                    if (glChannel.Key == "AmbientOcclusion")
+                    {
+                        AmbientOcclusion = glChannel.Texture.PrimaryImage.Content.Content.ToArray();
+                        continue;
+                    }
+                    if (glChannel.Key == "Parallax")
+                    {
+
+                        Parallax = glChannel.Texture.PrimaryImage.Content.Content.ToArray();
+                        continue;
+                    }
+
+                    var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
+                    if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
+                    {
+                        Material.BaseColor = texture;
+                    }
+                    if (glChannel.Key == "Normal")
+                    {
+                        Material.Normal = texture;
+                    }
+
                 }
+
+                Texture Custom = new(MetallicRoughness, AmbientOcclusion, Parallax);
+                Material.Custom = Custom;
                 //SkeletalMesh.Materials.Add(Material);
                 SkeletalMesh._Elements.Add(new Element<SkeletalMeshVertex>
                 {

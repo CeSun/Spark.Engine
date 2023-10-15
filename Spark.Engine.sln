@@ -23,7 +23,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tool", "Tool", "{533D95FF-1
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AssetImporter", "Source\Tool\AssetImporter\AssetImporter.csproj", "{4E6A13B4-23C5-498C-91A1-A838CCCB9C1A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Android", "Source\Platform\Android\Android.csproj", "{A2F9C097-F992-4C49-8248-E75863A89B4C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Android", "Source\Platform\Android\Android.csproj", "{A2F9C097-F992-4C49-8248-E75863A89B4C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

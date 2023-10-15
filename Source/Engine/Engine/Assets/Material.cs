@@ -13,10 +13,10 @@ public class Material
 {
     public Texture[] Textures = new Texture[10];
     public string[] TextureNames = new string[10]{
-        "Diffuse",
+        "BaseColor",
         "Normal",
-        "Parallax",
-        "MetallicRoughness",
+        "Custom",
+        "Texture3",
         "Texture4",
         "Texture5",
         "Texture6",
@@ -25,10 +25,9 @@ public class Material
         "Texture9",
     };
 
-    public Texture Diffuse { get => Textures[0]; set => Textures[0] = value; }
+    public Texture BaseColor { get => Textures[0]; set => Textures[0] = value; }
     public Texture Normal { get => Textures[1]; set => Textures[1] = value; }
-    public Texture Parallax { get => Textures[2]; set => Textures[2] = value; }
-    public Texture MetallicRoughness { get => Textures[3]; set => Textures[2] = value; }
+    public Texture Custom { get => Textures[2]; set => Textures[2] = value; }
     public Material() 
     {
 

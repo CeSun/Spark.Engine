@@ -59,10 +59,15 @@ public class DeferredSceneRenderer : IRenderer
     public DeferredSceneRenderer(World world)
     {
         World = world;
-        StaticMeshBaseShader = new Shader("/Shader/Deferred/Base");
-        DirectionalLightingShader = new Shader("/Shader/Deferred/DirectionalLighting");
-        SpotLightingShader = new Shader("/Shader/Deferred/SpotLighting");
-        PointLightingShader = new Shader("/Shader/Deferred/PointLighting");
+        // Base Pass
+        StaticMeshBaseShader = new Shader("/Shader/Deferred/Base/Base");
+        SkeletalMeshBaseShader = new Shader("/Shader/Deferred/Base/BaseSkeletalMesh");
+        HISMShader = new Shader("/Shader/Deferred/Base/BaseInstance");
+
+
+        DirectionalLightingShader = new Shader("/Shader/Deferred/Light/DirectionalLighting");
+        SpotLightingShader = new Shader("/Shader/Deferred/Light/SpotLighting");
+        PointLightingShader = new Shader("/Shader/Deferred/Light/PointLighting");
         DLShadowMapShader = new Shader("/Shader/ShadowMap/DirectionLightShadow");
         SpotShadowMapShader = new Shader("/Shader/ShadowMap/SpotLightShadow");
         PontLightShadowShader = new Shader("/Shader/ShadowMap/PointLightShadow");
@@ -72,19 +77,17 @@ public class DeferredSceneRenderer : IRenderer
         RenderToCamera = new Shader("/Shader/Deferred/RenderToCamera");
         ScreenSpaceReflectionShader = new Shader("/Shader/Deferred/ssr");
         BackFaceDepthShader = new Shader("/Shader/Deferred/BackFaceDepth");
-        HISMShader = new Shader("/Shader/Deferred/Dynamicbatching");
         DecalShader = new Shader("/Shader/Deferred/Decal");
         DecalPostShader = new Shader("/Shader/Deferred/DecalPost");
         SSAOShader = new Shader("/Shader/Deferred/SSAO");
 
-        SkeletalMeshBaseShader = new Shader("/Shader/Deferred/BaseSkeletalMesh");
         InstancePointLightingShader = new Shader("/Shader/ShadowMap/Instance/PointLightShadow");
         InstanceDLShadowMapShader = new Shader("/Shader/ShadowMap/Instance/DirectionLightShadow");
         InstanceSpotShadowMapShader = new Shader("/Shader/ShadowMap/Instance/SpotLightShadow");
         SkeletakMeshDLShadowMapShader = new Shader("/Shader/ShadowMap/SkeletalMesh/DirectionLightShadow");
         SkeletakMeshSpotShadowMapShader = new Shader("/Shader/ShadowMap/SkeletalMesh/SpotLightShadow");
         SkeletakMeshPointLightingShader = new Shader("/Shader/ShadowMap/SkeletalMesh/PointLightShadow");
-        GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 3);
+        GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 2);
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -190,7 +193,7 @@ public class DeferredSceneRenderer : IRenderer
                 if (DecalComponent.Material == null)
                     continue;
                 DecalShader.SetMatrix("ModelTransform", DecalComponent.WorldTransform);
-                DecalComponent.Material.Diffuse.Use(0);
+                DecalComponent.Material.BaseColor.Use(0);
                 gl.BindVertexArray(PostProcessVAO);
                 gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
 
@@ -306,7 +309,7 @@ public class DeferredSceneRenderer : IRenderer
         BloomPass(DeltaTime);
         gl.PopDebugGroup();
         gl.PushDebugGroup("ScreenSpaceReflection");
-        ScreenSpaceReflection(DeltaTime);
+        // ScreenSpaceReflection(DeltaTime);
         gl.PopDebugGroup();
     }
     private void SkyboxPass(double DeltaTime)
@@ -319,9 +322,9 @@ public class DeferredSceneRenderer : IRenderer
         SkyboxShader.SetMatrix("view", View);
         SkyboxShader.SetMatrix("projection", Projection);
 
-        SkyboxShader.SetInt("NormalTexture", 1);
+        SkyboxShader.SetInt("DepthTexture", 1);
         gl.ActiveTexture(GLEnum.Texture1);
-        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
         SkyboxShader.SetVector2("BufferSize", new Vector2(GlobalBuffer.BufferWidth, GlobalBuffer.BufferHeight));
         SkyboxShader.SetVector2("ScreenSize", new Vector2(GlobalBuffer.Width, GlobalBuffer.Height));
@@ -351,9 +354,9 @@ public class DeferredSceneRenderer : IRenderer
             SSAOShader.SetMatrix("InvertProjectionTransform", CurrentCameraComponent.Projection.Inverse());
 
 
-            SSAOShader.SetInt("NormalTexture", 0);
-            gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+            SSAOShader.SetInt("CustomBuffer", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
 
             SSAOShader.SetInt("DepthTexture", 1);
             gl.ActiveTexture(GLEnum.Texture1);
@@ -605,9 +608,9 @@ public class DeferredSceneRenderer : IRenderer
             gl.Disable(EnableCap.Blend);
             if (CurrentCameraComponent != null)
             {
-                StaticMeshBaseShader.SetInt("Diffuse", 0);
-                StaticMeshBaseShader.SetInt("Normal", 1);
-                StaticMeshBaseShader.SetInt("Parallax", 2);
+                StaticMeshBaseShader.SetInt("BaseColorTexture", 0);
+                StaticMeshBaseShader.SetInt("NormalTexture", 1);
+                StaticMeshBaseShader.SetInt("CustomTexture", 2);
                 StaticMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 StaticMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 StaticMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
@@ -621,9 +624,9 @@ public class DeferredSceneRenderer : IRenderer
                     }
                 }
 
-                SkeletalMeshBaseShader.SetInt("Diffuse", 0);
-                SkeletalMeshBaseShader.SetInt("Normal", 1);
-                SkeletalMeshBaseShader.SetInt("Parallax", 2);
+                SkeletalMeshBaseShader.SetInt("BaseColorTexture", 0);
+                SkeletalMeshBaseShader.SetInt("NormalTexture", 1);
+                SkeletalMeshBaseShader.SetInt("CustomTexture", 2);
                 SkeletalMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 SkeletalMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 SkeletalMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
@@ -646,9 +649,9 @@ public class DeferredSceneRenderer : IRenderer
 
                 gl.Disable(GLEnum.CullFace);
                 gl.PushDebugGroup("InstancedStaticMesh Render");
-                HISMShader.SetInt("Diffuse", 0);
-                HISMShader.SetInt("Normal", 1);
-                HISMShader.SetInt("Parallax", 2);
+                HISMShader.SetInt("BaseColorTexture", 0);
+                HISMShader.SetInt("NormalTexture", 1);
+                HISMShader.SetInt("CustomTexture", 2);
                 HISMShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 HISMShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 HISMShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
@@ -719,12 +722,12 @@ public class DeferredSceneRenderer : IRenderer
             ScreenSpaceReflectionShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer1.GBufferIds[0]);
-            ScreenSpaceReflectionShader.SetInt("NormalTexture", 1);
+            ScreenSpaceReflectionShader.SetInt("CustomBuffer", 1);
             gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
             ScreenSpaceReflectionShader.SetInt("ReflectionTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[2]);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
             ScreenSpaceReflectionShader.SetInt("DepthTexture", 3);
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
@@ -803,12 +806,12 @@ public class DeferredSceneRenderer : IRenderer
             DirectionalLightingShader.SetFloat("LightStrength", DirectionalLight.LightStrength);
             DirectionalLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
-
-
-            DirectionalLightingShader.SetInt("NormalTexture", 1);
-            gl.ActiveTexture(GLEnum.Texture1);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+
+
+            DirectionalLightingShader.SetInt("CustomBuffer", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
 
 
             DirectionalLightingShader.SetInt("DepthTexture", 2);
@@ -942,12 +945,12 @@ public class DeferredSceneRenderer : IRenderer
 
             PointLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
-
-
-            PointLightingShader.SetInt("NormalTexture", 1);
-            gl.ActiveTexture(GLEnum.Texture1);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+
+
+            PointLightingShader.SetInt("CustomBuffer", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
 
 
             PointLightingShader.SetInt("DepthTexture", 2);
@@ -1019,12 +1022,12 @@ public class DeferredSceneRenderer : IRenderer
 
             SpotLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
-
-
-            SpotLightingShader.SetInt("NormalTexture", 1);
-            gl.ActiveTexture(GLEnum.Texture1);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+
+
+            SpotLightingShader.SetInt("CustomBuffer", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
 
 
             SpotLightingShader.SetInt("DepthTexture", 2);

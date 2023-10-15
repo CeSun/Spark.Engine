@@ -1,9 +1,7 @@
 #version 300 es
 
 precision highp float;
-layout (location = 0) out vec3 BufferNormal;
-layout (location = 1) out vec3 BufferColor;
-layout (location = 2) out vec4 BufferCustom;
+layout (location = 0) out vec4 Buffer1;
 
 in vec2 OutTexCoord;
 in vec2 OutTrueTexCoord;
@@ -19,5 +17,5 @@ void main()
 	vec4 Color = texture(DecalTexture, OutTexCoord);
 	if (Color.a < 0.1f)
 		discard;
-	BufferColor = texture(DecalTexture, OutTexCoord).rgb;
+	Buffer1 = texture(DecalTexture, OutTexCoord);
 }
