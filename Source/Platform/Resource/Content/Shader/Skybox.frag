@@ -10,7 +10,7 @@ uniform sampler2D DepthTexture;
 uniform vec2 BufferSize;
 uniform vec2 ScreenSize;
 
-float GetDepth(ivec2 ScreenLocation)
+float GetDepth(vec2 ScreenLocation)
 {
     vec2 OutTexCoord = vec2(ScreenLocation) / BufferSize;
     vec2 OutTrueTexCoord = vec2(ScreenLocation) / ScreenSize;
@@ -21,7 +21,7 @@ float GetDepth(ivec2 ScreenLocation)
 
 void main()
 {   
-    if (GetDepth(ivec2(gl_FragCoord.xy)) < 1.0f)
+    if (GetDepth(vec2(gl_FragCoord.xy + vec2(1.0f, 1.0f))) < 1.0f && GetDepth(vec2(gl_FragCoord.xy - vec2(1.0f, 1.0f))) < 1.0f &&  GetDepth(vec2(gl_FragCoord.xy + vec2(-1.0f, 1.0f))) < 1.0f&&  GetDepth(vec2(gl_FragCoord.xy + vec2(1.0f, -1.0f))) < 1.0f)
         discard;
     FragColor = texture(skybox, TexCoords);
 }
