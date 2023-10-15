@@ -91,6 +91,8 @@ vec4 MicroGBufferEncoding(vec3 BaseColor, vec2 Normal, float r, float m, float a
 
 	if (xparity == 1 && yparity == 1)
 	{
+		result.y = BaseColor.r;
+		result.z = BaseColor.b;
 	}
 
 	return result;

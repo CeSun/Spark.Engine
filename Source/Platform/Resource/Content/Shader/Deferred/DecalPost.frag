@@ -65,10 +65,20 @@ float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation)
 	rightDownUV = leftUpUV + vec2(pixelOffset.x, pixelOffset.y);
 
 	
+
 	Buffer = texture(MicroGBuffer, leftUpUV);
-	res[0] = Buffer.y;
-	res[1] = (gray - (Buffer.y * 0.3f + Buffer.z * 0.11f)) / 0.59f;;
-	res[2] = Buffer.z;
+	vec2 rb = Buffer.yz;
+	Buffer = texture(MicroGBuffer, rightDownUV);
+	rb += Buffer.yz;
+
+	rb /= 2.0f;
+
+
+	res[0] = rb.x;
+	res[1] = (gray - (rb.x * 0.3f + rb.y * 0.11f)) / 0.59f;;
+	res[2] = rb.y;
+
+
 	
 	Buffer = texture(MicroGBuffer, rightUpUV);
 	res[4] = Buffer.y;
@@ -81,6 +91,7 @@ float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation)
 	res[7] = Buffer.z;
 	// ao
 	res[3] = Buffer.w;
+
 
 	return res;
 
