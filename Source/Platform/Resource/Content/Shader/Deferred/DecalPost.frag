@@ -31,15 +31,54 @@ float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation)
 	vec2 pixelOffset = OutTexCoord / vec2(ScreenLocation);
 	vec4 Buffer = texture(MicroGBuffer, OutTexCoord);
 	float gray = Buffer.x;
+	
+	int xparity = (ScreenLocation.x % 2);
+    int yparity = (ScreenLocation.y % 2);
+
+	if ((xparity == 1 && yparity == 1) || (xparity == 0 && yparity == 0))
+	{
+		Buffer = texture(MicroGBuffer, OutTexCoord);
+		vec2 rb = Buffer.yz;
+		res[0] = rb.x;
+		res[1] = (gray - (rb.x * 0.3f + rb.y * 0.11f)) / 0.59f;;
+		res[2] = rb.y;
+	}
+	else 
+	{
+		vec2 rb;
+		float counter = 0.0f;
+		for(int i = 0; i < 3; i += 1)
+		{
+			for(int j = 0; j < 3; j += 1)
+			{
+				if ((i + j ) % 2 == 0)
+					continue;
+				Buffer = texture(MicroGBuffer, OutTexCoord + vec2(pixelOffset.x * float(i) - pixelOffset.x, pixelOffset.y * float(j) - pixelOffset.y) );
+				if (abs(Buffer.x - gray) > 0.1f)
+					continue;
+				rb += Buffer.yz;
+				counter++;
+			}
+		}
+		if (counter > 0.0f)
+		{
+			rb /= counter;
+			res[0] = rb.x;
+			res[1] = (gray - (rb.x * 0.3f + rb.y * 0.11f)) / 0.59f;;
+			res[2] = rb.y;
+		}
+		else 
+		{
+			discard;
+		}
+	}
+
+	
 	vec2 leftUpUV = vec2(0.0, 0.0f);
 	vec2 rightUpUV = vec2(0.0, 0.0f);
 	vec2 leftDownUV = vec2(0.0, 0.0f);
 	vec2 rightDownUV = vec2(0.0, 0.0f);
 	
-
-	int xparity = (ScreenLocation.x % 2);
-    int yparity = (ScreenLocation.y % 2);
-
 	if (xparity == 0 && yparity == 0)
 	{
 		leftUpUV = OutTexCoord;
@@ -63,46 +102,6 @@ float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation)
 	rightUpUV = leftUpUV + vec2(pixelOffset.x, 0.0f);
 	leftDownUV = leftUpUV + vec2(0.0f, pixelOffset.y);
 	rightDownUV = leftUpUV + vec2(pixelOffset.x, pixelOffset.y);
-
-	
-	if ((xparity == 1 && yparity == 1) || (xparity == 0 && yparity == 0))
-	{
-		Buffer = texture(MicroGBuffer, OutTexCoord);
-		vec2 rb = Buffer.yz;
-		res[0] = rb.x;
-		res[1] = (gray - (rb.x * 0.3f + rb.y * 0.11f)) / 0.59f;;
-		res[2] = rb.y;
-	}
-	else 
-	{
-		vec2 rb;
-		float counter = 0.0f;
-		for(int i = 0; i < 3; i += 1)
-		{
-			for(int j = 0; j < 3; j += 1)
-			{
-				if ((i + j ) % 2 == 0)
-					continue;
-				Buffer = texture(MicroGBuffer, OutTexCoord + vec2(pixelOffset.x * float(i) - pixelOffset.x, pixelOffset.y * float(j) - pixelOffset.y) );
-
-				if (abs(Buffer.x - gray) > 0.1f)
-					continue;
-				rb += Buffer.yz;
-				counter++;
-			}
-		}
-		if (counter > 0.0f)
-		{
-			rb /= counter;
-			res[0] = rb.x;
-			res[1] = (gray - (rb.x * 0.3f + rb.y * 0.11f)) / 0.59f;;
-			res[2] = rb.y;
-		}
-		else 
-		{
-			discard;
-		}
-	}
 
 	Buffer = texture(MicroGBuffer, rightUpUV);
 	res[4] = Buffer.y;
