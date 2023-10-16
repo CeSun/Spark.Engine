@@ -6,15 +6,22 @@ out vec4 FragColor;
 in vec3 TexCoords;
 
 uniform samplerCube skybox;
-uniform sampler2D NormalTexture;
+uniform sampler2D DepthTexture;
 uniform vec2 BufferSize;
 uniform vec2 ScreenSize;
 
+float GetDepth(vec2 ScreenLocation)
+{
+    vec2 OutTexCoord = vec2(ScreenLocation) / BufferSize;
+    vec2 OutTrueTexCoord = vec2(ScreenLocation) / ScreenSize;
+    return texture(DepthTexture, OutTexCoord).x;
+}
+
+
 void main()
 {   
-    vec2 ScreenCoord = ((gl_FragCoord.xy + 0.5) / ScreenSize);
-     ScreenCoord = ScreenCoord * (ScreenSize / BufferSize);;
-     if (length(texture(NormalTexture, ScreenCoord).xyz) > 0.0f)
+    // todo 
+    if (GetDepth(vec2(gl_FragCoord.xy + vec2(1.0f, 1.0f))) < 1.0f && GetDepth(vec2(gl_FragCoord.xy - vec2(1.0f, 1.0f))) < 1.0f)
         discard;
     FragColor = texture(skybox, TexCoords);
 }

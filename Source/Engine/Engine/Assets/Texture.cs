@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using static Spark.Engine.StaticEngine;
 using static Spark.Engine.Assets.Shader;
 using System.Numerics;
+using Noesis;
 
 
 namespace Spark.Engine.Assets;
@@ -89,6 +90,112 @@ public class Texture
         }
     }
 
+    internal unsafe Texture(byte[]? MetallicRoughness, byte[]? AO, byte[]? Parallax)
+    {
+        Path = "";
+        ImageResult? mr = default;
+        ImageResult? ao = default;
+        ImageResult? p = default;
+        if (MetallicRoughness != null)
+        {
+            mr = ImageResult.FromMemory(MetallicRoughness);
+        }
+        if (AO != null)
+        {
+            ao = ImageResult.FromMemory(AO);
+        }
+        if (Parallax != null)
+        {
+            p = ImageResult.FromMemory(Parallax);
+        }
+
+        var main = mr;
+        if (main == null)
+            main = ao;
+        if (main == null)
+            main = p;
+        var Height = 1;
+        var Width = 1;
+        if (main != null)
+        {
+            Height = main.Height;
+            Width = main.Width;
+        }
+
+        var Data = new byte[Height * Width * 4];
+        for(int i = 0; i < Height * Width; i ++)
+        {
+            if (mr == null)
+            {
+
+                Data[i * 4] = 0;
+                Data[i * 4 + 1] = 0;
+            }
+            else
+            {
+                var step = mr.Comp switch
+                {
+                    ColorComponents.RedGreenBlue => 3,
+                    ColorComponents.RedGreenBlueAlpha => 4,
+                    ColorComponents.GreyAlpha => 2,
+                    ColorComponents.Grey => 1,
+                    _ => 3
+                };
+
+                Data[i * 4] = mr.Data[i * step];
+                Data[i * 4 + 1] = mr.Data[i * step + 1];
+            }
+            if (ao == null)
+            {
+                Data[i * 4 + 2] = 0;
+            }
+            else
+            {
+                var step = ao.Comp switch
+                {
+                    ColorComponents.RedGreenBlue => 3,
+                    ColorComponents.RedGreenBlueAlpha => 4,
+                    ColorComponents.GreyAlpha => 2,
+                    ColorComponents.Grey => 1,
+                    _ => 3
+                };
+
+                Data[i * 4 + 2] = ao.Data[i * step];
+            }
+            if (Parallax == null)
+            {
+                Data[i * 4 + 3] = 0;
+            }
+            else
+            {
+
+                var step = p.Comp switch
+                {
+                    ColorComponents.RedGreenBlue => 3,
+                    ColorComponents.RedGreenBlueAlpha => 4,
+                    ColorComponents.GreyAlpha => 2,
+                    ColorComponents.Grey => 1,
+                    _ => 3
+                };
+
+                Data[i * 4 + 2] = p.Data[i * step];
+            }
+        }
+        TextureId = gl.GenTexture();
+        gl.BindTexture(GLEnum.Texture2D, TextureId);
+
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
+        GLEnum Enum = GLEnum.Rgba;
+        fixed (void* p1 = Data)
+        {
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Enum, (uint)Width, (uint)Height, 0, Enum, GLEnum.UnsignedByte, p1);
+        }
+        gl.BindTexture(GLEnum.Texture2D, 0);
+
+    }
     protected unsafe void ProcessImage(ImageResult image)
     {
         if (image != null)

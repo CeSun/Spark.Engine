@@ -124,24 +124,45 @@ public class StaticMesh
                         Indices.Add(index);
                     }
                     var Material = new Material();
+                    byte[]? MetallicRoughness = null;
+                    byte[]? AmbientOcclusion = null;
+                    byte[]? Parallax = null;
+
                     foreach (var glChannel in glPrimitive.Material.Channels)
                     {
                         if (glChannel.Texture == null)
                             continue;
+
+                        if (glChannel.Key == "MetallicRoughness")
+                        {
+                            MetallicRoughness = glChannel.Texture.PrimaryImage.Content.Content.ToArray();
+                            continue;
+                        }
+                        if (glChannel.Key == "AmbientOcclusion")
+                        {
+                            AmbientOcclusion = glChannel.Texture.PrimaryImage.Content.Content.ToArray();
+                            continue;
+                        }
+                        if (glChannel.Key == "Parallax")
+                        {
+
+                            Parallax = glChannel.Texture.PrimaryImage.Content.Content.ToArray();
+                            continue;
+                        }
+
                         var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
                         if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
                         {
-                            Material.Diffuse = texture;
+                            Material.BaseColor = texture;
                         }
                         if (glChannel.Key == "Normal")
                         {
                             Material.Normal = texture;
                         }
-                        if (glChannel.Key == "MetallicRoughness")
-                        {
-                           Material.MetallicRoughness = texture;
-                        }
+                        
                     }
+                    Texture Custom = new(MetallicRoughness, AmbientOcclusion, Parallax);
+                    Material.Custom = Custom;
                     _Elements.Add(new Element<StaticMeshVertex>
                     {
                         Vertices = staticMeshVertices,

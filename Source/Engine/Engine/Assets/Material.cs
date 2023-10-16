@@ -11,24 +11,16 @@ namespace Spark.Engine.Assets;
 
 public class Material
 {
-    public Texture[] Textures = new Texture[10];
-    public string[] TextureNames = new string[10]{
-        "Diffuse",
+    public Texture[] Textures = new Texture[3];
+    public string[] TextureNames = new string[3]{
+        "BaseColor",
         "Normal",
-        "Parallax",
-        "MetallicRoughness",
-        "Texture4",
-        "Texture5",
-        "Texture6",
-        "Texture7",
-        "Texture8",
-        "Texture9",
+        "Custom"
     };
 
-    public Texture Diffuse { get => Textures[0]; set => Textures[0] = value; }
+    public Texture BaseColor { get => Textures[0]; set => Textures[0] = value; }
     public Texture Normal { get => Textures[1]; set => Textures[1] = value; }
-    public Texture Parallax { get => Textures[2]; set => Textures[2] = value; }
-    public Texture MetallicRoughness { get => Textures[3]; set => Textures[2] = value; }
+    public Texture Custom { get => Textures[2]; set => Textures[2] = value; }
     public Material() 
     {
 
