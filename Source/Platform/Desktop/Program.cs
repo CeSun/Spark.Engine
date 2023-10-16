@@ -29,7 +29,7 @@ var InitFun = () =>
         { "InputContext", window.CreateInput()},
         { "FileSystem",new Desktop.DesktopFileSystem()},
         { "View", window },
-        {"IsMobile", false }
+        {"IsMobile", true }
     });
 };
 window.Render += Engine.Instance.Render;

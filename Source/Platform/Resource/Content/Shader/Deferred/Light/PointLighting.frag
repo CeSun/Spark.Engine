@@ -10,7 +10,9 @@ uniform sampler2D ColorTexture;
 uniform sampler2D CustomBuffer;
 uniform sampler2D DepthTexture;
 uniform samplerCube ShadowMapTextue;
+#ifndef Mobile
 uniform sampler2D SSAOTexture;
+#endif
 uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
@@ -59,7 +61,9 @@ void main()
     vec4 Buffer1 = texture(ColorTexture, OutTexCoord);
     vec3 Color = Buffer1.rgb;
     float AO = Buffer1.a;
+#ifndef Mobile
     AO += texture(SSAOTexture, OutTexCoord).r;
+#endif
     vec4 Buffer2 = texture(CustomBuffer, OutTexCoord);
     vec3 Normal = (Normal2DTo3D(Buffer2.xy ));
     Normal = normalize(Normal);

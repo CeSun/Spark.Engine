@@ -10,7 +10,9 @@ uniform sampler2D ColorTexture;
 uniform sampler2D CustomBuffer;
 uniform sampler2D DepthTexture;
 uniform sampler2D ShadowMapTexture;
+#ifndef Mobile
 uniform sampler2D SSAOTexture;
+#endif
 
 uniform mat4 WorldToLight;
 uniform mat4 VPInvert;
@@ -53,7 +55,10 @@ void main()
     vec4 Buffer1 = texture(ColorTexture, OutTexCoord);
     vec3 Color = Buffer1.rgb;
     float AO = Buffer1.a;
+    
+#ifndef Mobile
     AO += texture(SSAOTexture, OutTexCoord).r;
+#endif
     vec4 Buffer2 = texture(CustomBuffer, OutTexCoord);
     vec3 Normal = (Normal2DTo3D(Buffer2.xy));
     Normal = normalize(Normal);
@@ -67,6 +72,8 @@ void main()
 
     float Shadow = 0.0;
     vec2 texelSize = 1.0f / vec2(textureSize(ShadowMapTexture, 0));
+
+#ifndef Mobile
     for(int x = -1; x <= 1; ++x)
     {
         for(int y = -1; y <= 1; ++y)
@@ -76,6 +83,10 @@ void main()
         }    
     }
     Shadow /= 9.0;
+#else
+     float ShadowDepth = texture(ShadowMapTexture, LightSpaceLocation.xy ).r; 
+     Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
+#endif
 
 
     

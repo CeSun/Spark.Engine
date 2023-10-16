@@ -262,7 +262,10 @@ public class DeferredSceneRenderer : IRenderer
         DepthPass(DeltaTime);
         BasePass(DeltaTime);
         DecalPass(DeltaTime);
-        AOPass(DeltaTime);
+        if (Engine.Instance.IsMobile == false)
+        {
+            AOPass(DeltaTime);
+        }
         using (PostProcessBuffer1.Begin())
         {
             gl.PushDebugGroup("Lighting Pass");
@@ -831,12 +834,13 @@ public class DeferredSceneRenderer : IRenderer
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, DirectionalLight.ShadowMapTextureID);
 
+            if (Engine.Instance.IsMobile == false)
+            {
+                DirectionalLightingShader.SetInt("SSAOTexture", 4);
+                gl.ActiveTexture(GLEnum.Texture4);
+                gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
 
-            DirectionalLightingShader.SetInt("SSAOTexture", 4);
-            gl.ActiveTexture(GLEnum.Texture4);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
-
-
+            }
             DirectionalLightingShader.SetVector3("LightDirection", LightInfo.Direction);
             DirectionalLightingShader.SetVector3("LightColor", LightInfo.Color);
 
@@ -966,9 +970,12 @@ public class DeferredSceneRenderer : IRenderer
             gl.ActiveTexture(GLEnum.Texture2);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
-            PointLightingShader.SetInt("ShadowMapTextue", 3);
-            gl.ActiveTexture(GLEnum.Texture3);
-            gl.BindTexture(GLEnum.TextureCubeMap, PointLightComponent.ShadowMapTextureID);
+            if (Engine.Instance.IsMobile == false)
+            {
+                PointLightingShader.SetInt("ShadowMapTextue", 3);
+                gl.ActiveTexture(GLEnum.Texture3);
+                gl.BindTexture(GLEnum.TextureCubeMap, PointLightComponent.ShadowMapTextureID);
+            }
 
             PointLightingShader.SetInt("SSAOTexture", 4);
             gl.ActiveTexture(GLEnum.Texture4);
@@ -1044,10 +1051,12 @@ public class DeferredSceneRenderer : IRenderer
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
             SpotLightingShader.SetInt("ShadowMapTexture", 3);
 
-            SpotLightingShader.SetInt("SSAOTexture", 4);
-            gl.ActiveTexture(GLEnum.Texture4);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
-
+            if (Engine.Instance.IsMobile == false)
+            {
+                SpotLightingShader.SetInt("SSAOTexture", 4);
+                gl.ActiveTexture(GLEnum.Texture4);
+                gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+            }
 
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, SpotLightComponent.ShadowMapTextureID);
