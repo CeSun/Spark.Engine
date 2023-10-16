@@ -32,7 +32,14 @@ public class Shader
         {
             FragShaderSource =  sr.ReadToEnd();
         }
-
+        var l = new List<string>() {
+        };
+        if (Engine.Instance.IsMobile == true)
+        {
+            l.Add("Mobile");
+        }
+        VertShaderSource = AddMacros(VertShaderSource, l);
+        FragShaderSource = AddMacros(FragShaderSource, l);
         var vert = gl.CreateShader(GLEnum.VertexShader);
         gl.ShaderSource(vert, VertShaderSource);
         gl.CompileShader(vert);
@@ -153,7 +160,22 @@ public class Shader
         gl.UseProgram(0);
     }
 
-
+    public string AddMacros(string source, List<string> Macros)
+    {
+        var lines = source.Split("\n").ToList();
+        int i = 0;
+        for (; i < lines.Count; i ++)
+        {
+            if (lines[i].Trim().Length > 0 && (lines[i].Trim()[0] == '#' ))
+                continue;
+            break;
+        }
+        foreach(var macros in Macros)
+        {
+            lines.Insert(i + 1, "#define " + macros);
+        }
+        return string.Join("\n", lines);
+    }
     ~Shader()
     {
         //if (ProgramId != 0)
