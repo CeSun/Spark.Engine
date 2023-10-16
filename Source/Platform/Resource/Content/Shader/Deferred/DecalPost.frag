@@ -65,21 +65,45 @@ float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation)
 	rightDownUV = leftUpUV + vec2(pixelOffset.x, pixelOffset.y);
 
 	
+	if ((xparity == 1 && yparity == 1) || (xparity == 0 && yparity == 0))
+	{
+		Buffer = texture(MicroGBuffer, OutTexCoord);
+		vec2 rb = Buffer.yz;
+		res[0] = rb.x;
+		res[1] = (gray - (rb.x * 0.3f + rb.y * 0.11f)) / 0.59f;;
+		res[2] = rb.y;
+	}
+	else 
+	{
+		vec2 rb;
+		float counter = 0.0f;
+		for(int i = 0; i < 3; i += 1)
+		{
+			for(int j = 0; j < 3; j += 1)
+			{
+				if ((i + j ) % 2 == 0)
+					continue;
+				Buffer = texture(MicroGBuffer, OutTexCoord + vec2(pixelOffset.x * float(i) - pixelOffset.x, pixelOffset.y * float(j) - pixelOffset.y) );
 
-	Buffer = texture(MicroGBuffer, leftUpUV);
-	vec2 rb = Buffer.yz;
-	Buffer = texture(MicroGBuffer, rightDownUV);
-	rb += Buffer.yz;
+				if (abs(Buffer.x - gray) > 0.1f)
+					continue;
+				rb += Buffer.yz;
+				counter++;
+			}
+		}
+		if (counter > 0.0f)
+		{
+			rb /= counter;
+			res[0] = rb.x;
+			res[1] = (gray - (rb.x * 0.3f + rb.y * 0.11f)) / 0.59f;;
+			res[2] = rb.y;
+		}
+		else 
+		{
+			discard;
+		}
+	}
 
-	rb /= 2.0f;
-
-
-	res[0] = rb.x;
-	res[1] = (gray - (rb.x * 0.3f + rb.y * 0.11f)) / 0.59f;;
-	res[2] = rb.y;
-
-
-	
 	Buffer = texture(MicroGBuffer, rightUpUV);
 	res[4] = Buffer.y;
 	res[5] = Buffer.z;
