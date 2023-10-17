@@ -21,7 +21,13 @@ public class Shader
         this.Path = Path;
         LoadAsset();
     }
-    
+    List<string> Macros = new List<string>();
+    public Shader(string Path, List<string> Macros)
+    {
+        this.Path = Path;
+        this.Macros.AddRange(Macros);
+        LoadAsset();
+    }
     protected void LoadAsset()
     {
         using (var sr = FileSystem.GetStreamReader("Content" + Path + ".vert"))
@@ -32,14 +38,8 @@ public class Shader
         {
             FragShaderSource =  sr.ReadToEnd();
         }
-        var l = new List<string>() {
-        };
-        if (Engine.Instance.IsMobile == true)
-        {
-            l.Add("Mobile");
-        }
-        VertShaderSource = AddMacros(VertShaderSource, l);
-        FragShaderSource = AddMacros(FragShaderSource, l);
+        VertShaderSource = AddMacros(VertShaderSource, Macros);
+        FragShaderSource = AddMacros(FragShaderSource, Macros);
         var vert = gl.CreateShader(GLEnum.VertexShader);
         gl.ShaderSource(vert, VertShaderSource);
         gl.CompileShader(vert);
@@ -166,7 +166,7 @@ public class Shader
         int i = 0;
         for (; i < lines.Count; i ++)
         {
-            if (lines[i].Trim().Length > 0 && (lines[i].Trim()[0] == '#' ))
+            if (lines[i].Trim().IndexOf("#version") != 0)
                 continue;
             break;
         }

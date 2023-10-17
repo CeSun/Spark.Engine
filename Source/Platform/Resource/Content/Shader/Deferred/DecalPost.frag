@@ -2,7 +2,9 @@
 
 precision highp float;
 layout (location = 0) out vec4 Buffer1;
+#ifndef _MICRO_GBUFFER_
 layout (location = 1) out vec4 Buffer2;
+#endif
 
 in vec2 OutTexCoord;
 in vec2 OutTrueTexCoord;
@@ -20,9 +22,14 @@ void main()
 	float depth = texture(DecalDepthTexture, OutTexCoord).r;
 	if (depth >= 1.0f)
 		discard;
+	
+#ifndef _MICRO_GBUFFER_
 	float res[8] = MicroGBufferDecoding(DecalTexture, ivec2(gl_FragCoord.xy));
 	Buffer1 = vec4(res[0],res[1],res[2], res[3]);
 	Buffer2 = vec4(res[4],res[5],res[6], res[7]);
+#else
+	Buffer1 =  texture(DecalTexture, OutTexCoord);
+#endif
 }
 
 float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation)

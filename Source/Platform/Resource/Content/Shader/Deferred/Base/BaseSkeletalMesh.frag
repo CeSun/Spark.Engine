@@ -2,7 +2,11 @@
 
 precision highp float;
 layout (location = 0) out vec4 GBuffer1;
+#ifndef _MICRO_GBUFFER_
 layout (location = 1) out vec4 GBuffer2;
+#endif
+
+
 in vec2 OutTexCoord;
 in vec3 OutColor;
 in mat3 TBNMat;
@@ -18,6 +22,9 @@ uniform sampler2D CustomTexture; // Metallic Roughness AO Parallax
 vec2 Normal3Dto2D(vec3 Normal);
 
 vec2 GetUVOffset(vec2 TexCoord, vec3 ViewDirection);
+
+vec4 MicroGBufferEncoding(vec3 BaseColor, vec2 Normal, float r, float m, float ao, ivec2 ScreenLocation);
+
 
 void main()
 {
@@ -41,9 +48,12 @@ void main()
 
 	vec3 Normal = normalize(TBNMat * TextureNormal);
     
+#ifndef _MICRO_GBUFFER_
     GBuffer1 = vec4(color.rgb,  custom.z);
-
     GBuffer2 =  vec4(Normal3Dto2D(Normal), custom.xy);
+#else
+    GBuffer1 = MicroGBufferEncoding(color.rgb, Normal3Dto2D(Normal), custom.x, custom.y, custom.z, ivec2(gl_FragCoord.xy));
+#endif
 }
 
 
@@ -91,4 +101,41 @@ vec2 GetUVOffset(vec2 TexCoord, vec3 ViewDirection)
 
     return currentTexCoords;
 
+}
+
+
+vec4 MicroGBufferEncoding(vec3 BaseColor, vec2 Normal, float r, float m, float ao, ivec2 ScreenLocation)
+{
+	vec4 result = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+
+	float gray = BaseColor.r * 0.3f + BaseColor.g * 0.59f + BaseColor.b * 0.11f;
+	result.x = gray;
+    int xparity = (ScreenLocation.x % 2);
+    int yparity = (ScreenLocation.y % 2);
+	if (xparity == 0 && yparity == 0)
+	{
+		result.y = BaseColor.r;
+		result.z = BaseColor.b;
+	}
+
+	if (xparity == 1 && yparity == 0)
+	{
+		result.y = Normal.x;
+		result.z = Normal.y;
+	}
+
+	if (xparity == 0 && yparity == 1)
+	{
+		result.y = r;
+		result.z = m;
+		result.w = ao;
+	}
+
+	if (xparity == 1 && yparity == 1)
+	{
+		result.y = BaseColor.r;
+		result.z = BaseColor.b;
+	}
+
+	return result;
 }
