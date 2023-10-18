@@ -111,8 +111,12 @@ public class DeferredSceneRenderer : IRenderer
             GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 2);
         }
         PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
-        PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
-        PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+        if (IsMobile == false)
+        {
+            PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+            PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+
+        }
         SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
         
         NoiseTexture = Texture.CreateNoiseTexture(4, 4);
@@ -274,9 +278,9 @@ public class DeferredSceneRenderer : IRenderer
         gl.PushDebugGroup("Init Buffers");
         GlobalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        PostProcessBuffer2.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        PostProcessBuffer3.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         SceneBackFaceDepthBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        PostProcessBuffer2?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        PostProcessBuffer3?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         gl.PopDebugGroup();
 
 
@@ -304,6 +308,7 @@ public class DeferredSceneRenderer : IRenderer
             // 天空盒
             SkyboxPass(DeltaTime);
             gl.PopDebugGroup();
+            LastPostProcessBuffer = PostProcessBuffer1;
         }
         gl.PushDebugGroup("PostProcess Pass");
         // 后处理
@@ -345,6 +350,8 @@ public class DeferredSceneRenderer : IRenderer
     }
     private void PostProcessPass(double DeltaTime)
     {
+        if (IsMobile == true)
+            return;
         gl.PushDebugGroup("Bloom Effect");
         BloomPass(DeltaTime);
         gl.PopDebugGroup();
@@ -1017,10 +1024,12 @@ public class DeferredSceneRenderer : IRenderer
                 gl.ActiveTexture(GLEnum.Texture3);
                 gl.BindTexture(GLEnum.TextureCubeMap, PointLightComponent.ShadowMapTextureID);
             }
-
-            PointLightingShader.SetInt("SSAOTexture", 4);
-            gl.ActiveTexture(GLEnum.Texture4);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+            if (IsMobile == false)
+            {
+                PointLightingShader.SetInt("SSAOTexture", 4);
+                gl.ActiveTexture(GLEnum.Texture4);
+                gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+            }
 
             PointLightingShader.SetFloat("FarPlan", 1000);
 

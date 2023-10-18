@@ -13,7 +13,8 @@ public class MainActivity : SilkActivity
 {
     protected override void OnRun()
     {
-
+        if (Assets == null)
+            throw new Exception("Asset²»Ö§³Ö");
         SdlWindowing.RegisterPlatform();
         SdlInput.RegisterPlatform();
         var options = ViewOptions.Default;
