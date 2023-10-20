@@ -51,7 +51,7 @@ public class StaticMeshComponent : PrimitiveComponent
                 var sm = Matrix4x4.CreateScale(WorldScale);
                 foreach(var shape in value.Shapes)
                 {
-                    RigidBody.AddShape(new TransformedShape(shape, new JMatrix
+                    RigidBody.AddShape(new TransformedShape(shape, JVector.Zero, new JMatrix
                     {
                         M11 = sm.M11,
                         M12 = sm.M12,
@@ -62,7 +62,7 @@ public class StaticMeshComponent : PrimitiveComponent
                         M31 = sm.M31,
                         M32 = sm.M32,
                         M33 = sm.M33,
-                    }, JVector.Zero));
+                    }));
                 }
                 RigidBody.Position = new JVector(WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
                 var Matrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
@@ -141,7 +141,7 @@ public class StaticMeshComponent : PrimitiveComponent
                 var sm = Matrix4x4.CreateScale(WorldScale);
                 foreach (var shape in StaticMesh.Shapes)
                 {
-                    RigidBody.AddShape(new TransformedShape(shape, new JMatrix
+                    RigidBody.AddShape(new TransformedShape(shape, JVector.Zero, new JMatrix
                     {
                         M11 = sm.M11,
                         M12 = sm.M12,
@@ -152,7 +152,7 @@ public class StaticMeshComponent : PrimitiveComponent
                         M31 = sm.M31,
                         M32 = sm.M32,
                         M33 = sm.M33,
-                    }, JVector.Zero));
+                    }));
                 }
             }
         }

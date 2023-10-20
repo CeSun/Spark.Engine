@@ -7,14 +7,13 @@ using Shader = Spark.Engine.Assets.Shader;
 using static Spark.Engine.Components.CameraComponent;
 using System.Numerics;
 using Spark.Util;
-using Spark.Engine.Render.Buffer;
 using SharpGLTF.Schema2;
 using Texture = Spark.Engine.Assets.Texture;
 namespace Spark.Engine.Render.Renderer;
 
 public class DeferredSceneRenderer : IRenderer
 {
-    RenderBuffer GlobalBuffer;
+    RenderTarget GlobalBuffer;
     Shader StaticMeshBaseShader;
     Shader DirectionalLightingShader;
     Shader SpotLightingShader;
@@ -43,10 +42,10 @@ public class DeferredSceneRenderer : IRenderer
 
     Shader SkeletalMeshBaseShader;
 
-    RenderBuffer PostProcessBuffer1;
-    RenderBuffer? PostProcessBuffer2;
-    RenderBuffer? PostProcessBuffer3;
-    RenderBuffer SceneBackFaceDepthBuffer;
+    RenderTarget PostProcessBuffer1;
+    RenderTarget? PostProcessBuffer2;
+    RenderTarget? PostProcessBuffer3;
+    RenderTarget? SceneBackFaceDepthBuffer;
     World World { get; set; }
 
     Texture NoiseTexture;
@@ -104,20 +103,20 @@ public class DeferredSceneRenderer : IRenderer
         SkeletakMeshPointLightingShader = new Shader("/Shader/ShadowMap/SkeletalMesh/PointLightShadow", Macros);
         if (IsMicroGBuffer == true)
         {
-            GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+            GlobalBuffer = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         }
         else
         {
-            GlobalBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 2);
+            GlobalBuffer = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 2);
         }
-        PostProcessBuffer1 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
         if (IsMobile == false)
         {
-            PostProcessBuffer2 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
-            PostProcessBuffer3 = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+            PostProcessBuffer1 = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+            PostProcessBuffer2 = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+            PostProcessBuffer3 = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
 
         }
-        SceneBackFaceDepthBuffer = new RenderBuffer(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
+        // SceneBackFaceDepthBuffer = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
         
         NoiseTexture = Texture.CreateNoiseTexture(4, 4);
         InitRender();
@@ -193,6 +192,10 @@ public class DeferredSceneRenderer : IRenderer
     public unsafe void DecalPass(double DeltaTime)
     {
         if (CurrentCameraComponent == null)
+            return;
+        if (PostProcessBuffer1 == null)
+            return;
+        if (IsMobile == true)
             return;
         gl.PushDebugGroup("Decal Pass");
         gl.PushDebugGroup("Decal PrePass");
@@ -277,10 +280,13 @@ public class DeferredSceneRenderer : IRenderer
 
         gl.PushDebugGroup("Init Buffers");
         GlobalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        PostProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        SceneBackFaceDepthBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        PostProcessBuffer2?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        PostProcessBuffer3?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        if (IsMobile == false)
+        {
+            PostProcessBuffer1?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+            PostProcessBuffer2?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+            PostProcessBuffer3?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        }
+        //SceneBackFaceDepthBuffer?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         gl.PopDebugGroup();
 
 
@@ -298,7 +304,12 @@ public class DeferredSceneRenderer : IRenderer
         {
             AOPass(DeltaTime);
         }
-        using (PostProcessBuffer1.Begin())
+        RenderTarget? LightRT = null;
+        if (PostProcessBuffer1 == null)
+            LightRT = CurrentCameraComponent.RenderTarget;
+        else
+            LightRT = PostProcessBuffer1;
+        using (LightRT.Begin())
         {
             gl.PushDebugGroup("Lighting Pass");
             // 延迟光照
@@ -314,8 +325,12 @@ public class DeferredSceneRenderer : IRenderer
         // 后处理
         PostProcessPass(DeltaTime);
         gl.PopDebugGroup();
-        // 渲染到摄像机的RenderTarget上
-        RenderToCameraRenderTarget(DeltaTime);
+
+        if (IsMobile == false)
+        {
+            // 渲染到摄像机的RenderTarget上
+            RenderToCameraRenderTarget(DeltaTime);
+        }
     }
 
     private void BackFaceDepthPass(double DeltaTime)
@@ -730,7 +745,7 @@ public class DeferredSceneRenderer : IRenderer
             return;
         if (CurrentCameraComponent == null)
             return;
-        CurrentCameraComponent.RenderTarget.RenderTo(() =>
+        using (CurrentCameraComponent.RenderTarget.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
             RenderToCamera.Use();
@@ -751,13 +766,14 @@ public class DeferredSceneRenderer : IRenderer
             gl.ActiveTexture(GLEnum.Texture0);
             RenderToCamera.UnUse();
 
-        });
-
+        };
     }
 
     private unsafe void ScreenSpaceReflection(double DeltaTime)
     {
         if (PostProcessBuffer2 == null)
+            return;
+        if (PostProcessBuffer1 == null)
             return;
         if (CurrentCameraComponent == null) return;
         BackFaceDepthPass(DeltaTime);
@@ -906,7 +922,7 @@ public class DeferredSceneRenderer : IRenderer
 
     private unsafe void BloomPass(double DeltaTime)
     {
-        if (PostProcessBuffer2 == null || PostProcessBuffer3 == null)
+        if (PostProcessBuffer1 == null || PostProcessBuffer2 == null || PostProcessBuffer3 == null)
             return;
         if (CurrentCameraComponent == null) return;
         gl.Disable(EnableCap.DepthTest);
@@ -930,7 +946,7 @@ public class DeferredSceneRenderer : IRenderer
             BloomPreShader.UnUse();
         }
 
-        RenderBuffer[] buffer = new RenderBuffer[2] {
+        RenderTarget[] buffer = new RenderTarget[2] {
             PostProcessBuffer3,
             PostProcessBuffer2,
         };
@@ -983,7 +999,7 @@ public class DeferredSceneRenderer : IRenderer
 
     }
 
-    RenderBuffer? LastPostProcessBuffer = null;
+    RenderTarget? LastPostProcessBuffer = null;
     public unsafe void PointLight()
     {
         if (CurrentCameraComponent == null)

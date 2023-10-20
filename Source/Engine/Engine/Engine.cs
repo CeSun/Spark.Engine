@@ -5,7 +5,6 @@ using System.Drawing;
 using Silk.NET.Input;
 using Spark.Engine.Platform;
 using Spark.Engine.Render;
-using Spark.Engine.GUI;
 using Silk.NET.Windowing;
 using Silk.NET.OpenGLES.Extensions.EXT;
 
@@ -63,7 +62,7 @@ public partial class Engine : Singleton<Engine>
         FileSystem = (FileSystem)objects["FileSystem"];
         IsMobile = (bool)objects["IsMobile"];
         _view = (IView)objects["View"];
-        _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y, true);
+        _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y);
         Worlds.Add(new World());
 
 
@@ -91,8 +90,7 @@ public partial class Engine : Singleton<Engine>
 
     public void Resize(int Width, int Height)
     {
-        ViewportRenderTarget.Width = Width;
-        ViewportRenderTarget.Height = Height;
+        ViewportRenderTarget.Resize(Width, Height);
         WindowSize = new(Width, Height);
     }
 
