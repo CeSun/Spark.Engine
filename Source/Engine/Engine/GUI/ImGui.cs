@@ -25,6 +25,8 @@ public class ImGuiWarp
     ImGuiController? Controller;
     public void Init()
     {
+        if (Engine.Instance.IsMobile)
+            return;
         try
         {
             Controller = new ImGuiController(gl, Engine.Instance.View, Engine.Instance.Input);
@@ -39,6 +41,8 @@ public class ImGuiWarp
     public int num = 0;
     public void Render(double DeltaTime)
     {
+        if (Engine.Instance.IsMobile)
+            return;
         if (Controller == null)
         {
             return;
@@ -402,6 +406,8 @@ public class ImGuiWarp
 
     public void Fini()
     {
+        if (Engine.Instance.IsMobile)
+            return;
         Controller?.Dispose();
     }
 }

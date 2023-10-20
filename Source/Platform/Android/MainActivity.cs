@@ -18,7 +18,6 @@ public class MainActivity : SilkActivity
         SdlWindowing.RegisterPlatform();
         SdlInput.RegisterPlatform();
         var options = ViewOptions.Default;
-
         options.API = new GraphicsAPI(ContextAPI.OpenGLES, ContextProfile.Core, ContextFlags.Default, new APIVersion(3, 2));
         using (var view = Silk.NET.Windowing.Window.GetView(options))
         {
