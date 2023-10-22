@@ -19,10 +19,9 @@ public class StaticMesh
 
     public List<Box> Boxes { get; private set; } = new List<Box>();
     public string Path { get; private set; }
-    public StaticMesh(string path)
+    public StaticMesh()
     {
-        Path = path;
-        LoadAsset();
+        Path = string.Empty;
     }
 
     public StaticMesh(List<Element<StaticMeshVertex>> Elementes)
@@ -32,13 +31,41 @@ public class StaticMesh
         InitRender();
     }
 
-
-  
-    protected void LoadAsset()
+    public async static Task<StaticMesh> LoadFromGLBAsync(string Path)
     {
-        using var sr = FileSystem.GetStream("Content" + Path);
 
-        var model = ModelRoot.ReadGLB(sr);
+        using var sr = FileSystem.GetStream("Content" + Path);
+        return await LoadFromGLBAsync(sr);
+    }
+    public async static Task<StaticMesh> LoadFromGLBAsync(Stream stream)
+    {
+        ModelRoot model = null;
+
+        await Task.Run(() =>
+        {
+            model = ModelRoot.ReadGLB(stream);
+        });
+
+        return LoadFromGLBInternal(model);
+    }
+
+
+    public static StaticMesh LoadFromGLB(string Path)
+    {
+    
+        using var sr = FileSystem.GetStream("Content" + Path);
+        return LoadFromGLB(sr);
+    }
+    public static StaticMesh LoadFromGLB(Stream stream)
+    {
+        var model = ModelRoot.ReadGLB(stream);
+
+        return LoadFromGLBInternal(model);
+    }
+
+    public static StaticMesh LoadFromGLBInternal(ModelRoot model)
+    {
+        StaticMesh sm = new StaticMesh();
         foreach (var glMesh in model.LogicalMeshes)
         {
             if (glMesh.Name.IndexOf("Physics_") < 0)
@@ -117,7 +144,7 @@ public class StaticMesh
                     {
                         box += Vertex.Location;
                     }
-                    Boxes.Add(box);
+                    sm.Boxes.Add(box);
                     List<uint> Indices = new List<uint>();
                     foreach (var index in glPrimitive.IndexAccessor.AsIndicesArray())
                     {
@@ -159,11 +186,11 @@ public class StaticMesh
                         {
                             Material.Normal = texture;
                         }
-                        
+
                     }
                     Texture Custom = new(MetallicRoughness, AmbientOcclusion, Parallax);
                     Material.Custom = Custom;
-                    _Elements.Add(new Element<StaticMeshVertex>
+                    sm._Elements.Add(new Element<StaticMeshVertex>
                     {
                         Vertices = staticMeshVertices,
                         Material = Material,
@@ -177,7 +204,7 @@ public class StaticMesh
                 {
                     List<JTriangle> ShapeSource = new List<JTriangle>();
                     var locations = glPrimitive.GetVertices("POSITION").AsVector3Array();
-                    for(int i = 0; i < glPrimitive.GetIndices().Count; i +=3)
+                    for (int i = 0; i < glPrimitive.GetIndices().Count; i += 3)
                     {
                         int index1 = (int)glPrimitive.GetIndices()[i];
                         int index2 = (int)glPrimitive.GetIndices()[i + 1];
@@ -206,24 +233,24 @@ public class StaticMesh
                         };
                         ShapeSource.Add(tri);
                     }
-                    Shapes.Add(new ConvexHullShape(ShapeSource));
+                    sm.Shapes.Add(new ConvexHullShape(ShapeSource));
                 }
             }
         }
-        InitTBN();
-        InitRender();
-        InitPhysics();
-        if (Boxes.Count > 0)
+        sm.InitTBN();
+        sm.InitRender();
+        sm.InitPhysics();
+        if (sm.Boxes.Count > 0)
         {
-            Box = Boxes[0];
-            foreach(var box in Boxes)
+            sm.Box = sm.Boxes[0];
+            foreach (var box in sm.Boxes)
             {
-                Box += box;
+                sm.Box += box;
             }
         }
-
+        return sm;
     }
-
+  
     private void InitTBN()
     {
         for (int i = 0; i < _Elements.Count; i ++)

@@ -42,7 +42,9 @@ public class DeferredSceneRenderer : IRenderer
 
     Shader SkeletalMeshBaseShader;
 
-    RenderTarget PostProcessBuffer1;
+
+    Shader DebugShader;
+    RenderTarget? PostProcessBuffer1;
     RenderTarget? PostProcessBuffer2;
     RenderTarget? PostProcessBuffer3;
     RenderTarget? SceneBackFaceDepthBuffer;
@@ -101,6 +103,8 @@ public class DeferredSceneRenderer : IRenderer
         SkeletakMeshDLShadowMapShader = new Shader("/Shader/ShadowMap/SkeletalMesh/DirectionLightShadow", Macros);
         SkeletakMeshSpotShadowMapShader = new Shader("/Shader/ShadowMap/SkeletalMesh/SpotLightShadow", Macros);
         SkeletakMeshPointLightingShader = new Shader("/Shader/ShadowMap/SkeletalMesh/PointLightShadow", Macros);
+
+        DebugShader = new Shader("/Shader/debugLine");
         if (IsMicroGBuffer == true)
         {
             GlobalBuffer = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
@@ -333,8 +337,30 @@ public class DeferredSceneRenderer : IRenderer
         }
     }
 
+    private void DrawPhyShape(double DeltaTime)
+    {
+        return;
+        gl.PushDebugGroup("DrawPhyShape");
+        if (CurrentCameraComponent == null)
+            return;
+        DebugShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+        DebugShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+        DebugShader.SetVector3("Color", new Vector3(0, 0, 1));
+        gl.Clear(ClearBufferMask.DepthBufferBit);
+        foreach (var component in World.CurrentLevel.StaticMeshComponents)
+        {
+            if (component.RigidBody == null)
+                continue;
+            //component.RigidBody.DebugDraw(Debug.Instance);
+        }
+        Debug.Instance.DrawSegment(new Jitter2.LinearMath.JVector(-20, 10, 0), new Jitter2.LinearMath.JVector(20, 10, 0));
+        gl.PopDebugGroup();
+
+    }
     private void BackFaceDepthPass(double DeltaTime)
     {
+        if (SceneBackFaceDepthBuffer == null)
+            return;
         using(SceneBackFaceDepthBuffer.Begin())
         {
             BackFaceDepthShader.Use();
@@ -764,6 +790,9 @@ public class DeferredSceneRenderer : IRenderer
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
+
+
+            DrawPhyShape(DeltaTime);
             RenderToCamera.UnUse();
 
         };

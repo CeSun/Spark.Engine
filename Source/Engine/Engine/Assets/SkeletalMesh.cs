@@ -98,6 +98,31 @@ public partial class SkeletalMesh
         using var sr = FileSystem.GetStream("Content" + Path);
         return ImportFromGLB(sr);
     }
+
+
+    public async static Task<(SkeletalMesh, Skeleton, List<AnimSequence>)> ImportFromGLBAsync(string Path)
+    {
+        using var sr = FileSystem.GetStream("Content" + Path);
+        return await ImportFromGLBAsync(sr);
+    }
+
+    public async static Task<(SkeletalMesh, Skeleton, List<AnimSequence>)> ImportFromGLBAsync(Stream stream)
+    {
+        SkeletalMesh sk = new SkeletalMesh();
+        ModelRoot model = null;
+        await Task.Run(() =>
+        {
+            model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
+        });
+        LoadVertics(sk, model);
+        var skeleton = LoadBones(model);
+        sk.Skeleton = skeleton;
+        var anims = LoadAnimSequence(model, skeleton);
+        sk.InitRender();
+        return (sk, skeleton, anims);
+    }
+
+
     public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(Stream stream)
     {
         SkeletalMesh sk = new SkeletalMesh();

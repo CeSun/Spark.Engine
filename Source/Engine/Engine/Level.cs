@@ -122,25 +122,34 @@ public partial class Level
             }
         };
 
-        var (skm, sk, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/untitled.glb");
         var SkeletalActor = new Actor(this, "Skeletal Mesh");
         var Comp = new SkeletalMeshComponent(SkeletalActor);
-        Comp.SkeletalMesh = skm;
-        Comp.AnimSequence = anim[2];
         Comp.WorldScale = new Vector3(5, 5, 5);
         Comp.WorldLocation = new Vector3(0, 1, 0);
         Comp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180f.DegreeToRadians(), 0, 0);
+
+
+        SkeletalMesh.ImportFromGLBAsync("/StaticMesh/untitled.glb").Then((result) =>
+        {
+            Comp.SkeletalMesh = result.Item1;
+            Comp.AnimSequence = result.Item3[2];
+
+        });
+
         // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this, "Robot Actor");
         var RobotMeshComp = new StaticMeshComponent(RobotActor);
-        RobotMeshComp.StaticMesh = new StaticMesh("/StaticMesh/untitled.glb");
         RobotActor.RootComponent = RobotMeshComp;
         RobotActor.WorldScale = new Vector3(5, 5, 5);
         RobotMeshComp.IsStatic = true;
         RobotActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), 90F.DegreeToRadians(), 0F.DegreeToRadians());
         RobotActor.WorldLocation = new Vector3(0, 1.8f, 10);
         this.RobotActor = RobotActor;
-        
+        StaticMesh.LoadFromGLBAsync("/StaticMesh/untitled.glb").Then((result) =>
+        {
+            RobotMeshComp.StaticMesh = result;
+        });
+
 
 
         // 相机actor
@@ -158,10 +167,15 @@ public partial class Level
         var CubeActor = new Actor(this, "Plane Actor");
         var CubeMeshComp = new StaticMeshComponent(CubeActor);
         CubeActor.RootComponent = CubeMeshComp;
-        CubeMeshComp.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
         CubeMeshComp.IsStatic = true;
         CubeMeshComp.WorldScale = new Vector3(100F, 1F, 100F);
         CubeMeshComp.WorldLocation = new Vector3(0, 0, 0);
+
+        StaticMesh.LoadFromGLBAsync("/StaticMesh/cube2.glb").Then((result) =>
+        {
+            CubeMeshComp.StaticMesh = result;
+        });
+
 
         var DecalActor = new Actor(this, "DecalActor");
         var DecalComponent = new DecalComponent(DecalActor);
@@ -173,6 +187,8 @@ public partial class Level
             BaseColor = new Texture("/Texture/bear.png")
         };
         DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 90F.DegreeToRadians(), 90F.DegreeToRadians());
+
+
 
         /*
         // 视差贴图
@@ -191,7 +207,7 @@ public partial class Level
         */
         //CubeMeshComp2.StaticMesh.Materials
 
-        
+
         // 创建定向光源
         var DirectionActor = new Actor(this, "Direction Actor");
         var DirectionComp = new DirectionLightComponent(DirectionActor);
@@ -200,14 +216,14 @@ public partial class Level
         DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
         DirectionComp.LightStrength = 0.6f;
         DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
-      
+
         var PointLight = new Actor(this, "PointLight Actor");
         var PointLightComp = new PointLightComponent(PointLight);
         PointLight.RootComponent = PointLightComp;
         PointLightComp.Color = Color.YellowGreen;
         PointLightComp.LightStrength = 0.7f;
-        PointLightComp.WorldLocation += PointLightComp.UpVector * 10 ;
-         
+        PointLightComp.WorldLocation += PointLightComp.UpVector * 10;
+
         var spotLight = new Actor(this, "SpotLight Actor");
         var SpotLightComponent = new SpotLightComponent(spotLight);
         spotLight.RootComponent = SpotLightComponent;
@@ -219,7 +235,10 @@ public partial class Level
         SpotLightComponent.OuterAngle = 110;
         var SkyBoxActor = new Actor(this, "SkyBox Actor");
         var skybox = new SkyboxComponent(SkyBoxActor);
-        skybox.SkyboxCube = new TextureCube("/Skybox/pm");
+        TextureCube.LoadAsync("/Skybox/pm").Then(res => {
+
+            skybox.SkyboxCube = res;
+        });
     }
 
 
@@ -232,7 +251,7 @@ public partial class Level
         {
             var GrassActor = new Actor(this, "Grass Actor");
             var GrassComponent = new StaticMeshComponent(GrassActor);
-            GrassComponent.StaticMesh = new StaticMesh("/StaticMesh/flower.glb");
+            GrassComponent.StaticMesh = StaticMesh.LoadFromGLB("/StaticMesh/flower.glb");
             GrassActor.RootComponent = GrassComponent;
             GrassComponent.WorldLocation = new Vector3((i / len - len / 2) * 5f, -3, (i % len - len /2 ) * 5f);
         }

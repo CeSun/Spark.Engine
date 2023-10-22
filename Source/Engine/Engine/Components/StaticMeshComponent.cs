@@ -79,6 +79,8 @@ public class StaticMeshComponent : PrimitiveComponent
                     M33 = Matrix.M33,
                 };
 
+                RigidBody.IsStatic = IsStatic;
+
             }
 
         }

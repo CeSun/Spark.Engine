@@ -9,6 +9,12 @@
       </PropertyGroup>
 
       <ItemGroup>
+        <Compile Remove="Render\Buffer\**" />
+        <EmbeddedResource Remove="Render\Buffer\**" />
+        <None Remove="Render\Buffer\**" />
+      </ItemGroup>
+
+      <ItemGroup>
         <PackageReference Include="Jitter2" Version="2.0.0-beta" />
         <PackageReference Include="Noesis.App" Version="3.2.1" />
         <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0030" />
@@ -24,8 +30,5 @@
       </ItemGroup>
     <ItemGroup>
 	    <TrimmerRootAssembly Include="SharpGLTF.Schema2" />
-    </ItemGroup>
-    <ItemGroup>
-      <Folder Include="Render\Buffer\" />
     </ItemGroup>
 </Project>

@@ -314,20 +314,23 @@ public class ImGuiWarp
 
     public void CreateCubes()
     {
-        var SM = new StaticMesh("/StaticMesh/sphere.glb");
         for (int i = 0; i < 20; i++)
         {
 
             var CubeActor2 = new Actor(this.CurrentLevel, "CubeActor" + cubeList.Count);
             var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
             CubeActor2.RootComponent = CubeMeshComp2;
-            CubeMeshComp2.StaticMesh = SM;
             CubeMeshComp2.IsStatic = false;
             var scale = (float)Random.Shared.NextDouble();
             CubeMeshComp2.WorldScale = new Vector3(scale, scale, scale);
             CubeMeshComp2.WorldRotation = Quaternion.CreateFromYawPitchRoll(Random.Shared.Next(0, 360), Random.Shared.Next(0, 360), Random.Shared.Next(0, 360));
             CubeMeshComp2.WorldLocation = new Vector3(Random.Shared.Next(-10, 10), Random.Shared.Next(50, 60), 0);
             cubeList.Add(CubeActor2);
+
+
+            StaticMesh.LoadFromGLBAsync("/StaticMesh/sphere.glb").Then(mesh => {
+                CubeMeshComp2.StaticMesh = mesh;
+            });
 
         }
     }
@@ -351,8 +354,10 @@ public class ImGuiWarp
         int len = (int)Math.Sqrt(grassLen);
         var ismactor = new Actor(this.CurrentLevel, "IsmActor");
         var ismcomponent = new InstancedStaticMeshComponent(ismactor);
-        ismcomponent.StaticMesh = new StaticMesh(model);
 
+        StaticMesh.LoadFromGLBAsync(model).Then(mesh => {
+            ismcomponent.StaticMesh = mesh;
+        });
         ismcomponent.WorldLocation = new Vector3(0, 0, 0);
         for (int i = 0; i < grassLen; i++)
         {
@@ -379,8 +384,9 @@ public class ImGuiWarp
         var hismactor = new Actor(CurrentLevel, "HISM Actor");
         var hismcomponent = new HierarchicalInstancedStaticMeshComponent(hismactor);
         hismactor.RootComponent = hismcomponent;
-        hismcomponent.StaticMesh = new StaticMesh(model);
-
+        StaticMesh.LoadFromGLBAsync(model).Then(mesh => {
+            hismcomponent.StaticMesh = mesh;
+        });
         hismcomponent.WorldLocation = new Vector3(0, 0, 0);
         for (int i = 0; i < grassLen; i++)
         {
