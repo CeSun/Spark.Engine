@@ -40,6 +40,10 @@ public partial class Level
 
     public UpdateManager UpdateManager { private set; get; }
 
+    public void BeginPlay()
+    {
+
+    }
     public void Destory() 
     {
     }

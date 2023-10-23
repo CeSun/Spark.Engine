@@ -13,8 +13,8 @@ public class World
     public Engine Engine { get; set; }
     public World(Engine engine)
     {
-        SceneRenderer = new DeferredSceneRenderer(this);
         Engine = engine;
+        SceneRenderer = new DeferredSceneRenderer(this);
     }
     public Level? _Level;
     public Level CurrentLevel
