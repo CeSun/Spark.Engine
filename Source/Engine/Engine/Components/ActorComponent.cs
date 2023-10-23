@@ -4,6 +4,7 @@ namespace Spark.Engine.Components;
 
 public class ActorComponent
 {
+    public Engine Engine =>CurrentWorld.Engine;
     public ActorComponent(Actor actor) 
     {
         Owner = actor;

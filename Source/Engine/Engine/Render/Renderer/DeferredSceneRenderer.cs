@@ -60,8 +60,9 @@ public class DeferredSceneRenderer : IRenderer
     bool IsMicroGBuffer = false;
     public DeferredSceneRenderer(World world)
     {
+        World = world;
         List<string> Macros = new List<string>();
-        if (Engine.Instance.IsMobile)
+        if (World.Engine.IsMobile)
         {
             IsMobile = true;
             IsMicroGBuffer = true;
@@ -74,13 +75,10 @@ public class DeferredSceneRenderer : IRenderer
         {
            Macros.Add("_MICRO_GBUFFER_");
         }
-        World = world;
         // Base Pass
         StaticMeshBaseShader = new Shader("/Shader/Deferred/Base/Base", Macros);
         SkeletalMeshBaseShader = new Shader("/Shader/Deferred/Base/BaseSkeletalMesh", Macros);
         HISMShader = new Shader("/Shader/Deferred/Base/BaseInstance", Macros);
-
-
         DirectionalLightingShader = new Shader("/Shader/Deferred/Light/DirectionalLighting", Macros);
         SpotLightingShader = new Shader("/Shader/Deferred/Light/SpotLighting", Macros);
         PointLightingShader = new Shader("/Shader/Deferred/Light/PointLighting", Macros);
@@ -107,20 +105,20 @@ public class DeferredSceneRenderer : IRenderer
         DebugShader = new Shader("/Shader/debugLine");
         if (IsMicroGBuffer == true)
         {
-            GlobalBuffer = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+            GlobalBuffer = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
         }
         else
         {
-            GlobalBuffer = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 2);
+            GlobalBuffer = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 2);
         }
         if (IsMobile == false)
         {
-            PostProcessBuffer1 = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
-            PostProcessBuffer2 = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
-            PostProcessBuffer3 = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 1);
+            PostProcessBuffer1 = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
+            PostProcessBuffer2 = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
+            PostProcessBuffer3 = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
 
         }
-        // SceneBackFaceDepthBuffer = new RenderTarget(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, 0);
+        // SceneBackFaceDepthBuffer = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 0);
         
         NoiseTexture = Texture.CreateNoiseTexture(4, 4);
         InitRender();
@@ -406,7 +404,7 @@ public class DeferredSceneRenderer : IRenderer
             return;
         SkyboxShader.Use();
         Matrix4x4 View = Matrix4x4.CreateLookAt(Vector3.Zero, Vector3.Zero + CurrentCameraComponent.ForwardVector, CurrentCameraComponent.UpVector);
-        Matrix4x4 Projection = Matrix4x4.CreatePerspectiveFieldOfView(CurrentCameraComponent.FieldOfView.DegreeToRadians(), Engine.Instance.WindowSize.X / (float)Engine.Instance.WindowSize.Y, 0.1f, 100f);
+        Matrix4x4 Projection = Matrix4x4.CreatePerspectiveFieldOfView(CurrentCameraComponent.FieldOfView.DegreeToRadians(), World.Engine.WindowSize.X / (float)World.Engine.WindowSize.Y, 0.1f, 100f);
         SkyboxShader.SetMatrix("view", View);
         SkyboxShader.SetMatrix("projection", Projection);
 

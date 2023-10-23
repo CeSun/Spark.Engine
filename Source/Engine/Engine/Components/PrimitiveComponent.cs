@@ -11,6 +11,12 @@ namespace Spark.Engine.Components;
 
 public partial class PrimitiveComponent
 {
+    public Engine Engine => Owner.CurrentWorld.Engine;
+
+    public World World => Owner.CurrentWorld;
+
+    public Level CurrentLevel => Owner.CurrentLevel;
+
     protected virtual bool ReceieveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
     

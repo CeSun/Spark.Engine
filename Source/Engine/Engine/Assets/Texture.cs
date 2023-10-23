@@ -50,13 +50,9 @@ public class Texture
                     Y = (float)Random.Shared.NextDouble() * 2 - 1,
                     Z = 0
                 };
-
                 data[index] = (byte)(255 * v.X);
                 data[index + 1] = (byte)(255 * v.Y);
                 data[index + 2] = (byte)(255 * v.Z);
-
-
-
             }
         }
 

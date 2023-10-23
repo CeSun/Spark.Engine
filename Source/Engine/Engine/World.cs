@@ -10,10 +10,11 @@ namespace Spark.Engine;
 
 public class World
 {
-    public World()
+    public Engine Engine { get; set; }
+    public World(Engine engine)
     {
         SceneRenderer = new DeferredSceneRenderer(this);
-
+        Engine = engine;
     }
     public Level? _Level;
     public Level CurrentLevel

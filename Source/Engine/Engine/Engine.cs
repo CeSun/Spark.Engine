@@ -63,7 +63,7 @@ public partial class Engine : Singleton<Engine>
         IsMobile = (bool)objects["IsMobile"];
         _view = (IView)objects["View"];
         _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y);
-        Worlds.Add(new World());
+        Worlds.Add(new World(this));
 
 
     }
@@ -183,7 +183,7 @@ public class StaticEngine
         }
     }
 
-    public static Platform.FileSystem FileSystem
+    public static FileSystem FileSystem
     { 
         get
         {
