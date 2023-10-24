@@ -330,18 +330,23 @@ public partial class Level
         MainMouse.MouseMove += OnMouseMove;
         MainMouse.MouseDown += OnMouseKeyDown;
 
-        var (skm, sk, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/untitled.glb");
+        
         var SkeletalActor = new Actor(this, "Skeletal Mesh");
         var Comp = new SkeletalMeshComponent(SkeletalActor);
-        Comp.SkeletalMesh = skm;
-        Comp.AnimSequence = anim[2];
+
+        SkeletalMesh.ImportFromGLBAsync("/StaticMesh/untitled.glb").Then((res) => {
+            Comp.SkeletalMesh = res.Item1;
+            Comp.AnimSequence = res.Item3[2];
+        });
         Comp.WorldScale = new Vector3(5, 5, 5);
         Comp.WorldLocation = new Vector3(0, 1, 0);
         Comp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180f.DegreeToRadians(), 0, 0);
         // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this, "Robot Actor");
         var RobotMeshComp = new StaticMeshComponent(RobotActor);
-        RobotMeshComp.StaticMesh = StaticMesh.LoadFromGLB("/StaticMesh/untitled.glb");
+        StaticMesh.LoadFromGLBAsync("/StaticMesh/untitled.glb").Then((res) => {
+             RobotMeshComp.StaticMesh = res;
+        });
         RobotActor.RootComponent = RobotMeshComp;
         RobotActor.WorldScale = new Vector3(5, 5, 5);
         RobotMeshComp.IsStatic = true;
@@ -366,11 +371,14 @@ public partial class Level
         var CubeActor = new Actor(this, "Plane Actor");
         var CubeMeshComp = new StaticMeshComponent(CubeActor);
         CubeActor.RootComponent = CubeMeshComp;
-        CubeMeshComp.StaticMesh = StaticMesh.LoadFromGLB("/StaticMesh/cube2.glb");
+        StaticMesh.LoadFromGLBAsync("/StaticMesh/cube2.glb").Then((res) => {
+             CubeMeshComp.StaticMesh = res;
+        });
         CubeMeshComp.IsStatic = true;
         CubeMeshComp.WorldScale = new Vector3(100F, 1F, 100F);
         CubeMeshComp.WorldLocation = new Vector3(0, 0, 0);
 
+        /*
         var DecalActor = new Actor(this, "DecalActor");
         var DecalComponent = new DecalComponent(DecalActor);
         DecalActor.RootComponent = DecalComponent;
@@ -381,7 +389,7 @@ public partial class Level
             BaseColor = new Texture("/Texture/bear.png")
         };
         DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 90F.DegreeToRadians(), 90F.DegreeToRadians());
-
+        */
         /*
         // 视差贴图
 
@@ -427,7 +435,9 @@ public partial class Level
         SpotLightComponent.OuterAngle = 110;
         var SkyBoxActor = new Actor(this, "SkyBox Actor");
         var skybox = new SkyboxComponent(SkyBoxActor);
-        skybox.SkyboxCube = TextureCube.Load("/Skybox/pm");
+        TextureCube.LoadAsync("/Skybox/pm").Then(res => {
+            skybox.SkyboxCube = res;
+        });
     }
     private void RobotMove(double DeltaTime)
     {
