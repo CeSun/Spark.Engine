@@ -1,3 +1,4 @@
+using Android.Views;
 using Silk.NET.Input;
 using Silk.NET.Input.Sdl;
 using Silk.NET.OpenGLES;
@@ -8,13 +9,27 @@ using Spark.Engine;
 
 namespace Android;
 
-[Activity(Label = "@string/app_name", MainLauncher = true)]
+[Activity(Label = "@string/app_name", MainLauncher = true, ScreenOrientation = Content.PM.ScreenOrientation.Landscape, Theme = "@android:style/Theme.NoTitleBar")]
 public class MainActivity : SilkActivity
 {
+    protected override void OnCreate(Bundle? savedInstanceState)
+    {
+        base.OnCreate(savedInstanceState);
+      
+    }
+    protected override void OnResume()
+    {
+        base.OnResume();
+        if (Window != null)
+        {
+            Window.SetFlags(WindowManagerFlags.Fullscreen, WindowManagerFlags.Fullscreen);
+        }
+    }
     protected override void OnRun()
     {
         if (Assets == null)
             throw new Exception("Asset²»Ö§³Ö");
+       
         SdlWindowing.RegisterPlatform();
         SdlInput.RegisterPlatform();
         var options = ViewOptions.Default;
