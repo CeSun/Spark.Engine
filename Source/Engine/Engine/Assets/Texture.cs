@@ -86,18 +86,20 @@ public class Texture
                 data[index + 2] = (byte)(255 * v.Z);
             }
         }
-
-        texture.TextureId = gl.GenTexture();
-        gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-        fixed (void* p = data)
+        Engine.Instance.SyncContext.ExecuteOnGameThread(() =>
         {
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgb, (uint)Width, (uint)Height, 0, GLEnum.Rgb, GLEnum.UnsignedByte, p);
-        }
-        gl.BindTexture(GLEnum.Texture2D, 0);
+            texture.TextureId = gl.GenTexture();
+            gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
+            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
+            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
+            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+            fixed (void* p = data)
+            {
+                gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgb, (uint)Width, (uint)Height, 0, GLEnum.Rgb, GLEnum.UnsignedByte, p);
+            }
+            gl.BindTexture(GLEnum.Texture2D, 0);
+        });
 
         return texture;
     }
@@ -207,24 +209,7 @@ public class Texture
                 Data[i * 4 + 2] = p.Data[i * step];
             }
         }
-        TextureId = gl.GenTexture();
-        gl.BindTexture(GLEnum.Texture2D, TextureId);
-
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
-        GLEnum Enum = GLEnum.Rgba;
-        fixed (void* p1 = Data)
-        {
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Enum, (uint)Width, (uint)Height, 0, Enum, GLEnum.UnsignedByte, p1);
-        }
-        gl.BindTexture(GLEnum.Texture2D, 0);
-
-    }
-    protected unsafe void ProcessImage(ImageResult image)
-    {
-        if (image != null)
+        Engine.Instance.SyncContext.ExecuteOnGameThread(() =>
         {
             TextureId = gl.GenTexture();
             gl.BindTexture(GLEnum.Texture2D, TextureId);
@@ -234,22 +219,45 @@ public class Texture
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
             GLEnum Enum = GLEnum.Rgba;
-            if (image.Comp == ColorComponents.RedGreenBlueAlpha)
+            fixed (void* p1 = Data)
             {
-                Enum = GLEnum.Rgba;
-            }
-
-            if (image.Comp == ColorComponents.RedGreenBlue)
-            {
-                 Enum = GLEnum.Rgb;
-            }
-            fixed(void* p = image.Data)
-            {
-                gl.TexImage2D(GLEnum.Texture2D, 0, (int)Enum, (uint)image.Width, (uint)image.Height, 0, Enum, GLEnum.UnsignedByte, p);
+                gl.TexImage2D(GLEnum.Texture2D, 0, (int)Enum, (uint)Width, (uint)Height, 0, Enum, GLEnum.UnsignedByte, p1);
             }
             gl.BindTexture(GLEnum.Texture2D, 0);
+        });
 
-        }
+    }
+    protected unsafe void ProcessImage(ImageResult image)
+    {
+        Engine.Instance.SyncContext.ExecuteOnGameThread(() =>
+        {
+            if (image != null)
+            {
+                TextureId = gl.GenTexture();
+                gl.BindTexture(GLEnum.Texture2D, TextureId);
+
+                gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
+                gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
+                gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
+                gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
+                GLEnum Enum = GLEnum.Rgba;
+                if (image.Comp == ColorComponents.RedGreenBlueAlpha)
+                {
+                    Enum = GLEnum.Rgba;
+                }
+
+                if (image.Comp == ColorComponents.RedGreenBlue)
+                {
+                    Enum = GLEnum.Rgb;
+                }
+                fixed (void* p = image.Data)
+                {
+                    gl.TexImage2D(GLEnum.Texture2D, 0, (int)Enum, (uint)image.Width, (uint)image.Height, 0, Enum, GLEnum.UnsignedByte, p);
+                }
+                gl.BindTexture(GLEnum.Texture2D, 0);
+
+            }
+        });
 
     }
 

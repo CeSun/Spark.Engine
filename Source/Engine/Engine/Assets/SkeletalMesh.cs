@@ -353,7 +353,7 @@ public partial class SkeletalMesh
                         continue;
                     }
 
-                    var texture = Engine.Instance.SyncContext.ExecuteOnGameThread(() => new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray()));
+                    var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
                     if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
                     {
                         Material.BaseColor = texture;
@@ -365,7 +365,7 @@ public partial class SkeletalMesh
 
                 }
 
-                Texture Custom = Engine.Instance.SyncContext.ExecuteOnGameThread(() => new Texture(MetallicRoughness, AmbientOcclusion, Parallax));
+                Texture Custom = new Texture(MetallicRoughness, AmbientOcclusion, Parallax);
                 Material.Custom = Custom;
                 //SkeletalMesh.Materials.Add(Material);
                 SkeletalMesh._Elements.Add(new Element<SkeletalMeshVertex>

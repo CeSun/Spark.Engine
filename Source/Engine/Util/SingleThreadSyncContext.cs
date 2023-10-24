@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Diagnostics;
+using System.Threading;
 
 namespace Spark.Util;
 
@@ -12,8 +13,16 @@ public class SingleThreadSyncContext : SynchronizationContext
 
     public T ExecuteOnGameThread<T>(Func<T> fun)
     {
+        Stopwatch sw = Stopwatch.StartNew();
         T? res = default;
         Send(d => res = fun(), null);
+        sw.Stop();
+        Console.WriteLine("===============================");
+        Console.WriteLine($"Time:  {sw.ElapsedMilliseconds}ms");
+
+        StackTrace st = new StackTrace(true);
+        Console.WriteLine(st.ToString());
+        Console.WriteLine("===============================");
         return res;
     }
 
