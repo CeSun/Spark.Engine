@@ -10,6 +10,17 @@ public class SingleThreadSyncContext : SynchronizationContext
         ThreadId = Thread.CurrentThread.ManagedThreadId;
     }
 
+    public T ExecuteOnGameThread<T>(Func<T> fun)
+    {
+        T? res = default;
+        Send(d => res = fun(), null);
+        return res;
+    }
+
+    public void ExecuteOnGameThread(Action fun)
+    {
+        Send(d=> fun(), null);
+    }
 
     List<TaskInfo> TaskList = new List<TaskInfo>();
     List<TaskInfo> TempList = new List<TaskInfo>();
@@ -57,6 +68,7 @@ public class SingleThreadSyncContext : SynchronizationContext
                     WaitHandle = waitHandle
                 });
             }
+            waitHandle.WaitOne();
         }
     }
 

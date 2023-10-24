@@ -39,15 +39,13 @@ public class StaticMesh
     }
     public async static Task<StaticMesh> LoadFromGLBAsync(Stream stream)
     {
-        ModelRoot? model = null;
-
+        StaticMesh? sm = null;
         await Task.Run(() =>
         {
-            model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix});
+            ModelRoot model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix});
+            sm = LoadFromGLBInternal(model);
         });
-        if (model == null)
-            throw new Exception("加载GLB失败");
-        return LoadFromGLBInternal(model);
+        return sm;
     }
 
 
@@ -178,7 +176,7 @@ public class StaticMesh
                             continue;
                         }
 
-                        var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
+                        var texture = Engine.Instance.SyncContext.ExecuteOnGameThread(() => new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray()));
                         if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
                         {
                             Material.BaseColor = texture;
@@ -189,7 +187,7 @@ public class StaticMesh
                         }
 
                     }
-                    Texture Custom = new(MetallicRoughness, AmbientOcclusion, Parallax);
+                    Texture Custom = Engine.Instance.SyncContext.ExecuteOnGameThread(() => new Texture(MetallicRoughness, AmbientOcclusion, Parallax));
                     Material.Custom = Custom;
                     sm._Elements.Add(new Element<StaticMeshVertex>
                     {
@@ -239,7 +237,7 @@ public class StaticMesh
             }
         }
         sm.InitTBN();
-        sm.InitRender();
+        Engine.Instance.SyncContext.ExecuteOnGameThread(sm.InitRender);
         sm.InitPhysics();
         if (sm.Boxes.Count > 0)
         {

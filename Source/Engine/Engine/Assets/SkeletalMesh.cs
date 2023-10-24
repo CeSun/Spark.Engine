@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Silk.NET.OpenGLES;
 using System.Runtime.InteropServices;
 using System.Collections;
+using Silk.NET.Input;
 
 namespace Spark.Engine.Assets;
 
@@ -110,17 +111,26 @@ public partial class SkeletalMesh
     {
         SkeletalMesh sk = new SkeletalMesh();
         ModelRoot? model = null;
+        Skeleton? skeleton = null;
+        List<AnimSequence>? anims = null;
         await Task.Run(() =>
         {
             model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
+            if (model == null)
+                throw new Exception("加载GLB失败");
+            LoadVertics(sk, model);
+            skeleton = LoadBones(model);
+            sk.Skeleton = skeleton;
+            anims = LoadAnimSequence(model, skeleton);
+            Engine.Instance.SyncContext.ExecuteOnGameThread(sk.InitRender);
         });
-        if (model == null)
-            throw new Exception("加载GLB失败");
-        LoadVertics(sk, model);
-        var skeleton = LoadBones(model);
-        sk.Skeleton = skeleton;
-        var anims = LoadAnimSequence(model, skeleton);
-        sk.InitRender();
+
+        if (sk == null)
+            throw new Exception("sk load error");
+        if (skeleton == null)
+            throw new Exception("skeleton load error");
+        if (anims == null)
+            throw new Exception("anims load error");
         return (sk, skeleton, anims);
     }
 
@@ -343,7 +353,7 @@ public partial class SkeletalMesh
                         continue;
                     }
 
-                    var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
+                    var texture = Engine.Instance.SyncContext.ExecuteOnGameThread(() => new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray()));
                     if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
                     {
                         Material.BaseColor = texture;
@@ -355,7 +365,7 @@ public partial class SkeletalMesh
 
                 }
 
-                Texture Custom = new(MetallicRoughness, AmbientOcclusion, Parallax);
+                Texture Custom = Engine.Instance.SyncContext.ExecuteOnGameThread(() => new Texture(MetallicRoughness, AmbientOcclusion, Parallax));
                 Material.Custom = Custom;
                 //SkeletalMesh.Materials.Add(Material);
                 SkeletalMesh._Elements.Add(new Element<SkeletalMeshVertex>

@@ -13,7 +13,7 @@ namespace Spark.Engine;
 public partial class Engine : Singleton<Engine>
 {
     public RenderTarget? _GlobalRenderTarget;
-    SingleThreadSyncContext SyncContext;
+    public SingleThreadSyncContext SyncContext { get; private set; }
 
     public bool IsMobile { private set; get; } = false;
     public RenderTarget ViewportRenderTarget
