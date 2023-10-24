@@ -25,11 +25,11 @@ public class ImGuiWarp
     ImGuiController? Controller;
     public void Init()
     {
-        if (Engine.Instance.IsMobile)
+        if (CurrentLevel.CurrentWorld.Engine.IsMobile)
             return;
         try
         {
-            Controller = new ImGuiController(gl, Engine.Instance.View, Engine.Instance.Input);
+            Controller = new ImGuiController(gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input);
         } 
         catch (Exception e)
         { 
@@ -41,7 +41,7 @@ public class ImGuiWarp
     public int num = 0;
     public void Render(double DeltaTime)
     {
-        if (Engine.Instance.IsMobile)
+        if (CurrentLevel.CurrentWorld.Engine.IsMobile)
             return;
         if (Controller == null)
         {
@@ -412,7 +412,7 @@ public class ImGuiWarp
 
     public void Fini()
     {
-        if (Engine.Instance.IsMobile)
+        if (CurrentLevel.CurrentWorld.Engine.IsMobile)
             return;
         Controller?.Dispose();
     }
