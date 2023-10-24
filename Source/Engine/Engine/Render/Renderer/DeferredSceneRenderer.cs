@@ -25,7 +25,7 @@ public class DeferredSceneRenderer : IRenderer
     Shader InstanceSpotShadowMapShader;
     Shader InstancePointLightingShader;
     Shader SkyboxShader;
-    Shader PontLightShadowShader;
+    Shader PointLightShadowShader;
     Shader BloomPreShader;
     Shader BloomShader;
     Shader RenderToCamera;
@@ -83,7 +83,7 @@ public class DeferredSceneRenderer : IRenderer
         PointLightingShader = new Shader("/Shader/Deferred/Light/PointLighting", Macros);
         DLShadowMapShader = new Shader("/Shader/ShadowMap/DirectionLightShadow", Macros);
         SpotShadowMapShader = new Shader("/Shader/ShadowMap/SpotLightShadow", Macros);
-        PontLightShadowShader = new Shader("/Shader/ShadowMap/PointLightShadow", Macros);
+        PointLightShadowShader = new Shader("/Shader/ShadowMap/PointLightShadow", Macros);
         BloomPreShader = new Shader("/Shader/Deferred/BloomPre", Macros);
         BloomShader = new Shader("/Shader/Deferred/Bloom", Macros);
         SkyboxShader = new Shader("/Shader/Skybox", Macros);
@@ -426,12 +426,169 @@ public class DeferredSceneRenderer : IRenderer
         if (CurrentCameraComponent == null)
             return;
 
-        gl.PushDebugGroup("Shadow Depth Pass");
+        gl.PushDebugGroup("ShadowMap Pass");
         gl.Enable(GLEnum.DepthTest);
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Front);
 
+        SpotShadowMap(DeltaTime);
+        PointLightShadowMap(DeltaTime);
+        DirectionLightShadowMap(DeltaTime);
 
+
+        gl.CullFace(GLEnum.Back);
+        gl.PopDebugGroup();
+    }
+
+    private void SpotShadowMap(double DeltaTime)
+    {
+        if (CurrentCameraComponent == null)
+            return;
+
+        gl.PushDebugGroup("SpotLight");
+        SpotShadowMapShader.Use();
+        foreach (var SpotLight in World.CurrentLevel.SpotLightComponents)
+        {
+            var View = Matrix4x4.CreateLookAt(SpotLight.WorldLocation, SpotLight.WorldLocation + SpotLight.ForwardVector, SpotLight.UpVector);
+            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(170F.DegreeToRadians(), 1, 1F, 100);
+            gl.Viewport(new Rectangle(0, 0, SpotLight.ShadowMapSize.X, SpotLight.ShadowMapSize.Y));
+            gl.BindFramebuffer(GLEnum.Framebuffer, SpotLight.ShadowMapFrameBufferID);
+            gl.Clear(ClearBufferMask.DepthBufferBit);
+
+            SpotShadowMapShader.SetMatrix("ViewTransform", View);
+            SpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+
+            foreach (var component in World.CurrentLevel.StaticMeshComponents)
+            {
+                if (component == null)
+                    continue;
+                if (component.IsDestoryed == false)
+                {
+                    SpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    SpotShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
+                    component.Render(DeltaTime);
+                }
+            }
+
+            InstanceSpotShadowMapShader.SetMatrix("ViewTransform", View);
+            InstanceSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            foreach (var ism in World.CurrentLevel.ISMComponents)
+            {
+                GetPlanes(View * Projection, ref Planes);
+                if (ism is HierarchicalInstancedStaticMeshComponent hism)
+                    hism.CameraCulling(Planes);
+                ism.RenderISM(CurrentCameraComponent, DeltaTime);
+            }
+
+            SkeletakMeshSpotShadowMapShader.SetMatrix("ViewTransform", View);
+            SkeletakMeshSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
+            {
+                if (component.IsDestoryed == false)
+                {
+                    if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                    {
+                        for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
+                        {
+                            SkeletakMeshSpotShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
+                        }
+                    }
+                    SkeletakMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    SkeletakMeshSpotShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
+                    component.Render(DeltaTime);
+                }
+            }
+            gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
+
+        }
+
+        SpotLightingShader.UnUse();
+        gl.PopDebugGroup();
+    }
+    private void PointLightShadowMap(double DeltaTime)
+    {
+
+        if (CurrentCameraComponent == null)
+            return;
+        gl.PushDebugGroup("PointLight");
+        PointLightShadowShader.Use();
+        foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
+        {
+
+            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(90f.DegreeToRadians(), 1, 1, 1000);
+            Matrix4x4[] Views = new Matrix4x4[6];
+            Views[0] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, -1), new Vector3(0, 1, 0));
+            Views[1] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, 1), new Vector3(0, 1, 0));
+            Views[2] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(-1, 0, 0), new Vector3(0, 1, 0));
+            Views[3] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(1, 0, 0), new Vector3(0, 1, 0));
+            Views[4] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 1, 0), new Vector3(0, 0, 1));
+            Views[5] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, -1, 0), new Vector3(0, 0, -1));
+
+
+
+            gl.Viewport(new Rectangle(0, 0, PointLightComponent.ShadowMapSize.X, PointLightComponent.ShadowMapSize.Y));
+            for (int i = 0; i < 6; i++)
+            {
+                gl.PushDebugGroup("face:" + i);
+                gl.BindFramebuffer(GLEnum.Framebuffer, PointLightComponent.ShadowMapFrameBufferIDs[i]);
+                gl.Clear(ClearBufferMask.DepthBufferBit);
+                SpotShadowMapShader.SetMatrix("ViewTransform", Views[i]);
+                SpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+                foreach (var component in World.CurrentLevel.StaticMeshComponents)
+                {
+                    if (component == null)
+                        continue;
+                    if (component.IsDestoryed == false)
+                    {
+                        PointLightShadowShader.SetMatrix("ModelTransform", component.WorldTransform);
+                        component.Render(DeltaTime);
+                    }
+                }
+
+                InstancePointLightingShader.SetMatrix("ViewTransform", Views[i]);
+                InstancePointLightingShader.SetMatrix("ProjectionTransform", Projection);
+                InstancePointLightingShader.SetInt("layer", i);
+                foreach (var hism in World.CurrentLevel.ISMComponents)
+                {
+                    if (hism == null)
+                        continue;
+                    hism.RenderISM(CurrentCameraComponent, DeltaTime);
+                }
+
+
+                SkeletakMeshPointLightingShader.SetMatrix("ViewTransform", Views[i]);
+                SkeletakMeshPointLightingShader.SetMatrix("ProjectionTransform", Projection);
+                SkeletakMeshPointLightingShader.SetInt("layer", i);
+                SkeletakMeshPointLightingShader.Use();
+                foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
+                {
+                    if (component.IsDestoryed == false)
+                    {
+                        if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                        {
+                            for (int j = 0; j < component.SkeletalMesh.Skeleton.BoneList.Count; j++)
+                            {
+                                SkeletakMeshPointLightingShader.SetMatrix($"AnimTransform[{j}]", component.AnimBuffer[j]);
+                            }
+                        }
+                        SkeletakMeshPointLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
+                        SkeletakMeshPointLightingShader.SetMatrix("NormalTransform", component.NormalTransform);
+                        component.Render(DeltaTime);
+                    }
+                }
+                gl.PopDebugGroup();
+            }
+
+            gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
+        }
+        PointLightShadowShader.UnUse();
+        gl.PopDebugGroup();
+    }
+    private void DirectionLightShadowMap(double DeltaTime)
+    {
+        if (CurrentCameraComponent == null)
+            return;
+        gl.PushDebugGroup("DirectionLight");
         DLShadowMapShader.Use();
         foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
@@ -484,158 +641,9 @@ public class DeferredSceneRenderer : IRenderer
                     component.Render(DeltaTime);
                 }
             }
-
-            gl.BindFramebuffer(GLEnum.Framebuffer, 0);
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }
         DLShadowMapShader.UnUse();
-
-        SpotShadowMapShader.Use();
-        foreach (var SpotLight in World.CurrentLevel.SpotLightComponents)
-        {
-            var View = Matrix4x4.CreateLookAt(SpotLight.WorldLocation, SpotLight.WorldLocation + SpotLight.ForwardVector, SpotLight.UpVector);
-            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(170F.DegreeToRadians(), 1, 1F, 100);
-            gl.Viewport(new Rectangle(0, 0, SpotLight.ShadowMapSize.X, SpotLight.ShadowMapSize.Y));
-            gl.BindFramebuffer(GLEnum.Framebuffer, SpotLight.ShadowMapFrameBufferID);
-            gl.Clear(ClearBufferMask.DepthBufferBit);
-
-            SpotShadowMapShader.SetMatrix("ViewTransform", View);
-            SpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
-
-            foreach (var component in World.CurrentLevel.StaticMeshComponents)
-            {
-                if (component == null)
-                    continue;
-                if (component.IsDestoryed == false)
-                {
-                    SpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    SpotShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
-                    component.Render(DeltaTime);
-                }
-            }
-            
-            InstanceSpotShadowMapShader.SetMatrix("ViewTransform", View);
-            InstanceSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
-            foreach (var ism in World.CurrentLevel.ISMComponents)
-            {
-                GetPlanes(View * Projection, ref Planes);
-                if (ism is HierarchicalInstancedStaticMeshComponent hism)
-                    hism.CameraCulling(Planes);
-                ism.RenderISM(CurrentCameraComponent, DeltaTime);
-            }
-
-            SkeletakMeshSpotShadowMapShader.SetMatrix("ViewTransform", View);
-            SkeletakMeshSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
-            foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
-            {
-                if (component.IsDestoryed == false)
-                {
-                    if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
-                    {
-                        for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
-                        {
-                            SkeletakMeshSpotShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
-                        }
-                    }
-                    SkeletakMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    SkeletakMeshSpotShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
-                    component.Render(DeltaTime);
-                }
-            }
-
-
-            gl.BindFramebuffer(GLEnum.Framebuffer, 0);
-            gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
-
-        }
-
-
-        SpotLightingShader.UnUse();
-
-
-        PontLightShadowShader.Use();
-        foreach (var PointLight in World.CurrentLevel.PointLightComponents)
-        {
-            gl.Viewport(new Rectangle(0, 0, PointLight.ShadowMapSize.X, PointLight.ShadowMapSize.Y));
-            gl.BindFramebuffer(GLEnum.Framebuffer, PointLight.ShadowMapFrameBufferID);
-            gl.Clear(ClearBufferMask.DepthBufferBit);
-            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(90f.DegreeToRadians(), 1, 1, 1000);
-            Matrix4x4[] ShadowMatrices = new Matrix4x4[6];
-            ShadowMatrices[0] = Matrix4x4.CreateLookAt(PointLight.WorldLocation, PointLight.WorldLocation + PointLight.RightVector, -PointLight.UpVector) * Projection;
-            ShadowMatrices[1] = Matrix4x4.CreateLookAt(PointLight.WorldLocation, PointLight.WorldLocation - PointLight.RightVector, -PointLight.UpVector) * Projection;
-            ShadowMatrices[2] = Matrix4x4.CreateLookAt(PointLight.WorldLocation, PointLight.WorldLocation + PointLight.UpVector, -PointLight.ForwardVector) * Projection;
-            ShadowMatrices[3] = Matrix4x4.CreateLookAt(PointLight.WorldLocation, PointLight.WorldLocation - PointLight.UpVector, PointLight.ForwardVector) * Projection;
-            ShadowMatrices[4] = Matrix4x4.CreateLookAt(PointLight.WorldLocation, PointLight.WorldLocation - PointLight.ForwardVector, -PointLight.UpVector) * Projection;
-            ShadowMatrices[5] = Matrix4x4.CreateLookAt(PointLight.WorldLocation, PointLight.WorldLocation + PointLight.ForwardVector, -PointLight.UpVector) * Projection;
-            for (var i = 0; i < 6; i++)
-            {
-                PontLightShadowShader.SetMatrix("shadowMatrices[" + i + "]", ShadowMatrices[i]);
-            }
-
-
-            PontLightShadowShader.SetVector3("LightLocation", PointLight.WorldLocation);
-            PontLightShadowShader.SetFloat("FarPlan", 1000);
-            foreach (var component in World.CurrentLevel.StaticMeshComponents)
-            {
-                if (component == null)
-                    continue;
-                if (component.IsDestoryed == false)
-                {
-                    PontLightShadowShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    component.Render(DeltaTime);
-                }
-            }
-
-            
-            for (var i = 0; i < 6; i++)
-            {
-                InstancePointLightingShader.SetMatrix("shadowMatrices[" + i + "]", ShadowMatrices[i]);
-            }
-
-            InstancePointLightingShader.SetVector3("LightLocation", PointLight.WorldLocation);
-            InstancePointLightingShader.SetFloat("FarPlan", 1000);
-            InstancePointLightingShader.Use();
-            foreach (var hism in World.CurrentLevel.ISMComponents)
-            {
-                if (hism == null) 
-                    continue;
-                hism.RenderISM(CurrentCameraComponent, DeltaTime);
-            }
-
-            for (var i = 0; i < 6; i++)
-            {
-                SkeletakMeshPointLightingShader.SetMatrix("shadowMatrices[" + i + "]", ShadowMatrices[i]);
-            }
-            SkeletakMeshPointLightingShader.SetVector3("LightLocation", PointLight.WorldLocation);
-            SkeletakMeshPointLightingShader.SetFloat("FarPlan", 1000);
-            SkeletakMeshPointLightingShader.Use();
-            foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
-            {
-                if (component.IsDestoryed == false)
-                {
-                    if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
-                    {
-                        for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
-                        {
-                            SkeletakMeshPointLightingShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
-                        }
-                    }
-                    SkeletakMeshPointLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    SkeletakMeshPointLightingShader.SetMatrix("NormalTransform", component.NormalTransform);
-                    component.Render(DeltaTime);
-                }
-            }
-
-
-            gl.BindFramebuffer(GLEnum.Framebuffer, 0);
-            gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
-        }
-        PontLightShadowShader.UnUse();
-
-
-
-
-        gl.CullFace(GLEnum.Back);
         gl.PopDebugGroup();
     }
     private void BasePass(double DeltaTime)
@@ -923,6 +931,15 @@ public class DeferredSceneRenderer : IRenderer
         PointLightingShader.Use();
         foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
         {
+            Matrix4x4[] Views = new Matrix4x4[6];
+            Views[0] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, -1), new Vector3(0, 1, 0));
+            Views[1] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, 1), new Vector3(0, 1, 0));
+            Views[2] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(-1, 0, 0), new Vector3(0, 1, 0));
+            Views[3] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(1, 0, 0), new Vector3(0, 1, 0));
+            Views[4] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 1, 0), new Vector3(0, 0, 1));
+            Views[5] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, -1, 0), new Vector3(0, 0, -1));
+
+
             Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
             PointLightingShader.SetMatrix("VPInvert", VPInvert);
 
@@ -955,12 +972,6 @@ public class DeferredSceneRenderer : IRenderer
             gl.ActiveTexture(GLEnum.Texture2);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
-            if (IsMobile == false)
-            {
-                PointLightingShader.SetInt("ShadowMapTextue", 3);
-                gl.ActiveTexture(GLEnum.Texture3);
-                gl.BindTexture(GLEnum.TextureCubeMap, PointLightComponent.ShadowMapTextureID);
-            }
             if (IsMobile == false && PostProcessBuffer2 != null)
             {
                 PointLightingShader.SetInt("SSAOTexture", 4);
@@ -968,6 +979,19 @@ public class DeferredSceneRenderer : IRenderer
                 gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
             }
 
+
+            for (int  i = 0; i < 6; i ++)
+            {
+
+                var Projection = Matrix4x4.CreatePerspectiveFieldOfView(90f.DegreeToRadians(), 1, 1, 1000);
+                PointLightingShader.SetMatrix($"WorldToLights[{i}]", Views[i] * Projection);
+                PointLightingShader.SetInt($"ShadowMapTextures{i}", 5 + i);
+                gl.ActiveTexture(GLEnum.Texture5 + i);
+                gl.BindTexture(GLEnum.Texture2D, PointLightComponent.ShadowMapTextureIDs[i]);
+            }
+            
+            
+            
             PointLightingShader.SetFloat("FarPlan", 1000);
 
             PointLightingShader.SetVector3("LightLocation", PointLightComponent.WorldLocation);

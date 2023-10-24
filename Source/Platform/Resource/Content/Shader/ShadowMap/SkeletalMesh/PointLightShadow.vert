@@ -1,12 +1,17 @@
-#version 320 es
+#version 300 es
 
 precision highp float;
-layout (location = 0) in vec3 position;
+layout (location = 0) in vec3 Location;
+layout (location = 5) in vec2 TexCoord;
 layout (location = 6) in vec4 BoneIds;
 layout (location = 7) in vec4 BoneWeights;
 
 uniform mat4 ModelTransform;
+uniform mat4 ViewTransform;
+uniform mat4 ProjectionTransform;
+out vec2 OutTexCoord;
 uniform mat4 AnimTransform[100];
+
 
 void main()
 {
@@ -14,5 +19,7 @@ void main()
     AnimMatrix += AnimTransform[int(BoneIds[1])] * BoneWeights[1];
     AnimMatrix += AnimTransform[int(BoneIds[2])] * BoneWeights[2];
     AnimMatrix += AnimTransform[int(BoneIds[3])] * BoneWeights[3];
-    gl_Position = ModelTransform * AnimMatrix * vec4(position, 1.0);
+    OutTexCoord = TexCoord;
+    gl_Position = ProjectionTransform * ViewTransform * ModelTransform * AnimMatrix * vec4(Location, 1.0);
+    
 }

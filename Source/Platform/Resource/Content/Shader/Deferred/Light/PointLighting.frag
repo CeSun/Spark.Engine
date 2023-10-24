@@ -1,5 +1,5 @@
 #version 300 es
-
+#extension GL_EXT_gpu_shader5 : enable
 precision highp float;
 out vec4 glColor;
 
@@ -9,11 +9,18 @@ in vec2 OutTrueTexCoord;
 uniform sampler2D ColorTexture;
 uniform sampler2D CustomBuffer;
 uniform sampler2D DepthTexture;
-uniform samplerCube ShadowMapTextue;
+uniform sampler2D ShadowMapTextures0;
+uniform sampler2D ShadowMapTextures1;
+uniform sampler2D ShadowMapTextures2;
+uniform sampler2D ShadowMapTextures3;
+uniform sampler2D ShadowMapTextures4;
+uniform sampler2D ShadowMapTextures5;
 #ifndef _MOBILE_
 uniform sampler2D SSAOTexture;
 #endif
 uniform mat4 VPInvert;
+
+uniform mat4 WorldToLights[6];
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
@@ -104,18 +111,102 @@ void main()
 
 float ShadowCalculation(vec3 WorldLocation)
 {
-    // get vector between fragment position and light position
-    vec3 fragToLight = WorldLocation - LightLocation;
-    // ise the fragment to light vector to sample from the depth map    
-    float closestDepth = texture(ShadowMapTextue, fragToLight).r;
-    // it is currently in linear range between [0,1], let's re-transform it back to original depth value
-    closestDepth *= FarPlan;
-    // now get current linear depth as the length between the fragment and light position
-    float currentDepth = length(fragToLight);
-    // test for shadows
-    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;       
+    vec3 fragToLight = normalize(WorldLocation - LightLocation);  
+	if (abs(fragToLight.x) > abs(fragToLight.y) && abs(fragToLight.x) > abs(fragToLight.z))
+	{
+		if (fragToLight.x > 0.0f)
+		{
+			vec4 tmpLightSpaceLocation = WorldToLights[3] * vec4(WorldLocation, 1.0);
+			vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
+			LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
+    
+			if (LightSpaceLocation.z > 1.0f)
+				LightSpaceLocation.z = 1.0f;
 
-    return shadow;
+			float ShadowDepth = texture(ShadowMapTextures3, LightSpaceLocation.xy ).r; 
+			float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
+	
+			return Shadow;
+		}
+		else 
+		{
+			vec4 tmpLightSpaceLocation = WorldToLights[2] * vec4(WorldLocation, 1.0);
+			vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
+			LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
+    
+			if (LightSpaceLocation.z > 1.0f)
+				LightSpaceLocation.z = 1.0f;
+
+			float ShadowDepth = texture(ShadowMapTextures2, LightSpaceLocation.xy ).r; 
+			float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
+	
+			return Shadow;
+		}
+	}
+	if (abs(fragToLight.y) > abs(fragToLight.x) && abs(fragToLight.y) > abs(fragToLight.z))
+	{
+		if (fragToLight.y > 0.0f)
+		{
+			vec4 tmpLightSpaceLocation = WorldToLights[4] * vec4(WorldLocation, 1.0);
+			vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
+			LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
+    
+			if (LightSpaceLocation.z > 1.0f)
+				LightSpaceLocation.z = 1.0f;
+
+			float ShadowDepth = texture(ShadowMapTextures4, LightSpaceLocation.xy ).r; 
+			float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
+	
+			return Shadow;
+		}
+		else 
+		{
+			vec4 tmpLightSpaceLocation = WorldToLights[5] * vec4(WorldLocation, 1.0);
+			vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
+			LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
+    
+			if (LightSpaceLocation.z > 1.0f)
+				LightSpaceLocation.z = 1.0f;
+
+			float ShadowDepth = texture(ShadowMapTextures5, LightSpaceLocation.xy ).r; 
+			float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
+	
+			return Shadow;
+		}
+	}
+	if (abs(fragToLight.z) > abs(fragToLight.x) && abs(fragToLight.z) > abs(fragToLight.y))
+	{
+		if (fragToLight.z > 0.0f)
+		{
+			vec4 tmpLightSpaceLocation = WorldToLights[1] * vec4(WorldLocation, 1.0);
+			vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
+			LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
+    
+			if (LightSpaceLocation.z > 1.0f)
+				LightSpaceLocation.z = 1.0f;
+
+			float ShadowDepth = texture(ShadowMapTextures1, LightSpaceLocation.xy ).r; 
+			float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
+	
+			return Shadow;
+		}
+		else 
+		{
+			vec4 tmpLightSpaceLocation = WorldToLights[0] * vec4(WorldLocation, 1.0);
+			vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
+			LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;
+    
+			if (LightSpaceLocation.z > 1.0f)
+				LightSpaceLocation.z = 1.0f;
+
+			float ShadowDepth = texture(ShadowMapTextures0, LightSpaceLocation.xy ).r; 
+			float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
+	
+			return Shadow;
+		}
+	}
+
+	return 0.0f;
 }
 
 vec3 GetWorldLocation(vec3 ScreenLocation)

@@ -18,9 +18,6 @@ using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Manager;
 using Jitter2.Collision;
 using PhyWorld = Jitter2.World;
-using System.ComponentModel;
-using Spark.Engine.GUI;
-using ImGuiNET;
 
 namespace Spark.Engine;
 
@@ -40,15 +37,13 @@ public partial class Level
 
     public UpdateManager UpdateManager { private set; get; }
 
-    public void BeginPlay()
-    {
-
-    }
+ 
     public void Destory() 
     {
     }
     public void Update(double DeltaTime)
     {
+        RobotMove(DeltaTime);
         PhyWorld.Step((float)DeltaTime, false);
         ActorUpdate(DeltaTime);
         UpdateManager.Update(DeltaTime);
@@ -282,4 +277,185 @@ public partial class Level
             }
         }
     }
+}
+
+
+public partial class Level
+{
+    Actor? RobotActor;
+    CameraComponent? CameraComponent;
+
+    Vector2 MoveData = default;
+    Vector2 LastPosition;
+
+    private MouseButton ViewButton = MouseButton.Right;
+    public void OnMouseMove(IMouse mouse, Vector2 position)
+    {
+        if (MainMouse.IsButtonPressed(ViewButton))
+        {
+            if (CameraComponent == null)
+                return;
+            var moveable = position - LastPosition;
+            LastPosition = position;
+
+            MoveData += (moveable * 0.1f);
+            var rotation = Quaternion.CreateFromYawPitchRoll(-1 * MoveData.X.DegreeToRadians(), -1 * MoveData.Y.DegreeToRadians(), 0);
+            CameraComponent.WorldRotation = rotation;
+
+
+            rotation = Quaternion.CreateFromYawPitchRoll(-1 * MoveData.X.DegreeToRadians(), 0, 0);
+
+            // RobotActor.WorldRotation = rotation;
+        }
+    }
+
+    public void OnMouseKeyDown(IMouse mouse, Silk.NET.Input.MouseButton key)
+    {
+        if (key == ViewButton)
+        {
+            LastPosition = mouse.Position;
+        }
+    }
+
+
+    public void BeginPlay()
+    {
+        if (Engine.Instance.IsMobile == true)
+        {
+            ViewButton = MouseButton.Left;
+            //_ = MobileTest();
+        }
+        // InitGrass();
+        // Test();
+        MainMouse.MouseMove += OnMouseMove;
+        MainMouse.MouseDown += OnMouseKeyDown;
+
+        var (skm, sk, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/untitled.glb");
+        var SkeletalActor = new Actor(this, "Skeletal Mesh");
+        var Comp = new SkeletalMeshComponent(SkeletalActor);
+        Comp.SkeletalMesh = skm;
+        Comp.AnimSequence = anim[2];
+        Comp.WorldScale = new Vector3(5, 5, 5);
+        Comp.WorldLocation = new Vector3(0, 1, 0);
+        Comp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180f.DegreeToRadians(), 0, 0);
+        // 定义一个actor和并挂载静态网格体组件
+        var RobotActor = new Actor(this, "Robot Actor");
+        var RobotMeshComp = new StaticMeshComponent(RobotActor);
+        RobotMeshComp.StaticMesh = StaticMesh.LoadFromGLB("/StaticMesh/untitled.glb");
+        RobotActor.RootComponent = RobotMeshComp;
+        RobotActor.WorldScale = new Vector3(5, 5, 5);
+        RobotMeshComp.IsStatic = true;
+        RobotActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), 90F.DegreeToRadians(), 0F.DegreeToRadians());
+        RobotActor.WorldLocation = new Vector3(0, 1.8f, 10);
+        this.RobotActor = RobotActor;
+
+
+
+        // 相机actor
+        var CameraActor = new Actor(this, "Camera Actor");
+        CameraComponent = new CameraComponent(CameraActor);
+        CameraActor.RootComponent = CameraComponent;
+        CameraComponent.NearPlaneDistance = 1;
+        CameraComponent.FarPlaneDistance = 1000f;
+        CameraComponent.FieldOfView = 75;
+        CameraComponent.ProjectionType = ProjectionType.Perspective;
+        CameraComponent.WorldLocation += (new Vector3(0, 20, 0) - CameraComponent.ForwardVector * 10);
+        CameraComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
+
+        // 加载个cube作为地板
+        var CubeActor = new Actor(this, "Plane Actor");
+        var CubeMeshComp = new StaticMeshComponent(CubeActor);
+        CubeActor.RootComponent = CubeMeshComp;
+        CubeMeshComp.StaticMesh = StaticMesh.LoadFromGLB("/StaticMesh/cube2.glb");
+        CubeMeshComp.IsStatic = true;
+        CubeMeshComp.WorldScale = new Vector3(100F, 1F, 100F);
+        CubeMeshComp.WorldLocation = new Vector3(0, 0, 0);
+
+        var DecalActor = new Actor(this, "DecalActor");
+        var DecalComponent = new DecalComponent(DecalActor);
+        DecalActor.RootComponent = DecalComponent;
+        DecalActor.WorldScale = new Vector3(1, 1, 1);
+        DecalActor.WorldLocation = new Vector3(0, 0.9F, 0);
+        DecalComponent.Material = new Assets.Material()
+        {
+            BaseColor = new Texture("/Texture/bear.png")
+        };
+        DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 90F.DegreeToRadians(), 90F.DegreeToRadians());
+
+        /*
+        // 视差贴图
+
+        var CubeActor2 = new Actor(this);
+        var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
+        CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
+        CubeActor2.RootComponent = CubeMeshComp2;
+        CubeMeshComp2.WorldScale = new Vector3(2, 2, 2);
+        CubeActor2.WorldLocation += CubeMeshComp2.UpVector * 2F + CubeMeshComp2.RightVector * 2;
+        var texture = new Texture("/StaticMesh/bricks2_disp.jpg");
+        foreach(var material in CubeMeshComp2.StaticMesh.Materials)
+        {
+            // material.Parallax = texture;
+        }
+        */
+        //CubeMeshComp2.StaticMesh.Materials
+
+
+        // 创建定向光源
+        var DirectionActor = new Actor(this, "Direction Actor");
+        var DirectionComp = new DirectionLightComponent(DirectionActor);
+        DirectionActor.RootComponent = DirectionComp;
+        DirectionComp.Color = Color.White;
+        DirectionComp.WorldRotation = Quaternion.CreateFromYawPitchRoll(70f.DegreeToRadians(), -45f.DegreeToRadians(), 0f);
+        DirectionComp.LightStrength = 0.6f;
+        DirectionComp.WorldLocation += DirectionComp.ForwardVector * -30;
+
+        var PointLight = new Actor(this, "PointLight Actor");
+        var PointLightComp = new PointLightComponent(PointLight);
+        PointLight.RootComponent = PointLightComp;
+        PointLightComp.Color = Color.YellowGreen;
+        PointLightComp.LightStrength = 0.7f;
+        PointLightComp.WorldLocation += PointLightComp.UpVector * 10;
+
+        var spotLight = new Actor(this, "SpotLight Actor");
+        var SpotLightComponent = new SpotLightComponent(spotLight);
+        spotLight.RootComponent = SpotLightComponent;
+        SpotLightComponent.Color = Color.SteelBlue;
+        SpotLightComponent.LightStrength = 0.7f;
+        SpotLightComponent.WorldLocation += SpotLightComponent.UpVector * 20;
+        SpotLightComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -90f.DegreeToRadians(), 0);
+        SpotLightComponent.InnerAngle = 90;
+        SpotLightComponent.OuterAngle = 110;
+        var SkyBoxActor = new Actor(this, "SkyBox Actor");
+        var skybox = new SkyboxComponent(SkyBoxActor);
+        skybox.SkyboxCube = TextureCube.Load("/Skybox/pm");
+    }
+    private void RobotMove(double DeltaTime)
+    {
+        if (RobotActor == null)
+            return;
+        Vector3 MoveDirection = Vector3.Zero;
+        if (MainKeyBoard.IsKeyPressed(Key.W))
+        {
+            MoveDirection.Z = -1;
+        }
+        if (MainKeyBoard.IsKeyPressed(Key.S))
+        {
+            MoveDirection.Z = 1;
+        }
+        if (MainKeyBoard.IsKeyPressed(Key.A))
+        {
+            MoveDirection.X = -1;
+        }
+        if (MainKeyBoard.IsKeyPressed(Key.D))
+        {
+            MoveDirection.X = 1;
+        }
+        if (MoveDirection.Length() != 0)
+        {
+            MoveDirection = Vector3.Normalize(MoveDirection);
+            MoveDirection = Vector3.Transform(MoveDirection, RobotActor.WorldRotation);
+            // RobotActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
+        }
+    }
+
 }

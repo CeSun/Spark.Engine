@@ -95,7 +95,7 @@ public partial class PrimitiveComponent
             IsBegined = true;
             BeginPlay();
         }
-        Update(DeltaTime);
+        OnUpdate(DeltaTime);
     }
 
     public virtual void OnUpdate(double DeltaTime)

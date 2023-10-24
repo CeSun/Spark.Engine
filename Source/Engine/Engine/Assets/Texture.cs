@@ -135,8 +135,6 @@ public class Texture
         {
             p = ImageResult.FromMemory(Parallax);
         }
-        if (p == null)
-            throw new Exception("光滑度 环境光遮蔽 高度图不能都为0");
         var main = mr;
         if (main == null)
             main = ao;

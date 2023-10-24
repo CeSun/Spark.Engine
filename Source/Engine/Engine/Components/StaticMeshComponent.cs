@@ -161,7 +161,7 @@ public class StaticMeshComponent : PrimitiveComponent
     }
     public override void OnUpdate(double DeltaTime)
     {
-        base.Update(DeltaTime);
+        base.OnUpdate(DeltaTime);
         if (RigidBody != null)
         {
             unsafe
