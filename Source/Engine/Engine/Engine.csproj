@@ -25,7 +25,4 @@
     <ItemGroup>
 	    <TrimmerRootAssembly Include="SharpGLTF.Schema2" />
     </ItemGroup>
-    <ItemGroup>
-      <Folder Include="Render\Buffer\" />
-    </ItemGroup>
 </Project>

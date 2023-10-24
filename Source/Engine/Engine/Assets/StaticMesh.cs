@@ -43,7 +43,7 @@ public class StaticMesh
 
         await Task.Run(() =>
         {
-            model = ModelRoot.ReadGLB(stream);
+            model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix});
         });
         if (model == null)
             throw new Exception("加载GLB失败");
@@ -59,7 +59,7 @@ public class StaticMesh
     }
     public static StaticMesh LoadFromGLB(Stream stream)
     {
-        var model = ModelRoot.ReadGLB(stream);
+        var model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
         return LoadFromGLBInternal(model);
     }

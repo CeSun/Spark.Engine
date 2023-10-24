@@ -317,7 +317,7 @@ public partial class Level
         }
     }
 
-
+    Actor? CameraActor;
     public void BeginPlay()
     {
         if (Engine.Instance.IsMobile == true)
@@ -334,9 +334,9 @@ public partial class Level
         var SkeletalActor = new Actor(this, "Skeletal Mesh");
         var Comp = new SkeletalMeshComponent(SkeletalActor);
 
-        SkeletalMesh.ImportFromGLBAsync("/StaticMesh/untitled.glb").Then((res) => {
+        SkeletalMesh.ImportFromGLBAsync("/StaticMesh/Soldier.glb").Then((res) => {
             Comp.SkeletalMesh = res.Item1;
-            Comp.AnimSequence = res.Item3[2];
+            Comp.AnimSequence = res.Item3[1];
         });
         Comp.WorldScale = new Vector3(5, 5, 5);
         Comp.WorldLocation = new Vector3(0, 1, 0);
@@ -344,7 +344,7 @@ public partial class Level
         // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this, "Robot Actor");
         var RobotMeshComp = new StaticMeshComponent(RobotActor);
-        StaticMesh.LoadFromGLBAsync("/StaticMesh/untitled.glb").Then((res) => {
+        StaticMesh.LoadFromGLBAsync("/StaticMesh/Soldier.glb").Then((res) => {
              RobotMeshComp.StaticMesh = res;
         });
         RobotActor.RootComponent = RobotMeshComp;
@@ -357,7 +357,7 @@ public partial class Level
 
 
         // 相机actor
-        var CameraActor = new Actor(this, "Camera Actor");
+        CameraActor = new Actor(this, "Camera Actor");
         CameraComponent = new CameraComponent(CameraActor);
         CameraActor.RootComponent = CameraComponent;
         CameraComponent.NearPlaneDistance = 1;
@@ -441,7 +441,7 @@ public partial class Level
     }
     private void RobotMove(double DeltaTime)
     {
-        if (RobotActor == null)
+        if (CameraActor == null)
             return;
         Vector3 MoveDirection = Vector3.Zero;
         if (MainKeyBoard.IsKeyPressed(Key.W))
@@ -463,8 +463,8 @@ public partial class Level
         if (MoveDirection.Length() != 0)
         {
             MoveDirection = Vector3.Normalize(MoveDirection);
-            MoveDirection = Vector3.Transform(MoveDirection, RobotActor.WorldRotation);
-            // RobotActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
+            MoveDirection = Vector3.Transform(MoveDirection, CameraActor.WorldRotation);
+            CameraActor.WorldLocation += MoveDirection * 10 * (float)DeltaTime;
         }
     }
 
