@@ -39,13 +39,14 @@ public class StaticMesh
     }
     public async static Task<StaticMesh> LoadFromGLBAsync(Stream stream)
     {
-        ModelRoot model = null;
+        ModelRoot? model = null;
 
         await Task.Run(() =>
         {
             model = ModelRoot.ReadGLB(stream);
         });
-
+        if (model == null)
+            throw new Exception("加载GLB失败");
         return LoadFromGLBInternal(model);
     }
 

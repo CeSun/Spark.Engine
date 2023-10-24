@@ -59,12 +59,13 @@ public class TextureCube
                 throw new Exception($"{Attributes[i]} attribute is null");
             using (var sr2 = FileSystem.GetStreamReader("Content" + jpgpath + "/" + path.ToString()))
             {
-                ImageResult result = null;
+                ImageResult? result = null;
                 await Task.Run(() =>
                 {
                     result = ImageResult.FromStream(sr2.BaseStream);
                 });
-
+                if (result == null)
+                    throw new Exception($"Failed to load {jpgpath}");
                 gl.BindTexture(GLEnum.TextureCubeMap, textureCube.TextureId);
                 unsafe
                 {

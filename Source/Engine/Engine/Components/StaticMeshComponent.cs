@@ -159,7 +159,7 @@ public class StaticMeshComponent : PrimitiveComponent
             }
         }
     }
-    public override void Update(double DeltaTime)
+    public override void OnUpdate(double DeltaTime)
     {
         base.Update(DeltaTime);
         if (RigidBody != null)
@@ -212,9 +212,8 @@ public class StaticMeshComponent : PrimitiveComponent
         }
     }
 
-    protected override void OnEndGame()
+    protected override void OnEndPlay()
     {
-        base.OnEndGame();
         if (RigidBody != null)
         {
             Owner.CurrentLevel.PhyWorld.Remove(RigidBody);

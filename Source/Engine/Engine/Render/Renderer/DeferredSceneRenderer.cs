@@ -47,7 +47,6 @@ public class DeferredSceneRenderer : IRenderer
     RenderTarget? PostProcessBuffer1;
     RenderTarget? PostProcessBuffer2;
     RenderTarget? PostProcessBuffer3;
-    RenderTarget? SceneBackFaceDepthBuffer;
     World World { get; set; }
 
     Texture NoiseTexture;
@@ -335,58 +334,7 @@ public class DeferredSceneRenderer : IRenderer
         }
     }
 
-    private void DrawPhyShape(double DeltaTime)
-    {
-        return;
-        gl.PushDebugGroup("DrawPhyShape");
-        if (CurrentCameraComponent == null)
-            return;
-        DebugShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
-        DebugShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-        DebugShader.SetVector3("Color", new Vector3(0, 0, 1));
-        gl.Clear(ClearBufferMask.DepthBufferBit);
-        foreach (var component in World.CurrentLevel.StaticMeshComponents)
-        {
-            if (component.RigidBody == null)
-                continue;
-            //component.RigidBody.DebugDraw(Debug.Instance);
-        }
-        Debug.Instance.DrawSegment(new Jitter2.LinearMath.JVector(-20, 10, 0), new Jitter2.LinearMath.JVector(20, 10, 0));
-        gl.PopDebugGroup();
-
-    }
-    private void BackFaceDepthPass(double DeltaTime)
-    {
-        if (SceneBackFaceDepthBuffer == null)
-            return;
-        using(SceneBackFaceDepthBuffer.Begin())
-        {
-            BackFaceDepthShader.Use();
-            gl.Enable(EnableCap.DepthTest);
-            gl.ClearColor(Color.Black);
-            gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-            gl.Enable(GLEnum.CullFace);
-            gl.CullFace(GLEnum.Front);
-
-            gl.Disable(EnableCap.Blend);
-            if (CurrentCameraComponent != null)
-            {
-                BackFaceDepthShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
-                BackFaceDepthShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-            }
-            foreach (var component in World.CurrentLevel.StaticMeshComponents)
-            {
-                if (component.IsDestoryed == false)
-                {
-                    BackFaceDepthShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    component.Render(DeltaTime);
-                }
-            }
-
-            BackFaceDepthShader.UnUse();
-            gl.CullFace(GLEnum.Back);
-        }
-    }
+   
     private void PostProcessPass(double DeltaTime)
     {
         if (IsMobile == true)
@@ -789,71 +737,11 @@ public class DeferredSceneRenderer : IRenderer
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
 
-
-            DrawPhyShape(DeltaTime);
             RenderToCamera.UnUse();
 
         };
     }
 
-    private unsafe void ScreenSpaceReflection(double DeltaTime)
-    {
-        if (PostProcessBuffer2 == null)
-            return;
-        if (PostProcessBuffer1 == null)
-            return;
-        if (CurrentCameraComponent == null) return;
-        BackFaceDepthPass(DeltaTime);
-        using(PostProcessBuffer2.Begin())
-        {
-            gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-            ScreenSpaceReflectionShader.Use();
-            ScreenSpaceReflectionShader.SetVector2("TexCoordScale",
-                new Vector2
-                {
-                    X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
-                    Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
-                });
-
-            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-            ScreenSpaceReflectionShader.SetMatrix("VPInvert", VPInvert);
-            ScreenSpaceReflectionShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-            ScreenSpaceReflectionShader.SetMatrix("View", CurrentCameraComponent.View);
-            ScreenSpaceReflectionShader.SetMatrix("Projection", CurrentCameraComponent.Projection);
-
-            ScreenSpaceReflectionShader.SetInt("ColorTexture", 0);
-            gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer1.GBufferIds[0]);
-            ScreenSpaceReflectionShader.SetInt("CustomBuffer", 1);
-            gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
-            ScreenSpaceReflectionShader.SetInt("ReflectionTexture", 2);
-            gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
-            ScreenSpaceReflectionShader.SetInt("DepthTexture", 3);
-            gl.ActiveTexture(GLEnum.Texture3);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
-            if (World.CurrentLevel.CurrentSkybox != null)
-            {
-                if (World.CurrentLevel.CurrentSkybox.SkyboxCube != null)
-                {
-                    ScreenSpaceReflectionShader.SetInt("SkyboxTexture", 4);
-                    World.CurrentLevel.CurrentSkybox.SkyboxCube.Use(4);
-                }
-            }
-            ScreenSpaceReflectionShader.SetInt("BackDepthTexture", 5);
-            gl.ActiveTexture(GLEnum.Texture5);
-            gl.BindTexture(GLEnum.Texture2D, SceneBackFaceDepthBuffer.DepthId);
-
-            gl.BindVertexArray(PostProcessVAO);
-            gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
-            gl.ActiveTexture(GLEnum.Texture0);
-            ScreenSpaceReflectionShader.UnUse();
-        }
-
-        LastPostProcessBuffer = PostProcessBuffer2;
-
-    }
     private void LightingPass(double DeltaTime)
     {
         if (CurrentCameraComponent == null)

@@ -29,8 +29,11 @@ vec4 MicroGBufferEncoding(vec3 BaseColor, vec2 Normal, float r, float m, float a
 void main()
 {
     vec3 ViewDirection =  normalize(TbnCameraLocation - TbnPosition);
+#ifdef _MOBILE_
+    vec2 NewTexCoord = OutTexCoord;
+#else
     vec2 NewTexCoord = GetUVOffset(OutTexCoord, ViewDirection);
-
+#endif
     if (NewTexCoord.x > 1.0f || NewTexCoord.x < 0.0f || NewTexCoord.y > 1.0f || NewTexCoord.y < 0.0f)
         discard;
     vec3 TextureNormal = texture(NormalTexture, NewTexCoord).xyz;

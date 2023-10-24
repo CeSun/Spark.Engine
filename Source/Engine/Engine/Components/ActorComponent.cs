@@ -27,11 +27,21 @@ public class ActorComponent
 
     public void BeginPlay()
     {
-
+        OnBeginPlay();
     }
 
+    public virtual void OnBeginPlay()
+    {
+
+    }
+    private bool IsBegined = false;
     public void Update(double DeltaTime)
     {
+        if (IsBegined == false)
+        {
+            IsBegined = true;
+            BeginPlay();
+        }
         OnUpdate(DeltaTime);
     }
 

@@ -79,7 +79,7 @@ public class SkeletalMeshComponent : PrimitiveComponent
         }
     }
 
-    public override void Update(double DeltaTime)
+    public override void OnUpdate(double DeltaTime)
     {
         if (AnimSampler != null && SkeletalMesh != null && SkeletalMesh.Skeleton != null)
         {

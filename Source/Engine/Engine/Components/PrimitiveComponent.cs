@@ -29,7 +29,6 @@ public partial class PrimitiveComponent
         IsDestoryed = false;
         _Owner = actor;
         _Owner.RegistComponent(this);
-        OnBeginGame();
         if (ReceieveUpdate)
         {
             this.Owner.CurrentLevel.UpdateManager.RegistUpdate(Update);
@@ -47,7 +46,7 @@ public partial class PrimitiveComponent
         {
             return;
         }
-        OnEndGame();
+        OnEndPlay();
         Owner.UnregistComponent(this);
         if (ParentComponent != null)
         {
@@ -60,12 +59,17 @@ public partial class PrimitiveComponent
         IsDestoryed = true;
     }
 
-    protected virtual void OnBeginGame()
+    protected void BeginPlay()
+    {
+        OnBeginPlay();
+    }
+
+    protected virtual void OnBeginPlay()
     {
 
     }
 
-    protected virtual void OnEndGame()
+    protected virtual void OnEndPlay()
     {
 
     }
@@ -79,11 +83,22 @@ public partial class PrimitiveComponent
     {
     }
 
+    private bool IsBegined = false;
     /// <summary>
     /// 更新
     /// </summary>
     /// <param name="DeltaTime"></param>
-    public virtual void Update(double DeltaTime)
+    public void Update(double DeltaTime)
+    {
+        if (IsBegined == false)
+        {
+            IsBegined = true;
+            BeginPlay();
+        }
+        Update(DeltaTime);
+    }
+
+    public virtual void OnUpdate(double DeltaTime)
     {
     }
 

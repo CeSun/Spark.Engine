@@ -37,12 +37,6 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
     {
     }
 
-    
-    protected override void OnBeginGame()
-    {
-        base.OnBeginGame();
-    }
-
     public override async void Build()
     {
         var sw = Stopwatch.StartNew();

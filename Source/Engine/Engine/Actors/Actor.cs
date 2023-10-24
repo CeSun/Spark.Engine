@@ -41,9 +41,14 @@ public partial class Actor
     {
         OnBeginPlay();
     }
-
+    private bool IsBegined = false;
     public void Update(double DeltaTime)
     {
+        if (IsBegined == false)
+        {
+            IsBegined = true;
+            BeginPlay();
+        }
         OnUpdate(DeltaTime);
     }
 

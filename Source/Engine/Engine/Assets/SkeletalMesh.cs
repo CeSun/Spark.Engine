@@ -109,11 +109,13 @@ public partial class SkeletalMesh
     public async static Task<(SkeletalMesh, Skeleton, List<AnimSequence>)> ImportFromGLBAsync(Stream stream)
     {
         SkeletalMesh sk = new SkeletalMesh();
-        ModelRoot model = null;
+        ModelRoot? model = null;
         await Task.Run(() =>
         {
             model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
         });
+        if (model == null)
+            throw new Exception("加载GLB失败");
         LoadVertics(sk, model);
         var skeleton = LoadBones(model);
         sk.Skeleton = skeleton;
