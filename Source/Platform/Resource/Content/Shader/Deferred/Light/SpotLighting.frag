@@ -84,9 +84,10 @@ void main()
     
 	if (LightSpaceLocation.z > 1.0f)
 		LightSpaceLocation.z = 1.0f;
+
+#ifndef _MOBILE_
     float Shadow = 0.0;
     vec2 texelSize = 1.0f / vec2(textureSize(ShadowMapTexture, 0));
-#ifndef _MOBILE_
     for(int x = -1; x <= 1; ++x)
     {
         for(int y = -1; y <= 1; ++y)
@@ -98,7 +99,7 @@ void main()
     Shadow /= 9.0;
 #else
      float ShadowDepth = texture(ShadowMapTexture, LightSpaceLocation.xy ).r; 
-     Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0 ;
+     float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
 #endif
 
 
