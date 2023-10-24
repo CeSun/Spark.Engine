@@ -33,7 +33,38 @@ public class Texture
         Path = "";
     }
 
+    public static async Task<Texture> LoadFromFileAsync(string Path)
+    {
+        using (var StreamReader = FileSystem.GetStreamReader("Content" + Path))
+        {
 
+            ImageResult? imageResult = null;
+            await Task.Run(() =>
+            {
+                imageResult = ImageResult.FromStream(StreamReader.BaseStream);
+            });
+            if (imageResult != null)
+            {
+                Texture texture = new Texture();
+                texture.ProcessImage(imageResult);
+                return texture;
+            }
+        }
+        throw new Exception("");
+    }
+    public static Texture LoadFromFile(string Path)
+    {
+        Texture texture = new Texture();
+        using (var StreamReader = FileSystem.GetStreamReader("Content" + Path))
+        {
+            var image = ImageResult.FromStream(StreamReader.BaseStream);
+            if (image != null)
+            {
+                texture.ProcessImage(image);
+            }
+        }
+        return texture;
+    }
     public unsafe static Texture CreateNoiseTexture(int Width, int Height)
     {
         var texture = new Texture();
