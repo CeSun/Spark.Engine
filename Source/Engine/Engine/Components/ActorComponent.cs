@@ -1,4 +1,4 @@
-﻿using Spark.Engine.Actors;
+﻿ using Spark.Engine.Actors;
 
 namespace Spark.Engine.Components;
 

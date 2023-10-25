@@ -4,15 +4,16 @@ using System.ComponentModel;
 using System.Linq;
 using System.Net;
 using System.Numerics;
+using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 
 namespace Spark.Engine.Components;
-
+ 
 public partial class PrimitiveComponent
 {
-    public Engine Engine => Owner.CurrentWorld.Engine;
-
+    public Engine Engine => Owner.CurrentWorld.Engine;  
+    public GL gl => Engine.Gl;
     public World World => Owner.CurrentWorld;
 
     public Level CurrentLevel => Owner.CurrentLevel;
