@@ -12,16 +12,17 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AndroidPackageFormat>apk</AndroidPackageFormat>
-    <EnableLLVM>True</EnableLLVM>
-    <AndroidLinkTool>r8</AndroidLinkTool>
+    <EnableLLVM>False</EnableLLVM>
     <JavaMaximumHeapSize>4G</JavaMaximumHeapSize>
     <AndroidKeyStore>True</AndroidKeyStore>
     <AndroidSigningStorePass>123456</AndroidSigningStorePass>
     <AndroidSigningKeyAlias>cesun</AndroidSigningKeyAlias>
     <AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
+	<IsTrimmable>true</IsTrimmable>
+	<TrimMode>full</TrimMode>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <EnableLLVM>True</EnableLLVM>
+    <EnableLLVM>False</EnableLLVM>
     <EmbedAssembliesIntoApk>False</EmbedAssembliesIntoApk>
     <JavaMaximumHeapSize>4G</JavaMaximumHeapSize>
     <AndroidKeyStore>True</AndroidKeyStore>

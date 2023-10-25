@@ -323,24 +323,27 @@ public partial class Level
         if (Engine.Instance.IsMobile == true)
         {
             ViewButton = MouseButton.Left;
-            //_ = MobileTest();
         }
-        // InitGrass();
-        // Test();
+
         MainMouse.MouseMove += OnMouseMove;
         MainMouse.MouseDown += OnMouseKeyDown;
-
-        
+        List<SkeletalMeshComponent> components = new List<SkeletalMeshComponent>();
+       
         var SkeletalActor = new Actor(this, "Skeletal Mesh");
         var Comp = new SkeletalMeshComponent(SkeletalActor);
 
-        SkeletalMesh.ImportFromGLBAsync("/StaticMesh/Soldier.glb").Then((res) => {
-            Comp.SkeletalMesh = res.Item1;
-            Comp.AnimSequence = res.Item3[1];
-        });
         Comp.WorldScale = new Vector3(5, 5, 5);
         Comp.WorldLocation = new Vector3(0, 1, 0);
         Comp.WorldRotation = Quaternion.CreateFromYawPitchRoll(180f.DegreeToRadians(), 0, 0);
+        components.Add(Comp);
+
+        SkeletalMesh.ImportFromGLBAsync("/StaticMesh/Soldier.glb").Then((res) => {
+            components.ForEach((comp) =>
+            {
+                comp.SkeletalMesh = res.Item1;
+                comp.AnimSequence = res.Item3[1];
+            });
+        });
         // 定义一个actor和并挂载静态网格体组件
         var RobotActor = new Actor(this, "Robot Actor");
         var RobotMeshComp = new StaticMeshComponent(RobotActor);
@@ -378,7 +381,6 @@ public partial class Level
         CubeMeshComp.WorldScale = new Vector3(100F, 1F, 100F);
         CubeMeshComp.WorldLocation = new Vector3(0, 0, 0);
 
-        /*
         var DecalActor = new Actor(this, "DecalActor");
         var DecalComponent = new DecalComponent(DecalActor);
         DecalActor.RootComponent = DecalComponent;
@@ -389,25 +391,7 @@ public partial class Level
             BaseColor = new Texture("/Texture/bear.png")
         };
         DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 90F.DegreeToRadians(), 90F.DegreeToRadians());
-        */
-        /*
-        // 视差贴图
-
-        var CubeActor2 = new Actor(this);
-        var CubeMeshComp2 = new StaticMeshComponent(CubeActor2);
-        CubeMeshComp2.StaticMesh = new StaticMesh("/StaticMesh/cube2.glb");
-        CubeActor2.RootComponent = CubeMeshComp2;
-        CubeMeshComp2.WorldScale = new Vector3(2, 2, 2);
-        CubeActor2.WorldLocation += CubeMeshComp2.UpVector * 2F + CubeMeshComp2.RightVector * 2;
-        var texture = new Texture("/StaticMesh/bricks2_disp.jpg");
-        foreach(var material in CubeMeshComp2.StaticMesh.Materials)
-        {
-            // material.Parallax = texture;
-        }
-        */
-        //CubeMeshComp2.StaticMesh.Materials
-
-
+        
         // 创建定向光源
         var DirectionActor = new Actor(this, "Direction Actor");
         var DirectionComp = new DirectionLightComponent(DirectionActor);
