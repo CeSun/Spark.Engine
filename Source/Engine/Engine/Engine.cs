@@ -122,9 +122,18 @@ public partial class Engine : Singleton<Engine>
 
 public static class GLExternFunctions
 {
-    public static void PushDebugGroup(this GL gl, string DebugInfo)
+    public static void PushGroup(this GL gl, string DebugInfo)
     {
+#if DEBUG
         gl.PushDebugGroup(DebugSource.DebugSourceApplication,1, (uint)DebugInfo.Length,  DebugInfo);
+#endif
+    }
+
+    public static void PopGroup(this GL gl)
+    {
+#if DEBUG
+        gl.PopDebugGroup();
+#endif
     }
 
     static OpenGLStates? States = null;

@@ -11,12 +11,15 @@ public class Shader
     public string FragShaderSource;
     public GL gl;
     List<string> Macros;
+
+    public string? Path;
     public Shader(string Path, GL GL) : this(Path, new List<string>(), GL)
     {
         
     }
     public Shader(string Path, List<string> Macros, GL GL)
     {
+        this.Path = Path;
         using (var sr = FileSystem.Instance.GetStreamReader("Content" + Path + ".vert"))
         {
             VertShaderSource = sr.ReadToEnd();

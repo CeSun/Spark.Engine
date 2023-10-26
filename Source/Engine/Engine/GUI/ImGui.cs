@@ -50,9 +50,9 @@ public class ImGuiWarp
         renderDebugPanel();
         renderActorList();
         renderDetail();
-        CurrentLevel.Engine.Gl.PushDebugGroup("GUI Pass");
+        CurrentLevel.Engine.Gl.PushGroup("GUI Pass");
         Controller?.Render();
-        CurrentLevel.Engine.Gl.PopDebugGroup();
+        CurrentLevel.Engine.Gl.PopGroup();
 
     }
 

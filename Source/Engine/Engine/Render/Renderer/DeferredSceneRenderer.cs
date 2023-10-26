@@ -211,8 +211,8 @@ public class DeferredSceneRenderer : IRenderer
             return;
         if (IsMobile == true)
             return;
-        gl.PushDebugGroup("Decal Pass");
-        gl.PushDebugGroup("Decal PrePass");
+        gl.PushGroup("Decal Pass");
+        gl.PushGroup("Decal PrePass");
         using (PostProcessBuffer1.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
@@ -269,9 +269,9 @@ public class DeferredSceneRenderer : IRenderer
 
             }
         }
-        gl.PopDebugGroup();
+        gl.PopGroup();
 
-        gl.PushDebugGroup("Decal PostPass");
+        gl.PushGroup("Decal PostPass");
         using (GlobalBuffer.Begin())
         {
             gl.DepthMask(false);
@@ -296,15 +296,15 @@ public class DeferredSceneRenderer : IRenderer
 
             gl.DepthMask(true);
         }
-        gl.PopDebugGroup();
-        gl.PopDebugGroup();
+        gl.PopGroup();
+        gl.PopGroup();
     }
     public void Render(double DeltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
 
-        gl.PushDebugGroup("Init Buffers");
+        gl.PushGroup("Init Buffers");
         GlobalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         if (IsMobile == false)
         {
@@ -313,14 +313,14 @@ public class DeferredSceneRenderer : IRenderer
             PostProcessBuffer3?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         }
         //SceneBackFaceDepthBuffer?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        gl.PopDebugGroup();
+        gl.PopGroup();
 
 
-        gl.PushDebugGroup("Init Status");
+        gl.PushGroup("Init Status");
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Back);
         gl.Enable(GLEnum.DepthTest);
-        gl.PopDebugGroup();
+        gl.PopGroup();
 
         // 生成ShadowMap
         DepthPass(DeltaTime);
@@ -337,20 +337,20 @@ public class DeferredSceneRenderer : IRenderer
             LightRT = PostProcessBuffer1;
         using (LightRT.Begin())
         {
-            gl.PushDebugGroup("Lighting Pass");
+            gl.PushGroup("Lighting Pass");
             // 延迟光照
             LightingPass(DeltaTime);
-            gl.PopDebugGroup();
-            gl.PushDebugGroup("Skybox Pass");
+            gl.PopGroup();
+            gl.PushGroup("Skybox Pass");
             // 天空盒
             SkyboxPass(DeltaTime);
-            gl.PopDebugGroup();
+            gl.PopGroup();
             LastPostProcessBuffer = PostProcessBuffer1;
         }
-        gl.PushDebugGroup("PostProcess Pass");
+        gl.PushGroup("PostProcess Pass");
         // 后处理
         PostProcessPass(DeltaTime);
-        gl.PopDebugGroup();
+        gl.PopGroup();
 
         if (IsMobile == false)
         {
@@ -364,12 +364,12 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (IsMobile == true)
             return;
-        gl.PushDebugGroup("Bloom Effect");
+        gl.PushGroup("Bloom Effect");
         BloomPass(DeltaTime);
-        gl.PopDebugGroup();
-        gl.PushDebugGroup("ScreenSpaceReflection");
+        gl.PopGroup();
+        gl.PushGroup("ScreenSpaceReflection");
         // ScreenSpaceReflection(DeltaTime);
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
     private void SkyboxPass(double DeltaTime)
     {
@@ -399,7 +399,7 @@ public class DeferredSceneRenderer : IRenderer
             return;
         if (CurrentCameraComponent == null)
             return;
-        gl.PushDebugGroup("SSAO Pass");
+        gl.PushGroup("SSAO Pass");
         using (PostProcessBuffer2.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
@@ -444,14 +444,14 @@ public class DeferredSceneRenderer : IRenderer
 
 
         }
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
     private void DepthPass(double DeltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
 
-        gl.PushDebugGroup("ShadowMap Pass");
+        gl.PushGroup("ShadowMap Pass");
         gl.Enable(GLEnum.DepthTest);
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Front);
@@ -462,7 +462,7 @@ public class DeferredSceneRenderer : IRenderer
 
 
         gl.CullFace(GLEnum.Back);
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
 
     private void SpotShadowMap(double DeltaTime)
@@ -470,14 +470,14 @@ public class DeferredSceneRenderer : IRenderer
         if (CurrentCameraComponent == null)
             return;
 
-        gl.PushDebugGroup("SpotLight");
+        gl.PushGroup("SpotLight");
         SpotShadowMapShader.Use();
-        foreach (var SpotLight in World.CurrentLevel.SpotLightComponents)
+        foreach (var SpotLightComponent in World.CurrentLevel.SpotLightComponents)
         {
-            var View = Matrix4x4.CreateLookAt(SpotLight.WorldLocation, SpotLight.WorldLocation + SpotLight.ForwardVector, SpotLight.UpVector);
-            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(170F.DegreeToRadians(), 1, 1F, 100);
-            gl.Viewport(new Rectangle(0, 0, SpotLight.ShadowMapSize.X, SpotLight.ShadowMapSize.Y));
-            gl.BindFramebuffer(GLEnum.Framebuffer, SpotLight.ShadowMapFrameBufferID);
+            var View = Matrix4x4.CreateLookAt(SpotLightComponent.WorldLocation, SpotLightComponent.WorldLocation + SpotLightComponent.ForwardVector, SpotLightComponent.UpVector);
+            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(SpotLightComponent.OuterAngle.DegreeToRadians(), 1, 1F, 100);
+            gl.Viewport(new Rectangle(0, 0, SpotLightComponent.ShadowMapSize.X, SpotLightComponent.ShadowMapSize.Y));
+            gl.BindFramebuffer(GLEnum.Framebuffer, SpotLightComponent.ShadowMapFrameBufferID);
             gl.Clear(ClearBufferMask.DepthBufferBit);
 
             SpotShadowMapShader.SetMatrix("ViewTransform", View);
@@ -528,14 +528,14 @@ public class DeferredSceneRenderer : IRenderer
         }
 
         SpotLightingShader.UnUse();
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
     private void PointLightShadowMap(double DeltaTime)
     {
 
         if (CurrentCameraComponent == null)
             return;
-        gl.PushDebugGroup("PointLight");
+        gl.PushGroup("PointLight");
         PointLightShadowShader.Use();
         foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
         {
@@ -554,7 +554,7 @@ public class DeferredSceneRenderer : IRenderer
             gl.Viewport(new Rectangle(0, 0, PointLightComponent.ShadowMapSize.X, PointLightComponent.ShadowMapSize.Y));
             for (int i = 0; i < 6; i++)
             {
-                gl.PushDebugGroup("face:" + i);
+                gl.PushGroup("face:" + i);
                 gl.BindFramebuffer(GLEnum.Framebuffer, PointLightComponent.ShadowMapFrameBufferIDs[i]);
                 gl.Clear(ClearBufferMask.DepthBufferBit);
                 SpotShadowMapShader.SetMatrix("ViewTransform", Views[i]);
@@ -601,19 +601,19 @@ public class DeferredSceneRenderer : IRenderer
                         component.Render(DeltaTime);
                     }
                 }
-                gl.PopDebugGroup();
+                gl.PopGroup();
             }
 
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }
         PointLightShadowShader.UnUse();
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
     private void DirectionLightShadowMap(double DeltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
-        gl.PushDebugGroup("DirectionLight");
+        gl.PushGroup("DirectionLight");
         DLShadowMapShader.Use();
         foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
@@ -669,12 +669,12 @@ public class DeferredSceneRenderer : IRenderer
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }
         DLShadowMapShader.UnUse();
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
     private void BasePass(double DeltaTime)
     {
         // 生成GBuffer
-        gl.PushDebugGroup("Base Pass");
+        gl.PushGroup("Base Pass");
         using (GlobalBuffer.Begin())
         {
             gl.Enable(EnableCap.DepthTest);
@@ -725,7 +725,7 @@ public class DeferredSceneRenderer : IRenderer
                 }
 
                 gl.Disable(GLEnum.CullFace);
-                gl.PushDebugGroup("InstancedStaticMesh Render");
+                gl.PushGroup("InstancedStaticMesh Render");
                 HISMShader.SetInt("BaseColorTexture", 0);
                 HISMShader.SetInt("NormalTexture", 1);
                 HISMShader.SetInt("CustomTexture", 2);
@@ -738,10 +738,10 @@ public class DeferredSceneRenderer : IRenderer
                         hism.CameraCulling(CurrentCameraComponent.GetPlanes());
                     ism.RenderISM(CurrentCameraComponent, DeltaTime);
                 }
-                gl.PopDebugGroup();
+                gl.PopGroup();
             }
         }
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
 
     private unsafe void RenderToCameraRenderTarget(double DeltaTime)
@@ -803,7 +803,7 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-        gl.PushDebugGroup("DirectionalLight Pass");
+        gl.PushGroup("DirectionalLight Pass");
         DirectionalLightingShader.Use();
         foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
@@ -865,7 +865,7 @@ public class DeferredSceneRenderer : IRenderer
 
         }
         DirectionalLightingShader.UnUse();
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
 
     private unsafe void BloomPass(double DeltaTime)
@@ -952,7 +952,7 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-        gl.PushDebugGroup("PointLight Pass");
+        gl.PushGroup("PointLight Pass");
         PointLightingShader.Use();
         foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
         {
@@ -1027,14 +1027,14 @@ public class DeferredSceneRenderer : IRenderer
 
         }
         PointLightingShader.UnUse();
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
 
 
     public unsafe void SpotLight()
     {
 
-        gl.PushDebugGroup("SpotLight Pass");
+        gl.PushGroup("SpotLight Pass");
         if (CurrentCameraComponent == null)
             return;
         SpotLightingShader.Use();
@@ -1055,7 +1055,7 @@ public class DeferredSceneRenderer : IRenderer
 
 
             var View = Matrix4x4.CreateLookAt(SpotLightComponent.WorldLocation, SpotLightComponent.WorldLocation + SpotLightComponent.ForwardVector, SpotLightComponent.UpVector);
-            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(170F.DegreeToRadians(), 1, 1F, 100);
+            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(SpotLightComponent.OuterAngle.DegreeToRadians(), 1, 1F, 100);
             var WorldToLight = View * Projection;
             SpotLightingShader.SetMatrix("WorldToLight", WorldToLight);
             SpotLightingShader.SetFloat("Constant", SpotLightComponent.Constant);
@@ -1107,8 +1107,12 @@ public class DeferredSceneRenderer : IRenderer
 
         }
         SpotLightingShader.UnUse();
-        gl.PopDebugGroup();
+        gl.PopGroup();
     }
+
+
+
+    
 }
 
 public struct DeferredVertex

@@ -195,7 +195,7 @@ public class StaticMeshComponent : PrimitiveComponent
         if (StaticMesh != null)
         {
             int index = 0;
-            gl.PushDebugGroup("Render Static Mesh:" + StaticMesh.Path);
+            gl.PushGroup("Render Static Mesh:" + StaticMesh.Path);
             foreach (var element in StaticMesh.Elements)
             {
                 for (int i = 0; i < element.Material.Textures.Count(); i++)
@@ -218,7 +218,7 @@ public class StaticMeshComponent : PrimitiveComponent
                 }
                 index++;
             }
-            gl.PopDebugGroup();
+            gl.PopGroup();
         }
     }
 
