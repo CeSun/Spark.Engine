@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SharpGLTF.Schema2;
 using Silk.NET.OpenGLES;
 
 namespace Spark.Engine.Render;
 
 public class RenderTarget : IDisposable
 {
-    private GL gl;
+    private GL gl => Engine.Gl;
+    public Engine Engine;
     public int BufferWidth { private set; get; }
     public int BufferHeight { private set; get; }
 
@@ -24,7 +26,7 @@ public class RenderTarget : IDisposable
     public bool IsViewport = false;
 
     public GLEnum[] Attachments { private set; get; }
-    public RenderTarget(int width, int height, uint GbufferNums, GL gl)
+    public RenderTarget(int width, int height, uint GbufferNums, Engine engine)
     {
         GBufferIds = new uint[GbufferNums];
         Attachments = new GLEnum[GbufferNums];
@@ -32,15 +34,15 @@ public class RenderTarget : IDisposable
         {
             Attachments[i] = GLEnum.ColorAttachment0 + i;
         }
-        this.gl = gl;
+        this.Engine = engine;
         Resize(width, height);
     }
-    public RenderTarget(int width, int height, GL gl)
+    public RenderTarget(int width, int height, Engine engine)
     {
         GBufferIds = new uint[0];
         Attachments = new GLEnum[0];
         IsViewport = true;
-        this.gl = gl;
+        this.Engine = engine;
         Resize(width, height);
     }
 
@@ -50,6 +52,7 @@ public class RenderTarget : IDisposable
         Height = height;
         if (IsViewport == true)
         {
+            BufferId = Engine.DefaultFBOID;
             BufferWidth = width;
             BufferHeight = height;
             return;

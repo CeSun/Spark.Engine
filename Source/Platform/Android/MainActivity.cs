@@ -35,29 +35,30 @@ public class MainActivity : SilkActivity
         SdlInput.RegisterPlatform();
         var options = ViewOptions.Default;
         options.API = new GraphicsAPI(ContextAPI.OpenGLES, ContextProfile.Core, ContextFlags.Default, new APIVersion(3, 2));
-
+        Engine Engine = new Engine();
         FileSystem.Init(new AndroidFileSystem(Assets));
         using (var view = Silk.NET.Windowing.Window.GetView(options))
         {
 
             var InitFun = () =>
             {
-                Engine.Instance.InitEngine(new string[0], new Dictionary<string, object>
+                Engine.InitEngine(new string[0], new Dictionary<string, object>
                 {
                 { "OpenGL", GL.GetApi(view) },
                 { "WindowSize", new System.Drawing.Point(view.Size.X , view.Size.Y) },
                 { "InputContext", view.CreateInput()},
                 { "FileSystem", FileSystem.Instance},
                 { "View", view },
-                {"IsMobile", true }
+                { "IsMobile", true },
+                { "DefaultFBOID", 0 }
                 });
             };
 
-            view.Render += Engine.Instance.Render;
-            view.Update += Engine.Instance.Update;
-            view.Load += (InitFun + Engine.Instance.Start);
-            view.Closing += Engine.Instance.Stop;
-            view.Resize += size => Engine.Instance.Resize(size.X, size.Y);
+            view.Render += Engine.Render;
+            view.Update += Engine.Update;
+            view.Load += (InitFun + Engine.Start);
+            view.Closing += Engine.Stop;
+            view.Resize += size => Engine.Resize(size.X, size.Y);
 
             view.Run();
         }

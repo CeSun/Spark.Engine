@@ -8,7 +8,7 @@ uniform vec2 TexCoordScale;
 in vec2 OutTexCoord;
 in vec2 OutTrueTexCoord;
 uniform sampler2D DepthTexture;
-uniform sampler2D NormalTexture;
+uniform sampler2D CustomBuffer;
 uniform sampler2D NoiseTexture;
 uniform mat4 ProjectionTransform;
 uniform mat4 InvertProjectionTransform;
@@ -21,6 +21,24 @@ float bias = 0.025;
 
 vec3 GetViewLocation(vec3 ScreenLocation);
 
+vec3 Normal2DTo3D(vec2 Normal)
+{
+    float z = (1.0f -  dot(vec2(1.0f, 1.0f),abs(Normal)));
+    vec3 n = vec3(Normal.x, Normal.y, z);
+    if (n.z < 0.0f)
+    {
+        vec2 tmp = vec2(1.0f, 1.0f);
+        if (n.x < 0.0f || n.y < 0.0f)
+        {
+            tmp = vec2(-1.0f, -1.0f);
+        }
+        vec2 xy = (vec2(1.0f, 1.0f) - abs(vec2 (n.y, n.x))) * tmp;
+        n.x = xy.x;
+        n.y = xy.y;
+    }
+    return normalize(n);
+}
+
 void main()
 {
 	float Depth = texture(DepthTexture, OutTexCoord).x;
@@ -28,7 +46,7 @@ void main()
 		discard;
 
 
-	vec3 Normal = normalize(texture(NormalTexture, OutTexCoord).xyz * 2.0f - vec3(1.0f, 1.0f, 1.0f));
+	vec3 Normal = Normal2DTo3D(texture(CustomBuffer, OutTexCoord).xy);//normalize(texture(CustomBuffer, OutTexCoord).xyz * 2.0f - vec3(1.0f, 1.0f, 1.0f));
 
 	vec3 FragViewLocation = GetViewLocation(vec3(OutTrueTexCoord, Depth));
 

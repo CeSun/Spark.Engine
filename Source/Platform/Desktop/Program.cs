@@ -20,23 +20,25 @@ GlfwWindowing.RegisterPlatform();
 GlfwInput.RegisterPlatform();
 option.Size = new Vector2D<int>(800, 600);
 
+var Engine = new Engine();
 var window = Window.Create(option);
 var InitFun = () =>
 {
     FileSystem.Init(new Desktop.DesktopFileSystem());
-    Engine.Instance.InitEngine(args, new Dictionary<string, object>
+    Engine.InitEngine(args, new Dictionary<string, object>
     {
         { "OpenGL", GL.GetApi(window) },
         { "WindowSize", new Point(option.Size.X , option.Size.Y) },
         { "InputContext", window.CreateInput()},
         { "FileSystem", FileSystem.Instance},
         { "View", window },
-        {"IsMobile", false }
+        { "IsMobile", false },
+        { "DefaultFBOID", 0 }
     });
 };
-window.Render += Engine.Instance.Render;
-window.Update += Engine.Instance.Update;
-window.Load += (InitFun + Engine.Instance.Start);
-window.Closing += Engine.Instance.Stop;
-window.Resize += size => Engine.Instance.Resize(size.X, size.Y);
+window.Render += Engine.Render;
+window.Update += Engine.Update;
+window.Load += (InitFun + Engine.Start);
+window.Closing += Engine.Stop;
+window.Resize += size => Engine.Resize(size.X, size.Y);
 window.Run();

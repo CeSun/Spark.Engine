@@ -319,13 +319,15 @@ public partial class Level
     Actor? CameraActor;
     public void BeginPlay()
     {
-        if (Engine.Instance.IsMobile == true)
+        if (Engine.IsMobile == true)
         {
             ViewButton = MouseButton.Left;
         }
-
-        Engine.MainMouse.MouseMove += OnMouseMove;
-        Engine.MainMouse.MouseDown += OnMouseKeyDown;
+        if (Engine.Input != null)
+        {
+            Engine.MainMouse.MouseMove += OnMouseMove;
+            Engine.MainMouse.MouseDown += OnMouseKeyDown;
+        }
         List<SkeletalMeshComponent> components = new List<SkeletalMeshComponent>();
        
         var SkeletalActor = new Actor(this, "Skeletal Mesh");
@@ -366,8 +368,8 @@ public partial class Level
         CameraComponent.FarPlaneDistance = 1000f;
         CameraComponent.FieldOfView = 75;
         CameraComponent.ProjectionType = ProjectionType.Perspective;
-        CameraComponent.WorldLocation += (new Vector3(0, 20, 0) - CameraComponent.ForwardVector * 10);
-        CameraComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -10f.DegreeToRadians(), 0);
+        CameraComponent.WorldLocation += (new Vector3(0, 20, 0) - CameraComponent.ForwardVector * 20);
+        CameraComponent.WorldRotation = Quaternion.CreateFromYawPitchRoll(0F.DegreeToRadians(), -40f.DegreeToRadians(), 0);
 
         // 加载个cube作为地板
         var CubeActor = new Actor(this, "Plane Actor");
@@ -425,6 +427,8 @@ public partial class Level
     private void RobotMove(double DeltaTime)
     {
         if (CameraActor == null)
+            return;
+        if (Engine.Input == null)
             return;
         Vector3 MoveDirection = Vector3.Zero;
         if (Engine.MainKeyBoard.IsKeyPressed(Key.W))

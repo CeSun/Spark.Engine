@@ -57,12 +57,12 @@ public class DeferredSceneRenderer : IRenderer
 
     public RenderTarget CreateRenderTarget(int width, int height, uint GbufferNums)
     {
-        return new RenderTarget(width, height, GbufferNums, gl);
+        return new RenderTarget(width, height, GbufferNums, World.Engine);
     }
 
     public RenderTarget CreateRenderTarget(int width, int height)
     {
-        return new RenderTarget(width, height, gl);
+        return new RenderTarget(width, height, World.Engine);
     }
 
     public Shader CreateShader(string Path, List<string> Macros)
@@ -73,7 +73,9 @@ public class DeferredSceneRenderer : IRenderer
     public GL gl => World.Engine.Gl;
     public DeferredSceneRenderer(World world)
     {
+
         World = world;
+        var s = gl.GetStringS(GLEnum.Version);
         List<string> Macros = new List<string>();
         if (World.Engine.IsMobile)
         {
@@ -128,11 +130,12 @@ public class DeferredSceneRenderer : IRenderer
             PostProcessBuffer1 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
             PostProcessBuffer2 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
             PostProcessBuffer3 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
+            NoiseTexture = Texture.CreateNoiseTexture(4, 4);
+            NoiseTexture.InitRender(gl);
 
         }
         // SceneBackFaceDepthBuffer = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 0);
         
-        NoiseTexture = Texture.CreateNoiseTexture(4, 4);
         InitRender();
         InitSSAORender();
     }
@@ -157,12 +160,7 @@ public class DeferredSceneRenderer : IRenderer
 
     ~DeferredSceneRenderer()
     {
-        if (PostProcessVAO != 0)
-            gl.DeleteVertexArray(PostProcessVAO);
-        if (PostProcessVBO != 0)
-            gl.DeleteBuffer(PostProcessVBO);
-        if (PostProcessEBO != 0)
-            gl.DeleteBuffer(PostProcessEBO);
+
 
     }
     public unsafe void InitRender()
@@ -229,7 +227,7 @@ public class DeferredSceneRenderer : IRenderer
             Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
             DecalShader.SetMatrix("VPInvert", VPInvert);
 
-            DecalShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+           // DecalShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
             DecalShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
@@ -386,7 +384,6 @@ public class DeferredSceneRenderer : IRenderer
         gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
         SkyboxShader.SetVector2("BufferSize", new Vector2(GlobalBuffer.BufferWidth, GlobalBuffer.BufferHeight));
-        SkyboxShader.SetVector2("ScreenSize", new Vector2(GlobalBuffer.Width, GlobalBuffer.Height));
         SkyboxShader.SetInt("skybox", 0);
         World.CurrentLevel.CurrentSkybox?.RenderSkybox(DeltaTime);
         SkyboxShader.UnUse();
@@ -490,7 +487,6 @@ public class DeferredSceneRenderer : IRenderer
                 if (component.IsDestoryed == false)
                 {
                     SpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    SpotShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
                     component.Render(DeltaTime);
                 }
             }
@@ -519,7 +515,6 @@ public class DeferredSceneRenderer : IRenderer
                         }
                     }
                     SkeletakMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    SkeletakMeshSpotShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
                     component.Render(DeltaTime);
                 }
             }
@@ -572,7 +567,6 @@ public class DeferredSceneRenderer : IRenderer
 
                 InstancePointLightingShader.SetMatrix("ViewTransform", Views[i]);
                 InstancePointLightingShader.SetMatrix("ProjectionTransform", Projection);
-                InstancePointLightingShader.SetInt("layer", i);
                 foreach (var hism in World.CurrentLevel.ISMComponents)
                 {
                     if (hism == null)
@@ -583,7 +577,6 @@ public class DeferredSceneRenderer : IRenderer
 
                 SkeletakMeshPointLightingShader.SetMatrix("ViewTransform", Views[i]);
                 SkeletakMeshPointLightingShader.SetMatrix("ProjectionTransform", Projection);
-                SkeletakMeshPointLightingShader.SetInt("layer", i);
                 SkeletakMeshPointLightingShader.Use();
                 foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
                 {
@@ -597,7 +590,6 @@ public class DeferredSceneRenderer : IRenderer
                             }
                         }
                         SkeletakMeshPointLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
-                        SkeletakMeshPointLightingShader.SetMatrix("NormalTransform", component.NormalTransform);
                         component.Render(DeltaTime);
                     }
                 }
@@ -632,7 +624,6 @@ public class DeferredSceneRenderer : IRenderer
                 if (component.IsDestoryed == false)
                 {
                     DLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    DLShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
                     component.Render(DeltaTime);
                 }
             }
@@ -662,7 +653,6 @@ public class DeferredSceneRenderer : IRenderer
                         }
                     }
                     SkeletakMeshDLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    SkeletakMeshDLShadowMapShader.SetMatrix("NormalTransform", component.NormalTransform);
                     component.Render(DeltaTime);
                 }
             }
@@ -760,7 +750,6 @@ public class DeferredSceneRenderer : IRenderer
                     X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
                     Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
                 });
-            RenderToCamera.SetFloat("Brightness", 0.0f);
             RenderToCamera.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, LastPostProcessBuffer.GBufferIds[0]);

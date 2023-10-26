@@ -75,8 +75,8 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
 
     public Matrix4x4 Projection => this.ProjectionType switch
     {
-        ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), Engine.Instance.WindowSize.X / (float)Engine.Instance.WindowSize.Y, NearPlaneDistance, FarPlaneDistance),
-        ProjectionType.Orthographic => Matrix4x4.CreatePerspective(Engine.Instance.WindowSize.X, Engine.Instance.WindowSize.Y, NearPlaneDistance, FarPlaneDistance),
+        ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), RenderTarget.Width / (float)RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
+        ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget.Width, RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
         _ => throw new NotImplementedException()
     };
 

@@ -10,12 +10,13 @@ using Silk.NET.OpenGLES.Extensions.EXT;
 
 namespace Spark.Engine;
 
-public partial class Engine : Singleton<Engine>
+public partial class Engine
 {
     public SingleThreadSyncContext SyncContext { get; private set; }
 
     public bool IsMobile { private set; get; } = false;
-  
+
+    public uint DefaultFBOID ;
     public Engine()
     {
         SyncContext = new SingleThreadSyncContext();
@@ -39,6 +40,7 @@ public partial class Engine : Singleton<Engine>
         WindowSize = (Point)objects["WindowSize"];
         Input = (IInputContext)objects["InputContext"];
         IsMobile = (bool)objects["IsMobile"];
+        DefaultFBOID = (uint)(int)objects["DefaultFBOID"];
         _view = (IView)objects["View"];
         Worlds.Add(new World(this));
 
@@ -77,7 +79,7 @@ public partial class Engine : Singleton<Engine>
 }
 
 
-public partial class Engine : Singleton<Engine>
+public partial class Engine
 {
     public GL? Gl { get; set; }
     public IInputContext? Input { get; set; }
