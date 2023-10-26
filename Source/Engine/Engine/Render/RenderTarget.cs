@@ -4,12 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Silk.NET.OpenGLES;
-using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Render;
 
 public class RenderTarget : IDisposable
 {
+    private GL gl;
     public int BufferWidth { private set; get; }
     public int BufferHeight { private set; get; }
 
@@ -24,7 +24,7 @@ public class RenderTarget : IDisposable
     public bool IsViewport = false;
 
     public GLEnum[] Attachments { private set; get; }
-    public RenderTarget(int width, int height, uint GbufferNums)
+    public RenderTarget(int width, int height, uint GbufferNums, GL gl)
     {
         GBufferIds = new uint[GbufferNums];
         Attachments = new GLEnum[GbufferNums];
@@ -32,13 +32,15 @@ public class RenderTarget : IDisposable
         {
             Attachments[i] = GLEnum.ColorAttachment0 + i;
         }
+        this.gl = gl;
         Resize(width, height);
     }
-    public RenderTarget(int width, int height)
+    public RenderTarget(int width, int height, GL gl)
     {
         GBufferIds = new uint[0];
         Attachments = new GLEnum[0];
         IsViewport = true;
+        this.gl = gl;
         Resize(width, height);
     }
 

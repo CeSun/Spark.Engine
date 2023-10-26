@@ -1,13 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
-using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Components;
 

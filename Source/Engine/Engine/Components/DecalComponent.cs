@@ -1,10 +1,6 @@
-﻿using Spark.Engine.Actors;
+﻿using Silk.NET.OpenGLES;
+using Spark.Engine.Actors;
 using Spark.Engine.Assets;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Spark.Engine.Components;
 
@@ -15,5 +11,22 @@ public class DecalComponent : PrimitiveComponent
     }
 
 
-    public Material? Material { get; set; }
+    private Material? _Material;
+    public Material? Material 
+    {
+        get => _Material;
+        set
+        {
+            _Material = value;
+            if (_Material != null)
+            {
+                foreach (var texture in _Material.Textures)
+                {
+                    if (texture != null)
+                        texture.InitRender(gl);
+                }
+
+            }
+        }
+    }
 }

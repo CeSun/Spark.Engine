@@ -12,8 +12,6 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
-using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Components;
 
@@ -82,7 +80,7 @@ public class StaticMeshComponent : PrimitiveComponent
                 RigidBody.IsStatic = IsStatic;
 
             }
-
+            InitRender();
         }
     }
         
@@ -200,7 +198,19 @@ public class StaticMeshComponent : PrimitiveComponent
             gl.PushDebugGroup("Render Static Mesh:" + StaticMesh.Path);
             foreach (var element in StaticMesh.Elements)
             {
-                element.Material.Use();
+                for (int i = 0; i < element.Material.Textures.Count(); i++)
+                {
+                    var texture = element.Material.Textures[i];
+                    gl.ActiveTexture(GLEnum.Texture0 + i);
+                    if (texture != null)
+                    {
+                        gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
+                    }
+                    else
+                    {
+                        gl.BindTexture(GLEnum.Texture2D, 0);
+                    }
+                }
                 gl.BindVertexArray(element.VertexArrayObjectIndex);
                 unsafe
                 {
@@ -212,6 +222,21 @@ public class StaticMeshComponent : PrimitiveComponent
         }
     }
 
+    public void InitRender()
+    {
+        if (StaticMesh == null)
+            return;
+        StaticMesh.InitRender(gl);
+        foreach (var element in StaticMesh.Elements)
+        {
+            foreach (var texture in
+            element.Material.Textures)
+            {
+                if (texture != null)
+                    texture.InitRender(gl);
+            }
+        }
+    }
     protected override void OnEndPlay()
     {
         if (RigidBody != null)

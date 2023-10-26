@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Spark.Engine.StaticEngine;
 namespace Spark.Engine.GUI;
 
+/*
 public class NoesisGUI
 {
     static Noesis.View? _view = default;
@@ -189,3 +189,4 @@ public class NoesisGUI
 
 
 }
+*/

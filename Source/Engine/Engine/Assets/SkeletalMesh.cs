@@ -6,12 +6,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
-using static Spark.Engine.StaticEngine;
 using System.Threading.Tasks;
 using Silk.NET.OpenGLES;
 using System.Runtime.InteropServices;
 using System.Collections;
 using Silk.NET.Input;
+using Spark.Engine.Platform;
 
 namespace Spark.Engine.Assets;
 
@@ -30,11 +30,13 @@ public partial class SkeletalMesh
     {
     }
 
-    public unsafe void InitRender()
+    public unsafe void InitRender(GL gl)
     {
 
         for (var index = 0; index < _Elements.Count; index++)
         {
+            if (Elements[index].VertexArrayObjectIndex > 0)
+                continue;
             uint vao = gl.GenVertexArray();
             uint vbo = gl.GenBuffer();
             uint ebo = gl.GenBuffer();
@@ -96,14 +98,14 @@ public partial class SkeletalMesh
 {
     public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(string Path)
     {
-        using var sr = FileSystem.GetStream("Content" + Path);
+        using var sr = FileSystem.Instance.GetStream("Content" + Path);
         return ImportFromGLB(sr);
     }
 
 
     public async static Task<(SkeletalMesh, Skeleton, List<AnimSequence>)> ImportFromGLBAsync(string Path)
     {
-        using var sr = FileSystem.GetStream("Content" + Path);
+        using var sr = FileSystem.Instance.GetStream("Content" + Path);
         return await ImportFromGLBAsync(sr);
     }
 
@@ -122,7 +124,6 @@ public partial class SkeletalMesh
             skeleton = LoadBones(model);
             sk.Skeleton = skeleton;
             anims = LoadAnimSequence(model, skeleton);
-            Engine.Instance.SyncContext.ExecuteOnGameThread(sk.InitRender);
         });
 
         if (sk == null)
@@ -143,7 +144,6 @@ public partial class SkeletalMesh
         var skeleton = LoadBones(model);
         sk.Skeleton = skeleton;
         var anims = LoadAnimSequence(model, skeleton);
-        sk.InitRender();
         return (sk, skeleton, anims);
     }
 
@@ -353,7 +353,7 @@ public partial class SkeletalMesh
                         continue;
                     }
 
-                    var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
+                    var texture = Texture.LoadFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
                     if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
                     {
                         Material.BaseColor = texture;
@@ -365,7 +365,7 @@ public partial class SkeletalMesh
 
                 }
 
-                Texture Custom = new Texture(MetallicRoughness, AmbientOcclusion, Parallax);
+                Texture Custom = Texture.LoadPBRTexture(MetallicRoughness, AmbientOcclusion, Parallax);
                 Material.Custom = Custom;
                 //SkeletalMesh.Materials.Add(Material);
                 SkeletalMesh._Elements.Add(new Element<SkeletalMeshVertex>

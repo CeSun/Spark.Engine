@@ -1,75 +1,94 @@
 ﻿using Silk.NET.OpenGLES;
 using StbImageSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Spark.Engine.StaticEngine;
-using static Spark.Engine.Assets.Shader;
 using System.Numerics;
 using Noesis;
+using Spark.Engine.Platform;
+using System.Runtime.InteropServices;
 
 
 namespace Spark.Engine.Assets;
+public enum TexChannel
+{
+    RGB,
+    RGBA,
+}
 
+public static class ChannelHelper 
+{
+    public static TexChannel ToTexChannel(this ColorComponents colorComponents)
+    {
+        return colorComponents switch
+        {
+            ColorComponents.RedGreenBlueAlpha => TexChannel.RGBA,
+            ColorComponents.RedGreenBlue => TexChannel.RGB,
+            _ => throw new NotImplementedException()
+        };
+    }
+
+
+    public static GLEnum ToGLEnum(this TexChannel channel)
+    {
+        return channel switch
+        {
+            TexChannel.RGB => GLEnum.Rgb,
+            TexChannel.RGBA => GLEnum.Rgba,
+            _ => throw new NotImplementedException()
+        };
+    }
+
+}
 public class Texture
 {
     public uint TextureId { get; protected set; }
-    protected  void  LoadAsset()
+    public uint Width { get; set; }
+    public uint Height { get; set; }
+    public List<byte> Pixels { get; set; } = new List<byte>();
+    public TexChannel Channel;
+    public Texture()
     {
-        using (var StreamReader = FileSystem.GetStreamReader("Content" + Path))
+    }
+
+
+    public unsafe void InitRender(GL gl)
+    {
+        if (TextureId > 0)
+            return;
+        TextureId = gl.GenTexture();
+        gl.BindTexture(GLEnum.Texture2D, TextureId);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+        fixed (void* p = CollectionsMarshal.AsSpan(Pixels))
         {
-            var image = ImageResult.FromStream(StreamReader.BaseStream);
-            if (image != null)
-            {
-                ProcessImage(image);
-            }
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToGLEnum(), Width, Height, 0, Channel.ToGLEnum(), GLEnum.UnsignedByte, p);
         }
-
+        gl.BindTexture(GLEnum.Texture2D, 0);
     }
-    internal Texture()
-    {
-        Path = "";
-    }
-
     public static async Task<Texture> LoadFromFileAsync(string Path)
     {
-        using (var StreamReader = FileSystem.GetStreamReader("Content" + Path))
-        {
-
-            ImageResult? imageResult = null;
-            await Task.Run(() =>
-            {
-                imageResult = ImageResult.FromStream(StreamReader.BaseStream);
-            });
-            if (imageResult != null)
-            {
-                Texture texture = new Texture();
-                texture.ProcessImage(imageResult);
-                return texture;
-            }
-        }
-        throw new Exception("");
+        return await Task.Run(() =>LoadFromFile(Path));
     }
+
     public static Texture LoadFromFile(string Path)
     {
-        Texture texture = new Texture();
-        using (var StreamReader = FileSystem.GetStreamReader("Content" + Path))
+        using var StreamReader = FileSystem.Instance.GetStreamReader("Content" + Path);
+        var imageResult = ImageResult.FromStream(StreamReader.BaseStream);
+        if (imageResult != null)
         {
-            var image = ImageResult.FromStream(StreamReader.BaseStream);
-            if (image != null)
-            {
-                texture.ProcessImage(image);
-            }
+            Texture texture = new Texture();
+            texture.Width = (uint)imageResult.Width;
+            texture.Height = (uint)imageResult.Height;
+            texture.Channel = imageResult.Comp.ToTexChannel();
+            texture.Pixels.AddRange(imageResult.Data);
+            return texture;
         }
-        return texture;
+        throw new Exception("Load Texture error");
     }
     public unsafe static Texture CreateNoiseTexture(int Width, int Height)
     {
         var texture = new Texture();
         var data = new byte[Width * Height * 3];
-
         for (int j = 0; j < Height; j++)
         {
             for (int i = 0; i < Width; i++)
@@ -86,42 +105,29 @@ public class Texture
                 data[index + 2] = (byte)(255 * v.Z);
             }
         }
-        Engine.Instance.SyncContext.ExecuteOnGameThread(() =>
-        {
-            texture.TextureId = gl.GenTexture();
-            gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-            fixed (void* p = data)
-            {
-                gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgb, (uint)Width, (uint)Height, 0, GLEnum.Rgb, GLEnum.UnsignedByte, p);
-            }
-            gl.BindTexture(GLEnum.Texture2D, 0);
-        });
-
+        texture.Height = (uint)Height;
+        texture.Width = (uint)Width;
+        texture.Channel = TexChannel.RGB;
+        texture.Pixels.AddRange(data);
         return texture;
     }
-    public string Path { get; private set; }
-    public Texture(string path)
+    internal static Texture LoadFromMemory(byte[] memory)
     {
-        Path = path;
-        LoadAsset();
-    }
-    internal Texture(byte[] memory)
-    {
-        Path = "";
-        var image = ImageResult.FromMemory(memory);
-        if (image != null)
+        var imageResult = ImageResult.FromMemory(memory);
+        if (imageResult != null)
         {
-            ProcessImage(image);
+            Texture texture = new Texture();
+            texture.Width = (uint)imageResult.Width;
+            texture.Height = (uint)imageResult.Height;
+            texture.Channel = imageResult.Comp.ToTexChannel();
+            texture.Pixels.AddRange(imageResult.Data);
+            return texture;
         }
+        throw new Exception("Load Texture error");
     }
 
-    internal unsafe Texture(byte[]? MetallicRoughness, byte[]? AO, byte[]? Parallax)
+    internal unsafe static Texture LoadPBRTexture(byte[]? MetallicRoughness, byte[]? AO, byte[]? Parallax)
     {
-        Path = "";
         ImageResult? mr = default;
         ImageResult? ao = default;
         ImageResult? p = default;
@@ -209,69 +215,13 @@ public class Texture
                 Data[i * 4 + 2] = p.Data[i * step];
             }
         }
-        Engine.Instance.SyncContext.ExecuteOnGameThread(() =>
-        {
-            TextureId = gl.GenTexture();
-            gl.BindTexture(GLEnum.Texture2D, TextureId);
-
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
-            GLEnum Enum = GLEnum.Rgba;
-            fixed (void* p1 = Data)
-            {
-                gl.TexImage2D(GLEnum.Texture2D, 0, (int)Enum, (uint)Width, (uint)Height, 0, Enum, GLEnum.UnsignedByte, p1);
-            }
-            gl.BindTexture(GLEnum.Texture2D, 0);
-        });
-
-    }
-    protected unsafe void ProcessImage(ImageResult image)
-    {
-        Engine.Instance.SyncContext.ExecuteOnGameThread(() =>
-        {
-            if (image != null)
-            {
-                TextureId = gl.GenTexture();
-                gl.BindTexture(GLEnum.Texture2D, TextureId);
-
-                gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
-                gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
-                gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
-                gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
-                GLEnum Enum = GLEnum.Rgba;
-                if (image.Comp == ColorComponents.RedGreenBlueAlpha)
-                {
-                    Enum = GLEnum.Rgba;
-                }
-
-                if (image.Comp == ColorComponents.RedGreenBlue)
-                {
-                    Enum = GLEnum.Rgb;
-                }
-                fixed (void* p = image.Data)
-                {
-                    gl.TexImage2D(GLEnum.Texture2D, 0, (int)Enum, (uint)image.Width, (uint)image.Height, 0, Enum, GLEnum.UnsignedByte, p);
-                }
-                gl.BindTexture(GLEnum.Texture2D, 0);
-
-            }
-        });
+        Texture texture = new Texture();
+        texture.Width = (uint)Width;
+        texture.Height = (uint)Height;
+        texture.Channel = TexChannel.RGBA;
+        texture.Pixels.AddRange(Data);
+        return texture;
 
     }
 
-    ~Texture()
-    {
-        if (TextureId != 0)
-        {
-            // gl.DeleteTexture(TextureId);
-        }
-    }
-
-    public void Use(int index)
-    {
-        gl.ActiveTexture(GLEnum.Texture0 + index);
-        gl.BindTexture(GLEnum.Texture2D, TextureId);
-    }
 }

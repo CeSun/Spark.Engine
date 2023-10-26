@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Spark.Engine.Components;
 
@@ -23,12 +22,13 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     public int Order { get; set; }
     public CameraComponent(Actor actor) : base(actor)
     {
-        RenderTarget = Engine.Instance.ViewportRenderTarget;
+        RenderTarget = CurrentLevel.CurrentWorld.SceneRenderer.CreateRenderTarget(Engine.WindowSize.X, Engine.WindowSize.Y);
         FieldOfView = 90;
         NearPlaneDistance = 10;
         FarPlaneDistance = 100;
         Order = 0;
         ProjectionType = ProjectionType.Perspective;
+        Engine.OnWindowResize += RenderTarget.Resize;
     }
 
     public ProjectionType ProjectionType { get; set; }

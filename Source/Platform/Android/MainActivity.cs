@@ -6,6 +6,7 @@ using Silk.NET.Windowing;
 using Silk.NET.Windowing.Sdl;
 using Silk.NET.Windowing.Sdl.Android;
 using Spark.Engine;
+using Spark.Engine.Platform;
 
 namespace Android;
 
@@ -34,6 +35,8 @@ public class MainActivity : SilkActivity
         SdlInput.RegisterPlatform();
         var options = ViewOptions.Default;
         options.API = new GraphicsAPI(ContextAPI.OpenGLES, ContextProfile.Core, ContextFlags.Default, new APIVersion(3, 2));
+
+        FileSystem.Init(new AndroidFileSystem(Assets));
         using (var view = Silk.NET.Windowing.Window.GetView(options))
         {
 
@@ -44,7 +47,7 @@ public class MainActivity : SilkActivity
                 { "OpenGL", GL.GetApi(view) },
                 { "WindowSize", new System.Drawing.Point(view.Size.X , view.Size.Y) },
                 { "InputContext", view.CreateInput()},
-                { "FileSystem", new AndroidFileSystem(Assets)},
+                { "FileSystem", FileSystem.Instance},
                 { "View", view },
                 {"IsMobile", true }
                 });

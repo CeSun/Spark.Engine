@@ -12,19 +12,10 @@ namespace Spark.Engine;
 
 public partial class Engine : Singleton<Engine>
 {
-    public RenderTarget? _GlobalRenderTarget;
     public SingleThreadSyncContext SyncContext { get; private set; }
 
     public bool IsMobile { private set; get; } = false;
-    public RenderTarget ViewportRenderTarget
-    {
-        get
-        {
-            if (_GlobalRenderTarget == null)
-                throw new Exception("rt 为空");
-            return _GlobalRenderTarget;
-        }
-    }
+  
     public Engine()
     {
         SyncContext = new SingleThreadSyncContext();
@@ -45,24 +36,10 @@ public partial class Engine : Singleton<Engine>
     public void InitEngine(string[] args, Dictionary<string, object> objects)
     {
         Gl = (GL)objects["OpenGL"];
-        if (Gl != null)
-        {
-            var versionstr = Gl.GetStringS(GLEnum.Version);
-            if (versionstr != null && versionstr.IndexOf("ES") >= 0)
-            {
-                GLType = GLType.ES;
-            }
-            else
-            {
-                GLType = GLType.Desktop;
-            }
-        }
         WindowSize = (Point)objects["WindowSize"];
         Input = (IInputContext)objects["InputContext"];
-        FileSystem = (FileSystem)objects["FileSystem"];
         IsMobile = (bool)objects["IsMobile"];
         _view = (IView)objects["View"];
-        _GlobalRenderTarget = new RenderTarget(WindowSize.X, WindowSize.Y);
         Worlds.Add(new World(this));
 
 
@@ -90,9 +67,11 @@ public partial class Engine : Singleton<Engine>
 
     public void Resize(int Width, int Height)
     {
-        ViewportRenderTarget.Resize(Width, Height);
         WindowSize = new(Width, Height);
+        OnWindowResize?.Invoke(Width, Height);
     }
+
+    public Action<int, int>? OnWindowResize;
 
     public Point WindowSize { get; private set; }
 }
@@ -103,63 +82,17 @@ public partial class Engine : Singleton<Engine>
     public GL? Gl { get; set; }
     public IInputContext? Input { get; set; }
 
-    public Platform.FileSystem? FileSystem { get; set; }
-}
 
-public enum GLType
-{
-    Desktop,
-    ES,
-    Web
-}
-public partial class Engine : Singleton<Engine>
-{
-    public GLType GLType { get; internal set; }
-}
-public class StaticEngine
-{
-    public static GL gl
+
+
+
+
+    public IKeyboard MainKeyBoard
     {
         get
         {
-            if (Engine.Instance.Gl == null)
-            {
-                throw new Exception("no gl context");
-            }
-            return Engine.Instance.Gl;
-        }
-    }
-
-    private static ExtBaseInstance? _ExtBaseInstance;
-    public static ExtBaseInstance? ExtBaseInstance 
-    {
-        get
-        {
-            if (_ExtBaseInstance == null)
-            {
-                gl.TryGetExtension<ExtBaseInstance>(out _ExtBaseInstance);
-            }
-            return _ExtBaseInstance;
-        }
-    }
-
-
-    public static IInputContext Input
-    {
-        get
-        {
-            if (Engine.Instance.Input == null)
-            {
-                throw new Exception("no Input context");
-            }
-            return Engine.Instance.Input;
-        }
-    }
-
-    public static IKeyboard MainKeyBoard
-    {
-        get
-        {
+            if (Input == null)
+                throw new Exception("no input");
             var kb = Input.Keyboards.FirstOrDefault();
             if (kb == null)
             {
@@ -170,10 +103,12 @@ public class StaticEngine
     }
 
 
-    public static IMouse MainMouse
+    public IMouse MainMouse
     {
         get
         {
+            if (Input == null)
+                throw new Exception("no input");
             var mouse = Input.Mice.FirstOrDefault();
             if (mouse == null)
             {
@@ -182,22 +117,8 @@ public class StaticEngine
             return mouse;
         }
     }
-
-    public static FileSystem FileSystem
-    { 
-        get
-        {
-            var fileSystem = Engine.Instance.FileSystem;
-            if (fileSystem == null)
-            {
-                throw new Exception("no fileSystem");
-            }
-            return fileSystem;
-        }
-    }
-
-
 }
+
 
 public static class GLExternFunctions
 {

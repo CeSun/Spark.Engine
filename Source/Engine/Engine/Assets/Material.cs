@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Assets;
 
@@ -25,26 +24,5 @@ public class Material
     {
 
     }
-
-    public void Use()
-    {
-        int index = 0;
-
-        foreach(var texture in  Textures)
-        {
-            if (texture != null)
-            {
-                texture.Use(index);
-            }
-            else
-            {
-                gl.ActiveTexture(GLEnum.Texture0 + index);
-                gl.BindTexture(GLEnum.Texture2D, 0);
-            }
-            index++;
-        }
-    }
-
-    
 
 }

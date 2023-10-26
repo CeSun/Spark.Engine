@@ -1,16 +1,7 @@
-﻿using Noesis;
-using SharpGLTF.Schema2;
-using Silk.NET.OpenGLES;
+﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.Components;
 
@@ -32,6 +23,7 @@ public class SkeletalMeshComponent : PrimitiveComponent
         set
         {
             _SkeletalMesh = value;
+            InitRender();
         }
     }
 
@@ -67,7 +59,19 @@ public class SkeletalMeshComponent : PrimitiveComponent
            
             foreach (var element in SkeletalMesh.Elements)
             {
-                element.Material.Use();
+                for (int i = 0; i < element.Material.Textures.Count(); i++)
+                {
+                    var texture = element.Material.Textures[i];
+                    gl.ActiveTexture(GLEnum.Texture0 + i);
+                    if (texture != null)
+                    {
+                        gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
+                    }
+                    else
+                    {
+                        gl.BindTexture(GLEnum.Texture2D, 0);
+                    }
+                }
                 gl.BindVertexArray(element.VertexArrayObjectIndex);
                 unsafe
                 {
@@ -79,6 +83,21 @@ public class SkeletalMeshComponent : PrimitiveComponent
         }
     }
 
+    public void InitRender()
+    {
+        if (SkeletalMesh == null)
+            return;
+        SkeletalMesh.InitRender(gl);
+        foreach(var element in SkeletalMesh.Elements)
+        {
+            foreach(var texture in 
+            element.Material.Textures)
+            {
+                if (texture != null)
+                    texture.InitRender(gl);
+            }
+        }
+    }
     public override void OnUpdate(double DeltaTime)
     {
         if (AnimSampler != null && SkeletalMesh != null && SkeletalMesh.Skeleton != null)

@@ -13,7 +13,6 @@ using Spark.Engine.Components;
 using Spark.Util;
 using Silk.NET.Input;
 
-using static Spark.Engine.StaticEngine;
 using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Manager;
 using Jitter2.Collision;
@@ -291,7 +290,7 @@ public partial class Level
     private MouseButton ViewButton = MouseButton.Right;
     public void OnMouseMove(IMouse mouse, Vector2 position)
     {
-        if (MainMouse.IsButtonPressed(ViewButton))
+        if (Engine.MainMouse.IsButtonPressed(ViewButton))
         {
             if (CameraComponent == null)
                 return;
@@ -325,8 +324,8 @@ public partial class Level
             ViewButton = MouseButton.Left;
         }
 
-        MainMouse.MouseMove += OnMouseMove;
-        MainMouse.MouseDown += OnMouseKeyDown;
+        Engine.MainMouse.MouseMove += OnMouseMove;
+        Engine.MainMouse.MouseDown += OnMouseKeyDown;
         List<SkeletalMeshComponent> components = new List<SkeletalMeshComponent>();
        
         var SkeletalActor = new Actor(this, "Skeletal Mesh");
@@ -388,7 +387,7 @@ public partial class Level
         DecalActor.WorldLocation = new Vector3(0, 0.9F, 0);
         DecalComponent.Material = new Assets.Material()
         {
-            BaseColor = new Texture("/Texture/bear.png")
+            BaseColor = Texture.LoadFromFile("/Texture/bear.png")
         };
         DecalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 90F.DegreeToRadians(), 90F.DegreeToRadians());
         
@@ -428,19 +427,19 @@ public partial class Level
         if (CameraActor == null)
             return;
         Vector3 MoveDirection = Vector3.Zero;
-        if (MainKeyBoard.IsKeyPressed(Key.W))
+        if (Engine.MainKeyBoard.IsKeyPressed(Key.W))
         {
             MoveDirection.Z = -1;
         }
-        if (MainKeyBoard.IsKeyPressed(Key.S))
+        if (Engine.MainKeyBoard.IsKeyPressed(Key.S))
         {
             MoveDirection.Z = 1;
         }
-        if (MainKeyBoard.IsKeyPressed(Key.A))
+        if (Engine.MainKeyBoard.IsKeyPressed(Key.A))
         {
             MoveDirection.X = -1;
         }
-        if (MainKeyBoard.IsKeyPressed(Key.D))
+        if (Engine.MainKeyBoard.IsKeyPressed(Key.D))
         {
             MoveDirection.X = 1;
         }

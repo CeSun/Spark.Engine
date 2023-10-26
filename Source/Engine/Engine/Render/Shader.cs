@@ -1,43 +1,46 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Numerics;
+﻿using System.Numerics;
 using Silk.NET.OpenGLES;
-using static Spark.Engine.StaticEngine;
+using Spark.Engine.Platform;
 
-namespace Spark.Engine.Assets;
+namespace Spark.Engine.Render;
 
 public class Shader
 {
     public uint ProgramId;
-    public string? VertShaderSource;
-    public string? FragShaderSource;
-    public string? GeomShaderSource;
-    public string Path {  get; private set; }
-    public Shader(string Path)
+    public string VertShaderSource;
+    public string FragShaderSource;
+    public GL gl;
+    List<string> Macros;
+    public Shader(string Path, GL GL) : this(Path, new List<string>(), GL)
     {
-        this.Path = Path;
-        LoadAsset();
+        
     }
-    List<string> Macros = new List<string>();
-    public Shader(string Path, List<string> Macros)
+    public Shader(string Path, List<string> Macros, GL GL)
     {
-        this.Path = Path;
-        this.Macros.AddRange(Macros);
-        LoadAsset();
+        using (var sr = FileSystem.Instance.GetStreamReader("Content" + Path + ".vert"))
+        {
+            VertShaderSource = sr.ReadToEnd();
+        }
+        using (var sr = FileSystem.Instance.GetStreamReader("Content" + Path + ".frag"))
+        {
+            FragShaderSource = sr.ReadToEnd();
+        }
+        this.Macros = Macros;
+        this.gl = GL;
+        InitRender();
     }
-    protected void LoadAsset()
+
+    public Shader (string VertShaderSource, string FragShaderSource, List<string> Macros, GL GL)
     {
-        using (var sr = FileSystem.GetStreamReader("Content" + Path + ".vert"))
-        {
-            VertShaderSource =  sr.ReadToEnd();
-        }
-        using (var sr = FileSystem.GetStreamReader("Content" + Path + ".frag"))
-        {
-            FragShaderSource =  sr.ReadToEnd();
-        }
+        this.VertShaderSource = VertShaderSource;
+        this.FragShaderSource = FragShaderSource;
+        this.Macros = Macros;
+        this.gl = GL;
+        InitRender();
+    }
+
+    public void InitRender()
+    {
         VertShaderSource = AddMacros(VertShaderSource, Macros);
         FragShaderSource = AddMacros(FragShaderSource, Macros);
         var vert = gl.CreateShader(GLEnum.VertexShader);
@@ -58,65 +61,31 @@ public class Shader
         {
             gl.DeleteShader(vert);
             var info = gl.GetShaderInfoLog(frag);
-            Console.WriteLine(Path);
             Console.WriteLine(FragShaderSource);
             throw new Exception(info);
         }
-        try
-        {
-            using (var sr = FileSystem.GetStreamReader("Content" + Path + ".geom"))
-            {
-                GeomShaderSource = sr.ReadToEnd();
-            }
-        }catch 
-        {
-
-        }
-        uint geom = default;
-        if (GeomShaderSource != null)
-        {
-
-            geom = gl.CreateShader(GLEnum.GeometryShader);
-            gl.ShaderSource(geom, GeomShaderSource);
-            gl.CompileShader(geom);
-            gl.GetShader(frag, GLEnum.CompileStatus, out code);
-            if (code == 0)
-            {
-                gl.DeleteShader(vert);
-                gl.DeleteShader(frag);
-                var info = gl.GetShaderInfoLog(geom);
-                Console.WriteLine(GeomShaderSource);
-                throw new Exception(info);
-            }
-
-        }
+     
         ProgramId = gl.CreateProgram();
         gl.AttachShader(ProgramId, vert);
         gl.AttachShader(ProgramId, frag);
-        if (GeomShaderSource != null)
-        {
-            gl.AttachShader(ProgramId, geom);
-        }
         gl.LinkProgram(ProgramId);
         gl.GetProgram(ProgramId, GLEnum.LinkStatus, out code);
         if (code == 0)
         {
             gl.DeleteShader(vert);
             gl.DeleteShader(frag);
-            if (GeomShaderSource != null)
-                gl.DeleteShader(geom);
 
             var info = gl.GetProgramInfoLog(ProgramId);
             throw new Exception(info);
         }
         gl.DeleteShader(vert);
         gl.DeleteShader(frag);
-        if (GeomShaderSource != null)
-            gl.DeleteShader(geom);
     }
-
-    public void SetInt(string name, int value) 
+  
+    public void SetInt(string name, int value)
     {
+        if (gl == null)
+            return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
         gl.Uniform1(location, value);
@@ -124,6 +93,8 @@ public class Shader
 
     public void SetFloat(string name, float value)
     {
+        if (gl == null)
+            return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
         gl.Uniform1(location, value);
@@ -131,6 +102,8 @@ public class Shader
 
     public void SetVector2(string name, Vector2 value)
     {
+        if (gl == null)
+            return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
         gl.Uniform2(location, value);
@@ -139,6 +112,8 @@ public class Shader
 
     public void SetVector3(string name, Vector3 value)
     {
+        if (gl == null)
+            return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
         gl.Uniform3(location, value);
@@ -146,17 +121,23 @@ public class Shader
 
     public unsafe void SetMatrix(string name, Matrix4x4 value)
     {
+        if (gl == null)
+            return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
-        gl.UniformMatrix4(location,1, false, (float*)&value);
+        gl.UniformMatrix4(location, 1, false, (float*)&value);
     }
     public void Use()
     {
+        if (gl == null)
+            return;
         gl.UseProgram(ProgramId);
     }
 
     public void UnUse()
     {
+        if (gl == null)
+            return;
         gl.UseProgram(0);
     }
 
@@ -164,22 +145,18 @@ public class Shader
     {
         var lines = source.Split("\n").ToList();
         int i = 0;
-        for (; i < lines.Count; i ++)
+        for (; i < lines.Count; i++)
         {
             if (lines[i].Trim().IndexOf("#version") != 0)
                 continue;
             break;
         }
-        foreach(var macros in Macros)
+        foreach (var macros in Macros)
         {
             lines.Insert(i + 1, "#define " + macros);
         }
         return string.Join("\n", lines);
     }
-    ~Shader()
-    {
-        //if (ProgramId != 0)
-        //    gl.DeleteProgram(ProgramId);
-    }
+
 
 }

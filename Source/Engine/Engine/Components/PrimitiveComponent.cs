@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Net;
-using System.Numerics;
+﻿using System.Numerics;
+using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
-using Spark.Engine.Assets;
 
 namespace Spark.Engine.Components;
 
@@ -15,6 +10,7 @@ public partial class PrimitiveComponent
 
     public World World => Owner.CurrentWorld;
 
+    public GL gl => Engine.Instance.Gl;
     public Level CurrentLevel => Owner.CurrentLevel;
 
     protected virtual bool ReceieveUpdate => false;

@@ -2,11 +2,11 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Silk.NET.OpenGLES;
-using static Spark.Engine.StaticEngine;
 using Spark.Engine.Physics;
 using Jitter2.LinearMath;
 using System.Collections.ObjectModel;
 using Jitter2.Collision.Shapes;
+using Spark.Engine.Platform;
 
 namespace Spark.Engine.Assets;
 
@@ -28,13 +28,12 @@ public class StaticMesh
     {
         Path = string.Empty;
         _Elements.AddRange(Elementes);
-        InitRender();
     }
 
     public async static Task<StaticMesh> LoadFromGLBAsync(string Path)
     {
 
-        using var sr = FileSystem.GetStream("Content" + Path);
+        using var sr = FileSystem.Instance.GetStream("Content" + Path);
         return await LoadFromGLBAsync(sr);
     }
     public async static Task<StaticMesh> LoadFromGLBAsync(Stream stream)
@@ -52,7 +51,7 @@ public class StaticMesh
     public static StaticMesh LoadFromGLB(string Path)
     {
     
-        using var sr = FileSystem.GetStream("Content" + Path);
+        using var sr = FileSystem.Instance.GetStream("Content" + Path);
         return LoadFromGLB(sr);
     }
     public static StaticMesh LoadFromGLB(Stream stream)
@@ -176,7 +175,7 @@ public class StaticMesh
                             continue;
                         }
 
-                        var texture = new Texture(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
+                        var texture = Texture.LoadFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
                         if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
                         {
                             Material.BaseColor = texture;
@@ -187,7 +186,7 @@ public class StaticMesh
                         }
 
                     }
-                    Texture Custom = new Texture(MetallicRoughness, AmbientOcclusion, Parallax);
+                    Texture Custom = Texture.LoadPBRTexture(MetallicRoughness, AmbientOcclusion, Parallax);
                     Material.Custom = Custom;
                     sm._Elements.Add(new Element<StaticMeshVertex>
                     {
@@ -237,7 +236,6 @@ public class StaticMesh
             }
         }
         sm.InitTBN();
-        Engine.Instance.SyncContext.ExecuteOnGameThread(sm.InitRender);
         sm.InitPhysics();
         if (sm.Boxes.Count > 0)
         {
@@ -328,10 +326,12 @@ public class StaticMesh
         }
 
     }
-    private unsafe void InitRender()
+    public unsafe void InitRender(GL gl)
     {
         for (var index = 0; index < _Elements.Count; index++)
         {
+            if (Elements[index].VertexArrayObjectIndex > 0)
+                continue;
             uint vao = gl.GenVertexArray();
             uint vbo = gl.GenBuffer();
             uint ebo = gl.GenBuffer();
@@ -376,10 +376,6 @@ public class StaticMesh
     }
 
 
-    ~StaticMesh()
-    {
-        
-    }
 }
 
 public class Element<T> where T  : struct

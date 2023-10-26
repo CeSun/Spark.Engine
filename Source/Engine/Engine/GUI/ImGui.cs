@@ -8,7 +8,6 @@ using Spark.Engine.Components;
 using Spark.Util;
 using System.ComponentModel;
 using System.Numerics;
-using static Spark.Engine.StaticEngine;
 
 namespace Spark.Engine.GUI;
 
@@ -29,7 +28,7 @@ public class ImGuiWarp
             return;
         try
         {
-            Controller = new ImGuiController(gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input);
+            Controller = new ImGuiController(CurrentLevel.Engine.Gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input);
         } 
         catch (Exception e)
         { 
@@ -51,9 +50,9 @@ public class ImGuiWarp
         renderDebugPanel();
         renderActorList();
         renderDetail();
-        gl.PushDebugGroup("GUI Pass");
+        CurrentLevel.Engine.Gl.PushDebugGroup("GUI Pass");
         Controller?.Render();
-        gl.PopDebugGroup();
+        CurrentLevel.Engine.Gl.PopDebugGroup();
 
     }
 

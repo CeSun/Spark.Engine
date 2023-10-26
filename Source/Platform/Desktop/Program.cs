@@ -9,6 +9,7 @@ using Silk.NET.Input;
 using Spark.Util;
 using Silk.NET.Windowing.Glfw;
 using Silk.NET.Input.Glfw;
+using Spark.Engine.Platform;
 
 var option = WindowOptions.Default;
 option.FramesPerSecond = 0;
@@ -22,12 +23,13 @@ option.Size = new Vector2D<int>(800, 600);
 var window = Window.Create(option);
 var InitFun = () =>
 {
+    FileSystem.Init(new Desktop.DesktopFileSystem());
     Engine.Instance.InitEngine(args, new Dictionary<string, object>
     {
         { "OpenGL", GL.GetApi(window) },
         { "WindowSize", new Point(option.Size.X , option.Size.Y) },
         { "InputContext", window.CreateInput()},
-        { "FileSystem",new Desktop.DesktopFileSystem()},
+        { "FileSystem", FileSystem.Instance},
         { "View", window },
         {"IsMobile", false }
     });

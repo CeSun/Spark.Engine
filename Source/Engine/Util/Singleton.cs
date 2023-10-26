@@ -8,10 +8,7 @@ namespace Spark.Util;
 
 public class Singleton<T> where T : class, new ()
 {
-
-    static Lazy<T> __Instance = new Lazy<T> ();
     static T? _Instance;
-    
 
     static object LockFlag = new object();
     public static T Instance

@@ -9,8 +9,6 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Xml.Linq;
-using static Spark.Engine.StaticEngine;
 
 
 namespace Spark.Engine.Components;
@@ -194,6 +192,7 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
     {
         if (StaticMesh == null)
             return;
+        InitRender();
         List<Matrix4x4> WorldTransforms = new List<Matrix4x4>();
         await Task.Run(() =>
         {
@@ -251,7 +250,6 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
         gl.BindVertexArray(0);
         gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
     }
-
 
     List<ClustreeNode> ClustreeNodes { get; set; } = new List<ClustreeNode>();
     ClustreeNode Clustree { get; set; } = new ClustreeNode();
@@ -311,13 +309,26 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
                     level = StaticMesh.Elements.Count - 1;
                 }
             }
-            StaticMesh.Elements[level].Material.Use();
+            for (int i = 0; i < StaticMesh.Elements[0].Material.Textures.Count(); i++)
+            {
+                var texture = StaticMesh.Elements[0].Material.Textures[i];
+                gl.ActiveTexture(GLEnum.Texture0 + i);
+                if (texture != null)
+                {
+                    gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
+                }
+                else
+                {
+                    gl.BindTexture(GLEnum.Texture2D, 0);
+                }
+            }
             gl.BindVertexArray(StaticMesh.Elements[level].VertexArrayObjectIndex);
-         
+            /*
             if (ExtBaseInstance != null)
             {
                 ExtBaseInstance.DrawElementsInstancedBaseInstance((Silk.NET.OpenGLES.Extensions.EXT.EXT)GLEnum.Triangles, (uint)StaticMesh.Elements[level].Indices.Count, (Silk.NET.OpenGLES.Extensions.EXT.EXT)GLEnum.UnsignedInt, (void*)0, (uint)(node.LastInstance - node.FirstInstance) + 1, (uint)node.FirstInstance);
             }
+            */
         }
         gl.BindVertexArray(0);
     }

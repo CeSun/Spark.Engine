@@ -1,14 +1,5 @@
 ﻿using Spark.Engine.Actors;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Silk.NET.OpenGLES;
-using static Spark.Engine.StaticEngine;
-using System.Reflection;
-using StbImageSharp;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using Spark.Engine.Assets;
 
 namespace Spark.Engine.Components;
@@ -76,9 +67,18 @@ public class SkyboxComponent : PrimitiveComponent
 
 
 
+    private TextureCube? _SkyboxCube;
     public TextureCube? SkyboxCube
     {
-        get; set;
+        get => _SkyboxCube; 
+        set
+        {
+            _SkyboxCube = value;
+            if (_SkyboxCube != null)
+            {
+                _SkyboxCube.InitRender(gl);
+            }
+        }
     }
     public override void Render(double DeltaTime)
     {
@@ -92,7 +92,9 @@ public class SkyboxComponent : PrimitiveComponent
             return;
         gl.DepthMask(false);
         gl.BindVertexArray(Vao);
-        SkyboxCube?.Use(0);
+
+        gl.ActiveTexture(GLEnum.Texture0);
+        gl.BindTexture(GLEnum.TextureCubeMap, SkyboxCube.TextureId);
         gl.DrawElements(GLEnum.Triangles, (uint)36, GLEnum.UnsignedInt, (void*)0);
         gl.DepthMask(true);
     }
