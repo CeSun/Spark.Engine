@@ -127,14 +127,23 @@ public static class GLExternFunctions
     public static void PushGroup(this GL gl, string DebugInfo)
     {
 #if DEBUG
-        gl.PushDebugGroup(DebugSource.DebugSourceApplication,1, (uint)DebugInfo.Length,  DebugInfo);
+        try
+        {
+
+            gl.PushDebugGroup(DebugSource.DebugSourceApplication, 1, (uint)DebugInfo.Length, DebugInfo);
+        } 
+        finally { }
 #endif
     }
 
     public static void PopGroup(this GL gl)
     {
 #if DEBUG
-        gl.PopDebugGroup();
+        try
+        {
+            gl.PopDebugGroup();
+        }
+        finally { }
 #endif
     }
 
