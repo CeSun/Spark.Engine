@@ -36,6 +36,10 @@ var InitFun = () =>
         { "DefaultFBOID", 0 }
     });
 };
+
+Engine.OnBeginPlay = SparkDemo.SparkDemo.BeginPlay;
+Engine.OnEndPlay = SparkDemo.SparkDemo.EndPlay;
+
 window.Render += Engine.Render;
 window.Update += Engine.Update;
 window.Load += (InitFun + Engine.Start);

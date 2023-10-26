@@ -46,6 +46,11 @@ public partial class Engine
 
 
     }
+
+
+    public Action<Level>? OnBeginPlay;
+    public Action<Level>? OnEndPlay;
+
     public void Update(double DeltaTime)
     {
         SyncContext.Tick();

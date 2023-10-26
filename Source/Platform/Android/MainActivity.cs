@@ -54,6 +54,8 @@ public class MainActivity : SilkActivity
                 });
             };
 
+            Engine.OnBeginPlay = SparkDemo.SparkDemo.BeginPlay;
+            Engine.OnEndPlay = SparkDemo.SparkDemo.EndPlay;
             view.Render += Engine.Render;
             view.Update += Engine.Update;
             view.Load += (InitFun + Engine.Start);
