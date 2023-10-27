@@ -25,8 +25,8 @@ namespace SparkDemo
                 skybox.SkyboxCube = res;
             });
 
-            var CameraActor = new Actor(level, "camera");
-            CameraActor.RootComponent = new CameraComponent(CameraActor);
+            var character = new Character(level);
+
         }
 
 

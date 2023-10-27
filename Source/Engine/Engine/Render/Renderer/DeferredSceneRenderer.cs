@@ -338,6 +338,7 @@ public class DeferredSceneRenderer : IRenderer
             LightRT = PostProcessBuffer1;
         using (LightRT.Begin())
         {
+            gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
             gl.PushGroup("Lighting Pass");
             // 延迟光照
             LightingPass(DeltaTime);
@@ -386,7 +387,9 @@ public class DeferredSceneRenderer : IRenderer
         gl.ActiveTexture(GLEnum.Texture1);
         gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
-        SkyboxShader.SetVector2("BufferSize", new Vector2(GlobalBuffer.BufferWidth, GlobalBuffer.BufferHeight));
+        SkyboxShader.SetVector2("BufferSize", new Vector2(GlobalBuffer.BufferWidth, GlobalBuffer.BufferHeight)); 
+        SkyboxShader.SetVector2("ScreenSize", new Vector2(GlobalBuffer.Width, GlobalBuffer.Height));
+
         SkyboxShader.SetInt("skybox", 0);
         World.CurrentLevel.CurrentSkybox?.RenderSkybox(DeltaTime);
         SkyboxShader.UnUse();
