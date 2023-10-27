@@ -55,7 +55,7 @@ public class SkeletalMeshComponent : PrimitiveComponent
         if (SkeletalMesh != null)
         {
             int index = 0;
-            gl.PushDebugGroup("Render Skeletal Mesh");
+            gl.PushGroup("Render Skeletal Mesh");
            
             foreach (var element in SkeletalMesh.Elements)
             {
@@ -79,7 +79,7 @@ public class SkeletalMeshComponent : PrimitiveComponent
                 }
                 index++;
             }
-            gl.PopDebugGroup();
+            gl.PopGroup();
         }
     }
 

@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Platform;
 
@@ -11,12 +12,15 @@ public class Shader
     public string FragShaderSource;
     public GL gl;
     List<string> Macros;
+
+    public string? Path;
     public Shader(string Path, GL GL) : this(Path, new List<string>(), GL)
     {
         
     }
     public Shader(string Path, List<string> Macros, GL GL)
     {
+        this.Path = Path;
         using (var sr = FileSystem.Instance.GetStreamReader("Content" + Path + ".vert"))
         {
             VertShaderSource = sr.ReadToEnd();
@@ -88,6 +92,21 @@ public class Shader
             return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
+#if DEBUG
+        if (location < 0)
+        {
+            string stackInfo = new StackTrace().ToString();
+            Console.WriteLine("Not Found Location: " + name);
+            Console.WriteLine(stackInfo);
+        }
+#endif
+
+#if RELEASE
+        if (location < 0)
+        {
+            return;
+        }
+#endif
         gl.Uniform1(location, value);
     }
 
@@ -97,6 +116,21 @@ public class Shader
             return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
+#if DEBUG
+        if (location < 0)
+        {
+            string stackInfo = new StackTrace().ToString();
+            Console.WriteLine("Not Found Location: " + name);
+            Console.WriteLine(stackInfo);
+        }
+#endif
+
+#if RELEASE
+        if (location < 0)
+        {
+            return;
+        }
+#endif
         gl.Uniform1(location, value);
     }
 
@@ -106,6 +140,21 @@ public class Shader
             return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
+#if DEBUG
+        if (location < 0)
+        {
+            string stackInfo = new StackTrace().ToString();
+            Console.WriteLine("Not Found Location: " + name);
+            Console.WriteLine(stackInfo);
+        }
+#endif
+
+#if RELEASE
+        if (location < 0)
+        {
+            return;
+        }
+#endif
         gl.Uniform2(location, value);
     }
 
@@ -116,7 +165,22 @@ public class Shader
             return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
-        gl.Uniform3(location, value);
+#if DEBUG
+        if (location < 0)
+        {
+            string stackInfo = new StackTrace().ToString();
+            Console.WriteLine("Not Found Location: " + name);
+            Console.WriteLine(stackInfo);
+        }
+#endif
+
+#if RELEASE
+        if (location < 0)
+        {
+            return;
+        }
+#endif
+            gl.Uniform3(location, value);
     }
 
     public unsafe void SetMatrix(string name, Matrix4x4 value)
@@ -125,6 +189,21 @@ public class Shader
             return;
         gl.UseProgram(ProgramId);
         var location = gl.GetUniformLocation(ProgramId, name);
+#if DEBUG
+        if (location < 0)
+        {
+            string stackInfo = new StackTrace().ToString();
+            Console.WriteLine("Not Found Location: " + name);
+            Console.WriteLine(stackInfo);
+        }
+#endif
+
+#if RELEASE
+        if (location < 0)
+        {
+            return;
+        }
+#endif
         gl.UniformMatrix4(location, 1, false, (float*)&value);
     }
     public void Use()

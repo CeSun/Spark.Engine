@@ -10,12 +10,13 @@ using Silk.NET.OpenGLES.Extensions.EXT;
 
 namespace Spark.Engine;
 
-public partial class Engine : Singleton<Engine>
+public partial class Engine
 {
     public SingleThreadSyncContext SyncContext { get; private set; }
 
     public bool IsMobile { private set; get; } = false;
-  
+
+    public uint DefaultFBOID ;
     public Engine()
     {
         SyncContext = new SingleThreadSyncContext();
@@ -39,11 +40,17 @@ public partial class Engine : Singleton<Engine>
         WindowSize = (Point)objects["WindowSize"];
         Input = (IInputContext)objects["InputContext"];
         IsMobile = (bool)objects["IsMobile"];
+        DefaultFBOID = (uint)(int)objects["DefaultFBOID"];
         _view = (IView)objects["View"];
         Worlds.Add(new World(this));
 
 
     }
+
+
+    public Action<Level>? OnBeginPlay;
+    public Action<Level>? OnEndPlay;
+
     public void Update(double DeltaTime)
     {
         SyncContext.Tick();
@@ -77,7 +84,7 @@ public partial class Engine : Singleton<Engine>
 }
 
 
-public partial class Engine : Singleton<Engine>
+public partial class Engine
 {
     public GL? Gl { get; set; }
     public IInputContext? Input { get; set; }
@@ -122,9 +129,27 @@ public partial class Engine : Singleton<Engine>
 
 public static class GLExternFunctions
 {
-    public static void PushDebugGroup(this GL gl, string DebugInfo)
+    public static void PushGroup(this GL gl, string DebugInfo)
     {
-        gl.PushDebugGroup(DebugSource.DebugSourceApplication,1, (uint)DebugInfo.Length,  DebugInfo);
+#if DEBUG
+        try
+        {
+
+            gl.PushDebugGroup(DebugSource.DebugSourceApplication, 1, (uint)DebugInfo.Length, DebugInfo);
+        } 
+        finally { }
+#endif
+    }
+
+    public static void PopGroup(this GL gl)
+    {
+#if DEBUG
+        try
+        {
+            gl.PopDebugGroup();
+        }
+        finally { }
+#endif
     }
 
     static OpenGLStates? States = null;
