@@ -26,7 +26,7 @@ public partial class Actor
     /// </summary>
     public World CurrentWorld { get => CurrentLevel.CurrentWorld; }
 
-    public Actor(Level level, string Name)
+    public Actor(Level level, string Name = "")
     {
         this.Name = Name;
         CurrentLevel = level;
