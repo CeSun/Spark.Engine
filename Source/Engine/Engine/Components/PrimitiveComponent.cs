@@ -154,13 +154,35 @@ public partial class PrimitiveComponent
     public virtual Vector3 WorldLocation
     {
         get => _WorldLocation;
-        set =>_WorldLocation = value;
+        set
+        { 
+            var parentMatrix = WorldTransform;
+            _WorldLocation = value;
+            Matrix4x4.Invert(parentMatrix, out var invertParentMatrix);
+            foreach (var child in _ChildrenComponent)
+            {
+                var relativeMatrix = child.WorldTransform * invertParentMatrix;
+
+                child.WorldTransform = relativeMatrix * WorldTransform;
+            }
+        }
     }
 
     public virtual Quaternion WorldRotation
     {
         get => _WorldRotation;
-        set => _WorldRotation = value;
+        set 
+        {
+            var parentMatrix = WorldTransform;
+            _WorldRotation = value;
+            Matrix4x4.Invert(parentMatrix, out var invertParentMatrix);
+            foreach (var child in _ChildrenComponent)
+            {
+                var relativeMatrix = child.WorldTransform * invertParentMatrix;
+
+                child.WorldTransform = relativeMatrix * WorldTransform;
+            }
+        } 
     }
 
 
