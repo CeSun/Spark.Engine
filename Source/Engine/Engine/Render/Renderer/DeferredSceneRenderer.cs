@@ -8,6 +8,7 @@ using Spark.Util;
 using SharpGLTF.Schema2;
 using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Assets;
+using Spark.Engine.Properties;
 namespace Spark.Engine.Render.Renderer;
 
 public class DeferredSceneRenderer : IRenderer
@@ -67,7 +68,9 @@ public class DeferredSceneRenderer : IRenderer
 
     public Shader CreateShader(string Path, List<string> Macros)
     {
-        return new Shader(Path, Macros, gl);
+        var frag = Resources.ResourceManager.GetString(Path + ".frag");
+        var vert = Resources.ResourceManager.GetString(Path + ".vert");
+        return new Shader(vert, frag, Macros, gl);
     }
 
     public GL gl => World.Engine.Gl;

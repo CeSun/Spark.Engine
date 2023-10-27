@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "配置文件 1": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "..\\Engine\\Engine.csproj"
+    }
+  }
+}
