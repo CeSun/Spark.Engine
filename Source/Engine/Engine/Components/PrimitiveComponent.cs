@@ -167,7 +167,18 @@ public partial class PrimitiveComponent
     public virtual Vector3 WorldScale
     {
         get => _WorldScale;
-        set => _WorldScale = value;
+        set 
+        {
+            var parentMatrix = WorldTransform;
+            _WorldScale = value;
+            Matrix4x4.Invert(parentMatrix, out var invertParentMatrix);
+            foreach (var child in _ChildrenComponent)
+            {
+                var relativeMatrix = child.WorldTransform * invertParentMatrix;
+
+                child.WorldTransform = relativeMatrix * WorldTransform;
+            }
+        }
     }
 
     public Vector3 RelativeLocation
@@ -212,6 +223,12 @@ public partial class PrimitiveComponent
     public Matrix4x4 WorldTransform
     {
         get => MatrixHelper.CreateTransform(WorldLocation, WorldRotation, WorldScale);
+        set
+        {
+            WorldLocation = value.Translation;
+            WorldRotation = value.Rotation();
+            WorldScale = value.Scale();
+        }
     }
 
     public Matrix4x4 NormalTransform
