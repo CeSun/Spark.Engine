@@ -129,26 +129,36 @@ public partial class Engine
 
 public static class GLExternFunctions
 {
+    static bool SupportDebugGroup = true;
     public static void PushGroup(this GL gl, string DebugInfo)
     {
 #if DEBUG
+        if (SupportDebugGroup == false)
+            return;
         try
         {
-
             gl.PushDebugGroup(DebugSource.DebugSourceApplication, 1, (uint)DebugInfo.Length, DebugInfo);
-        } 
-        finally { }
+        }
+        catch
+        {
+            SupportDebugGroup = false;
+        }
 #endif
     }
 
     public static void PopGroup(this GL gl)
     {
 #if DEBUG
+        if (SupportDebugGroup == false)
+            return;
         try
         {
             gl.PopDebugGroup();
         }
-        finally { }
+        catch
+        {
+            SupportDebugGroup = false;
+        }
 #endif
     }
 
