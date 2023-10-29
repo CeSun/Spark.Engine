@@ -17,7 +17,7 @@ in vec3 TbnPosition;
 
 uniform sampler2D BaseColorTexture;
 uniform sampler2D NormalTexture;
-uniform sampler2D CustomTexture; // Metallic Roughness AO Parallax
+uniform sampler2D CustomTexture; // Metallic Roughness albedo Parallax
 
 vec2 Normal3Dto2D(vec3 Normal);
 

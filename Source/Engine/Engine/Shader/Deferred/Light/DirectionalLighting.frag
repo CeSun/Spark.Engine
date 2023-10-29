@@ -10,9 +10,6 @@ uniform sampler2D ColorTexture;
 uniform sampler2D CustomBuffer;
 uniform sampler2D DepthTexture;
 uniform sampler2D ShadowMapTexture;
-#ifndef _MOBILE_
-uniform sampler2D SSAOTexture;
-#endif
 
 uniform mat4 WorldToLight;
 uniform mat4 VPInvert;
@@ -22,10 +19,88 @@ uniform vec3 CameraLocation;
 uniform float AmbientStrength;
 uniform float LightStrength;
 
-
+const float PI=3.1415926f;
+const float LightDistance = 10.0f;
 
 vec3 GetWorldLocation(vec3 ScreenLocation);
 float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation);
+
+
+float DistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a      = roughness*roughness;
+    float a2     = a*a;
+    float NdotH  = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH*NdotH;
+	
+    float num   = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+	
+    return num / denom;
+}
+
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r = (roughness + 1.0);
+    float k = (r*r) / 8.0;
+
+    float num   = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+	
+    return num / denom;
+}
+
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2  = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1  = GeometrySchlickGGX(NdotL, roughness);
+	
+    return ggx1 * ggx2;
+}
+
+vec3 fresnelSchlick(float cosTheta,vec3 F0)
+{
+	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}   
+
+vec3 CalcLightDirectional(vec3 diffuse, float albedo, float metallic, float roughness, vec3 Normal, vec3 FragWorldLocation)
+{    
+	albedo = pow(albedo, 2.2);
+	vec3 Lo=vec3(0.0f);
+	float dist= LightDistance;
+	vec3 N = normalize(Normal);
+    vec3 V = normalize(CameraLocation - FragWorldLocation);
+	vec3 L = LightDirection;
+    float attenuation = 1.0;
+    vec3 radiance = LightColor * attenuation; 
+	vec3 F0 = vec3(0.04);
+	F0 = mix(F0, vec3(albedo),vec3(metallic));
+	vec3 H = normalize(V + L);
+	F0 = mix(F0, vec3(albedo), vec3(metallic));
+	vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+	float NDF = DistributionGGX(N, H, roughness);       
+	float G = GeometrySmith(N, V, L, roughness);    
+	vec3 nominator = NDF * G * F;
+	float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0); 
+	vec3 specular = nominator / max(denominator,0.001);  
+
+	vec3 kS = F;
+	vec3 kD = vec3(1.0) - kS;
+	kD *= 1.0 - metallic;
+	float NdotL = max(dot(N, L), 0.0);
+    Lo = (kD * albedo * diffuse / PI + specular) * radiance * NdotL;
+	return Lo;
+
+}
+
 
 vec3 Normal2DTo3D(vec2 Normal)
 {
@@ -59,16 +134,17 @@ void main()
     float AO = Buffer1.a;
     vec4 Buffer2 = texture(CustomBuffer, OutTexCoord);
     vec3 Normal = (Normal2DTo3D(Buffer2.xy));
+	float metallic = Buffer2.z;
+	float roughness = Buffer2.w;
 #else
 	float Buffer1[8] = MicroGBufferDecoding(ColorTexture,  ivec2(gl_FragCoord.xy));
     vec3 Color = vec3(Buffer1[0], Buffer1[1], Buffer1[2]);
     float AO = Buffer1[3]; 
+	float metallic = Buffer1[6]; 
+	float roughness = Buffer1[7]; 
     vec3 Normal = (Normal2DTo3D(vec2(Buffer1[4], Buffer1[5])));
 #endif
     
-#ifndef _MOBILE_
-    AO += texture(SSAOTexture, OutTexCoord).r;
-#endif
     Normal = normalize(Normal);
     
     vec4 tmpLightSpaceLocation = WorldToLight * vec4(WorldLocation, 1.0);
@@ -96,27 +172,10 @@ void main()
      float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
 #endif
 
+	vec3 PBRColor = CalcLightDirectional(Color, AO, metallic,roughness, Normal, WorldLocation);
+   
 
-    
-
-
-
-    vec3  Ambient = AmbientStrength * AO * LightColor;
-
-
-    // mfs
-    float diff = max(dot(Normal, -1.0f * LightDirection), 0.0);
-    vec3 Diffuse = diff * LightColor;
-
-    // jmfs 
-    vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
-    vec3 HalfVector = normalize((-LightDirection + CameraDirection));
-    // vec3 ReflectDirection = reflect(LightDirection, Normal);
-    float spec = pow(max(dot(Normal, HalfVector), 0.0), 16.0f);
-
-    vec3 Specular = specularStrength * spec * LightColor;
-
-    glColor = vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
+    glColor = vec4(AmbientStrength * LightColor  + PBRColor * (1.0 - Shadow), 1.0f );//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
 
 }
 
@@ -216,7 +275,7 @@ float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation)
 	res[6] = Buffer.y;
 	// m
 	res[7] = Buffer.z;
-	// ao
+	// a
 	res[3] = Buffer.w;
 
 
