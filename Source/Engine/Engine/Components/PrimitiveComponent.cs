@@ -32,6 +32,10 @@ public partial class PrimitiveComponent
         IsDestoryed = false;
         _Owner = actor;
         _Owner.RegistComponent(this);
+        if (Owner.RootComponent == null)
+        {
+            Owner.RootComponent = this;
+        }
         if (ReceieveUpdate)
         {
             this.Owner.CurrentLevel.UpdateManager.RegistUpdate(Update);
