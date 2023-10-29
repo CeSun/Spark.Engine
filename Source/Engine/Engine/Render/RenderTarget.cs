@@ -134,22 +134,7 @@ public class RenderTarget : IDisposable
 
     ~RenderTarget()
     {
-        foreach (var id in GBufferIds)
-        {
-            if (id != 0)
-            {
-                gl.DeleteTexture(id);
-            }
-        }
-
-        if (DepthId != 0)
-        {
-            gl.DeleteTexture(DepthId);
-        }
-        if (BufferId != 0)
-        {
-            gl.DeleteFramebuffer(BufferId);
-        }
+    
     }
     public void Render(Action RenderAction)
     {
