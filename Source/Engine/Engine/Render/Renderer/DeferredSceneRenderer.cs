@@ -47,7 +47,7 @@ public class DeferredSceneRenderer : IRenderer
     RenderTarget? PostProcessBuffer3;
     World World { get; set; }
 
-    Texture NoiseTexture;
+    Texture? NoiseTexture;
     List<Vector3> HalfSpherical = new List<Vector3>();
 
     uint PostProcessVAO = 0;
