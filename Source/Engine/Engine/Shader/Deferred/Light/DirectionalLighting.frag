@@ -71,34 +71,46 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }   
 
-vec3 CalcLightDirectional(vec3 diffuse, float albedo, float metallic, float roughness, vec3 Normal, vec3 FragWorldLocation)
-{    
-	albedo = pow(albedo, 2.2);
-	vec3 Lo=vec3(0.0f);
-	float dist= LightDistance;
-	vec3 N = normalize(Normal);
+vec3 CalcLightDirectional(vec3 albedo, float AO, float metallic, float roughness, vec3 Normal, vec3 FragWorldLocation)
+{   
+    vec3 N = Normal;
     vec3 V = normalize(CameraLocation - FragWorldLocation);
-	vec3 L = LightDirection;
-    float attenuation = 1.0;
-    vec3 radiance = LightColor * attenuation; 
-	vec3 F0 = vec3(0.04);
-	F0 = mix(F0, vec3(albedo),vec3(metallic));
-	vec3 H = normalize(V + L);
-	F0 = mix(F0, vec3(albedo), vec3(metallic));
-	vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-	float NDF = DistributionGGX(N, H, roughness);       
-	float G = GeometrySmith(N, V, L, roughness);    
-	vec3 nominator = NDF * G * F;
-	float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0); 
-	vec3 specular = nominator / max(denominator,0.001);  
 
-	vec3 kS = F;
-	vec3 kD = vec3(1.0) - kS;
-	kD *= 1.0 - metallic;
-	float NdotL = max(dot(N, L), 0.0);
-    Lo = (kD * albedo * diffuse / PI + specular) * radiance * NdotL;
-	return Lo;
+    // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
+    // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
+    vec3 F0 = vec3(0.04); 
+    F0 = mix(F0, vec3(albedo), vec3(metallic));
+	vec3 L = -1.0f * LightDirection;
+    vec3 H = normalize(V + L);
+    float distance = 0.5F;
+    float attenuation = 1.0 / (distance * distance);
+    vec3 radiance = LightColor * attenuation;
 
+    // Cook-Torrance BRDF
+    float NDF = DistributionGGX(N, H, roughness);   
+    float G   = GeometrySmith(N, V, L, roughness);      
+    vec3 F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
+           
+    vec3 numerator    = NDF * G * F; 
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+    vec3 specular = numerator / denominator;
+        
+    // kS is equal to Fresnel
+    vec3 kS = F;
+    // for energy conservation, the diffuse and specular light can't
+    // be above 1.0 (unless the surface emits light); to preserve this
+    // relationship the diffuse component (kD) should equal 1.0 - kS.
+    vec3 kD = vec3(1.0) - kS;
+    // multiply kD by the inverse metalness such that only non-metals 
+    // have diffuse lighting, or a linear blend if partly metal (pure metals
+    // have no diffuse light).
+    kD *= 1.0 - metallic;	  
+
+    // scale light by NdotL
+    float NdotL = max(dot(N, L), 0.0);        
+
+    // add to outgoing radiance Lo
+    return (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
 }
 
 
@@ -175,8 +187,10 @@ void main()
 	vec3 PBRColor = CalcLightDirectional(Color, AO, metallic,roughness, Normal, WorldLocation);
    
 
-    glColor = vec4(AmbientStrength * LightColor  + PBRColor * (1.0 - Shadow), 1.0f );//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
+    vec3 result = AmbientStrength * LightColor  + (PBRColor * (1.0 - Shadow))* LightStrength;//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
+    
 
+    glColor = vec4(result, 1.0f);
 }
 
 vec3 GetWorldLocation(vec3 ScreenLocation)

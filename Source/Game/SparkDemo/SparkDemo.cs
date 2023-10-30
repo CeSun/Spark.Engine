@@ -60,8 +60,8 @@ namespace SparkDemo
             };
 
             StaticMeshActor sma = new StaticMeshActor(level);
-            sma.IsStatic = true;
-            sma.WorldScale = new Vector3(5, 5, 5);
+            sma.WorldScale = new Vector3(1, 1, 1);
+            sma.WorldLocation = new Vector3(0, 2, 0);
             StaticMesh.LoadFromGLBAsync("/StaticMesh/sphere.glb").Then(mesh =>
             {
                 sma.StaticMesh = mesh;
