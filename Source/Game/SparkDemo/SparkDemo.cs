@@ -34,17 +34,16 @@ namespace SparkDemo
             SkyBoxActor.RootComponent = skybox;
             skybox.SkyboxCube = TextureCube.Load("/Skybox/pm");
 
-
             var planeActor = new Actor(level);
             var planeComp = new StaticMeshComponent(planeActor);
             StaticMesh.LoadFromGLBAsync("/StaticMesh/cube2.glb").Then(mesh => planeComp.StaticMesh = mesh);
             planeComp.WorldScale =new Vector3(10, 1, 10);
             planeComp.IsStatic = true;
-
             var character = new Character(level);
             character.WorldLocation = new Vector3(0, 1, 0);
-            var camera = new CameraActor(level);
 
+            var camera = new CameraActor(level);
+            camera.WorldLocation = new Vector3(0, 7, 5);
             level.Engine.MainKeyBoard.KeyDown += (keyboard, key, _) =>
             {
                 if (key == Key.Up)
@@ -61,7 +60,8 @@ namespace SparkDemo
 
             StaticMeshActor sma = new StaticMeshActor(level);
             sma.WorldScale = new Vector3(1, 1, 1);
-            sma.WorldLocation = new Vector3(0, 2, 0);
+            sma.WorldLocation = new Vector3(2, 2, 0);
+            sma.IsStatic = true;
             StaticMesh.LoadFromGLBAsync("/StaticMesh/sphere.glb").Then(mesh =>
             {
                 sma.StaticMesh = mesh;

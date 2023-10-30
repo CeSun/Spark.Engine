@@ -37,7 +37,7 @@ public class LightComponent : PrimitiveComponent
         }
     }
 
-    float _AmbientStength = 0.3f;
+    float _AmbientStength = 0.03f;
 
     [Property(DisplayName = "Color", IsDispaly = true, IsReadOnly = false)]
     public Color Color

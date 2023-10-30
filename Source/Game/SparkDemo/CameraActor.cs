@@ -24,7 +24,7 @@ namespace SparkDemo
         public CameraActor(Level level, string Name = "") : base(level, Name)
         {
             CameraComponent = new CameraComponent(this);
-            CameraComponent.NearPlaneDistance = 1;
+            CameraComponent.NearPlaneDistance = 0.1F;
             CurrentWorld.Engine.MainMouse.MouseDown += (mouse, Button) =>
             {
                 if (Button == MouseButton.Left)
