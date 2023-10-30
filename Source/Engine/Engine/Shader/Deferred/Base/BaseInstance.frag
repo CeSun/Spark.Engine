@@ -65,14 +65,16 @@ vec2 Normal3Dto2D(vec3 Normal)
     Normal.xy /= dot( vec3(1.0f), abs(Normal) );
     if( Normal.z <= 0.0f )
     {
-        if (Normal.x >= 0.0f && Normal.y >= 0.0f)
-        {
-            Normal.xy = ( 1.0f - abs(Normal.yx) ) * vec2(1.0f,1.0f) ;
-        }
-        else
-        {
-            Normal.xy = ( 1.0f - abs(Normal.yx) ) *  vec2(-1.0f,-1.0f) ;
-        }
+        vec2 add;
+        if (Normal.x >= 0.0f)
+            add.x = 1.0f;
+        else 
+            add.x = -1.0f;
+        if (Normal.y >= 0.0f)
+            add.y = 1.0f;
+        else 
+            add.y = -1.0f;
+        Normal.xy = ( 1.0f - abs(Normal.yx) ) * add ;
     }
     return Normal.xy;
 }

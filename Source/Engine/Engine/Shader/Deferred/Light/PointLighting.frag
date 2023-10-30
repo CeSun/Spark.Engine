@@ -45,17 +45,21 @@ vec3 Normal2DTo3D(vec2 Oct)
 	vec3 N = vec3( Oct, 1.0 - dot( vec2(1.0f), abs(Oct) ) );
     if( N.z < 0.0f )
     {
-		if (N.y >= 0.0 && N.y >= 0.0)
-		{
-        	N.xy = ( 1.0f - abs(N.yx) ) * vec2(1.0f,1.0f);
-		}
-		else 
-		{
-        	N.xy = ( 1.0f - abs(N.yx) ) * vec2(-1.0f,-1.0f) ;
-		}
+		vec2 add;
+		if (N.x >= 0.0f)
+			add.x = 1.0f;
+		else
+			add.x = -1.0f;
+
+		if (N.y >= 0.0f)
+			add.y = 1.0f;
+		else
+			add.y = -1.0f;
+		N.xy = ( 1.0f - abs(N.yx) ) * add;
     }
     return normalize(N);
 }
+
 
 
 
