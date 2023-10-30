@@ -128,20 +128,19 @@ float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation)
 
 }
 
-vec3 Normal2DTo3D(vec2 Normal)
+vec3 Normal2DTo3D(vec2 Oct)
 {
-    float z = (1.0f -  dot(vec2(1.0f, 1.0f),abs(Normal)));
-    vec3 n = vec3(Normal.x, Normal.y, z);
-    if (n.z < 0.0f)
+	vec3 N = vec3( Oct, 1.0 - dot( vec2(1.0f), abs(Oct) ) );
+    if( N.z < 0.0f )
     {
-        vec2 tmp = vec2(1.0f, 1.0f);
-        if (n.x < 0.0f || n.y < 0.0f)
-        {
-            tmp = vec2(-1.0f, -1.0f);
-        }
-        vec2 xy = (vec2(1.0f, 1.0f) - abs(vec2 (n.y, n.x))) * tmp;
-        n.x = xy.x;
-        n.y = xy.y;
+		if (N.y >= 0.0 && N.y >= 0.0)
+		{
+        	N.xy = ( 1.0f - abs(N.yx) ) * vec2(1.0f,1.0f);
+		}
+		else 
+		{
+        	N.xy = ( 1.0f - abs(N.yx) ) * vec2(-1.0f,-1.0f) ;
+		}
     }
-    return normalize(n);
+    return normalize(N);
 }

@@ -53,30 +53,30 @@ void main()
     
 #ifndef _MICRO_GBUFFER_
     GBuffer1 = vec4(color.rgb,  custom.z);
-    GBuffer2 =  vec4(Normal3Dto2D(Normal), custom.xy);
+    GBuffer2 =  vec4(Normal3Dto2D(Normal) * 0.5 + 0.5, custom.xy);
 #else
-    GBuffer1 = MicroGBufferEncoding(color.rgb, Normal3Dto2D(Normal), custom.x, custom.y, custom.z, ivec2(gl_FragCoord.xy));
+    GBuffer1 = MicroGBufferEncoding(color.rgb, Normal3Dto2D(Normal) * 0.5 + 0.5, custom.x, custom.y, custom.z, ivec2(gl_FragCoord.xy));
 #endif
 }
 
 
 vec2 Normal3Dto2D(vec3 Normal)
 {   
-    vec2 res = vec2(Normal.x, Normal.y);
-
-    res /= dot(vec3(1.0f, 1.0f, 1.0f), abs(Normal));
-
-    if (Normal.z < 0.0f )
+    Normal.xy /= dot( vec3(1.0f), abs(Normal) );
+    if( Normal.z <= 0.0f )
     {
-        vec2 tmp = vec2(1.0f, 1.0f);
-        if (res.x < 0.0f  || res.y < 0.0f )
+        if (Normal.x >= 0.0f && Normal.y >= 0.0f)
         {
-            tmp = vec2(-1.0f, -1.0f);
+            Normal.xy = ( 1.0f - abs(Normal.yx) ) * vec2(1.0f,1.0f) ;
         }
-        res = (vec2(1.0f, 1.0f) - abs(vec2(res.y, res.x))) * tmp;
+        else
+        {
+            Normal.xy = ( 1.0f - abs(Normal.yx) ) *  vec2(-1.0f,-1.0f) ;
+        }
     }
-    return res;
+    return Normal.xy;
 }
+
 
 vec2 GetUVOffset(vec2 TexCoord, vec3 ViewDirection)
 {
