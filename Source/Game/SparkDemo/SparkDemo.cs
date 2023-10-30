@@ -24,7 +24,7 @@ namespace SparkDemo
             var lightActor = new Actor(level);
 
             var lightc = new DirectionLightComponent(lightActor);
-            lightc.LightStrength = 0.7F;
+            lightc.LightStrength = 1F;
             lightc.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
             lightActor.RootComponent = lightc;
             lightc.Color = Color.White;

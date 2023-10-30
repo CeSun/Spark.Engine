@@ -12,9 +12,8 @@ namespace Spark.Engine.Assets;
 
 public class StaticMesh
 {
-    List<Element<StaticMeshVertex>> _Elements = new List<Element<StaticMeshVertex>>();
+    public List<Element<StaticMeshVertex>> Elements = new List<Element<StaticMeshVertex>>();
     public List<Shape> Shapes = new List<Shape>();
-    public IReadOnlyList<Element<StaticMeshVertex>> Elements => _Elements;
     public Box Box { get; private set; }
 
     public List<Box> Boxes { get; private set; } = new List<Box>();
@@ -27,7 +26,7 @@ public class StaticMesh
     public StaticMesh(List<Element<StaticMeshVertex>> Elementes)
     {
         Path = string.Empty;
-        _Elements.AddRange(Elementes);
+        Elements.AddRange(Elementes);
     }
 
     public async static Task<StaticMesh> LoadFromGLBAsync(string Path)
@@ -188,7 +187,7 @@ public class StaticMesh
                     }
                     Texture Custom = Texture.LoadPBRTexture(MetallicRoughness, AmbientOcclusion, Parallax);
                     Material.Custom = Custom;
-                    sm._Elements.Add(new Element<StaticMeshVertex>
+                    sm.Elements.Add(new Element<StaticMeshVertex>
                     {
                         Vertices = staticMeshVertices,
                         Material = Material,
@@ -248,22 +247,22 @@ public class StaticMesh
         return sm;
     }
   
-    private void InitTBN()
+    public void InitTBN()
     {
-        for (int i = 0; i < _Elements.Count; i ++)
+        for (int i = 0; i < Elements.Count; i ++)
         {
             InitMeshTBN(i);
         }
     }
 
-    private void InitPhysics()
+    public void InitPhysics()
     {
         if (Shapes.Count > 0 )
         {
             return;
         }
         List<JVector> vertices = new List<JVector>();
-        foreach(var element in _Elements)
+        foreach(var element in Elements)
         {
             foreach(var vertex in element.Vertices)
             {
@@ -281,11 +280,12 @@ public class StaticMesh
     }
     private void InitMeshTBN(int index)
     {
-        var vertics = _Elements[index].Vertices;
-        var indices = _Elements[index].Indices;
+        var vertics = Elements[index].Vertices;
+        var indices = Elements[index].Indices;
 
-        for(int i = 0; i < indices.Count; i += 3)
+        for(int i = 0; i < indices.Count - 2; i += 3)
         {
+
             var p1 = vertics[(int)indices[i]];
             var p2 = vertics[(int)indices[i + 1]];
             var p3 = vertics[(int)indices[i + 2]];
@@ -328,7 +328,7 @@ public class StaticMesh
     }
     public unsafe void InitRender(GL gl)
     {
-        for (var index = 0; index < _Elements.Count; index++)
+        for (var index = 0; index < Elements.Count; index++)
         {
             if (Elements[index].VertexArrayObjectIndex > 0)
                 continue;
@@ -337,14 +337,14 @@ public class StaticMesh
             uint ebo = gl.GenBuffer();
             gl.BindVertexArray(vao);
             gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
-            fixed (StaticMeshVertex* p = CollectionsMarshal.AsSpan(_Elements[index].Vertices))
+            fixed (StaticMeshVertex* p = CollectionsMarshal.AsSpan(Elements[index].Vertices))
             {
-                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(_Elements[index].Vertices.Count * sizeof(StaticMeshVertex)), p, GLEnum.StaticDraw);
+                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Elements[index].Vertices.Count * sizeof(StaticMeshVertex)), p, GLEnum.StaticDraw);
             }
             gl.BindBuffer(GLEnum.ElementArrayBuffer, ebo);
-            fixed (uint* p = CollectionsMarshal.AsSpan(_Elements[index].Indices))
+            fixed (uint* p = CollectionsMarshal.AsSpan(Elements[index].Indices))
             {
-                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(_Elements[index].Indices.Count * sizeof(uint)), p, GLEnum.StaticDraw);
+                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(Elements[index].Indices.Count * sizeof(uint)), p, GLEnum.StaticDraw);
             }
 
             // Location
@@ -369,9 +369,9 @@ public class StaticMesh
             gl.EnableVertexAttribArray(5);
             gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(5 * sizeof(Vector3)));
             gl.BindVertexArray(0);
-            _Elements[index].VertexArrayObjectIndex = vao;
-            _Elements[index].VertexBufferObjectIndex = vbo;
-            _Elements[index].ElementBufferObjectIndex = ebo;
+            Elements[index].VertexArrayObjectIndex = vao;
+            Elements[index].VertexBufferObjectIndex = vbo;
+            Elements[index].ElementBufferObjectIndex = ebo;
         }
     }
 

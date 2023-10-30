@@ -126,7 +126,7 @@ public class Texture
         throw new Exception("Load Texture error");
     }
 
-    internal unsafe static Texture LoadPBRTexture(byte[]? MetallicRoughness, byte[]? AO, byte[]? Parallax)
+    public unsafe static Texture LoadPBRTexture(byte[]? MetallicRoughness, byte[]? AO, byte[]? Parallax)
     {
         ImageResult? mr = default;
         ImageResult? ao = default;
@@ -176,7 +176,7 @@ public class Texture
                     _ => 3
                 };
 
-                Data[i * 4] = mr.Data[i * step];
+                Data[i * 4] = mr.Data[i * step + 2];
                 Data[i * 4 + 1] = mr.Data[i * step + 1];
             }
             if (ao == null)
