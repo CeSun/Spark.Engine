@@ -43,7 +43,7 @@ namespace SparkDemo
             character.WorldLocation = new Vector3(0, 1, 0);
 
             var camera = new CameraActor(level);
-            camera.WorldLocation = new Vector3(0, 7, 5);
+            camera.WorldLocation = new Vector3(2, 3, 2);
             level.Engine.MainKeyBoard.KeyDown += (keyboard, key, _) =>
             {
                 if (key == Key.Up)
