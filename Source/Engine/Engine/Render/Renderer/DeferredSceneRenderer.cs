@@ -558,8 +558,8 @@ public class DeferredSceneRenderer : IRenderer
                 gl.PushGroup("face:" + i);
                 gl.BindFramebuffer(GLEnum.Framebuffer, PointLightComponent.ShadowMapFrameBufferIDs[i]);
                 gl.Clear(ClearBufferMask.DepthBufferBit);
-                SpotShadowMapShader.SetMatrix("ViewTransform", Views[i]);
-                SpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+                PointLightShadowShader.SetMatrix("ViewTransform", Views[i]);
+                PointLightShadowShader.SetMatrix("ProjectionTransform", Projection);
                 foreach (var component in World.CurrentLevel.StaticMeshComponents)
                 {
                     if (component == null)
