@@ -22,7 +22,7 @@ public class LightComponent : PrimitiveComponent
         }
     }
 
-    public float _LightStrength = 2f;
+    private float _LightStrength = 2f;
 
 
     [Property(DisplayName = "Color", IsDispaly = true, IsReadOnly = false)]

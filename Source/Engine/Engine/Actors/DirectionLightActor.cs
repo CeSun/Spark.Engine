@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
-public class DirectionLightActor : Actor
+public class DirectionLightActor : LightActor
 {
     public DirectionLightComponent DirectionLightComponent { get; private set; }
     public DirectionLightActor(Level level, string Name = "") : base(level, Name)
@@ -17,16 +17,5 @@ public class DirectionLightActor : Actor
         DirectionLightComponent = new DirectionLightComponent(this);
     }
 
-    [Property]
-    public float LightStrength
-    {
-        get => DirectionLightComponent.LightStrength;
-        set => DirectionLightComponent.LightStrength = value;
-    }
-
-    public Color Color
-    {
-        get => DirectionLightComponent.Color;
-        set => DirectionLightComponent.Color = value;
-    }
+    public override LightComponent LightComponent => DirectionLightComponent;
 }

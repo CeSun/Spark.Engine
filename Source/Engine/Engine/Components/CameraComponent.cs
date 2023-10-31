@@ -18,7 +18,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
 {
     public RenderTarget RenderTarget { get; set; }
 
-    public static CameraComponent? CurrentCameraComponent;
+    public static CameraComponent? CurrentCameraComponent { get; private set; }
     public int Order { get; set; }
     public CameraComponent(Actor actor) : base(actor)
     {

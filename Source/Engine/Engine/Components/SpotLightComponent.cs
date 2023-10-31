@@ -15,9 +15,9 @@ public class SpotLightComponent : LightComponent
         InitShadowMap();
     }
 
-    public float InnerAngle;
+    public float InnerAngle { get; set; }
 
-    public float OuterAngle;
+    public float OuterAngle { get; set; }
 
 
     public uint ShadowMapTextureID = default;
