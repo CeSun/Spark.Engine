@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace SparkDemo
 {
-    public class CameraActor : Actor
+    public class MovableCamera : Actor
     {
         public float Speed = 10;
         public CameraComponent CameraComponent { get; private set; }
@@ -21,7 +21,7 @@ namespace SparkDemo
         Vector2 LastClickPosition;
         Vector2 Rotation = Vector2.Zero;
         protected override bool ReceieveUpdate => true;
-        public CameraActor(Level level, string Name = "") : base(level, Name)
+        public MovableCamera(Level level, string Name = "") : base(level, Name)
         {
             CameraComponent = new CameraComponent(this);
             CameraComponent.NearPlaneDistance = 0.1F;
