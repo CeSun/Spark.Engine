@@ -79,6 +79,9 @@ public partial class Actor
 
     }
 
+    public Vector3 ForwardVector => Vector3.Transform(new Vector3(0, 0, -1), WorldRotation);
+    public Vector3 RightVector => Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
+    public Vector3 UpVector => Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
 
 }
 
