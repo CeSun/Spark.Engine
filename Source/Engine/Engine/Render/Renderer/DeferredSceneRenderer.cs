@@ -128,9 +128,9 @@ public class DeferredSceneRenderer : IRenderer
         {
             GlobalBuffer = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 2);
         }
+        PostProcessBuffer1 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
         if (IsMobile == false)
         {
-            PostProcessBuffer1 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
             PostProcessBuffer2 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
             PostProcessBuffer3 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
             NoiseTexture = Texture.CreateNoiseTexture(4, 4);
@@ -331,8 +331,6 @@ public class DeferredSceneRenderer : IRenderer
         {
             AOPass(DeltaTime);
         }
-        RenderTarget? LightRT = null;
-        
         using (PostProcessBuffer1.Begin())
         {
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
@@ -351,11 +349,8 @@ public class DeferredSceneRenderer : IRenderer
         PostProcessPass(DeltaTime);
         gl.PopGroup();
 
-        if (IsMobile == false)
-        {
-            // 渲染到摄像机的RenderTarget上
-            RenderToCameraRenderTarget(DeltaTime);
-        }
+        // 渲染到摄像机的RenderTarget上
+        RenderToCameraRenderTarget(DeltaTime);
     }
 
    
