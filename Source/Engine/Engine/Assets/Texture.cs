@@ -13,6 +13,11 @@ public enum TexChannel
     RGBA,
 }
 
+public enum TexFilter
+{
+    Liner,
+    Nearest
+}
 public static class ChannelHelper 
 {
     public static TexChannel ToTexChannel(this ColorComponents colorComponents)
@@ -36,6 +41,16 @@ public static class ChannelHelper
         };
     }
 
+    public static GLEnum ToGLFilter (this TexFilter filter)
+    {
+        return filter switch
+        {
+            TexFilter.Liner => GLEnum.Linear,
+            TexFilter.Nearest => GLEnum.Nearest,
+            _ => GLEnum.Linear
+        };
+    }
+
 }
 public class Texture
 {
@@ -44,6 +59,8 @@ public class Texture
     public uint Height { get; set; }
     public List<byte> Pixels { get; set; } = new List<byte>();
     public TexChannel Channel;
+
+    public TexFilter Filter { get; set; } = TexFilter.Liner;
     public Texture()
     {
     }
@@ -57,8 +74,8 @@ public class Texture
         gl.BindTexture(GLEnum.Texture2D, TextureId);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)Filter.ToGLFilter());
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)Filter.ToGLFilter());
         fixed (void* p = CollectionsMarshal.AsSpan(Pixels))
         {
             gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToGLEnum(), Width, Height, 0, Channel.ToGLEnum(), GLEnum.UnsignedByte, p);

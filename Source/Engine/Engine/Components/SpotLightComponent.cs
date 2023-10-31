@@ -9,19 +9,11 @@ public class SpotLightComponent : LightComponent
 {
     public SpotLightComponent(Actor actor) : base(actor)
     {
-        Constant = 1;
-        Linear = 0.045F;
-        Quadratic = 0.0075F;
         InnerAngle = 12.5f;
         OuterAngle = 17.5f;
         ShadowMapSize = new Point(1024, 1024);
         InitShadowMap();
     }
-    public float Constant;
-
-    public float Linear;
-
-    public float Quadratic;
 
     public float InnerAngle;
 

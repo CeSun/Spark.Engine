@@ -24,9 +24,6 @@ uniform mat4 WorldToLights[6];
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
-uniform float Constant;
-uniform float Linear;
-uniform float Quadratic;
 uniform float FarPlan;
 uniform float LightStrength;
 
@@ -185,7 +182,7 @@ void main()
 	vec3 PBRColor = CalcLightPoint(Color, AO, metallic,roughness, Normal, WorldLocation);
    
 
-    vec3 result = (PBRColor * (1.0 - Shadow));//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
+    vec3 result = (PBRColor * (1.0 - Shadow))*  LightStrength;//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
     
 
     glColor = vec4(result, 1.0f);

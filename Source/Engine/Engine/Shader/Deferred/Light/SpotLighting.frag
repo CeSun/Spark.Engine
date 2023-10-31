@@ -15,9 +15,6 @@ uniform mat4 VPInvert;
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
-uniform float Constant;
-uniform float Linear;
-uniform float Quadratic;
 uniform float InnerCosine;
 uniform float OuterCosine;
 uniform vec3 ForwardVector;
@@ -199,10 +196,6 @@ void main()
 #endif
 
 
-
-    float Distance    = length(LightLocation - WorldLocation);
-    float Attenuation = 1.0 / (Constant + Linear * Distance + Quadratic * (Distance * Distance));
-
     float Theta = dot(ForwardVector, LightDirection);
     float Epsilon = (InnerCosine - OuterCosine);
     
@@ -212,7 +205,7 @@ void main()
    	vec3 PBRColor = CalcLightSpot(Color, AO, metallic,roughness, Normal, WorldLocation);
    
 
-    vec3 result = (PBRColor * (1.0 - Shadow) * Intensity);//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
+    vec3 result = (PBRColor * (1.0 - Shadow) * Intensity) * LightStrength;//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
     
 
     glColor = vec4(result, 1.0f);

@@ -22,22 +22,8 @@ public class LightComponent : PrimitiveComponent
         }
     }
 
-    public float _LightStrength = 0.7f;
-    [Property(DisplayName = "AmbientStrength", IsDispaly = true, IsReadOnly = false)]
-    public float AmbientStrength 
-    {
-        get => _AmbientStength; 
-        set
-        {
-            if (value < 0)
-                return;
-            if (value > 1)
-                return;
-            _AmbientStength = value;
-        }
-    }
+    public float _LightStrength = 2f;
 
-    float _AmbientStength = 0.03f;
 
     [Property(DisplayName = "Color", IsDispaly = true, IsReadOnly = false)]
     public Color Color

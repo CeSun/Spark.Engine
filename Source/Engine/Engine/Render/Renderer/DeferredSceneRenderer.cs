@@ -820,7 +820,6 @@ public class DeferredSceneRenderer : IRenderer
                 });
 
 
-            DirectionalLightingShader.SetFloat("AmbientStrength", DirectionalLight.AmbientStrength);
             DirectionalLightingShader.SetFloat("LightStrength", DirectionalLight.LightStrength);
             DirectionalLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
@@ -971,10 +970,6 @@ public class DeferredSceneRenderer : IRenderer
                     Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
                 });
 
-            PointLightingShader.SetFloat("Constant", PointLightComponent.Constant);
-            PointLightingShader.SetFloat("Linear", PointLightComponent.Linear);
-            PointLightingShader.SetFloat("Quadratic", PointLightComponent.Quadratic);
-
             PointLightingShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
@@ -1053,10 +1048,6 @@ public class DeferredSceneRenderer : IRenderer
             var Projection = Matrix4x4.CreatePerspectiveFieldOfView(SpotLightComponent.OuterAngle.DegreeToRadians(), 1, 1F, 100);
             var WorldToLight = View * Projection;
             SpotLightingShader.SetMatrix("WorldToLight", WorldToLight);
-            SpotLightingShader.SetFloat("Constant", SpotLightComponent.Constant);
-            SpotLightingShader.SetFloat("Linear", SpotLightComponent.Linear);
-            SpotLightingShader.SetFloat("Quadratic", SpotLightComponent.Quadratic);
-
 
             SpotLightingShader.SetFloat("InnerCosine", (float)Math.Cos(SpotLightComponent.InnerAngle.DegreeToRadians()));
 

@@ -182,7 +182,7 @@ void main()
 	vec3 PBRColor = CalcLightDirectional(Color, AO, metallic,roughness, Normal, WorldLocation);
    
 
-    vec3 result = (PBRColor * (1.0 - Shadow))* LightStrength;//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
+    vec3 result = (PBRColor * (1.0 - Shadow))* LightStrength * LightStrength;//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
     
 
     glColor = vec4(result, 1.0f);

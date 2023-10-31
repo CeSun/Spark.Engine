@@ -22,12 +22,38 @@ namespace SparkDemo
         {
             float angle = 0f;
             var lightActor = new Actor(level);
-
-            var lightc = new DirectionLightComponent(lightActor);
+            /*
+            var lightc = new PointLightComponent(lightActor);
             lightc.LightStrength = 1F;
             lightc.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
             lightActor.RootComponent = lightc;
             lightc.Color = Color.White;
+            lightc.WorldLocation = new Vector3(1, 4, 0);
+
+
+            var lightc2 = new DirectionLightComponent(lightActor);
+            lightc2.LightStrength = 1F;
+            lightc2.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
+            lightActor.RootComponent = lightc2;
+            lightc2.Color = Color.White;
+            lightc2.WorldLocation = new Vector3(1, 4, 0);
+            
+
+           for(int i = 0; i < 4; i++)
+            {
+                var lightc3 = new PointLightComponent(lightActor);
+                lightc3.LightStrength = 1F;
+                lightc3.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, -90f.DegreeToRadians(), 0);
+                lightActor.RootComponent = lightc3;
+                lightc3.Color = Color.White;
+                lightc3.WorldLocation = new Vector3(2 + i, 3, -2 + i);
+            }
+            */
+            var lightc1 = new DirectionLightComponent(lightActor);
+            lightc1.LightStrength = 1.5F;
+            lightc1.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
+            lightActor.RootComponent = lightc1;
+            lightc1.Color = Color.White;
 
             var SkyBoxActor = new Actor(level, "SkyBox Actor");
             var skybox = new SkyboxComponent(SkyBoxActor);
@@ -43,21 +69,8 @@ namespace SparkDemo
             character.WorldLocation = new Vector3(0, 1, 0);
 
             var camera = new CameraActor(level);
-            camera.WorldLocation = new Vector3(2, 3, 2);
-            level.Engine.MainKeyBoard.KeyDown += (keyboard, key, _) =>
-            {
-                if (key == Key.Up)
-                {
-                    angle++;
-                    lightc.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, angle.DegreeToRadians(), 0);
-                }
-                if (key == Key.Down)
-                {
-                    angle--;
-                    lightc.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, angle.DegreeToRadians(), 0);
-                }
-            };
-
+            camera.WorldLocation = new Vector3(2, 3, -2);
+        
             StaticMeshActor sma = new StaticMeshActor(level);
             sma.WorldScale = new Vector3(1, 1, 1);
             sma.WorldLocation = new Vector3(2, 2, 0);

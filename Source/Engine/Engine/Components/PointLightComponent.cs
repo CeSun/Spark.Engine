@@ -9,20 +9,9 @@ public class PointLightComponent : LightComponent
     public PointLightComponent(Actor actor) : base(actor)
     {
 
-        Constant = 1;
-        Linear = 0.045F;
-        Quadratic = 0.0075F;
         InitRender();
     }
 
-    [Property(DisplayName = "Constant", IsDispaly = true, IsReadOnly = false)]
-    public float Constant { get; set; }
-
-    [Property(DisplayName = "Linear", IsDispaly = true, IsReadOnly = false)]
-    public float Linear { get; set; }
-
-    [Property(DisplayName = "Quadratic", IsDispaly = true, IsReadOnly = true)]
-    public float Quadratic { get; set; }
      
     public uint[] ShadowMapTextureIDs =  new uint[6] { 0, 0, 0, 0, 0,0 };
     public uint[] ShadowMapFrameBufferIDs = new uint[6] { 0, 0, 0, 0, 0, 0 };
