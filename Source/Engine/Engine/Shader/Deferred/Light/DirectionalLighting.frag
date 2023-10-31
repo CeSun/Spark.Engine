@@ -16,7 +16,6 @@ uniform mat4 VPInvert;
 uniform vec3 LightDirection;
 uniform vec3 LightColor;
 uniform vec3 CameraLocation;
-uniform float AmbientStrength;
 uniform float LightStrength;
 
 const float PI=3.1415926f;
@@ -183,7 +182,7 @@ void main()
 	vec3 PBRColor = CalcLightDirectional(Color, AO, metallic,roughness, Normal, WorldLocation);
    
 
-    vec3 result = AmbientStrength * LightColor  + (PBRColor * (1.0 - Shadow))* LightStrength;//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
+    vec3 result = (PBRColor * (1.0 - Shadow))* LightStrength;//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
     
 
     glColor = vec4(result, 1.0f);

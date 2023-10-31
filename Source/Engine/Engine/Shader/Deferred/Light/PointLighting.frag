@@ -24,13 +24,13 @@ uniform mat4 WorldToLights[6];
 uniform vec3 LightColor;
 uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
-uniform float AmbientStrength;
 uniform float Constant;
 uniform float Linear;
 uniform float Quadratic;
 uniform float FarPlan;
 uniform float LightStrength;
 
+const float PI=3.1415926f;
 
 
 
@@ -38,6 +38,49 @@ vec3 GetWorldLocation(vec3 ScreenLocation);
 float ShadowCalculation(vec3 fragPos);
 float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation);
 float GetShadowFromTexture(vec3 WorldLocation, sampler2D tex, mat4 WorldToLight);
+
+
+float DistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a = roughness*roughness;
+    float a2 = a*a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH*NdotH;
+
+    float nom   = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+
+    return nom / denom;
+}
+
+
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r = (roughness + 1.0);
+    float k = (r*r) / 8.0;
+
+    float nom   = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+
+    return nom / denom;
+}
+
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+    return ggx1 * ggx2;
+}
+
+vec3 fresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
 
 
 vec3 Normal2DTo3D(vec2 Oct)
@@ -61,7 +104,51 @@ vec3 Normal2DTo3D(vec2 Oct)
 }
 
 
+vec3 CalcLightPoint(vec3 albedo, float AO, float metallic, float roughness, vec3 Normal, vec3 FragWorldLocation)
+{
+	vec3 N = Normal;
+    vec3 V = normalize(CameraLocation - FragWorldLocation);
 
+    // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
+    // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
+    vec3 F0 = vec3(0.04); 
+    F0 = mix(F0, albedo, metallic);
+
+    // reflectance equation
+    vec3 Lo = vec3(0.0);
+
+	vec3 L = normalize(LightLocation - FragWorldLocation);
+    vec3 H = normalize(V + L);
+    float distance = length(LightLocation - FragWorldLocation);
+    float attenuation = 1.0 / (distance * distance);
+    vec3 radiance = LightColor * attenuation;
+
+    // Cook-Torrance BRDF
+    float NDF = DistributionGGX(N, H, roughness);   
+    float G   = GeometrySmith(N, V, L, roughness);      
+    vec3 F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
+           
+    vec3 numerator    = NDF * G * F; 
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+    vec3 specular = numerator / denominator;
+        
+    // kS is equal to Fresnel
+    vec3 kS = F;
+    // for energy conservation, the diffuse and specular light can't
+    // be above 1.0 (unless the surface emits light); to preserve this
+    // relationship the diffuse component (kD) should equal 1.0 - kS.
+    vec3 kD = vec3(1.0) - kS;
+    // multiply kD by the inverse metalness such that only non-metals 
+    // have diffuse lighting, or a linear blend if partly metal (pure metals
+    // have no diffuse light).
+    kD *= 1.0 - metallic;	  
+
+    // scale light by NdotL
+    float NdotL = max(dot(N, L), 0.0);        
+
+    // add to outgoing radiance Lo
+    return (kD * albedo / PI + specular) * radiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+}
 
 
 void main()
@@ -77,10 +164,14 @@ void main()
     float AO = Buffer1.a;
     vec4 Buffer2 = texture(CustomBuffer, OutTexCoord);
     vec3 Normal = (Normal2DTo3D(Buffer2.xy* 2.0 - 1.0));
+	float metallic = Buffer2.z;
+	float roughness = Buffer2.w;
 #else
 	float Buffer1[8] = MicroGBufferDecoding(ColorTexture,  ivec2(gl_FragCoord.xy));
     vec3 Color = vec3(Buffer1[0], Buffer1[1], Buffer1[2]);
     float AO = Buffer1[3]; 
+	float metallic = Buffer1[6]; 
+	float roughness = Buffer1[7]; 
     vec3 Normal = (Normal2DTo3D(vec2(Buffer1[4], Buffer1[5])* 2.0 - 1.0));
 #endif
     
@@ -89,28 +180,15 @@ void main()
 #endif
     Normal = normalize(Normal);
 
-    float Distance    = length(LightLocation - WorldLocation);
-    float Attenuation = 1.0 / (Constant + Linear * Distance + Quadratic * (Distance * Distance));
 
+    float Shadow = ShadowCalculation(WorldLocation); 
+	vec3 PBRColor = CalcLightPoint(Color, AO, metallic,roughness, Normal, WorldLocation);
+   
 
-    Normal = normalize(Normal);
-
-    vec3  Ambient = AmbientStrength * AO * Attenuation * LightColor.rgb;
+    vec3 result = (PBRColor * (1.0 - Shadow));//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
     
-    vec3 LightDirection = normalize(WorldLocation - LightLocation);
-    // mfs
-    float diff = max(dot(Normal, -1.0f * LightDirection), 0.0);
-    vec3 diffuse = diff * Attenuation * LightColor;
-    // jmfs 
-    vec3 CameraDirection = normalize(CameraLocation - WorldLocation);
-    vec3 HalfVector = normalize((-LightDirection + CameraDirection));
-    // vec3 ReflectDirection = reflect(LightDirection, Normal);
-    float spec = pow(max(dot(Normal, HalfVector), 0.0), 16.0f);
 
-    vec3 specular = specularStrength * Attenuation * spec * LightColor;
-    
-    float shadow = ShadowCalculation(WorldLocation);  
-    glColor = vec4((Ambient + (1.0f - shadow) * (diffuse + specular)) * LightStrength * Color.rgb, 1.0f); 
+    glColor = vec4(result, 1.0f);
 
 }
 
