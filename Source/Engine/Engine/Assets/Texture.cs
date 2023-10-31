@@ -179,8 +179,8 @@ public class Texture
             if (mr == null)
             {
 
-                Data[i * 4] = 0;
-                Data[i * 4 + 1] = 0;
+                Data[i * 4] = 128;
+                Data[i * 4 + 1] = 128;
             }
             else
             {

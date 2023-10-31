@@ -153,7 +153,7 @@ void main()
 #endif
     
     Normal = normalize(Normal);
-    
+    Color = pow(Color, vec3(2.2));
     vec4 tmpLightSpaceLocation = WorldToLight * vec4(WorldLocation, 1.0);
     vec3 LightSpaceLocation = (tmpLightSpaceLocation / tmpLightSpaceLocation.w).xyz;
     LightSpaceLocation = (LightSpaceLocation + 1.0) / 2.0;

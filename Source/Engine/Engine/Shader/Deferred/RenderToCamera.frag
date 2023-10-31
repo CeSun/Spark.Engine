@@ -8,5 +8,5 @@ uniform sampler2D ColorTexture;
 
 void main()
 {
-    glColor = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
+    glColor = vec4(pow(texture(ColorTexture, OutTexCoord).rgb, vec3(1.0/ 2.2)), 1.0f);
 }

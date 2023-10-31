@@ -42,7 +42,7 @@ public class DeferredSceneRenderer : IRenderer
 
     Shader SkeletalMeshBaseShader;
 
-    RenderTarget? PostProcessBuffer1;
+    RenderTarget PostProcessBuffer1;
     RenderTarget? PostProcessBuffer2;
     RenderTarget? PostProcessBuffer3;
     World World { get; set; }
@@ -307,9 +307,9 @@ public class DeferredSceneRenderer : IRenderer
 
         gl.PushGroup("Init Buffers");
         GlobalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        PostProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         if (IsMobile == false)
         {
-            PostProcessBuffer1?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
             PostProcessBuffer2?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
             PostProcessBuffer3?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         }
@@ -332,11 +332,8 @@ public class DeferredSceneRenderer : IRenderer
             AOPass(DeltaTime);
         }
         RenderTarget? LightRT = null;
-        if (PostProcessBuffer1 == null)
-            LightRT = CurrentCameraComponent.RenderTarget;
-        else
-            LightRT = PostProcessBuffer1;
-        using (LightRT.Begin())
+        
+        using (PostProcessBuffer1.Begin())
         {
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
             gl.PushGroup("Lighting Pass");
