@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using SharpGLTF.Schema2;
@@ -26,8 +27,26 @@ public class RenderTarget : IDisposable
     public bool IsViewport = false;
 
     public GLEnum[] Attachments { private set; get; }
+    List<(GLEnum, GLEnum)> Formats = new List<(GLEnum, GLEnum)>();
+    public RenderTarget(int width, int height, uint GbufferNums, Engine engine, List<(GLEnum, GLEnum)> Formats)
+    {
+        this.Formats.AddRange(Formats);
+        GBufferIds = new uint[GbufferNums];
+        Attachments = new GLEnum[GbufferNums];
+        for (int i = 0; i < GbufferNums; i++)
+        {
+            Attachments[i] = GLEnum.ColorAttachment0 + i;
+        }
+        this.Engine = engine;
+        Resize(width, height);
+    }
     public RenderTarget(int width, int height, uint GbufferNums, Engine engine)
     {
+        for(int i = 0; i < GbufferNums; i ++)
+        {
+            this.Formats.Add((GLEnum.Rgba, GLEnum.UnsignedByte));
+        }
+        this.Formats.Add((GLEnum.DepthComponent32f, GLEnum.DepthComponent));
         GBufferIds = new uint[GbufferNums];
         Attachments = new GLEnum[GbufferNums];
         for (int i = 0; i < GbufferNums; i++)
@@ -92,7 +111,7 @@ public class RenderTarget : IDisposable
 
             DepthId = gl.GenTexture();
             gl.BindTexture(GLEnum.Texture2D, DepthId);
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.DepthComponent32f, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.DepthComponent, GLEnum.Float, (void*)0);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Formats[Formats.Count - 1].Item1, (uint)BufferWidth, (uint)BufferHeight, 0, Formats[Formats.Count - 1].Item2, GLEnum.Float, (void*)0);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
             gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Texture2D, DepthId, 0);
@@ -119,7 +138,7 @@ public class RenderTarget : IDisposable
     {
         GBufferIds[index] = gl.GenTexture();
         gl.BindTexture(GLEnum.Texture2D, GBufferIds[index]);
-        gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgba, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.Rgba, GLEnum.UnsignedByte, (void*)0);
+        gl.TexImage2D(GLEnum.Texture2D, 0, (int)Formats[index].Item1, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.Rgba, Formats[index].Item2, (void*)0);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
         gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0 + index, GLEnum.Texture2D, GBufferIds[index], 0);

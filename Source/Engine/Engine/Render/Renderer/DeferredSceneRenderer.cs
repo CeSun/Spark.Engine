@@ -5,9 +5,7 @@ using Shader = Spark.Engine.Render.Shader;
 using static Spark.Engine.Components.CameraComponent;
 using System.Numerics;
 using Spark.Util;
-using SharpGLTF.Schema2;
 using Texture = Spark.Engine.Assets.Texture;
-using Spark.Engine.Assets;
 using Spark.Engine.Properties;
 namespace Spark.Engine.Render.Renderer;
 
@@ -138,7 +136,11 @@ public class DeferredSceneRenderer : IRenderer
         {
             GlobalBuffer = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 2);
         }
-        PostProcessBuffer1 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
+        PostProcessBuffer1 = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1, World.Engine, new List<(GLEnum, GLEnum)>
+        {
+            (GLEnum.Rgba32f, GLEnum.Float),
+            (GLEnum.DepthComponent32f, GLEnum.DepthComponent)
+        });
         if (IsMobile == false)
         {
             PostProcessBuffer2 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
@@ -220,13 +222,13 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-        if (PostProcessBuffer1 == null)
+        if (PostProcessBuffer2 == null)
             return;
         if (IsMobile == true)
             return;
         gl.PushGroup("Decal Pass");
         gl.PushGroup("Decal PrePass");
-        using (PostProcessBuffer1.Begin())
+        using (PostProcessBuffer2.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
 
@@ -246,8 +248,8 @@ public class DeferredSceneRenderer : IRenderer
             DecalShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
-                    Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
+                    X = PostProcessBuffer2.Width / (float)PostProcessBuffer2.BufferWidth,
+                    Y = PostProcessBuffer2.Height / (float)PostProcessBuffer2.BufferHeight
                 });
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
@@ -298,10 +300,10 @@ public class DeferredSceneRenderer : IRenderer
 
             DecalPostShader.SetInt("DecalTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer1.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
             DecalPostShader.SetInt("DecalDepthTexture", 1);
             gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer1.DepthId);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.DepthId);
 
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);

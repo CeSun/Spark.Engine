@@ -1,0 +1,8 @@
+{
+	"Right": "px.png",
+	"Left": "nx.png",
+	"Up": "py.png",
+	"Down": "ny.png",
+	"Back": "pz.png",
+	"Front": "nz.png"
+}

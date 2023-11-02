@@ -43,7 +43,7 @@ namespace SparkDemo
             var SkyBoxActor = new Actor(level, "SkyBox Actor");
             var skybox = new SkyboxComponent(SkyBoxActor);
             SkyBoxActor.RootComponent = skybox;
-            TextureCube.LoadAsync("/Skybox/pm").Then(texture => skybox.SkyboxCube = texture);
+            TextureCube.LoadAsync("/Skybox/p").Then(texture => skybox.SkyboxCube = texture);
 
             var planeActor = new StaticMeshActor(level);
             StaticMesh.LoadFromGLBAsync("/StaticMesh/cube2.glb").Then(mesh => planeActor.StaticMesh = mesh);
