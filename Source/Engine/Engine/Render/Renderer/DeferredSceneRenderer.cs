@@ -43,6 +43,8 @@ public class DeferredSceneRenderer : IRenderer
     Shader SkeletalMeshBaseShader;
     Shader IrradianceShader;
     Shader PrefilterShader;
+    Shader IndirectLightShader;
+
 
     RenderTarget PostProcessBuffer1;
     RenderTarget? PostProcessBuffer2;
@@ -126,6 +128,7 @@ public class DeferredSceneRenderer : IRenderer
 
         IrradianceShader = CreateShader("/Shader/Irradiance", Macros);
         PrefilterShader = CreateShader("/Shader/Prefilter", Macros);
+        IndirectLightShader = CreateShader("/Shader/Deferred/Light/IndirectLight", Macros);
 
         if (IsMicroGBuffer == true)
         {
@@ -313,7 +316,9 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-        UpdateIBL();
+        if (IsMobile == false)
+            UpdateIBL();
+        
         gl.PushGroup("Init Buffers");
         GlobalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
@@ -416,6 +421,7 @@ public class DeferredSceneRenderer : IRenderer
             gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, 32, 32);
         }
 
+        gl.PushGroup("IrradianceShader PreProcess");
 
         IrradianceShader.Use();
         IrradianceShader.SetInt("environmentMap", 0);
@@ -452,7 +458,9 @@ public class DeferredSceneRenderer : IRenderer
             // generate mipmaps for the cubemap so OpenGL automatically allocates the required memory.
             gl.GenerateMipmap(GLEnum.TextureCubeMap);
         }
+        gl.PopGroup();
 
+        gl.PushGroup("Prefilter PreProcess");
         PrefilterShader.Use();
         PrefilterShader.SetInt("environmentMap", 0);
         gl.ActiveTexture(GLEnum.Texture0);
@@ -474,15 +482,16 @@ public class DeferredSceneRenderer : IRenderer
             for (int i = 0; i < 6; ++i)
             {
                 PrefilterShader.SetMatrix("view", captureViews[i]);
-                gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, irradianceMap, mip);
+                gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, prefilterMap, mip);
                 
                 gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
                 RenderCube();
             }
         }
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+        gl.PopGroup();
 
-
+        World.CurrentLevel.CurrentSkybox.NeedUpdateIBL = false;
     }
 
     private uint cubeVAO = 0;
@@ -651,6 +660,73 @@ public class DeferredSceneRenderer : IRenderer
 
         }
         gl.PopGroup();
+    }
+
+    public unsafe void IndirectLight()
+    {
+        if (World.CurrentLevel.CurrentSkybox == null)
+            return;
+        if (World.CurrentLevel.CurrentSkybox.SkyboxCube == null)
+            return;
+        if (CurrentCameraComponent == null)
+            return;
+        IndirectLightShader.SetInt("ColorTexture", 0);
+        gl.ActiveTexture(GLEnum.Texture0);
+        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+
+
+        if (IsMicroGBuffer == false)
+        {
+
+            IndirectLightShader.SetInt("CustomBuffer", 1);
+            gl.ActiveTexture(GLEnum.Texture1);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
+        }
+
+        IndirectLightShader.SetInt("DepthTexture", 2);
+        gl.ActiveTexture(GLEnum.Texture2);
+        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+
+
+        IndirectLightShader.SetInt("irradianceMap", 3);
+        gl.ActiveTexture(GLEnum.Texture3);
+        gl.BindTexture(GLEnum.TextureCubeMap, irradianceMap);
+
+
+        IndirectLightShader.SetInt("prefilterMap", 4);
+        gl.ActiveTexture(GLEnum.Texture4);
+        gl.BindTexture(GLEnum.TextureCubeMap, prefilterMap);
+
+
+        IndirectLightShader.SetInt("brdfLUT", 5);
+        gl.ActiveTexture(GLEnum.Texture5);
+        gl.BindTexture(GLEnum.Texture2D, BrdfTexture.TextureId);
+
+
+        if (IsMobile == false && PostProcessBuffer2 != null)
+        {
+            IndirectLightShader.SetInt("SSAOTexture", 6);
+            gl.ActiveTexture(GLEnum.Texture6);
+            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+        }
+
+        IndirectLightShader.SetVector2("TexCoordScale",
+            new Vector2
+            {
+                X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
+                Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+            });
+
+        Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
+        IndirectLightShader.SetMatrix("VPInvert", VPInvert);
+
+        IndirectLightShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+
+
+        gl.BindVertexArray(PostProcessVAO);
+        gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
+        gl.ActiveTexture(GLEnum.Texture0);
+
     }
     private void DepthPass(double DeltaTime)
     {
@@ -986,6 +1062,7 @@ public class DeferredSceneRenderer : IRenderer
         gl.BlendFunc(GLEnum.One, GLEnum.One);
         gl.Enable(EnableCap.Blend);
 
+        IndirectLight();
         // 定向光
         DirectionalLight();
         // 点光源
@@ -1044,13 +1121,6 @@ public class DeferredSceneRenderer : IRenderer
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, DirectionalLight.ShadowMapTextureID);
 
-            if (IsMobile == false && PostProcessBuffer2 != null)
-            {
-                DirectionalLightingShader.SetInt("SSAOTexture", 4);
-                gl.ActiveTexture(GLEnum.Texture4);
-                gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
-
-            }
             DirectionalLightingShader.SetVector3("LightDirection", LightInfo.Direction);
             DirectionalLightingShader.SetVector3("LightColor", LightInfo.Color);
 
@@ -1190,13 +1260,7 @@ public class DeferredSceneRenderer : IRenderer
             gl.ActiveTexture(GLEnum.Texture2);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
-            if (IsMobile == false && PostProcessBuffer2 != null)
-            {
-                PointLightingShader.SetInt("SSAOTexture", 4);
-                gl.ActiveTexture(GLEnum.Texture4);
-                gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
-            }
-
+          
 
             for (int  i = 0; i < 6; i ++)
             {
@@ -1275,12 +1339,6 @@ public class DeferredSceneRenderer : IRenderer
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
             SpotLightingShader.SetInt("ShadowMapTexture", 3);
 
-            if (IsMobile == false && PostProcessBuffer2 != null)
-            {
-                SpotLightingShader.SetInt("SSAOTexture", 4);
-                gl.ActiveTexture(GLEnum.Texture4);
-                gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
-            }
 
             gl.ActiveTexture(GLEnum.Texture3);
             gl.BindTexture(GLEnum.Texture2D, SpotLightComponent.ShadowMapTextureID);

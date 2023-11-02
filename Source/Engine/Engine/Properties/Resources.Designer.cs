@@ -599,6 +599,61 @@ namespace Spark.Engine.Properties {
         
         /// <summary>
         ///   查找类似 #version 300 es
+        ///
+        ///precision highp float;
+        ///out vec4 FragColor;
+        ///
+        ///
+        ///in vec2 OutTexCoord;
+        ///in vec2 OutTrueTexCoord;
+        ///uniform sampler2D ColorTexture;
+        ///uniform sampler2D CustomBuffer;
+        ///uniform sampler2D DepthTexture;
+        ///uniform mat4 VPInvert;
+        ///uniform vec3 CameraLocation;
+        ///uniform samplerCube irradianceMap;
+        ///uniform samplerCube prefilterMap;
+        ///uniform sampler2D brdfLUT;
+        ///
+        ///
+        ///vec3 GetWorldLocation(vec3 ScreenLocation);
+        ///vec3 Normal2DTo3D(vec2 Oct);
+        ///float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 Scree [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        /// </summary>
+        internal static string _Shader_Deferred_Light_IndirectLight_frag {
+            get {
+                return ResourceManager.GetString("/Shader/Deferred/Light/IndirectLight.frag", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 #version 300 es
+        ///
+        ///precision highp float;
+        ///layout (location = 0) in vec3 Location;
+        ///layout (location = 1) in vec2 TexCoord;
+        ///
+        ///uniform vec2 TexCoordScale;
+        ///out vec2 OutTexCoord;
+        ///out vec2 OutTrueTexCoord;
+        ///
+        ///void main()
+        ///{
+        ///    
+        ///    OutTexCoord = TexCoord * TexCoordScale;
+        ///    OutTrueTexCoord = TexCoord;
+        ///    gl_Position = vec4(Location, 1.0);
+        ///    
+        ///} 的本地化字符串。
+        /// </summary>
+        internal static string _Shader_Deferred_Light_IndirectLight_vert {
+            get {
+                return ResourceManager.GetString("/Shader/Deferred/Light/IndirectLight.vert", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 #version 300 es
         ///#extension GL_EXT_gpu_shader5 : enable
         ///precision highp float;
         ///out vec4 glColor;
@@ -860,6 +915,112 @@ namespace Spark.Engine.Properties {
         internal static string _Shader_Deferred_ssr_vert {
             get {
                 return ResourceManager.GetString("/Shader/Deferred/ssr.vert", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 #version 300 es
+        ///precision highp float;
+        ///
+        ///out vec4 FragColor;
+        ///in vec3 WorldPos;
+        ///
+        ///uniform samplerCube environmentMap;
+        ///
+        ///const float PI = 3.14159265359;
+        ///
+        ///void main()
+        ///{		
+        ///    vec3 N = normalize(WorldPos);
+        ///
+        ///    vec3 irradiance = vec3(0.0);   
+        ///    
+        ///    // tangent space calculation from origin point
+        ///    vec3 up    = vec3(0.0, 1.0, 0.0);
+        ///    vec3 right = normalize(cross(up, N));
+        ///    up         = normalize(cross(N, right));
+        ///       
+        ///    float sampleDelta = 0.025;
+        ///    float nrSamples = 0.0f;
+        ///    f [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        /// </summary>
+        internal static string _Shader_Irradiance_frag {
+            get {
+                return ResourceManager.GetString("/Shader/Irradiance.frag", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 #version 300 es
+        ///precision highp float;
+        ///
+        ///layout (location = 0) in vec3 aPos;
+        ///
+        ///out vec3 WorldPos;
+        ///
+        ///uniform mat4 projection;
+        ///uniform mat4 view;
+        ///
+        ///void main()
+        ///{
+        ///    WorldPos = aPos;  
+        ///    gl_Position =  projection * view * vec4(WorldPos, 1.0);
+        ///} 的本地化字符串。
+        /// </summary>
+        internal static string _Shader_Irradiance_vert {
+            get {
+                return ResourceManager.GetString("/Shader/Irradiance.vert", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 #version 300 es
+        ///precision highp float;
+        ///
+        ///out vec4 FragColor;
+        ///in vec3 WorldPos;
+        ///
+        ///uniform samplerCube environmentMap;
+        ///uniform float roughness;
+        ///
+        ///const float PI = 3.14159265359;
+        ///// ----------------------------------------------------------------------------
+        ///float DistributionGGX(vec3 N, vec3 H, float roughness)
+        ///{
+        ///    float a = roughness*roughness;
+        ///    float a2 = a*a;
+        ///    float NdotH = max(dot(N, H), 0.0);
+        ///    float NdotH2 = NdotH*NdotH;
+        ///
+        ///    float nom   = a2;
+        ///    float denom = (NdotH2 * (a2 -  [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        /// </summary>
+        internal static string _Shader_Prefilter_frag {
+            get {
+                return ResourceManager.GetString("/Shader/Prefilter.frag", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 #version 300 es
+        ///precision highp float;
+        ///
+        ///layout (location = 0) in vec3 aPos;
+        ///
+        ///out vec3 WorldPos;
+        ///
+        ///uniform mat4 projection;
+        ///uniform mat4 view;
+        ///
+        ///void main()
+        ///{
+        ///    WorldPos = aPos;  
+        ///    gl_Position =  projection * view * vec4(WorldPos, 1.0);
+        ///} 的本地化字符串。
+        /// </summary>
+        internal static string _Shader_Prefilter_vert {
+            get {
+                return ResourceManager.GetString("/Shader/Prefilter.vert", resourceCulture);
             }
         }
         

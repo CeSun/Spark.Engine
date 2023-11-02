@@ -15,6 +15,8 @@ public class SkyboxComponent : PrimitiveComponent
     uint Ebo;
     uint Vbo;
     uint Vao;
+
+    public bool NeedUpdateIBL = false;
     public uint TextureId { private set;  get; }
     unsafe void InitRender()
     {
@@ -77,6 +79,7 @@ public class SkyboxComponent : PrimitiveComponent
             if (_SkyboxCube != null)
             {
                 _SkyboxCube.InitRender(gl);
+                NeedUpdateIBL = true;
             }
         }
     }

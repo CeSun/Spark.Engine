@@ -280,7 +280,12 @@
   <data name="/Shader/Prefilter.frag" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resource\Shader\Prefilter.frag;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;gb2312</value>
   </data>
-
+  <data name="/Shader/Deferred/Light/IndirectLight.frag" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resource\Shader\Deferred\Light\IndirectLight.frag;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;gb2312</value>
+  </data>
+  <data name="/Shader/Deferred/Light/IndirectLight.vert" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resource\Shader\Deferred\Light\IndirectLight.vert;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;gb2312</value>
+  </data>
   <data name="brdf" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resource\Texture\brdf.bmp;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
