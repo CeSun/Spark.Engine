@@ -23,23 +23,22 @@ namespace SparkDemo
             var lightActor = new Actor(level);
 
 
-            List<PointLightActor> PointLightActors = new List<PointLightActor>();
-            for (int i = -2; i < 2; i++)
-            {
-                var PointLight = new PointLightActor(level);
-                PointLight.LightStrength = 2F;
-                PointLight.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -90f.DegreeToRadians(), 0);
-                PointLight.Color = Color.White;
-                PointLight.WorldLocation = new Vector3(2 + i * 2F, 4,  i * 2F);
-                PointLightActors.Add(PointLight);
-            }
-            
-           /*
-            var DirectionLightActor = new DirectionLightActor(level);
-            DirectionLightActor.LightStrength = 1F;
-            DirectionLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -135f.DegreeToRadians(), 0);
-            DirectionLightActor.Color = Color.White;
-           */
+             List<PointLightActor> PointLightActors = new List<PointLightActor>();
+             for (int i = 0; i < 2; i++)
+             {
+                 var PointLight = new PointLightActor(level);
+                 PointLight.LightStrength = 2F;
+                 PointLight.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -90f.DegreeToRadians(), 0);
+                 PointLight.Color = Color.White;
+                 PointLight.WorldLocation = new Vector3(2 + i * 2F, 4,  i * 2F);
+                 PointLightActors.Add(PointLight);
+             }
+
+             var DirectionLightActor = new DirectionLightActor(level);
+             DirectionLightActor.LightStrength = 1F;
+             DirectionLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -135f.DegreeToRadians(), 0);
+             DirectionLightActor.Color = Color.White;
+           
             var SkyBoxActor = new Actor(level, "SkyBox Actor");
             var skybox = new SkyboxComponent(SkyBoxActor);
             SkyBoxActor.RootComponent = skybox;
@@ -55,8 +54,7 @@ namespace SparkDemo
             character.WorldLocation = new Vector3(0, 1, 0);
 
             var camera = new MovableCamera(level);
-            camera.WorldLocation = new Vector3(2, 2, -2);
-            camera.WorldRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
+            camera.WorldLocation = new Vector3(2, 2, 2);
 
 
             StaticMeshActor sma = new StaticMeshActor(level);
