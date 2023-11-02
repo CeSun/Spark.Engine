@@ -126,11 +126,11 @@ namespace Spark.Engine.Properties {
         ///
         ///uniform sampler2D BaseColorTexture;
         ///uniform sampler2D NormalTexture;
-        ///uniform sampler2D CustomTexture; // Metallic Roughness AO Parallax
+        ///uniform sampler2D CustomTexture; // Metallic Roughness albedo Parallax
         ///
         ///vec2 Normal3Dto2D(vec3 Normal);
         ///
-        ///vec2 GetUVOffset(vec [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        ///vec2 GetUVOffset [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
         internal static string _Shader_Deferred_Base_Base_frag {
             get {
@@ -552,19 +552,18 @@ namespace Spark.Engine.Properties {
         ///uniform sampler2D CustomBuffer;
         ///uniform sampler2D DepthTexture;
         ///uniform sampler2D ShadowMapTexture;
-        ///#ifndef _MOBILE_
-        ///uniform sampler2D SSAOTexture;
-        ///#endif
         ///
         ///uniform mat4 WorldToLight;
         ///uniform mat4 VPInvert;
         ///uniform vec3 LightDirection;
         ///uniform vec3 LightColor;
         ///uniform vec3 CameraLocation;
-        ///uniform float AmbientStrength;
         ///uniform float LightStrength;
         ///
-        /// [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        ///const float PI=3.1415926f;
+        ///const float LightDistance = 10.0f;
+        ///
+        ///vec3 GetWorldLocation(ve [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
         internal static string _Shader_Deferred_Light_DirectionalLighting_frag {
             get {
@@ -669,11 +668,11 @@ namespace Spark.Engine.Properties {
         ///uniform vec3 LightColor;
         ///uniform vec3 LightLocation;
         ///uniform vec3 CameraLocation;
-        ///uniform float AmbientStrength;
-        ///uniform float Constant;
-        ///uniform float Linear;
-        ///uniform float Quadratic;
-        ///uniform float I [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        ///uniform float InnerCosine;
+        ///uniform float OuterCosine;
+        ///uniform vec3 ForwardVector;
+        ///uniform mat4 WorldToLight;
+        ///uniform  [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
         internal static string _Shader_Deferred_Light_SpotLighting_frag {
             get {
@@ -718,7 +717,7 @@ namespace Spark.Engine.Properties {
         ///
         ///void main()
         ///{
-        ///    glColor = vec4(texture(ColorTexture, OutTexCoord).rgb, 1.0f);
+        ///    glColor = vec4(pow(texture(ColorTexture, OutTexCoord).rgb, vec3(1.0/ 2.2)), 1.0f);
         ///}
         /// 的本地化字符串。
         /// </summary>
@@ -776,9 +775,9 @@ namespace Spark.Engine.Properties {
         ///
         ///vec3 GetViewLocation(vec3 ScreenLocation);
         ///
-        ///vec3 Normal2DTo3D(vec2 Normal)
+        ///vec3 Normal2DTo3D(vec2 Oct)
         ///{
-        ///    float z = [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        ///	vec3 N = vec3(  [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
         internal static string _Shader_Deferred_SSAO_frag {
             get {
@@ -1003,9 +1002,9 @@ namespace Spark.Engine.Properties {
         ///    
         ///} 的本地化字符串。
         /// </summary>
-        internal static string _Shader_ShadowMap_Instance_PointLightShadow_PointLightShadow_vert {
+        internal static string _Shader_ShadowMap_Instance_PointLightShadow_vert {
             get {
-                return ResourceManager.GetString("/Shader/ShadowMap/Instance/PointLightShadow\\PointLightShadow.vert", resourceCulture);
+                return ResourceManager.GetString("/Shader/ShadowMap/Instance/PointLightShadow.vert", resourceCulture);
             }
         }
         
@@ -1025,9 +1024,9 @@ namespace Spark.Engine.Properties {
         ///        discard;
         ///} 的本地化字符串。
         /// </summary>
-        internal static string _Shader_ShadowMap_Instance_PointLightShadow_SpotLightShadow_frag {
+        internal static string _Shader_ShadowMap_Instance_SpotLightShadow_frag {
             get {
-                return ResourceManager.GetString("/Shader/ShadowMap/Instance/PointLightShadow/SpotLightShadow.frag", resourceCulture);
+                return ResourceManager.GetString("/Shader/ShadowMap/Instance/SpotLightShadow.frag", resourceCulture);
             }
         }
         
@@ -1053,9 +1052,9 @@ namespace Spark.Engine.Properties {
         ///    
         ///} 的本地化字符串。
         /// </summary>
-        internal static string _Shader_ShadowMap_Instance_PointLightShadow_SpotLightShadow_vert {
+        internal static string _Shader_ShadowMap_Instance_SpotLightShadow_vert {
             get {
-                return ResourceManager.GetString("/Shader/ShadowMap/Instance/PointLightShadow/SpotLightShadow.vert", resourceCulture);
+                return ResourceManager.GetString("/Shader/ShadowMap/Instance/SpotLightShadow.vert", resourceCulture);
             }
         }
         
@@ -1354,6 +1353,16 @@ namespace Spark.Engine.Properties {
         internal static string _Shader_Skybox_vert {
             get {
                 return ResourceManager.GetString("/Shader/Skybox.vert", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找 System.Byte[] 类型的本地化资源。
+        /// </summary>
+        internal static byte[] brdf {
+            get {
+                object obj = ResourceManager.GetObject("brdf", resourceCulture);
+                return ((byte[])(obj));
             }
         }
     }

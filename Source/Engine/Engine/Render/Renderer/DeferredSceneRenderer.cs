@@ -41,11 +41,15 @@ public class DeferredSceneRenderer : IRenderer
     Shader SkeletakMeshPointLightingShader;
 
     Shader SkeletalMeshBaseShader;
+    Shader IrradianceShader;
+    Shader PrefilterShader;
 
     RenderTarget PostProcessBuffer1;
     RenderTarget? PostProcessBuffer2;
     RenderTarget? PostProcessBuffer3;
     World World { get; set; }
+
+    Texture BrdfTexture;
 
     Texture? NoiseTexture;
     List<Vector3> HalfSpherical = new List<Vector3>();
@@ -120,6 +124,9 @@ public class DeferredSceneRenderer : IRenderer
         SkeletakMeshSpotShadowMapShader = CreateShader("/Shader/ShadowMap/SkeletalMesh/SpotLightShadow", Macros);
         SkeletakMeshPointLightingShader = CreateShader("/Shader/ShadowMap/SkeletalMesh/PointLightShadow", Macros);
 
+        IrradianceShader = CreateShader("/Shader/Irradiance", Macros);
+        PrefilterShader = CreateShader("/Shader/Prefilter", Macros);
+
         if (IsMicroGBuffer == true)
         {
             GlobalBuffer = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
@@ -138,7 +145,9 @@ public class DeferredSceneRenderer : IRenderer
 
         }
         // SceneBackFaceDepthBuffer = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 0);
-        
+
+        BrdfTexture = Texture.LoadFromMemory(Resources.brdf);
+        BrdfTexture.InitRender(gl);
         InitRender();
         InitSSAORender();
     }
@@ -304,7 +313,7 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-
+        UpdateIBL();
         gl.PushGroup("Init Buffers");
         GlobalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         PostProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
@@ -351,6 +360,208 @@ public class DeferredSceneRenderer : IRenderer
 
         // 渲染到摄像机的RenderTarget上
         RenderToCameraRenderTarget(DeltaTime);
+    }
+
+    private uint captureFBO = 0;
+    private uint captureRBO = 0;
+    private uint irradianceMap = 0;
+    private uint prefilterMap = 0;
+    private void UpdateIBL()
+    {
+        if (World.CurrentLevel.CurrentSkybox == null)
+            return;
+        if (World.CurrentLevel.CurrentSkybox.NeedUpdateIBL == false)
+            return;
+        if (World.CurrentLevel.CurrentSkybox.SkyboxCube == null)
+            return;
+        Matrix4x4 captureProjection = Matrix4x4.CreatePerspective(90.0f.DegreeToRadians(), 1.0f, 0.1f, 10.0f);
+        Matrix4x4[] captureViews =
+        {
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(-1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  1.0f,  0.0f), new Vector3(0.0f,  0.0f,  1.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, -1.0f,  0.0f), new Vector3(0.0f,  0.0f, -1.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f,  1.0f),new Vector3(0.0f, -1.0f,  0.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f, -1.0f), new Vector3(0.0f, -1.0f,  0.0f))
+        };
+        if (captureFBO == 0 && captureRBO == 0)
+        {
+            captureFBO = gl.GenFramebuffer();
+            captureRBO = gl.GenRenderbuffer();
+
+            gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+            gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
+            gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, 512, 512);
+            gl.FramebufferRenderbuffer(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, captureRBO);
+        }
+        if (irradianceMap == 0)
+        {
+            irradianceMap = gl.GenTexture();
+            gl.BindTexture(GLEnum.TextureCubeMap, irradianceMap);
+            for (int i = 0; i < 6; ++i)
+            {
+                unsafe
+                {
+                    gl.TexImage2D(GLEnum.TextureCubeMapPositiveX + i, 0, (int)GLEnum.Rgb16f, 32, 32, 0, GLEnum.Rgb, GLEnum.Float, (void*)0);
+                }
+            }
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
+
+            gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+            gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
+            gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, 32, 32);
+        }
+
+
+        IrradianceShader.Use();
+        IrradianceShader.SetInt("environmentMap", 0);
+        IrradianceShader.SetMatrix("projection", captureProjection);
+        gl.ActiveTexture(GLEnum.Texture0);
+        gl.BindTexture(GLEnum.TextureCubeMap, World.CurrentLevel.CurrentSkybox.SkyboxCube.TextureId);
+        gl.Viewport(new Rectangle { X = 0, Y  = 0, Height = 32, Width = 32});
+        gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+
+        for (int i = 0; i < 6; ++i)
+        {
+            IrradianceShader.SetMatrix("view", captureViews[i]);
+            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, irradianceMap, 0);
+            gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            RenderCube();
+        }
+
+        if (prefilterMap == 0)
+        {
+            prefilterMap = gl.GenTexture();
+            gl.BindTexture(GLEnum.TextureCubeMap, prefilterMap);
+            for (int i = 0; i < 6; ++i)
+            {
+                unsafe
+                {
+                    gl.TexImage2D(GLEnum.TextureCubeMapPositiveX + i, 0, (int)GLEnum.Rgb16f, 128, 128, 0, GLEnum.Rgb, GLEnum.Float, (void*)0);
+                }
+            }
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.LinearMipmapLinear);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
+            // generate mipmaps for the cubemap so OpenGL automatically allocates the required memory.
+            gl.GenerateMipmap(GLEnum.TextureCubeMap);
+        }
+
+        PrefilterShader.Use();
+        PrefilterShader.SetInt("environmentMap", 0);
+        gl.ActiveTexture(GLEnum.Texture0);
+        gl.BindTexture(GLEnum.TextureCubeMap, World.CurrentLevel.CurrentSkybox.SkyboxCube.TextureId);
+        PrefilterShader.SetMatrix("projection", captureProjection);
+        gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+        int maxMipLevels = 5;
+        for (int mip = 0; mip < maxMipLevels; ++mip)
+        {
+            // reisze framebuffer according to mip-level size.
+            uint mipWidth = (uint)(128 * Math.Pow(0.5, mip));
+            uint mipHeight = (uint)(128 * Math.Pow(0.5, mip));
+            gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
+            gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, mipWidth, mipHeight);
+            gl.Viewport(0, 0, mipWidth, mipHeight);
+
+            float roughness = (float)mip / (float)(maxMipLevels - 1);
+            PrefilterShader.SetFloat("roughness", roughness);
+            for (int i = 0; i < 6; ++i)
+            {
+                PrefilterShader.SetMatrix("view", captureViews[i]);
+                gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, irradianceMap, mip);
+                
+                gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+                RenderCube();
+            }
+        }
+        gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+
+
+    }
+
+    private uint cubeVAO = 0;
+    private uint cubeVBO = 0;
+
+    private void RenderCube()
+    {
+        if (cubeVAO == 0)
+        {
+            float[] vertices = {
+                // back face
+                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+                 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+                 1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
+                 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+                -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+                // front face
+                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+                 1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+                 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+                 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+                -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+                // left face
+                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+                -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+                -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+                // right face
+                 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+                 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+                 1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
+                 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+                 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+                 1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
+                // bottom face
+                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+                 1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+                 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+                 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+                -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+                // top face
+                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+                 1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+                 1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
+                 1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+                -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
+            };
+            cubeVAO = gl.GenVertexArray();
+            cubeVBO = gl.GenBuffer();
+            // fill buffer
+            gl.BindBuffer(GLEnum.ArrayBuffer, cubeVBO);
+            unsafe
+            {
+                fixed(void* p = vertices)
+                {
+                    gl.BufferData(GLEnum.ArrayBuffer, (nuint)vertices.Length * sizeof(float), p, GLEnum.StaticDraw);
+                }
+                // link vertex attributes
+                gl.BindVertexArray(cubeVAO);
+                gl.EnableVertexAttribArray(0);
+                gl.VertexAttribPointer(0, 3, GLEnum.Float, false, 8 * sizeof(float), (void*)0);
+                gl.EnableVertexAttribArray(1);
+                gl.VertexAttribPointer(1, 3, GLEnum.Float, false, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+                gl.EnableVertexAttribArray(2);
+                gl.VertexAttribPointer(2, 2, GLEnum.Float, false, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+                gl.BindBuffer(GLEnum.ArrayBuffer, 0);
+                gl.BindVertexArray(0);
+            }
+        }
+        // render Cube
+        gl.BindVertexArray(cubeVAO);
+        gl.DrawArrays(GLEnum.Triangles, 0, 36);
+        gl.BindVertexArray(0);
     }
 
    
