@@ -533,7 +533,7 @@ public class DeferredSceneRenderer : IRenderer
         foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
         {
 
-            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(90f.DegreeToRadians(), 1, 1, 1000);
+            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(95f.DegreeToRadians(), 1, 1, 1000);
             Matrix4x4[] Views = new Matrix4x4[6];
             Views[0] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, -1), new Vector3(0, 1, 0));
             Views[1] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, 1), new Vector3(0, 1, 0));
@@ -990,7 +990,7 @@ public class DeferredSceneRenderer : IRenderer
             for (int  i = 0; i < 6; i ++)
             {
 
-                var Projection = Matrix4x4.CreatePerspectiveFieldOfView(90f.DegreeToRadians(), 1, 1, 1000);
+                var Projection = Matrix4x4.CreatePerspectiveFieldOfView(95F.DegreeToRadians(), 1, 1, 1000);
                 PointLightingShader.SetMatrix($"WorldToLights[{i}]", Views[i] * Projection);
                 PointLightingShader.SetInt($"ShadowMapTextures{i}", 5 + i);
                 gl.ActiveTexture(GLEnum.Texture5 + i);

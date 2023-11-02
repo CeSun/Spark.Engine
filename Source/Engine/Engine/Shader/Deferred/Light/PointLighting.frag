@@ -194,7 +194,7 @@ void main()
 float ShadowCalculation(vec3 WorldLocation)
 {
     vec3 fragToLight = normalize(WorldLocation - LightLocation);  
-	if (abs(fragToLight.x) > abs(fragToLight.y) && abs(fragToLight.x) > abs(fragToLight.z))
+	if (abs(fragToLight.x) >= abs(fragToLight.y) && abs(fragToLight.x) >= abs(fragToLight.z))
 	{
 		if (fragToLight.x > 0.0f)
 		{
@@ -206,7 +206,7 @@ float ShadowCalculation(vec3 WorldLocation)
 			return GetShadowFromTexture(WorldLocation, ShadowMapTextures2, WorldToLights[2]);
 		}
 	}
-	if (abs(fragToLight.y) > abs(fragToLight.x) && abs(fragToLight.y) > abs(fragToLight.z))
+	if (abs(fragToLight.y) >= abs(fragToLight.x) && abs(fragToLight.y) >= abs(fragToLight.z))
 	{
 		if (fragToLight.y > 0.0f)
 		{
@@ -217,7 +217,7 @@ float ShadowCalculation(vec3 WorldLocation)
 			return GetShadowFromTexture(WorldLocation, ShadowMapTextures5, WorldToLights[5]);
 		}
 	}
-	if (abs(fragToLight.z) > abs(fragToLight.x) && abs(fragToLight.z) > abs(fragToLight.y))
+	if (abs(fragToLight.z) >= abs(fragToLight.x) && abs(fragToLight.z) >= abs(fragToLight.y))
 	{
 		if (fragToLight.z > 0.0f)
 		{
