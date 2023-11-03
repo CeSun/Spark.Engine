@@ -185,8 +185,8 @@ public class StaticMesh
                         }
 
                     }
-                    Texture Custom = Texture.LoadPBRTexture(MetallicRoughness, AmbientOcclusion, Parallax);
-                    Material.Custom = Custom;
+                    Texture Arm = Texture.LoadPBRTexture(MetallicRoughness, AmbientOcclusion);
+                    Material.Arm = Arm;
                     sm.Elements.Add(new Element<StaticMeshVertex>
                     {
                         Vertices = staticMeshVertices,

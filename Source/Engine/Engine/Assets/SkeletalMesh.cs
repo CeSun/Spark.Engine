@@ -365,8 +365,8 @@ public partial class SkeletalMesh
 
                 }
 
-                Texture Custom = Texture.LoadPBRTexture(MetallicRoughness, AmbientOcclusion, Parallax);
-                Material.Custom = Custom;
+                Texture Custom = Texture.LoadPBRTexture(MetallicRoughness, AmbientOcclusion);
+                Material.Arm = Custom;
                 //SkeletalMesh.Materials.Add(Material);
                 SkeletalMesh._Elements.Add(new Element<SkeletalMeshVertex>
                 {

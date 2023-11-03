@@ -17,7 +17,8 @@ in vec3 TbnPosition;
 
 uniform sampler2D BaseColorTexture;
 uniform sampler2D NormalTexture;
-uniform sampler2D CustomTexture; // Metallic Roughness AO Parallax
+uniform sampler2D ARMTexture; // Metallic Roughness albedo Parallax
+uniform sampler2D ParallaxTexture;
 
 vec2 Normal3Dto2D(vec3 Normal);
 
@@ -38,7 +39,7 @@ void main()
         discard;
     vec3 TextureNormal = texture(NormalTexture, NewTexCoord).xyz;
     vec4 color = texture(BaseColorTexture, NewTexCoord);
-    vec3 custom = texture(CustomTexture, NewTexCoord).xyz;
+    vec3 custom = texture(ARMTexture, NewTexCoord).xyz;
 
     if (color.a < 0.1f)
         discard;
@@ -52,10 +53,10 @@ void main()
 	vec3 Normal = normalize(TBNMat * TextureNormal);
     
 #ifndef _MICRO_GBUFFER_
-    GBuffer1 = vec4(color.rgb,  custom.z);
-    GBuffer2 =  vec4(Normal3Dto2D(Normal) * 0.5 + 0.5, custom.xy);
+    GBuffer1 = vec4(color.rgb,  custom.x);
+    GBuffer2 =  vec4(Normal3Dto2D(Normal) * 0.5 + 0.5, custom.zy);
 #else
-    GBuffer1 = MicroGBufferEncoding(color.rgb, Normal3Dto2D(Normal) * 0.5 + 0.5, custom.x, custom.y, custom.z, ivec2(gl_FragCoord.xy));
+    GBuffer1 = MicroGBufferEncoding(color.rgb, Normal3Dto2D(Normal) * 0.5 + 0.5, custom.z, custom.y, custom.x, ivec2(gl_FragCoord.xy));
 #endif
 }
 
@@ -91,14 +92,16 @@ vec2 GetUVOffset(vec2 TexCoord, vec3 ViewDirection)
     vec2 P = ViewDirection.xy * 0.1; 
     vec2 deltaTexCoords = P / numLayers;
     vec2  currentTexCoords     = TexCoord;
-    float currentDepthMapValue = texture(CustomTexture, currentTexCoords).w;
-
+    float currentDepthMapValue = texture(ParallaxTexture, currentTexCoords).x;
+    
+	if (currentDepthMapValue > 1.0f)
+		return TexCoord;
     while(currentLayerDepth < currentDepthMapValue)
     {
         // shift texture coordinates along direction of P
         currentTexCoords -= deltaTexCoords;
         // get depthmap value at current texture coordinates
-        currentDepthMapValue = texture(CustomTexture, currentTexCoords).w;  
+        currentDepthMapValue = texture(ParallaxTexture, currentTexCoords).x;  
         // get depth of next layer
         currentLayerDepth += layerDepth;  
     }

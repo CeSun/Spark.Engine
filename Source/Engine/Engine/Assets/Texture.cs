@@ -143,11 +143,10 @@ public class Texture
         throw new Exception("Load Texture error");
     }
 
-    public unsafe static Texture LoadPBRTexture(byte[]? MetallicRoughness, byte[]? AO, byte[]? Parallax)
+    public unsafe static Texture LoadPBRTexture(byte[]? MetallicRoughness, byte[]? AO)
     {
         ImageResult? mr = default;
         ImageResult? ao = default;
-        ImageResult? p = default;
         if (MetallicRoughness != null)
         {
             mr = ImageResult.FromMemory(MetallicRoughness);
@@ -156,15 +155,9 @@ public class Texture
         {
             ao = ImageResult.FromMemory(AO);
         }
-        if (Parallax != null)
-        {
-            p = ImageResult.FromMemory(Parallax);
-        }
         var main = mr;
         if (main == null)
             main = ao;
-        if (main == null)
-            main = p;
         var Height = 1;
         var Width = 1;
         if (main != null)
@@ -173,14 +166,14 @@ public class Texture
             Width = main.Width;
         }
 
-        var Data = new byte[Height * Width * 4];
+        var Data = new byte[Height * Width * 3];
         for(int i = 0; i < Height * Width; i ++)
         {
             if (mr == null)
             {
 
-                Data[i * 4] = 0;
-                Data[i * 4 + 1] = 128;
+                Data[i * 3 + 2] = 0;
+                Data[i * 3 + 1] = 128;
             }
             else
             {
@@ -193,12 +186,12 @@ public class Texture
                     _ => 3
                 };
 
-                Data[i * 4] = mr.Data[i * step + 2];
-                Data[i * 4 + 1] = mr.Data[i * step + 1];
+                Data[i * 3 + 2] = mr.Data[i * step + 2];
+                Data[i * 3 + 1] = mr.Data[i * step + 1];
             }
             if (ao == null)
             {
-                Data[i * 4 + 2] = 255;
+                Data[i * 3] = 255;
             }
             else
             {
@@ -211,31 +204,13 @@ public class Texture
                     _ => 3
                 };
 
-                Data[i * 4 + 2] = ao.Data[i * step];
-            }
-            if (Parallax == null)
-            {
-                Data[i * 4 + 3] = 0;
-            }
-            else
-            {
-
-                var step = p.Comp switch
-                {
-                    ColorComponents.RedGreenBlue => 3,
-                    ColorComponents.RedGreenBlueAlpha => 4,
-                    ColorComponents.GreyAlpha => 2,
-                    ColorComponents.Grey => 1,
-                    _ => 3
-                };
-
-                Data[i * 4 + 2] = p.Data[i * step];
+                Data[i * 3] = ao.Data[i * step];
             }
         }
         Texture texture = new Texture();
         texture.Width = (uint)Width;
         texture.Height = (uint)Height;
-        texture.Channel = TexChannel.RGBA;
+        texture.Channel = TexChannel.RGB;
         texture.Pixels.AddRange(Data);
         return texture;
 

@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Spark.Util;
 using System.Drawing;
 using Silk.NET.Input;
+using Texture = Spark.Engine.Assets.Texture;
 
 namespace SparkDemo
 {
@@ -36,13 +37,13 @@ namespace SparkDemo
 
              var DirectionLightActor = new DirectionLightActor(level);
              DirectionLightActor.LightStrength = 1F;
-             DirectionLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -135f.DegreeToRadians(), 0);
+             DirectionLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
              DirectionLightActor.Color = Color.White;
            
             var SkyBoxActor = new Actor(level, "SkyBox Actor");
             var skybox = new SkyboxComponent(SkyBoxActor);
             SkyBoxActor.RootComponent = skybox;
-            TextureCube.LoadAsync("/Skybox/p").Then(texture => skybox.SkyboxCube = texture);
+            TextureCube.LoadAsync("/Skybox/Standard-Cube-Map/p").Then(texture => skybox.SkyboxCube = texture);
 
             var planeActor = new StaticMeshActor(level);
             StaticMesh.LoadFromGLBAsync("/StaticMesh/cube2.glb").Then(mesh => planeActor.StaticMesh = mesh);
@@ -51,17 +52,61 @@ namespace SparkDemo
 
 
             var character = new Character(level);
-            character.WorldLocation = new Vector3(0, 1, 0);
+            character.WorldLocation = new Vector3(5, 1, 5);
 
             var camera = new MovableCamera(level);
-            camera.WorldLocation = new Vector3(2, 2, 2);
+            camera.WorldLocation = new Vector3(2, 4, 1);
 
 
-            StaticMeshActor sma = new StaticMeshActor(level);
-            sma.WorldScale = new Vector3(1, 1, 1);
-            sma.WorldLocation = new Vector3(2, 2, 0);
-            sma.IsStatic = true;
-            StaticMesh.LoadFromGLBAsync("/StaticMesh/sphere.glb").Then(mesh => sma.StaticMesh = mesh);
+            List<string> Models = new List<string>
+            {
+                "/StaticMesh/sphere.glb",
+                "/StaticMesh/sofa.glb",
+                "/StaticMesh/chair.glb",
+                "/StaticMesh/barrel_stove.glb",
+                "/StaticMesh/concrete_cat_statue.glb",
+                "/StaticMesh/old_tyre.glb",
+                "/StaticMesh/cardboard_box.glb",
+
+            };
+            List<Vector3> Locations = new List<Vector3>
+            {
+                new Vector3(0, 2, 0),
+                new Vector3(3, 1, 0),
+                new Vector3(2, 1, 2),
+                new Vector3(-2, 1, 0),
+                new Vector3(-2, 1, 2),
+                new Vector3(4, 2, 2),
+                new Vector3(0, 2, 4),
+            };
+
+            List<Vector3> Scales = new List<Vector3>
+            {
+                new Vector3(1, 1, 1),
+                new Vector3(1, 1, 1),
+                new Vector3(1, 1, 1),
+                new Vector3(2, 2, 2),
+                new Vector3(4, 4, 4),
+                new Vector3(2, 2, 2),
+                new Vector3(2, 2, 2),
+            };
+            int index = 0;
+            foreach(var name in Models)
+            {
+                StaticMeshActor sma = new StaticMeshActor(level);
+                sma.WorldScale = Scales[index];
+                sma.WorldLocation = Locations[index++];
+                sma.IsStatic = true;
+                StaticMesh.LoadFromGLBAsync(name).Then(mesh => sma.StaticMesh = mesh);
+
+            }    
+
+            
+
+
+
+           
+
         }
 
 

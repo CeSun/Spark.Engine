@@ -964,7 +964,8 @@ public class DeferredSceneRenderer : IRenderer
             {
                 StaticMeshBaseShader.SetInt("BaseColorTexture", 0);
                 StaticMeshBaseShader.SetInt("NormalTexture", 1);
-                StaticMeshBaseShader.SetInt("CustomTexture", 2);
+                StaticMeshBaseShader.SetInt("ARMTexture", 2);
+                StaticMeshBaseShader.SetInt("ParallaxTexture", 3);
                 StaticMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 StaticMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 StaticMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
@@ -980,7 +981,8 @@ public class DeferredSceneRenderer : IRenderer
 
                 SkeletalMeshBaseShader.SetInt("BaseColorTexture", 0);
                 SkeletalMeshBaseShader.SetInt("NormalTexture", 1);
-                SkeletalMeshBaseShader.SetInt("CustomTexture", 2);
+                SkeletalMeshBaseShader.SetInt("ARMTexture", 2);
+                SkeletalMeshBaseShader.SetInt("ParallaxTexture", 3);
                 SkeletalMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 SkeletalMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 SkeletalMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
@@ -1005,7 +1007,8 @@ public class DeferredSceneRenderer : IRenderer
                 gl.PushGroup("InstancedStaticMesh Render");
                 HISMShader.SetInt("BaseColorTexture", 0);
                 HISMShader.SetInt("NormalTexture", 1);
-                HISMShader.SetInt("CustomTexture", 2);
+                HISMShader.SetInt("ARMTexture", 2);
+                HISMShader.SetInt("ParallaxTexture", 3);
                 HISMShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 HISMShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 HISMShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);

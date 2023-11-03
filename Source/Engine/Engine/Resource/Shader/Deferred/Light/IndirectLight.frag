@@ -49,8 +49,8 @@ void main()
 #else
 	float Buffer1[8] = MicroGBufferDecoding(ColorTexture,  ivec2(gl_FragCoord.xy));
     vec3 Color = vec3(Buffer1[0], Buffer1[1], Buffer1[2]);
-#ifndef _MOBILE_
     float AO = Buffer1[3]; 
+#ifndef _MOBILE_
 	float metallic = Buffer1[6]; 
 	float roughness = Buffer1[7]; 
     vec3 Normal = (Normal2DTo3D(vec2(Buffer1[4], Buffer1[5])* 2.0 - 1.0));
@@ -89,7 +89,7 @@ void main()
     
     FragColor = vec4(ambient , 1.0);
 #else
-	FragColor = vec4(Color * 0.03f * ssao, 1.0);
+	FragColor = vec4(Color * 0.03f * AO * ssao, 1.0);
 #endif
 }
 

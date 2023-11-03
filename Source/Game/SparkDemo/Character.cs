@@ -31,7 +31,6 @@ namespace SparkDemo
         protected override void OnUpdate(double DeltaTime)
         {
             base.OnUpdate(DeltaTime);
-
             Vector2 Move = new Vector2(0, 0);
             if (CurrentWorld.Engine.MainKeyBoard.IsKeyPressed(Key.W))
             {
