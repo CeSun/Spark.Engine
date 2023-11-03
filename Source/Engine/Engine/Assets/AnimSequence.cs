@@ -1,5 +1,4 @@
-﻿using Noesis;
-using SharpGLTF.Schema2;
+﻿using SharpGLTF.Schema2;
 using System.Numerics;
 
 namespace Spark.Engine.Assets;

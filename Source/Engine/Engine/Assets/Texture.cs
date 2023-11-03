@@ -1,7 +1,6 @@
 ﻿using Silk.NET.OpenGLES;
 using StbImageSharp;
 using System.Numerics;
-using Noesis;
 using Spark.Engine.Platform;
 using System.Runtime.InteropServices;
 

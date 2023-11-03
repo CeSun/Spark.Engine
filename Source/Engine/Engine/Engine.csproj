@@ -10,7 +10,6 @@
 
       <ItemGroup>
         <PackageReference Include="Jitter2" Version="2.0.0" />
-        <PackageReference Include="Noesis.App" Version="3.2.1" />
         <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0030" />
 	    <PackageReference Include="Silk.NET.Input.Common" Version="2.18.0" />
 	    <PackageReference Include="Silk.NET.OpenGLES" Version="2.18.0" />
