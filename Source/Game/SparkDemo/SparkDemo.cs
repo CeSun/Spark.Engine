@@ -17,6 +17,7 @@ using Texture = Spark.Engine.Assets.Texture;
 using System.Xml.Linq;
 using System.Collections;
 using System.Reflection.Emit;
+using System.Runtime.Intrinsics.X86;
 
 namespace SparkDemo
 {
@@ -28,7 +29,7 @@ namespace SparkDemo
 
 
              List<PointLightActor> PointLightActors = new List<PointLightActor>();
-             for (int i = 0; i < 2; i++)
+             for (int i = 0; i < 4  ; i++)
              {
                  var PointLight = new PointLightActor(level);
                  PointLight.LightStrength = 2F;
@@ -60,6 +61,7 @@ namespace SparkDemo
             var camera = new MovableCamera(level);
             camera.WorldLocation = new Vector3(2, 4, 1);
 
+            
 
             List<string> Models = new List<string>
             {
@@ -104,23 +106,10 @@ namespace SparkDemo
 
             }
 
-
-            Test(character);
+            
 
         }
 
-        public static async void Test(Character character)
-        {
-            foreach (var bone in character.Mesh.SkeletalMesh.Skeleton.BoneList)
-            {
-                await Task.Delay(100);
-                StaticMeshActor sma = new StaticMeshActor(character.CurrentLevel);
-                sma.WorldScale = Vector3.One * 20;
-                sma.IsStatic = true;
-                StaticMesh.LoadFromGLBAsync("/StaticMesh/sphere.glb").Then(mesh => sma.StaticMesh = mesh);
-                sma.StaticMeshComponent.AttachTo(character.Mesh, bone.Name, Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
-            }
-        }
         public static void EndPlay(Level level) 
         { 
 

@@ -18,9 +18,11 @@ namespace SparkDemo
         public Character(Level level, string Name = "") : base(level, Name)
         {
             Mesh = new SkeletalMeshComponent(this);
-            var (mesh, sk, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/Soldier.glb");
+            Mesh.WorldScale = new Vector3(0.03F);
+            var (mesh, sk, _) = SkeletalMesh.ImportFromGLB("/StaticMesh/Jason.glb");
+            var (_, sk2, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/AK47_Player_3P_Anim.glb");
             Mesh.SkeletalMesh = mesh;
-            Mesh.AnimSequence = anim[1];
+            Mesh.AnimSequence = anim[0];
             Mesh.IsStatic = true;
         }
 

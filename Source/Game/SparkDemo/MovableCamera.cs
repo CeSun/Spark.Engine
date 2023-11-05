@@ -1,6 +1,7 @@
 ﻿using Silk.NET.Input;
 using Spark.Engine;
 using Spark.Engine.Actors;
+using Spark.Engine.Assets;
 using Spark.Engine.Components;
 using Spark.Util;
 using System;
@@ -25,11 +26,18 @@ namespace SparkDemo
         Vector2 ViewPosition;
 
 
+        public SkeletalMeshComponent Arm;
+
+        public SkeletalMeshComponent Wpn;
+
+        public StaticMeshComponent Mag;
+
 
         public MovableCamera(Level level, string Name = "") : base(level, Name)
         {
             CameraComponent = new CameraComponent(this);
             CameraComponent.NearPlaneDistance = 0.1F;
+            CameraComponent.FieldOfView = 55;
             if (CurrentWorld.Engine.IsMobile == false)
             {
 
@@ -102,6 +110,32 @@ namespace SparkDemo
                 };
 
             }
+
+            var (mesh, sk, _) = SkeletalMesh.ImportFromGLB("/StaticMesh/JasonArm.glb");
+            var (_, _, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/AK47_Arm_Anim.glb");
+            Arm = new SkeletalMeshComponent(this);
+            Arm.SkeletalMesh = mesh;
+            Arm.AnimSequence = anim[0];
+            Arm.AttachTo(CameraComponent, "", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
+            Arm.RelativeRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
+            Arm.RelativeScale = Vector3.One * 0.01F;
+
+
+            var (AK, _, akanim) = SkeletalMesh.ImportFromGLB("/StaticMesh/AK47.glb");
+            Wpn = new SkeletalMeshComponent(this);
+            Wpn.SkeletalMesh = AK;
+            Wpn.AnimSequence = akanim[0];
+
+            Wpn.AttachTo(Arm, "b_RightWeapon", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
+            Wpn.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, 90F.DegreeToRadians(), 0);
+
+
+            Mag = new StaticMeshComponent(this);
+            Mag.StaticMesh = StaticMesh.LoadFromGLB("/StaticMesh/AK47_Magazine.glb");
+            Mag.AttachTo(Wpn, "b_Magazine_1", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
+            Mag.IsStatic = true;
+            Mag.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, 90F.DegreeToRadians(), 0);
+
         }
         protected override void OnUpdate(double DeltaTime)
         {
