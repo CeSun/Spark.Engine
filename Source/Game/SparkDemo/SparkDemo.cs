@@ -101,7 +101,7 @@ namespace SparkDemo
                 StaticMeshActor sma = new StaticMeshActor(level);
                 sma.WorldScale = Scales[index];
                 sma.WorldLocation = Locations[index++];
-                sma.IsStatic = false;
+                sma.IsStatic = true;
                 StaticMesh.LoadFromGLBAsync(name).Then(mesh => sma.StaticMesh = mesh);
 
             }

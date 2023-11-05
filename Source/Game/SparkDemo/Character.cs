@@ -14,6 +14,10 @@ namespace SparkDemo
         public float Speed = 10;
         public SkeletalMeshComponent Mesh { get; set; }
 
+
+        public SkeletalMeshComponent Wpn;
+
+        public StaticMeshComponent Mag;
         protected override bool ReceieveUpdate => false;
         public Character(Level level, string Name = "") : base(level, Name)
         {
@@ -24,6 +28,24 @@ namespace SparkDemo
             Mesh.SkeletalMesh = mesh;
             Mesh.AnimSequence = anim[0];
             Mesh.IsStatic = true;
+
+
+
+            var (AK, _, akanim) = SkeletalMesh.ImportFromGLB("/StaticMesh/AK47.glb");
+            Wpn = new SkeletalMeshComponent(this);
+            Wpn.SkeletalMesh = AK;
+            Wpn.AnimSequence = akanim[0];
+
+            Wpn.AttachTo(Mesh, "b_RightWeapon", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
+            Wpn.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, 90F.DegreeToRadians(), 0);
+
+
+            Mag = new StaticMeshComponent(this);
+            Mag.StaticMesh = StaticMesh.LoadFromGLB("/StaticMesh/AK47_Magazine.glb");
+            Mag.AttachTo(Wpn, "b_Magazine_1", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
+            Mag.IsStatic = true;
+            Mag.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, 90F.DegreeToRadians(), 0);
+
         }
 
 
