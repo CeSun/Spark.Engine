@@ -89,24 +89,24 @@ public class StaticMeshComponent : PrimitiveComponent
 
     }
 
-    public override Vector3 WorldLocation 
+    public override Vector3 RelativeLocation 
     { 
-        get => base.WorldLocation;
+        get => base.RelativeLocation;
         set 
         {
-            base.WorldLocation = value;
+            base.RelativeLocation = value;
             if (RigidBody != null)
             {
                 RigidBody.Position = new JVector(WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
             }
         } 
     }
-    public override Quaternion WorldRotation 
+    public override Quaternion RelativeRotation
     { 
-        get => base.WorldRotation;
+        get => base.RelativeRotation;
         set
         {
-            base.WorldRotation = value;
+            base.RelativeRotation = value;
             if (RigidBody != null)
             {
                 var Matrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
@@ -126,12 +126,12 @@ public class StaticMeshComponent : PrimitiveComponent
             }
         }
     }
-    public override Vector3 WorldScale 
+    public override Vector3 RelativeScale 
     { 
-        get => base.WorldScale;
+        get => base.RelativeScale;
         set 
         { 
-            base.WorldScale = value;
+            base.RelativeScale = value;
             if (RigidBody != null && StaticMesh != null)
             {
                 for (int i = RigidBody.Shapes.Count - 1; i >= 0; i--)
@@ -157,10 +157,12 @@ public class StaticMeshComponent : PrimitiveComponent
             }
         }
     }
+
+ 
     public override void OnUpdate(double DeltaTime)
     {
         base.OnUpdate(DeltaTime);
-        if (RigidBody != null)
+        if (RigidBody != null && IsStatic == false)
         {
             unsafe
             {
@@ -183,8 +185,12 @@ public class StaticMeshComponent : PrimitiveComponent
                     M43 = 0,
                     M44 = 1,
                 };
-                base.WorldRotation = rotationM.Rotation();
-                base.WorldLocation = new Vector3(RigidBody.Position.X, RigidBody.Position.Y, RigidBody.Position.Z);
+
+                var tmpWorldTransform = MatrixHelper.CreateTransform(new Vector3(RigidBody.Position.X, RigidBody.Position.Y, RigidBody.Position.Z), rotationM.Rotation(), WorldScale);
+                Matrix4x4.Invert(ParentWorldTransform, out var ParentInverseWorldTransform);
+                var tmpRelativeTransform = tmpWorldTransform* ParentInverseWorldTransform;
+                _RelativeLocation = tmpRelativeTransform.Translation;
+                _RelativeRotation = tmpRelativeTransform.Rotation();
             }
         }
 

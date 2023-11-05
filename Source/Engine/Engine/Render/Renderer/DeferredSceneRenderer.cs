@@ -798,7 +798,7 @@ public class DeferredSceneRenderer : IRenderer
                     {
                         for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
                         {
-                            SkeletakMeshSpotShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
+                            SkeletakMeshSpotShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
                         }
                     }
                     SkeletakMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
@@ -873,7 +873,7 @@ public class DeferredSceneRenderer : IRenderer
                         {
                             for (int j = 0; j < component.SkeletalMesh.Skeleton.BoneList.Count; j++)
                             {
-                                SkeletakMeshPointLightingShader.SetMatrix($"AnimTransform[{j}]", component.AnimBuffer[j]);
+                                SkeletakMeshPointLightingShader.SetMatrix($"AnimTransform[{j}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[j]);
                             }
                         }
                         SkeletakMeshPointLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
@@ -936,7 +936,7 @@ public class DeferredSceneRenderer : IRenderer
                     {
                         for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
                         {
-                            SkeletakMeshDLShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
+                            SkeletakMeshDLShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
                         }
                     }
                     SkeletakMeshDLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
@@ -994,7 +994,7 @@ public class DeferredSceneRenderer : IRenderer
                         {
                             for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
                             {
-                                SkeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", component.AnimBuffer[i]);
+                                SkeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
                             }
                         }
                         SkeletalMeshBaseShader.SetMatrix("ModelTransform", component.WorldTransform);

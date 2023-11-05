@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Numerics;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
@@ -10,7 +11,11 @@ using Spark.Engine.Assets;
 
 namespace Spark.Engine.Components;
 
- 
+public enum AttachRelation
+{
+    KeepRelativeTransform,
+    KeepWorldTransform
+}
 public partial class PrimitiveComponent
 {
     public Engine Engine => Owner.CurrentWorld.Engine;
@@ -42,6 +47,39 @@ public partial class PrimitiveComponent
         }
     }
 
+    public void AttachTo(PrimitiveComponent Parent, string socket = "")
+    {
+        AttachTo(Parent, socket, Matrix4x4.Identity, AttachRelation.KeepWorldTransform);
+    }
+
+    private string? AttachToParentSocket;
+    private Matrix4x4 ParentOffsetTransform = Matrix4x4.Identity;
+    public void AttachTo(PrimitiveComponent Parent, string socket, Matrix4x4 OffsetTransform, AttachRelation attachRelation)
+    {
+        AttachToParentSocket = socket;
+        ParentOffsetTransform = OffsetTransform;
+        if (attachRelation == AttachRelation.KeepWorldTransform)
+        {
+            var worldTransform = WorldTransform;
+            ParentComponent = Parent;
+            WorldTransform = worldTransform;
+        }
+        ParentComponent = Parent;
+    }
+
+    public void DettachFrom(AttachRelation attachRelation)
+    {
+        var worldTransform = WorldTransform;
+        ParentComponent = null;
+        ParentOffsetTransform = Matrix4x4.Identity;
+        AttachToParentSocket = null;
+        WorldTransform = worldTransform;
+    }
+
+    protected virtual Matrix4x4 GetSocketWorldTransform(string socket)
+    {
+        return WorldTransform;
+    }
     public virtual void AddForce(Vector3 Force)
     {
 
@@ -157,106 +195,77 @@ public partial class PrimitiveComponent
 
     public virtual Vector3 WorldLocation
     {
-        get => _WorldLocation;
-        set
-        { 
-            var parentMatrix = WorldTransform;
-            _WorldLocation = value;
-            Matrix4x4.Invert(parentMatrix, out var invertParentMatrix);
-            foreach (var child in _ChildrenComponent)
-            {
-                var relativeMatrix = child.WorldTransform * invertParentMatrix;
-
-                child.WorldTransform = relativeMatrix * WorldTransform;
-            }
-        }
+        get => WorldTransform.Translation;
+        set => WorldTransform = MatrixHelper.CreateTransform(value, WorldRotation, WorldScale);
     }
 
     public virtual Quaternion WorldRotation
     {
-        get => _WorldRotation;
-        set 
-        {
-            var parentMatrix = WorldTransform;
-            _WorldRotation = value;
-            Matrix4x4.Invert(parentMatrix, out var invertParentMatrix);
-            foreach (var child in _ChildrenComponent)
-            {
-                var relativeMatrix = child.WorldTransform * invertParentMatrix;
-
-                child.WorldTransform = relativeMatrix * WorldTransform;
-            }
-        } 
+        get => WorldTransform.Rotation();
+        set => WorldTransform = MatrixHelper.CreateTransform(WorldLocation, value, WorldScale);
     }
 
 
     public virtual Vector3 WorldScale
     {
-        get => _WorldScale;
-        set 
-        {
-            var parentMatrix = WorldTransform;
-            _WorldScale = value;
-            Matrix4x4.Invert(parentMatrix, out var invertParentMatrix);
-            foreach (var child in _ChildrenComponent)
-            {
-                var relativeMatrix = child.WorldTransform * invertParentMatrix;
-
-                child.WorldTransform = relativeMatrix * WorldTransform;
-            }
-        }
+        get => WorldTransform.Scale();
+        set => WorldTransform = MatrixHelper.CreateTransform(WorldLocation, WorldRotation, value);
     }
 
-    public Vector3 RelativeLocation
+    public virtual Vector3 RelativeLocation
     {
-        get => RelativeTransform.Translation;
-        set => RelativeTransform = MatrixHelper.CreateTransform(value, RelativeRotation, RelativeScale);
+        get => _RelativeLocation;
+        set => _RelativeLocation = value;
     }
 
-    public Quaternion RelativeRotation
+    public virtual Quaternion RelativeRotation
     {
-        get => RelativeTransform.Rotation();
-        set => RelativeTransform = MatrixHelper.CreateTransform(RelativeLocation, value, RelativeScale);
+
+        get => _RelativeRotation;
+        set => _RelativeRotation = value;
     }
 
-    public Vector3 RelativeScale
+    public virtual Vector3 RelativeScale
     {
-        get => RelativeTransform.Scale();
-        set => RelativeTransform = MatrixHelper.CreateTransform(RelativeLocation, RelativeRotation, value);
+        get => _RelativeScale;
+        set => _RelativeScale = value;
     }
     public Matrix4x4 RelativeTransform
     {
-        get
-        {
-            if (_ParentComponent == null)
-                return WorldTransform;
-            Matrix4x4.Invert(_ParentComponent.WorldTransform, out var ParentInvertTransform);
-            return WorldTransform * ParentInvertTransform;
-        }
+        get => MatrixHelper.CreateTransform(RelativeLocation, RelativeRotation, RelativeScale);
         set
         {
-            Matrix4x4 wt; 
-            if (_ParentComponent == null)
-                wt = value;
-            else
-                wt = value * _ParentComponent.WorldTransform;
-
-            WorldLocation = wt.Translation;
-            WorldRotation = wt.Rotation();
-            WorldScale = wt.Scale();
+            RelativeLocation = value.Translation;
+            RelativeRotation = value.Rotation();
+            RelativeScale = value.Scale();
         }
     }
     public Matrix4x4 WorldTransform
     {
-        get => MatrixHelper.CreateTransform(WorldLocation, WorldRotation, WorldScale);
+        get
+        {
+            return RelativeTransform * ParentWorldTransform;
+        }
         set
         {
-            WorldLocation = value.Translation;
-            WorldRotation = value.Rotation();
-            WorldScale = value.Scale();
+            Matrix4x4.Invert(ParentWorldTransform, out var InverseParentMatrix);
+
+            var tmpRelativeTransform = value * InverseParentMatrix;
+
+            RelativeTransform = tmpRelativeTransform;
         }
     }
 
+
+    public Matrix4x4 ParentWorldTransform
+    {
+        get
+        {
+            if (ParentComponent == null)
+                return Matrix4x4.Identity;
+            return ParentOffsetTransform * ParentComponent.GetSocketWorldTransform(AttachToParentSocket ?? "");
+        }
+    }
     public Matrix4x4 NormalTransform
     {
         get
@@ -294,10 +303,10 @@ public partial class PrimitiveComponent
 
     private List<PrimitiveComponent> _ChildrenComponent = new List<PrimitiveComponent>();
 
-    protected Vector3 _WorldLocation;
+    protected Vector3 _RelativeLocation;
 
-    protected Quaternion _WorldRotation;
+    protected Quaternion _RelativeRotation;
 
-    protected Vector3 _WorldScale = Vector3.One;
+    protected Vector3 _RelativeScale = Vector3.One;
 
 }

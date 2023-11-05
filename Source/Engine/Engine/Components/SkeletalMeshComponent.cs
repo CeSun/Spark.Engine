@@ -107,11 +107,21 @@ public class SkeletalMeshComponent : PrimitiveComponent
 
             foreach(var bone in SkeletalMesh.Skeleton.BoneList)
             {
-                AnimBuffer[bone.BoneId] = bone.WorldToLocalTransform * AnimBuffer[bone.BoneId] * SkeletalMesh.Skeleton.RootParentMatrix;
+                AnimBuffer[bone.BoneId] = AnimBuffer[bone.BoneId] * SkeletalMesh.Skeleton.RootParentMatrix;
             }
         }
     }
 
+    protected override Matrix4x4 GetSocketWorldTransform(string socket)
+    {
+        if (SkeletalMesh == null)
+            return base.GetSocketWorldTransform(socket);
+        if (SkeletalMesh.Skeleton == null)
+            return base.GetSocketWorldTransform(socket);
+        if (SkeletalMesh.Skeleton.BonesMap.TryGetValue(socket, out var bone) == false)
+            return base.GetSocketWorldTransform(socket);
+        return AnimBuffer[bone.BoneId]  * WorldTransform;
+    }
     private void ProcessNode(BoneNode node)
     {
         if (AnimSampler == null)

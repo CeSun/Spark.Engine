@@ -14,6 +14,9 @@ using Spark.Util;
 using System.Drawing;
 using Silk.NET.Input;
 using Texture = Spark.Engine.Assets.Texture;
+using System.Xml.Linq;
+using System.Collections;
+using System.Reflection.Emit;
 
 namespace SparkDemo
 {
@@ -91,25 +94,33 @@ namespace SparkDemo
                 new Vector3(2, 2, 2),
             };
             int index = 0;
-            foreach(var name in Models)
+            foreach (var name in Models)
             {
                 StaticMeshActor sma = new StaticMeshActor(level);
                 sma.WorldScale = Scales[index];
                 sma.WorldLocation = Locations[index++];
-                sma.IsStatic = true;
+                sma.IsStatic = false;
                 StaticMesh.LoadFromGLBAsync(name).Then(mesh => sma.StaticMesh = mesh);
 
-            }    
-
-            
+            }
 
 
-
-           
+            Test(character);
 
         }
 
-
+        public static async void Test(Character character)
+        {
+            foreach (var bone in character.Mesh.SkeletalMesh.Skeleton.BoneList)
+            {
+                await Task.Delay(100);
+                StaticMeshActor sma = new StaticMeshActor(character.CurrentLevel);
+                sma.WorldScale = Vector3.One * 20;
+                sma.IsStatic = true;
+                StaticMesh.LoadFromGLBAsync("/StaticMesh/sphere.glb").Then(mesh => sma.StaticMesh = mesh);
+                sma.StaticMeshComponent.AttachTo(character.Mesh, bone.Name, Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
+            }
+        }
         public static void EndPlay(Level level) 
         { 
 

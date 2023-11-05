@@ -18,12 +18,9 @@ namespace SparkDemo
         public Character(Level level, string Name = "") : base(level, Name)
         {
             Mesh = new SkeletalMeshComponent(this);
-            SkeletalMesh.ImportFromGLBAsync("/StaticMesh/Soldier.glb").Then(res =>
-            {
-                var (mesh, sk, anim) = res;
-                Mesh.SkeletalMesh = mesh;
-                Mesh.AnimSequence = anim[1];
-            });
+            var (mesh, sk, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/Soldier.glb");
+            Mesh.SkeletalMesh = mesh;
+            Mesh.AnimSequence = anim[1];
             Mesh.IsStatic = true;
         }
 

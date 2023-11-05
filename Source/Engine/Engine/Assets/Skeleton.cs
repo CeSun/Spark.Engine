@@ -14,10 +14,19 @@ public class Skeleton
         BoneList = list;
         Root = root;
         this.RootParentMatrix = RootParentMatrix;
+        _BonesMap = new Dictionary<string, BoneNode>();
+        foreach (var bone in list)
+        {
+            _BonesMap.Add(bone.Name, bone);
+        }
     }
     public List<BoneNode> BoneList;
     public BoneNode Root;
     public Matrix4x4 RootParentMatrix;
+
+    private Dictionary<string, BoneNode> _BonesMap;
+
+    public IReadOnlyDictionary<string, BoneNode> BonesMap => _BonesMap;
 }
 
 
