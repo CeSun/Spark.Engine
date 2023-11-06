@@ -27,18 +27,6 @@ namespace SparkDemo
         {
             var lightActor = new Actor(level);
 
-
-             List<PointLightActor> PointLightActors = new List<PointLightActor>();
-             for (int i = 0; i < 1  ; i++)
-             {
-                 var PointLight = new PointLightActor(level);
-                 PointLight.LightStrength = 2F;
-                 PointLight.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -90f.DegreeToRadians(), 0);
-                 PointLight.Color = Color.White;
-                 PointLight.WorldLocation = new Vector3(2 + i * 2F, 4,  i * 2F);
-                 PointLightActors.Add(PointLight);
-             }
-
              var DirectionLightActor = new DirectionLightActor(level);
              DirectionLightActor.LightStrength = 1F;
              DirectionLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);

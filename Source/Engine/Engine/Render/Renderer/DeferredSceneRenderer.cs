@@ -146,7 +146,7 @@ public class DeferredSceneRenderer : IRenderer
         {
             PostProcessBuffer2 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
             PostProcessBuffer3 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
-            NoiseTexture = Texture.CreateNoiseTexture(4, 4);
+            NoiseTexture = Texture.CreateNoiseTexture(64, 64);
             NoiseTexture.InitRender(gl);
 
         }

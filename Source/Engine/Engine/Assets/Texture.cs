@@ -119,10 +119,12 @@ public class Texture
                 var index = (j * Width + i) * 3;
                 Vector3 v = new Vector3
                 {
-                    X = (float)Random.Shared.NextDouble() * 2 - 1,
-                    Y = (float)Random.Shared.NextDouble() * 2 - 1,
+                    X = (float)Random.Shared.NextDouble(),
+                    Y = (float)Random.Shared.NextDouble(),
                     Z = 0
                 };
+                v = Vector3.Normalize(v);
+
                 data[index] = (byte)(255 * v.X);
                 data[index + 1] = (byte)(255 * v.Y);
                 data[index + 2] = (byte)(255 * v.Z);
