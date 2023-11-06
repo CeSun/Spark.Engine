@@ -9,12 +9,15 @@ in vec2 OutTrueTexCoord;
 uniform sampler2D ColorTexture;
 uniform sampler2D CustomBuffer;
 uniform sampler2D DepthTexture;
+
+#ifdef _ENABLE_SHADOWMAP_
 uniform sampler2D ShadowMapTextures0;
 uniform sampler2D ShadowMapTextures1;
 uniform sampler2D ShadowMapTextures2;
 uniform sampler2D ShadowMapTextures3;
 uniform sampler2D ShadowMapTextures4;
 uniform sampler2D ShadowMapTextures5;
+#endif
 #ifndef _MOBILE_
 uniform sampler2D SSAOTexture;
 #endif
@@ -193,6 +196,7 @@ void main()
 
 float ShadowCalculation(vec3 WorldLocation)
 {
+#ifdef _ENABLE_SHADOWMAP_
     vec3 fragToLight = normalize(WorldLocation - LightLocation);  
 	if (abs(fragToLight.x) >= abs(fragToLight.y) && abs(fragToLight.x) >= abs(fragToLight.z))
 	{
@@ -228,7 +232,7 @@ float ShadowCalculation(vec3 WorldLocation)
 			return GetShadowFromTexture(WorldLocation, ShadowMapTextures0, WorldToLights[0]);
 		}
 	}
-
+#endif
 	return 0.0f;
 }
 

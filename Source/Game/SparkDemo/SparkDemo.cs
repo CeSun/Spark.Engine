@@ -27,10 +27,10 @@ namespace SparkDemo
         {
             var lightActor = new Actor(level);
 
-             var DirectionLightActor = new DirectionLightActor(level);
-             DirectionLightActor.LightStrength = 1F;
-             DirectionLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
-             DirectionLightActor.Color = Color.White;
+            var DirectionLightActor = new DirectionLightActor(level);
+            DirectionLightActor.LightStrength = 1F;
+            DirectionLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
+            DirectionLightActor.Color = Color.White;
            
             var SkyBoxActor = new Actor(level, "SkyBox Actor");
             var skybox = new SkyboxComponent(SkyBoxActor);

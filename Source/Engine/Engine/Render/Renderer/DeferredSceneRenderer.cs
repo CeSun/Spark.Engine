@@ -18,6 +18,10 @@ public class DeferredSceneRenderer : IRenderer
     Shader SpotLightingShader;
     Shader PointLightingShader;
 
+    Shader DirectionalLightingShaderNoShadow;
+    Shader SpotLightingShaderNoShadow;
+    Shader PointLightingShaderNoShadow;
+
     Shader DLShadowMapShader;
     Shader InstanceDLShadowMapShader;
     Shader SpotShadowMapShader;
@@ -102,9 +106,18 @@ public class DeferredSceneRenderer : IRenderer
         StaticMeshBaseShader = CreateShader("/Shader/Deferred/Base/Base", Macros);
         SkeletalMeshBaseShader = CreateShader("/Shader/Deferred/Base/BaseSkeletalMesh", Macros);
         HISMShader = CreateShader("/Shader/Deferred/Base/BaseInstance", Macros);
-        DirectionalLightingShader = CreateShader("/Shader/Deferred/Light/DirectionalLighting", Macros);
-        SpotLightingShader = CreateShader("/Shader/Deferred/Light/SpotLighting", Macros);
-        PointLightingShader = CreateShader("/Shader/Deferred/Light/PointLighting", Macros);
+
+        List<string> MacrosLightWithShadow = new List<string>(Macros) { "_ENABLE_SHADOWMAP_" };
+        DirectionalLightingShader = CreateShader("/Shader/Deferred/Light/DirectionalLighting", MacrosLightWithShadow);
+        SpotLightingShader = CreateShader("/Shader/Deferred/Light/SpotLighting", MacrosLightWithShadow);
+        PointLightingShader = CreateShader("/Shader/Deferred/Light/PointLighting", MacrosLightWithShadow);
+
+
+        DirectionalLightingShaderNoShadow = CreateShader("/Shader/Deferred/Light/DirectionalLighting", Macros);
+        SpotLightingShaderNoShadow = CreateShader("/Shader/Deferred/Light/SpotLighting", Macros);
+        PointLightingShaderNoShadow = CreateShader("/Shader/Deferred/Light/PointLighting", Macros);
+
+
         DLShadowMapShader = CreateShader("/Shader/ShadowMap/DirectionLightShadow", Macros);
         SpotShadowMapShader = CreateShader("/Shader/ShadowMap/SpotLightShadow", Macros);
         PointLightShadowShader = CreateShader("/Shader/ShadowMap/PointLightShadow", Macros);
@@ -759,12 +772,16 @@ public class DeferredSceneRenderer : IRenderer
         SpotShadowMapShader.Use();
         foreach (var SpotLightComponent in World.CurrentLevel.SpotLightComponents)
         {
+            if (SpotLightComponent.IsCastShadowMap == false)
+            {
+                continue;
+            }
+            gl.BindFramebuffer(GLEnum.Framebuffer, SpotLightComponent.ShadowMapFrameBufferID);
+            gl.Clear(ClearBufferMask.DepthBufferBit);
             var View = Matrix4x4.CreateLookAt(SpotLightComponent.WorldLocation, SpotLightComponent.WorldLocation + SpotLightComponent.ForwardVector, SpotLightComponent.UpVector);
             var Projection = Matrix4x4.CreatePerspectiveFieldOfView(SpotLightComponent.OuterAngle.DegreeToRadians(), 1, 1F, 100);
             gl.Viewport(new Rectangle(0, 0, SpotLightComponent.ShadowMapSize.X, SpotLightComponent.ShadowMapSize.Y));
-            gl.BindFramebuffer(GLEnum.Framebuffer, SpotLightComponent.ShadowMapFrameBufferID);
-            gl.Clear(ClearBufferMask.DepthBufferBit);
-
+            
             SpotShadowMapShader.SetMatrix("ViewTransform", View);
             SpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
 
@@ -833,6 +850,10 @@ public class DeferredSceneRenderer : IRenderer
         foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
         {
 
+            if (PointLightComponent.IsCastShadowMap == false)
+            {
+                continue;
+            }
             var Projection = Matrix4x4.CreatePerspectiveFieldOfView(95f.DegreeToRadians(), 1, 1, 1000);
             Matrix4x4[] Views = new Matrix4x4[6];
             Views[0] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, -1), new Vector3(0, 1, 0));
@@ -915,11 +936,16 @@ public class DeferredSceneRenderer : IRenderer
         DLShadowMapShader.Use();
         foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
+            if (DirectionalLight.IsCastShadowMap == false)
+            {
+                continue;
+            }
+            gl.Viewport(new Rectangle(0, 0, DirectionalLight.ShadowMapSize.X, DirectionalLight.ShadowMapSize.Y));
+            gl.BindFramebuffer(GLEnum.Framebuffer, DirectionalLight.ShadowMapFrameBufferID);
+
             var LightLocation = CurrentCameraComponent.WorldLocation - DirectionalLight.ForwardVector * 20;
             var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
             var Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
-            gl.Viewport(new Rectangle(0, 0, DirectionalLight.ShadowMapSize.X, DirectionalLight.ShadowMapSize.Y));
-            gl.BindFramebuffer(GLEnum.Framebuffer, DirectionalLight.ShadowMapFrameBufferID);
             gl.Clear(ClearBufferMask.DepthBufferBit);
             DLShadowMapShader.SetMatrix("ViewTransform", View);
             DLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
@@ -1113,20 +1139,21 @@ public class DeferredSceneRenderer : IRenderer
         if (CurrentCameraComponent == null)
             return;
         gl.PushGroup("DirectionalLight Pass");
-        DirectionalLightingShader.Use();
+
         foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
         {
+            Shader shader = DirectionalLight.IsCastShadowMap ? DirectionalLightingShader : DirectionalLightingShaderNoShadow;
             var LightInfo = DirectionalLight.LightInfo;
             Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-            DirectionalLightingShader.SetMatrix("VPInvert", VPInvert);
+            shader.SetMatrix("VPInvert", VPInvert);
 
             var LightLocation = CurrentCameraComponent.WorldLocation - DirectionalLight.ForwardVector * 20;
             var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
             var Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
 
             var WorldToLight = View * Projection;
-            DirectionalLightingShader.SetMatrix("WorldToLight", WorldToLight);
-            DirectionalLightingShader.SetVector2("TexCoordScale",
+            shader.SetMatrix("WorldToLight", WorldToLight);
+            shader.SetVector2("TexCoordScale",
                 new Vector2
                 {
                     X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
@@ -1134,38 +1161,37 @@ public class DeferredSceneRenderer : IRenderer
                 });
 
 
-            DirectionalLightingShader.SetFloat("LightStrength", DirectionalLight.LightStrength);
-            DirectionalLightingShader.SetInt("ColorTexture", 0);
+            shader.SetFloat("LightStrength", DirectionalLight.LightStrength);
+            shader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
 
             if (IsMicroGBuffer == false)
             {
-                DirectionalLightingShader.SetInt("CustomBuffer", 1);
+                shader.SetInt("CustomBuffer", 1);
                 gl.ActiveTexture(GLEnum.Texture1);
                 gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
             }
 
 
-            DirectionalLightingShader.SetInt("DepthTexture", 2);
+            shader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+            if (DirectionalLight.IsCastShadowMap)
+            {
+                shader.SetInt("ShadowMapTexture", 3);
+                gl.ActiveTexture(GLEnum.Texture3);
+                gl.BindTexture(GLEnum.Texture2D, DirectionalLight.ShadowMapTextureID);
+            }
 
-            DirectionalLightingShader.SetInt("ShadowMapTexture", 3);
-            gl.ActiveTexture(GLEnum.Texture3);
-            gl.BindTexture(GLEnum.Texture2D, DirectionalLight.ShadowMapTextureID);
+            shader.SetVector3("LightDirection", LightInfo.Direction);
+            shader.SetVector3("LightColor", LightInfo.Color);
 
-            DirectionalLightingShader.SetVector3("LightDirection", LightInfo.Direction);
-            DirectionalLightingShader.SetVector3("LightColor", LightInfo.Color);
-
-            DirectionalLightingShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+            shader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
-
-
         }
-        DirectionalLightingShader.UnUse();
         gl.PopGroup();
     }
 
@@ -1257,6 +1283,8 @@ public class DeferredSceneRenderer : IRenderer
         PointLightingShader.Use();
         foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
         {
+            Shader shader = PointLightComponent.IsCastShadowMap ? PointLightingShader : PointLightingShaderNoShadow;
+
             Matrix4x4[] Views = new Matrix4x4[6];
             Views[0] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, -1), new Vector3(0, 1, 0));
             Views[1] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, 1), new Vector3(0, 1, 0));
@@ -1267,17 +1295,17 @@ public class DeferredSceneRenderer : IRenderer
 
 
             Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-            PointLightingShader.SetMatrix("VPInvert", VPInvert);
+            shader.SetMatrix("VPInvert", VPInvert);
 
-            PointLightingShader.SetFloat("LightStrength", PointLightComponent.LightStrength);
-            PointLightingShader.SetVector2("TexCoordScale",
+            shader.SetFloat("LightStrength", PointLightComponent.LightStrength);
+            shader.SetVector2("TexCoordScale",
                 new Vector2
                 {
                     X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
                     Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
                 });
 
-            PointLightingShader.SetInt("ColorTexture", 0);
+            shader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
 
@@ -1285,39 +1313,38 @@ public class DeferredSceneRenderer : IRenderer
             if (IsMicroGBuffer == false)
             {
 
-                PointLightingShader.SetInt("CustomBuffer", 1);
+                shader.SetInt("CustomBuffer", 1);
                 gl.ActiveTexture(GLEnum.Texture1);
                 gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
             }
 
-            PointLightingShader.SetInt("DepthTexture", 2);
+            shader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
 
-          
 
-            for (int  i = 0; i < 6; i ++)
+            if (PointLightComponent.IsCastShadowMap)
             {
-
-                var Projection = Matrix4x4.CreatePerspectiveFieldOfView(95F.DegreeToRadians(), 1, 1, 1000);
-                PointLightingShader.SetMatrix($"WorldToLights[{i}]", Views[i] * Projection);
-                PointLightingShader.SetInt($"ShadowMapTextures{i}", 5 + i);
-                gl.ActiveTexture(GLEnum.Texture5 + i);
-                gl.BindTexture(GLEnum.Texture2D, PointLightComponent.ShadowMapTextureIDs[i]);
+                for (int i = 0; i < 6; i++)
+                {
+                    var Projection = Matrix4x4.CreatePerspectiveFieldOfView(95F.DegreeToRadians(), 1, 1, 1000);
+                    shader.SetMatrix($"WorldToLights[{i}]", Views[i] * Projection);
+                    shader.SetInt($"ShadowMapTextures{i}", 5 + i);
+                    gl.ActiveTexture(GLEnum.Texture5 + i);
+                    gl.BindTexture(GLEnum.Texture2D, PointLightComponent.ShadowMapTextureIDs[i]);
+                }
             }
-            
-            
-            PointLightingShader.SetVector3("LightLocation", PointLightComponent.WorldLocation);
-            PointLightingShader.SetVector3("LightColor", PointLightComponent._Color);
 
-            PointLightingShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+            shader.SetVector3("LightLocation", PointLightComponent.WorldLocation);
+            shader.SetVector3("LightColor", PointLightComponent._Color);
+
+            shader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
 
 
         }
-        PointLightingShader.UnUse();
         gl.PopGroup();
     }
 
@@ -1331,12 +1358,13 @@ public class DeferredSceneRenderer : IRenderer
         SpotLightingShader.Use();
         foreach (var SpotLightComponent in World.CurrentLevel.SpotLightComponents)
         {
-            SpotLightingShader.SetFloat("LightStrength", SpotLightComponent.LightStrength);
+            Shader shader = SpotLightComponent.IsCastShadowMap ? SpotLightingShader : SpotLightingShaderNoShadow;
+            shader.SetFloat("LightStrength", SpotLightComponent.LightStrength);
             Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-            SpotLightingShader.SetMatrix("VPInvert", VPInvert);
+            shader.SetMatrix("VPInvert", VPInvert);
 
 
-            SpotLightingShader.SetVector2("TexCoordScale",
+            shader.SetVector2("TexCoordScale",
                 new Vector2
                 {
                     X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
@@ -1348,46 +1376,46 @@ public class DeferredSceneRenderer : IRenderer
             var View = Matrix4x4.CreateLookAt(SpotLightComponent.WorldLocation, SpotLightComponent.WorldLocation + SpotLightComponent.ForwardVector, SpotLightComponent.UpVector);
             var Projection = Matrix4x4.CreatePerspectiveFieldOfView(SpotLightComponent.OuterAngle.DegreeToRadians(), 1, 1F, 100);
             var WorldToLight = View * Projection;
-            SpotLightingShader.SetMatrix("WorldToLight", WorldToLight);
+            shader.SetMatrix("WorldToLight", WorldToLight);
 
-            SpotLightingShader.SetFloat("InnerCosine", (float)Math.Cos(SpotLightComponent.InnerAngle.DegreeToRadians()));
+            shader.SetFloat("InnerCosine", (float)Math.Cos(SpotLightComponent.InnerAngle.DegreeToRadians()));
 
-            SpotLightingShader.SetFloat("OuterCosine", (float)Math.Cos(SpotLightComponent.OuterAngle.DegreeToRadians()));
-            SpotLightingShader.SetVector3("ForwardVector", SpotLightComponent.ForwardVector);
+            shader.SetFloat("OuterCosine", (float)Math.Cos(SpotLightComponent.OuterAngle.DegreeToRadians()));
+            shader.SetVector3("ForwardVector", SpotLightComponent.ForwardVector);
 
-
-            SpotLightingShader.SetInt("ColorTexture", 0);
+            shader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
 
             if (IsMicroGBuffer == false)
             {
-                SpotLightingShader.SetInt("CustomBuffer", 1);
+                shader.SetInt("CustomBuffer", 1);
                 gl.ActiveTexture(GLEnum.Texture1);
                 gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
             }
 
 
-            SpotLightingShader.SetInt("DepthTexture", 2);
+            shader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
-            SpotLightingShader.SetInt("ShadowMapTexture", 3);
+            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId); 
 
+            if (SpotLightComponent.IsCastShadowMap)
+            {
+                shader.SetInt("ShadowMapTexture", 3);
+                gl.ActiveTexture(GLEnum.Texture3);
+                gl.BindTexture(GLEnum.Texture2D, SpotLightComponent.ShadowMapTextureID);
+            }
 
-            gl.ActiveTexture(GLEnum.Texture3);
-            gl.BindTexture(GLEnum.Texture2D, SpotLightComponent.ShadowMapTextureID);
+            shader.SetVector3("LightLocation", SpotLightComponent.WorldLocation);
+            shader.SetVector3("LightColor", SpotLightComponent._Color);
 
-            SpotLightingShader.SetVector3("LightLocation", SpotLightComponent.WorldLocation);
-            SpotLightingShader.SetVector3("LightColor", SpotLightComponent._Color);
-
-            SpotLightingShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+            shader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
 
 
         }
-        SpotLightingShader.UnUse();
         gl.PopGroup();
     }
 

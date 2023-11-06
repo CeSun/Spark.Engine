@@ -9,7 +9,9 @@ in vec2 OutTrueTexCoord;
 uniform sampler2D ColorTexture;
 uniform sampler2D CustomBuffer;
 uniform sampler2D DepthTexture;
+#ifdef _ENABLE_SHADOWMAP_
 uniform sampler2D ShadowMapTexture;
+#endif
 uniform sampler2D SSAOTexture;
 uniform mat4 VPInvert;
 uniform vec3 LightColor;
@@ -178,6 +180,7 @@ void main()
 	if (LightSpaceLocation.z > 1.0f)
 		LightSpaceLocation.z = 1.0f;
 
+#ifdef _ENABLE_SHADOWMAP_
 #ifndef _MOBILE_
     float Shadow = 0.0;
     vec2 texelSize = 1.0f / vec2(textureSize(ShadowMapTexture, 0));
@@ -193,6 +196,9 @@ void main()
 #else
      float ShadowDepth = texture(ShadowMapTexture, LightSpaceLocation.xy ).r; 
      float Shadow = LightSpaceLocation.z > ShadowDepth ? 1.0 : 0.0;
+#endif
+#else
+    float Shadow = 0.0;
 #endif
 
     Color = pow(Color, vec3(2.2));

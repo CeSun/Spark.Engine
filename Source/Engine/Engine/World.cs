@@ -17,6 +17,8 @@ public class World
         SceneRenderer = new DeferredSceneRenderer(this);
     }
     public Level? _Level;
+
+    public List<ManualResetEvent> WaitForAnim = new List<ManualResetEvent>();
     public Level CurrentLevel
     {
         get
@@ -42,7 +44,6 @@ public class World
 
     protected virtual void OnBeginPlay()
     {
-
     }
     public void Update(double DeltaTime)
     {
@@ -55,6 +56,11 @@ public class World
 
     public void Render(double DeltaTime)
     {
+        if (WaitForAnim.Count > 0)
+        {
+            WaitHandle.WaitAll(WaitForAnim.ToArray());
+            WaitForAnim.Clear();
+        }
         CurrentLevel.Render(DeltaTime);
     }
 
