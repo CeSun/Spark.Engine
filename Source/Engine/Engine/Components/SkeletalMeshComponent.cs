@@ -102,19 +102,13 @@ public class SkeletalMeshComponent : PrimitiveComponent
     {
         if (AnimSampler != null && SkeletalMesh != null && SkeletalMesh.Skeleton != null)
         {
-            ManualResetEvent manualResetEvent = new ManualResetEvent(false);
-            Task.Run(() =>
-            {
-                AnimSampler.Update(DeltaTime);
-                ProcessNode(AnimSampler.Skeleton.Root);
+            AnimSampler.Update(DeltaTime);
+            ProcessNode(AnimSampler.Skeleton.Root);
 
-                foreach (var bone in SkeletalMesh.Skeleton.BoneList)
-                {
-                    AnimBuffer[bone.BoneId] = AnimBuffer[bone.BoneId] * SkeletalMesh.Skeleton.RootParentMatrix;
-                }
-                manualResetEvent.Set();
-            });
-            World.WaitForAnim.Add(manualResetEvent);
+            foreach (var bone in SkeletalMesh.Skeleton.BoneList)
+            {
+                AnimBuffer[bone.BoneId] = AnimBuffer[bone.BoneId] * SkeletalMesh.Skeleton.RootParentMatrix;
+            }
         }
     }
 
