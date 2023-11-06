@@ -119,7 +119,7 @@ public class InstancedStaticMeshComponent : PrimitiveComponent
             }
         }
         gl.BindVertexArray(StaticMesh.Elements[0].VertexArrayObjectIndex);
-        gl.DrawElementsInstanced(GLEnum.Triangles, (uint)StaticMesh.Elements[0].Indices.Count, GLEnum.UnsignedInt, (void*)0, (uint)PrimitiveComponents.Count);
+        gl.DrawElementsInstanced(GLEnum.Triangles, (uint)StaticMesh.Elements[0].IndicesLen, GLEnum.UnsignedInt, (void*)0, (uint)PrimitiveComponents.Count);
     }
     public void InitRender()
     {

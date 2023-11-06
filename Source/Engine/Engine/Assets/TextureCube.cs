@@ -131,6 +131,12 @@ public class TextureCube
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
 
         }
-
+        ReleaseMemory();
     }
+
+    public void ReleaseMemory()
+    {
+        Textures = null;
+    }
+
 }

@@ -23,28 +23,38 @@ namespace SparkDemo
         {
             Mesh = new SkeletalMeshComponent(this);
             Mesh.WorldScale = new Vector3(0.03F);
-            var (mesh, sk, _) = SkeletalMesh.ImportFromGLB("/StaticMesh/Jason.glb");
-            var (_, sk2, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/AK47_Player_3P_Anim.glb");
-            Mesh.SkeletalMesh = mesh;
-            Mesh.AnimSequence = anim[0];
             Mesh.IsStatic = true;
 
+            var fun = async () =>
+            {
+                var (mesh, sk, _) = await SkeletalMesh.ImportFromGLBAsync("/StaticMesh/Jason.glb");
+                var (_, sk2, anim) = await SkeletalMesh.ImportFromGLBAsync("/StaticMesh/AK47_Player_3P_Anim.glb");
+                Mesh.SkeletalMesh = mesh;
+                Mesh.AnimSequence = anim[0];
+            };
+            fun();
 
 
-            var (AK, _, akanim) = SkeletalMesh.ImportFromGLB("/StaticMesh/AK47.glb");
             Wpn = new SkeletalMeshComponent(this);
-            Wpn.SkeletalMesh = AK;
-            Wpn.AnimSequence = akanim[0];
+            SkeletalMesh.ImportFromGLBAsync("/StaticMesh/AK47.glb").Then(res =>
+            {
+                var (AK, _, akanim) = res;
+                Wpn.SkeletalMesh = AK;
+                Wpn.AnimSequence = akanim[0];
+            });
 
             Wpn.AttachTo(Mesh, "b_RightWeapon", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
             Wpn.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, 90F.DegreeToRadians(), 0);
 
 
             Mag = new StaticMeshComponent(this);
-            Mag.StaticMesh = StaticMesh.LoadFromGLB("/StaticMesh/AK47_Magazine.glb");
             Mag.AttachTo(Wpn, "b_Magazine_1", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
             Mag.IsStatic = true;
             Mag.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, 90F.DegreeToRadians(), 0);
+            StaticMesh.LoadFromGLBAsync("/StaticMesh/AK47_Magazine.glb").Then(Mesh =>
+            {
+                Mag.StaticMesh = Mesh;
+            });
 
         }
 

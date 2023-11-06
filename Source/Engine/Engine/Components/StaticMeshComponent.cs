@@ -220,7 +220,7 @@ public class StaticMeshComponent : PrimitiveComponent
                 gl.BindVertexArray(element.VertexArrayObjectIndex);
                 unsafe
                 {
-                    gl.DrawElements(GLEnum.Triangles, (uint)element.Indices.Count, GLEnum.UnsignedInt, (void*)0);
+                    gl.DrawElements(GLEnum.Triangles, (uint)element.IndicesLen, GLEnum.UnsignedInt, (void*)0);
                 }
                 index++;
             }

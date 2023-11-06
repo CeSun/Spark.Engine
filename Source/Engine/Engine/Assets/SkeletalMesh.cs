@@ -84,6 +84,7 @@ public partial class SkeletalMesh
             _Elements[index].VertexBufferObjectIndex = vbo;
             _Elements[index].ElementBufferObjectIndex = ebo;
         }
+        ReleaseMemory();
     }
    
    
@@ -372,7 +373,8 @@ public partial class SkeletalMesh
                 {
                     Material = Material,
                     Vertices = SkeletalMeshVertices,
-                    Indices = Indices
+                    Indices = Indices,
+                    IndicesLen = (uint)Indices.Count
                 });
 
             }
@@ -496,6 +498,14 @@ public partial class SkeletalMesh
         foreach(var child in Bone.ChildrenBone)
         {
             ProcessBoneTransform(child);
+        }
+    }
+    public void ReleaseMemory()
+    {
+        foreach (var element in Elements)
+        {
+            element.Vertices = null;
+            element.Indices = null;
         }
     }
 }

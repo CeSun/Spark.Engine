@@ -191,7 +191,8 @@ public class StaticMesh
                     {
                         Vertices = staticMeshVertices,
                         Material = Material,
-                        Indices = Indices
+                        Indices = Indices,
+                        IndicesLen = (uint)Indices.Count
                     });
                 }
             }
@@ -373,9 +374,17 @@ public class StaticMesh
             Elements[index].VertexBufferObjectIndex = vbo;
             Elements[index].ElementBufferObjectIndex = ebo;
         }
+        ReleaseMemory();
     }
 
-
+    public void ReleaseMemory()
+    {
+        foreach(var element in Elements)
+        {
+            element.Vertices = null;
+            element.Indices = null;
+        }
+    }
 }
 
 public class Element<T> where T  : struct
@@ -386,6 +395,7 @@ public class Element<T> where T  : struct
     public uint VertexArrayObjectIndex;
     public uint VertexBufferObjectIndex;
     public uint ElementBufferObjectIndex;
+    public uint IndicesLen;
 }
 
 public struct StaticMeshVertex

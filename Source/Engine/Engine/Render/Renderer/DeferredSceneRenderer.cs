@@ -7,6 +7,7 @@ using System.Numerics;
 using Spark.Util;
 using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Properties;
+using System.ComponentModel;
 namespace Spark.Engine.Render.Renderer;
 
 public class DeferredSceneRenderer : IRenderer
@@ -771,17 +772,24 @@ public class DeferredSceneRenderer : IRenderer
             {
                 if (component == null)
                     continue;
-                if (component.IsDestoryed == false)
-                {
-                    SpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    component.Render(DeltaTime);
-                }
+                if (component.IsDestoryed)
+                    continue;
+                if (component.IsCastShadowMap == false)
+                    continue;
+                SpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                component.Render(DeltaTime);
             }
 
             InstanceSpotShadowMapShader.SetMatrix("ViewTransform", View);
             InstanceSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
             foreach (var ism in World.CurrentLevel.ISMComponents)
             {
+                if (ism == null)
+                    continue;
+                if (ism.IsDestoryed)
+                    continue;
+                if (ism.IsCastShadowMap == false)
+                    continue;
                 GetPlanes(View * Projection, ref Planes);
                 if (ism is HierarchicalInstancedStaticMeshComponent hism)
                     hism.CameraCulling(Planes);
@@ -792,18 +800,21 @@ public class DeferredSceneRenderer : IRenderer
             SkeletakMeshSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
             foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
             {
-                if (component.IsDestoryed == false)
+                if (component == null)
+                    continue;
+                if (component.IsDestoryed)
+                    continue;
+                if (component.IsCastShadowMap == false)
+                    continue;
+                if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
                 {
-                    if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                    for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
                     {
-                        for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
-                        {
-                            SkeletakMeshSpotShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
-                        }
+                        SkeletakMeshSpotShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
                     }
-                    SkeletakMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    component.Render(DeltaTime);
                 }
+                SkeletakMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                component.Render(DeltaTime);
             }
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
 
@@ -845,11 +856,12 @@ public class DeferredSceneRenderer : IRenderer
                 {
                     if (component == null)
                         continue;
-                    if (component.IsDestoryed == false)
-                    {
-                        PointLightShadowShader.SetMatrix("ModelTransform", component.WorldTransform);
-                        component.Render(DeltaTime);
-                    }
+                    if (component.IsDestoryed)
+                        continue;
+                    if (component.IsCastShadowMap == false)
+                        continue;
+                    PointLightShadowShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    component.Render(DeltaTime);
                 }
 
                 InstancePointLightingShader.SetMatrix("ViewTransform", Views[i]);
@@ -857,6 +869,10 @@ public class DeferredSceneRenderer : IRenderer
                 foreach (var hism in World.CurrentLevel.ISMComponents)
                 {
                     if (hism == null)
+                        continue;
+                    if (hism.IsDestoryed)
+                        continue;
+                    if (hism.IsCastShadowMap == false)
                         continue;
                     hism.RenderISM(CurrentCameraComponent, DeltaTime);
                 }
@@ -867,18 +883,21 @@ public class DeferredSceneRenderer : IRenderer
                 SkeletakMeshPointLightingShader.Use();
                 foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
                 {
-                    if (component.IsDestoryed == false)
+                    if (component == null)
+                        continue;
+                    if (component.IsDestoryed)
+                        continue;
+                    if (component.IsCastShadowMap == false)
+                        continue;
+                    if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
                     {
-                        if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                        for (int j = 0; j < component.SkeletalMesh.Skeleton.BoneList.Count; j++)
                         {
-                            for (int j = 0; j < component.SkeletalMesh.Skeleton.BoneList.Count; j++)
-                            {
-                                SkeletakMeshPointLightingShader.SetMatrix($"AnimTransform[{j}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[j]);
-                            }
+                            SkeletakMeshPointLightingShader.SetMatrix($"AnimTransform[{j}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[j]);
                         }
-                        SkeletakMeshPointLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
-                        component.Render(DeltaTime);
                     }
+                    SkeletakMeshPointLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    component.Render(DeltaTime);
                 }
                 gl.PopGroup();
             }
@@ -908,17 +927,24 @@ public class DeferredSceneRenderer : IRenderer
             {
                 if (component == null)
                     continue;
-                if (component.IsDestoryed == false)
-                {
-                    DLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    component.Render(DeltaTime);
-                }
+                if (component.IsDestoryed)
+                    continue;
+                if (component.IsCastShadowMap == false)
+                    continue;
+                DLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                component.Render(DeltaTime);
             }
 
             InstanceDLShadowMapShader.SetMatrix("ViewTransform", View);
             InstanceDLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
             foreach (var ism in World.CurrentLevel.ISMComponents)
             {
+                if (ism == null)
+                    continue;
+                if (ism.IsDestoryed)
+                    continue;
+                if (ism.IsCastShadowMap == false)
+                    continue;
                 GetPlanes(View * Projection, ref Planes);
                 if (ism is HierarchicalInstancedStaticMeshComponent hism)
                     hism.CameraCulling(Planes);
@@ -930,18 +956,21 @@ public class DeferredSceneRenderer : IRenderer
             SkeletakMeshDLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
             foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
             {
-                if (component.IsDestoryed == false)
+                if (component == null)
+                    continue;
+                if (component.IsDestoryed)
+                    continue;
+                if (component.IsCastShadowMap == false)
+                    continue;
+                if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
                 {
-                    if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                    for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
                     {
-                        for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
-                        {
-                            SkeletakMeshDLShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
-                        }
+                        SkeletakMeshDLShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
                     }
-                    SkeletakMeshDLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    component.Render(DeltaTime);
                 }
+                SkeletakMeshDLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                component.Render(DeltaTime);
             }
             gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }

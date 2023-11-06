@@ -111,30 +111,43 @@ namespace SparkDemo
 
             }
 
-            var (mesh, sk, _) = SkeletalMesh.ImportFromGLB("/StaticMesh/JasonArm.glb");
-            var (_, _, anim) = SkeletalMesh.ImportFromGLB("/StaticMesh/AK47_Arm_Anim.glb");
+
             Arm = new SkeletalMeshComponent(this);
-            Arm.SkeletalMesh = mesh;
-            Arm.AnimSequence = anim[0];
             Arm.AttachTo(CameraComponent, "", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
             Arm.RelativeRotation = Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
             Arm.RelativeScale = Vector3.One * 0.01F;
+            Arm.IsCastShadowMap = false;
 
+            var fun = async () =>
+            {
+                var (mesh, sk, _) = await SkeletalMesh.ImportFromGLBAsync("/StaticMesh/JasonArm.glb");
+                var (_, _, anim) = await SkeletalMesh.ImportFromGLBAsync("/StaticMesh/AK47_Arm_Anim.glb");
+                Arm.SkeletalMesh = mesh;
+                Arm.AnimSequence = anim[0];
+            };
+            fun();
 
-            var (AK, _, akanim) = SkeletalMesh.ImportFromGLB("/StaticMesh/AK47.glb");
             Wpn = new SkeletalMeshComponent(this);
-            Wpn.SkeletalMesh = AK;
-            Wpn.AnimSequence = akanim[0];
 
+            SkeletalMesh.ImportFromGLBAsync("/StaticMesh/AK47.glb").Then((res) =>
+            {
+                var (AK, _, akanim) = res;
+                Wpn.SkeletalMesh = AK;
+                Wpn.AnimSequence = akanim[0];
+            });
             Wpn.AttachTo(Arm, "b_RightWeapon", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
             Wpn.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, 90F.DegreeToRadians(), 0);
-
+            Wpn.IsCastShadowMap = false;
 
             Mag = new StaticMeshComponent(this);
-            Mag.StaticMesh = StaticMesh.LoadFromGLB("/StaticMesh/AK47_Magazine.glb");
+            StaticMesh.LoadFromGLBAsync("/StaticMesh/AK47_Magazine.glb").Then(Mesh =>
+            {
+                Mag.StaticMesh = Mesh;
+            });
             Mag.AttachTo(Wpn, "b_Magazine_1", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform);
             Mag.IsStatic = true;
             Mag.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, 90F.DegreeToRadians(), 0);
+            Mag.IsCastShadowMap = false;
 
         }
         protected override void OnUpdate(double DeltaTime)

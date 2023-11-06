@@ -27,7 +27,9 @@ public partial class PrimitiveComponent
 
     protected virtual bool ReceieveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
-    
+
+
+    public bool IsCastShadowMap { get; set; } = true;
     /// <summary>
     /// 构造函数
     /// </summary>
@@ -56,6 +58,8 @@ public partial class PrimitiveComponent
     private Matrix4x4 ParentOffsetTransform = Matrix4x4.Identity;
     public void AttachTo(PrimitiveComponent Parent, string socket, Matrix4x4 OffsetTransform, AttachRelation attachRelation)
     {
+        if (ParentComponent != null)
+            return;
         AttachToParentSocket = socket;
         ParentOffsetTransform = OffsetTransform;
         if (attachRelation == AttachRelation.KeepWorldTransform)
@@ -69,11 +73,17 @@ public partial class PrimitiveComponent
 
     public void DettachFrom(AttachRelation attachRelation)
     {
+        if (ParentComponent == null)
+            return;
         var worldTransform = WorldTransform;
         ParentComponent = null;
         ParentOffsetTransform = Matrix4x4.Identity;
         AttachToParentSocket = null;
-        WorldTransform = worldTransform;
+
+        if (attachRelation == AttachRelation.KeepWorldTransform)
+        {
+            WorldTransform = worldTransform;
+        }
     }
 
     protected virtual Matrix4x4 GetSocketWorldTransform(string socket)

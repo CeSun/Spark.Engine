@@ -29,7 +29,7 @@ namespace SparkDemo
 
 
              List<PointLightActor> PointLightActors = new List<PointLightActor>();
-             for (int i = 0; i < 4  ; i++)
+             for (int i = 0; i < 1  ; i++)
              {
                  var PointLight = new PointLightActor(level);
                  PointLight.LightStrength = 2F;
@@ -101,7 +101,7 @@ namespace SparkDemo
                 StaticMeshActor sma = new StaticMeshActor(level);
                 sma.WorldScale = Scales[index];
                 sma.WorldLocation = Locations[index++];
-                sma.IsStatic = true;
+                sma.IsStatic = false;
                 StaticMesh.LoadFromGLBAsync(name).Then(mesh => sma.StaticMesh = mesh);
 
             }

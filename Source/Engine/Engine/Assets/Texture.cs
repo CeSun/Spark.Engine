@@ -80,6 +80,13 @@ public class Texture
             gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToGLEnum(), Width, Height, 0, Channel.ToGLEnum(), GLEnum.UnsignedByte, p);
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
+        ReleaseMemory();
+    }
+
+
+    public void ReleaseMemory()
+    {
+        Pixels = null;
     }
     public static async Task<Texture> LoadFromFileAsync(string Path)
     {
