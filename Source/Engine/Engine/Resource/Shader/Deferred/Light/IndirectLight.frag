@@ -28,7 +28,7 @@ void main()
 #ifndef _MOBILE_
 	float ssao = texture(SSAOTexture, OutTexCoord).r;
 #else
-	float ssao = 1.0f;
+	float ssao = 0.5f;
 #endif
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
 	

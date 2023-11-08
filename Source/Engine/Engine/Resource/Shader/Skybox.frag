@@ -20,8 +20,11 @@ float GetDepth(vec2 ScreenLocation)
 
 void main()
 {   
-    // todo 
-    if (GetDepth(vec2(gl_FragCoord.xy + vec2(1.0f, 1.0f))) < 1.0f && GetDepth(vec2(gl_FragCoord.xy - vec2(1.0f, 1.0f))) < 1.0f)
-        discard;
-    FragColor = vec4(texture(skybox, TexCoords).rgb, 1.0f);
+
+    vec3 Color = texture(skybox, TexCoords).rgb;
+    // HDR tonemap and gamma correct
+    Color = Color / (Color + vec3(1.0));
+    Color = pow(Color, vec3(1.0/2.2)); 
+
+    FragColor = vec4(Color, 1.0f);
 }

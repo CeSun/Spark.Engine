@@ -131,6 +131,8 @@ public class SkyboxComponent : PrimitiveComponent
             }
         }
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+        gl.DeleteFramebuffer(captureFBO);
+        gl.DeleteRenderbuffer(captureRBO);
         gl.PopGroup();
 
     }
@@ -193,6 +195,8 @@ public class SkyboxComponent : PrimitiveComponent
             deferredSceneRenderer.RenderCube();
         }
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+        gl.DeleteFramebuffer(captureFBO);
+        gl.DeleteRenderbuffer(captureRBO);
 
         SkyboxCube = new TextureCube() { TextureId = envCubemap };
     }
@@ -200,8 +204,8 @@ public class SkyboxComponent : PrimitiveComponent
     private TextureCube? _SkyboxCube;
     public TextureCube? SkyboxCube
     {
-        get => _SkyboxCube; 
-        set
+        get => _SkyboxCube;
+        private set
         {
             _SkyboxCube = value;
             if (_SkyboxCube != null)

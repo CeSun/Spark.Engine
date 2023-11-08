@@ -145,6 +145,8 @@ void main()
     float specularStrength = 0.5;
    
     float depth = texture(DepthTexture, OutTexCoord).r;
+	if (depth >= 1.0f)
+		discard;
     vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
     //vec3 WorldLocation =texture(DepthTexture, OutTexCoord).xyz;
 #ifndef _MICRO_GBUFFER_

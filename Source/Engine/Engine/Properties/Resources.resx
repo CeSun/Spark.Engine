@@ -214,6 +214,12 @@
   <data name="/Shader/Deferred/BloomPre.vert" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resource\Shader\Deferred\BloomPre.vert;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
+  <data name="/Shader/Deferred/BloomPost.frag" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resource\Shader\Deferred\BloomPost.frag;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;gb2312</value>
+  </data>
+  <data name="/Shader/Deferred/BloomPost.vert" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resource\Shader\Deferred\BloomPost.vert;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
+  </data>
   <data name="/Shader/Deferred/BrightnessLighting.frag" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resource\Shader\Deferred\BrightnessLighting.frag;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;gb2312</value>
   </data>

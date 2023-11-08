@@ -8,7 +8,8 @@ uniform sampler2D ColorTexture;
 
 void main()
 {
-    vec3 color = texture(ColorTexture, OutTexCoord).rgb;
-    color = color / (color + vec3(1.0));
-    glColor = vec4(pow(color, vec3(1.0/ 2.2)), 1.0f);
+    vec4 color = texture(ColorTexture, OutTexCoord);
+	float alpha = color.a;
+    vec3 rgb = color.rgb / (color.rgb + vec3(1.0));
+    glColor = vec4(pow(color.rgb, vec3(1.0/ 2.2)), alpha);
 }

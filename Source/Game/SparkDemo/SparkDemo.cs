@@ -25,6 +25,10 @@ namespace SparkDemo
     {
         public static void BeginPlay(Level level)
         {
+
+            var texture = TextureHDR.LoadFromFile("/Texture/newport_loft.hdr");
+
+
             var lightActor = new Actor(level);
 
             var DirectionLightActor = new DirectionLightActor(level);
@@ -35,7 +39,8 @@ namespace SparkDemo
             var SkyBoxActor = new Actor(level, "SkyBox Actor");
             var skybox = new SkyboxComponent(SkyBoxActor);
             SkyBoxActor.RootComponent = skybox;
-            TextureCube.LoadAsync("/Skybox/Standard-Cube-Map/p").Then(texture => skybox.SkyboxCube = texture);
+            // TextureCube.LoadAsync("/Skybox/Standard-Cube-Map/p").Then(texture => skybox.SkyboxCube = texture);
+            skybox.SkyboxHDR = texture;
 
             var planeActor = new StaticMeshActor(level);
             StaticMesh.LoadFromGLBAsync("/StaticMesh/cube2.glb").Then(mesh => planeActor.StaticMesh = mesh);

@@ -32,7 +32,7 @@ var InitFun = () =>
         { "InputContext", window.CreateInput()},
         { "FileSystem", FileSystem.Instance},
         { "View", window },
-        { "IsMobile", false },
+        { "IsMobile", true },
         { "DefaultFBOID", 0 }
     });
 };

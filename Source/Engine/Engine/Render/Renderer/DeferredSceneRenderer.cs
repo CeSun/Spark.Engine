@@ -44,6 +44,7 @@ public class DeferredSceneRenderer : IRenderer
     Shader SkeletakMeshPointLightingShader;
 
     Shader SkeletalMeshBaseShader;
+    Shader BloomPostShader;
     public Shader IrradianceShader;
     public Shader PrefilterShader;
     public Shader IndirectLightShader;
@@ -124,6 +125,7 @@ public class DeferredSceneRenderer : IRenderer
         PointLightShadowShader = CreateShader("/Shader/ShadowMap/PointLightShadow", Macros);
         BloomPreShader = CreateShader("/Shader/Deferred/BloomPre", Macros);
         BloomShader = CreateShader("/Shader/Deferred/Bloom", Macros);
+        BloomPostShader = CreateShader("/Shader/Deferred/BloomPost", Macros);
         SkyboxShader = CreateShader("/Shader/Skybox", Macros);
         RenderToCamera = CreateShader("/Shader/Deferred/RenderToCamera", Macros);
         ScreenSpaceReflectionShader = CreateShader("/Shader/Deferred/ssr", Macros);
@@ -145,6 +147,7 @@ public class DeferredSceneRenderer : IRenderer
 
 
         HDRI2CubeMapShader = CreateShader("/Shader/Deferred/RenderHDRI2CubeMap", Macros);
+
         if (IsMicroGBuffer == true)
         {
             GlobalBuffer = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
@@ -369,12 +372,10 @@ public class DeferredSceneRenderer : IRenderer
             // 延迟光照
             LightingPass(DeltaTime);
             gl.PopGroup();
-            gl.PushGroup("Skybox Pass");
-            // 天空盒
-            SkyboxPass(DeltaTime);
-            gl.PopGroup();
             LastPostProcessBuffer = PostProcessBuffer1;
         }
+
+
         gl.PushGroup("PostProcess Pass");
         // 后处理
         PostProcessPass(DeltaTime);
@@ -885,7 +886,7 @@ public class DeferredSceneRenderer : IRenderer
         using (GlobalBuffer.Begin())
         {
             gl.Enable(EnableCap.DepthTest);
-            gl.ClearColor(Color.Black);
+            gl.ClearColor(Color.FromArgb(0,0,0,0));
             gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             gl.Enable(GLEnum.CullFace);
             gl.CullFace(GLEnum.Back);
@@ -962,7 +963,17 @@ public class DeferredSceneRenderer : IRenderer
             return;
         using (CurrentCameraComponent.RenderTarget.Begin())
         {
-            gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+            gl.PushGroup("Skybox Pass");
+
+            gl.Enable(EnableCap.Blend);
+            gl.BlendEquation(GLEnum.FuncAdd);
+            gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
+
+            // 天空盒
+            SkyboxPass(DeltaTime);
+            gl.PopGroup();
+
+            gl.Clear(ClearBufferMask.DepthBufferBit);
             RenderToCamera.Use();
             RenderToCamera.SetVector2("TexCoordScale",
                 new Vector2
@@ -990,7 +1001,7 @@ public class DeferredSceneRenderer : IRenderer
             return;
 
         // 清除背景颜色
-        gl.ClearColor(Color.Black);
+        gl.ClearColor(Color.FromArgb(0, 0, 0, 0));
         gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
         gl.Disable(EnableCap.DepthTest);
         gl.BlendEquation(GLEnum.FuncAdd);
@@ -1076,7 +1087,12 @@ public class DeferredSceneRenderer : IRenderer
             return;
         if (CurrentCameraComponent == null) return;
         gl.Disable(EnableCap.DepthTest);
-        using(PostProcessBuffer2.Begin())
+
+        gl.Enable(EnableCap.Blend);
+        gl.BlendEquation(GLEnum.FuncAdd);
+        gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
+
+        using (PostProcessBuffer2.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
             BloomPreShader.Use();
@@ -1128,21 +1144,21 @@ public class DeferredSceneRenderer : IRenderer
         {
             gl.Enable(EnableCap.Blend);
             gl.BlendEquation(GLEnum.FuncAdd);
-            RenderToCamera.Use();
-            RenderToCamera.SetVector2("TexCoordScale",
+            BloomPostShader.Use();
+            BloomPostShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
                     X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
                     Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
                 });
-            RenderToCamera.SetInt("ColorTexture", 0);
+            BloomPostShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
             gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
 
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
-            RenderToCamera.UnUse();
+            BloomPostShader.UnUse();
 
         }
         LastPostProcessBuffer = PostProcessBuffer1;
