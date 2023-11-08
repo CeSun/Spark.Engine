@@ -44,7 +44,22 @@ public partial class Level
     }
     public void Update(double DeltaTime)
     {
-        PhyWorld.Step((float)DeltaTime, false);
+        double tmpTime = DeltaTime;
+        while(tmpTime > 0)
+        {
+            if (tmpTime > 0.1F)
+            {
+                PhyWorld.Step(0.1F, false);
+                tmpTime -= 0.1F;
+            }
+            else
+            {
+                PhyWorld.Step((float)tmpTime, false);
+                tmpTime = 0;
+            }
+
+
+        }
         ActorUpdate(DeltaTime);
         UpdateManager.Update(DeltaTime);
     }
