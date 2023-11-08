@@ -16,14 +16,23 @@ public class SkyboxComponent : PrimitiveComponent
         deferredSceneRenderer = (DeferredSceneRenderer)World.SceneRenderer;
     }
 
-    private static uint captureFBO = 0;
-    private static uint captureRBO = 0;
     public uint IrradianceMapId = 0;
     public uint PrefilterMapId = 0;
+
     private void InitIBL()
     {
         if (SkyboxCube == null)
             return;
+
+
+        uint captureFBO = gl.GenFramebuffer();
+        uint captureRBO = gl.GenRenderbuffer();
+
+        gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+        gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
+        gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, 512, 512);
+        gl.FramebufferRenderbuffer(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, captureRBO);
+
         Matrix4x4 captureProjection = Matrix4x4.CreatePerspective(90.0f.DegreeToRadians(), 1.0f, 0.1f, 10.0f);
         Matrix4x4[] captureViews =
         {
@@ -34,16 +43,6 @@ public class SkyboxComponent : PrimitiveComponent
             Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f,  1.0f),new Vector3(0.0f, -1.0f,  0.0f)),
             Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f, -1.0f), new Vector3(0.0f, -1.0f,  0.0f))
         };
-        if (captureFBO == 0 && captureRBO == 0)
-        {
-            captureFBO = gl.GenFramebuffer();
-            captureRBO = gl.GenRenderbuffer();
-
-            gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
-            gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
-            gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, 512, 512);
-            gl.FramebufferRenderbuffer(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, captureRBO);
-        }
         if (IrradianceMapId == 0)
         {
             IrradianceMapId = gl.GenTexture();
@@ -136,6 +135,68 @@ public class SkyboxComponent : PrimitiveComponent
 
     }
 
+    public void InitTextureHDR2CubeMap()
+    {
+        if (SkyboxHDR == null)
+            return;
+
+
+        uint captureFBO = gl.GenFramebuffer();
+        uint captureRBO = gl.GenRenderbuffer();
+
+        gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+        gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
+        gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, 512, 512);
+        gl.FramebufferRenderbuffer(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, captureRBO);
+
+        uint envCubemap = gl.GenTexture();
+        gl.BindTexture(GLEnum.TextureCubeMap, envCubemap);
+        unsafe
+        {
+            for (int i = 0; i < 6; ++i)
+            {
+                gl.TexImage2D(GLEnum.TextureCubeMapPositiveX + i, 0, (int)GLEnum.Rgb16f, 512, 512, 0, GLEnum.Rgb, GLEnum.Float, (void*)0);
+            }
+        }
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear); // enable pre-filter mipmap sampling (combatting visible dots artifact)
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
+
+        Matrix4x4 captureProjection = Matrix4x4.CreatePerspectiveFieldOfView(90.0f.DegreeToRadians(), 1.0f, 0.1f, 10.0f);
+        Matrix4x4[] captureViews = new Matrix4x4[]
+        {
+
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(-1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  1.0f,  0.0f), new Vector3(0.0f,  0.0f,  1.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, -1.0f,  0.0f), new Vector3(0.0f,  0.0f, -1.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f,  1.0f), new Vector3(0.0f, -1.0f,  0.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f, -1.0f), new Vector3(0.0f, -1.0f,  0.0f))
+        };
+
+        deferredSceneRenderer.HDRI2CubeMapShader.Use();
+        deferredSceneRenderer.HDRI2CubeMapShader.SetInt("equirectangularMap", 0);
+        deferredSceneRenderer.HDRI2CubeMapShader.SetMatrix("projection", captureProjection);
+        gl.ActiveTexture(GLEnum.Texture0);
+        gl.BindTexture(GLEnum.Texture2D, SkyboxHDR.TextureId);
+
+        gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+        gl.Viewport(0, 0, 512, 512);
+        for (int i = 0; i < 6; ++i)
+        {
+            deferredSceneRenderer.HDRI2CubeMapShader.SetMatrix("view", captureViews[i]);
+            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, envCubemap, 0);
+            gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+
+            deferredSceneRenderer.RenderCube();
+        }
+        gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+
+        SkyboxCube = new TextureCube() { TextureId = envCubemap };
+    }
+
     private TextureCube? _SkyboxCube;
     public TextureCube? SkyboxCube
     {
@@ -147,6 +208,26 @@ public class SkyboxComponent : PrimitiveComponent
             {
                 _SkyboxCube.InitRender(gl);
                 InitIBL();
+            }
+        }
+    }
+
+    private TextureHDR? _SkyboxHDR;
+
+    public TextureHDR? SkyboxHDR
+    {
+        get => _SkyboxHDR;
+        set
+        {
+            _SkyboxHDR = value;
+            if (SkyboxHDR != null)
+            {
+                SkyboxHDR.InitRender(gl);
+                InitTextureHDR2CubeMap();
+            }
+            else
+            {
+                SkyboxCube = null;
             }
         }
     }

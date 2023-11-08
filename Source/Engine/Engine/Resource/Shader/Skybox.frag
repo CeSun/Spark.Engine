@@ -23,5 +23,5 @@ void main()
     // todo 
     if (GetDepth(vec2(gl_FragCoord.xy + vec2(1.0f, 1.0f))) < 1.0f && GetDepth(vec2(gl_FragCoord.xy - vec2(1.0f, 1.0f))) < 1.0f)
         discard;
-    FragColor = vec4(pow(texture(skybox, TexCoords).rgb,vec3(2.2)), 1.0f);
+    FragColor = vec4(texture(skybox, TexCoords).rgb, 1.0f);
 }

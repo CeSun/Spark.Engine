@@ -47,6 +47,7 @@ public class DeferredSceneRenderer : IRenderer
     public Shader IrradianceShader;
     public Shader PrefilterShader;
     public Shader IndirectLightShader;
+    public Shader HDRI2CubeMapShader;
 
 
     RenderTarget PostProcessBuffer1;
@@ -142,6 +143,8 @@ public class DeferredSceneRenderer : IRenderer
         PrefilterShader = CreateShader("/Shader/Prefilter", Macros);
         IndirectLightShader = CreateShader("/Shader/Deferred/Light/IndirectLight", Macros);
 
+
+        HDRI2CubeMapShader = CreateShader("/Shader/Deferred/RenderHDRI2CubeMap", Macros);
         if (IsMicroGBuffer == true)
         {
             GlobalBuffer = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
