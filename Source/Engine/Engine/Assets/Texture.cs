@@ -60,10 +60,6 @@ public class Texture
     public TexChannel Channel;
 
     public TexFilter Filter { get; set; } = TexFilter.Liner;
-    public Texture()
-    {
-    }
-
 
     public unsafe void InitRender(GL gl)
     {

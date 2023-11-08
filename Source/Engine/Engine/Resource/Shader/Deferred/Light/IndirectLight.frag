@@ -9,14 +9,12 @@ in vec2 OutTrueTexCoord;
 uniform sampler2D ColorTexture;
 uniform sampler2D DepthTexture;
 uniform sampler2D SSAOTexture;
-#ifndef _MOBILE_
 uniform sampler2D CustomBuffer;
 uniform mat4 VPInvert;
 uniform vec3 CameraLocation;
 uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLUT;
-#endif
 
 vec3 GetWorldLocation(vec3 ScreenLocation);
 vec3 Normal2DTo3D(vec2 Oct);
@@ -29,10 +27,10 @@ void main()
 	
 #ifndef _MOBILE_
 	float ssao = texture(SSAOTexture, OutTexCoord).r;
-    vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
 #else
 	float ssao = 1.0f;
 #endif
+    vec3 WorldLocation = GetWorldLocation(vec3(OutTrueTexCoord, depth));
 	
 	if (depth == 1.0)
 		discard;
@@ -40,25 +38,21 @@ void main()
     vec4 Buffer1 = texture(ColorTexture, OutTexCoord);
     vec3 Color = Buffer1.rgb;
     float AO = Buffer1.a;
-#ifndef _MOBILE_
     vec4 Buffer2 = texture(CustomBuffer, OutTexCoord);
     vec3 Normal = (Normal2DTo3D(Buffer2.xy* 2.0 - 1.0));
 	float metallic = Buffer2.z;
 	float roughness = Buffer2.w;
-#endif
 #else
 	float Buffer1[8] = MicroGBufferDecoding(ColorTexture,  ivec2(gl_FragCoord.xy));
     vec3 Color = vec3(Buffer1[0], Buffer1[1], Buffer1[2]);
     float AO = Buffer1[3]; 
-#ifndef _MOBILE_
 	float metallic = Buffer1[6]; 
 	float roughness = Buffer1[7]; 
     vec3 Normal = (Normal2DTo3D(vec2(Buffer1[4], Buffer1[5])* 2.0 - 1.0));
 #endif
-#endif
 
     Color = pow(Color, vec3(2.2));
-#ifndef _MOBILE_
+
 
     vec3 V = normalize(CameraLocation - WorldLocation);
     Normal = normalize(Normal);
@@ -88,9 +82,7 @@ void main()
     vec3 ambient = (kD * diffuse + specular) * AO  * ssao;
     
     FragColor = vec4(ambient , 1.0);
-#else
-	FragColor = vec4(Color * 0.03f * AO * ssao, 1.0);
-#endif
+
 }
 
 
@@ -190,7 +182,6 @@ float[8] MicroGBufferDecoding(sampler2D MicroGBuffer, ivec2 ScreenLocation)
 
 }
 
-#ifndef _MOBILE_
 vec3 Normal2DTo3D(vec2 Oct)
 {
 	vec3 N = vec3( Oct, 1.0 - dot( vec2(1.0f), abs(Oct) ) );
@@ -224,4 +215,3 @@ vec3 GetWorldLocation(vec3 ScreenLocation)
 
     return WorldLocation;
 }
-#endif

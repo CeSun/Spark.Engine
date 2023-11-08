@@ -1,73 +1,140 @@
 ﻿using Spark.Engine.Actors;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Assets;
+using Spark.Util;
+using System.Numerics;
+using Spark.Engine.Render.Renderer;
+using System.Drawing;
 
 namespace Spark.Engine.Components;
 
 public class SkyboxComponent : PrimitiveComponent
 {
+    private DeferredSceneRenderer deferredSceneRenderer;
     public SkyboxComponent(Actor actor) : base(actor)
     {
-
-        InitRender();
+        deferredSceneRenderer = (DeferredSceneRenderer)World.SceneRenderer;
     }
 
-    uint Ebo;
-    uint Vbo;
-    uint Vao;
-
-    public bool NeedUpdateIBL = false;
-    public uint TextureId { private set;  get; }
-    unsafe void InitRender()
+    private static uint captureFBO = 0;
+    private static uint captureRBO = 0;
+    public uint IrradianceMapId = 0;
+    public uint PrefilterMapId = 0;
+    private void InitIBL()
     {
-        float[] Vertex =
+        if (SkyboxCube == null)
+            return;
+        Matrix4x4 captureProjection = Matrix4x4.CreatePerspective(90.0f.DegreeToRadians(), 1.0f, 0.1f, 10.0f);
+        Matrix4x4[] captureViews =
         {
-            // x, y, z
-            -1, 1, -1,
-            -1, -1, -1,
-            1, -1, -1,
-            1, 1, -1,
-
-
-            -1, 1, 1,
-            -1, -1, 1,
-            1, -1, 1,
-            1, 1, 1,
-
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(-1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  1.0f,  0.0f), new Vector3(0.0f,  0.0f,  1.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, -1.0f,  0.0f), new Vector3(0.0f,  0.0f, -1.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f,  1.0f),new Vector3(0.0f, -1.0f,  0.0f)),
+            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f, -1.0f), new Vector3(0.0f, -1.0f,  0.0f))
         };
+        if (captureFBO == 0 && captureRBO == 0)
+        {
+            captureFBO = gl.GenFramebuffer();
+            captureRBO = gl.GenRenderbuffer();
 
-        uint[] indices =
-        {
-            0, 1, 2, 2, 3, 0,
-            4, 5, 1, 1, 0, 4,
-            7, 6, 5, 5, 4, 7,
-            3, 2, 6, 6, 7, 3,
-            4, 0, 3, 3, 7, 4,
-            1, 5, 6, 6, 2, 1
-        };
-        Vao = gl.GenVertexArray();
-        Vbo = gl.GenBuffer();
-        Ebo = gl.GenBuffer();
-        gl.BindVertexArray(Vao);
-        gl.BindBuffer(BufferTargetARB.ArrayBuffer, Vbo);
-        fixed (void *data = Vertex)
-        {
-            gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Vertex.Length * sizeof(float)), data, GLEnum.StaticDraw);
+            gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+            gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
+            gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, 512, 512);
+            gl.FramebufferRenderbuffer(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, captureRBO);
         }
-        gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, Ebo);
-
-        fixed (void* data = indices)
+        if (IrradianceMapId == 0)
         {
-            gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(indices.Length * sizeof(uint)), data, GLEnum.StaticDraw);
-        }
-        gl.EnableVertexAttribArray(0);
-        gl.VertexAttribPointer(0, 3, GLEnum.Float, false, (uint)sizeof(float) * 3, (void*)0);
+            IrradianceMapId = gl.GenTexture();
+            gl.BindTexture(GLEnum.TextureCubeMap, IrradianceMapId);
+            for (int i = 0; i < 6; ++i)
+            {
+                unsafe
+                {
+                    gl.TexImage2D(GLEnum.TextureCubeMapPositiveX + i, 0, (int)GLEnum.Rgb16f, 32, 32, 0, GLEnum.Rgb, GLEnum.Float, (void*)0);
+                }
+            }
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
 
-        gl.BindVertexArray(0);
+            gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+            gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
+            gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, 32, 32);
+        }
+
+        gl.PushGroup("IrradianceShader PreProcess");
+
+        deferredSceneRenderer.IrradianceShader.Use();
+        deferredSceneRenderer.IrradianceShader.SetInt("environmentMap", 0);
+        deferredSceneRenderer.IrradianceShader.SetMatrix("projection", captureProjection);
+        gl.ActiveTexture(GLEnum.Texture0);
+        gl.BindTexture(GLEnum.TextureCubeMap, SkyboxCube.TextureId);
+        gl.Viewport(new Rectangle { X = 0, Y = 0, Height = 32, Width = 32 });
+        gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+
+        for (int i = 0; i < 6; ++i)
+        {
+            deferredSceneRenderer.IrradianceShader.SetMatrix("view", captureViews[i]);
+            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, IrradianceMapId, 0);
+            gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            deferredSceneRenderer.RenderCube();
+        }
+
+        if (PrefilterMapId == 0)
+        {
+            PrefilterMapId = gl.GenTexture();
+            gl.BindTexture(GLEnum.TextureCubeMap, PrefilterMapId);
+            for (int i = 0; i < 6; ++i)
+            {
+                unsafe
+                {
+                    gl.TexImage2D(GLEnum.TextureCubeMapPositiveX + i, 0, (int)GLEnum.Rgb16f, 128, 128, 0, GLEnum.Rgb, GLEnum.Float, (void*)0);
+                }
+            }
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.LinearMipmapLinear);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
+            gl.GenerateMipmap(GLEnum.TextureCubeMap);
+        }
+        gl.PopGroup();
+
+        gl.PushGroup("Prefilter PreProcess");
+        deferredSceneRenderer.PrefilterShader.Use();
+        deferredSceneRenderer.PrefilterShader.SetInt("environmentMap", 0);
+        gl.ActiveTexture(GLEnum.Texture0);
+        gl.BindTexture(GLEnum.TextureCubeMap, SkyboxCube.TextureId);
+        deferredSceneRenderer.PrefilterShader.SetMatrix("projection", captureProjection);
+        gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
+        int maxMipLevels = 5;
+        for (int mip = 0; mip < maxMipLevels; ++mip)
+        {
+            uint mipWidth = (uint)(128 * Math.Pow(0.5, mip));
+            uint mipHeight = (uint)(128 * Math.Pow(0.5, mip));
+            gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
+            gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, mipWidth, mipHeight);
+            gl.Viewport(0, 0, mipWidth, mipHeight);
+
+            float roughness = (float)mip / (float)(maxMipLevels - 1);
+            deferredSceneRenderer.PrefilterShader.SetFloat("roughness", roughness);
+            for (int i = 0; i < 6; ++i)
+            {
+                deferredSceneRenderer.PrefilterShader.SetMatrix("view", captureViews[i]);
+                gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, PrefilterMapId, mip);
+
+                gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+                deferredSceneRenderer.RenderCube();
+            }
+        }
+        gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+        gl.PopGroup();
 
     }
-
-
 
     private TextureCube? _SkyboxCube;
     public TextureCube? SkyboxCube
@@ -79,7 +146,7 @@ public class SkyboxComponent : PrimitiveComponent
             if (_SkyboxCube != null)
             {
                 _SkyboxCube.InitRender(gl);
-                NeedUpdateIBL = true;
+                InitIBL();
             }
         }
     }
@@ -94,11 +161,9 @@ public class SkyboxComponent : PrimitiveComponent
         if (SkyboxCube == null)
             return;
         gl.DepthMask(false);
-        gl.BindVertexArray(Vao);
-
         gl.ActiveTexture(GLEnum.Texture0);
         gl.BindTexture(GLEnum.TextureCubeMap, SkyboxCube.TextureId);
-        gl.DrawElements(GLEnum.Triangles, (uint)36, GLEnum.UnsignedInt, (void*)0);
+        deferredSceneRenderer.RenderCube();
         gl.DepthMask(true);
     }
 
