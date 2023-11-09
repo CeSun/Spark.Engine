@@ -78,7 +78,7 @@ public class StaticMeshComponent : PrimitiveComponent
                 };
 
                 RigidBody.IsStatic = IsStatic;
-
+                RigidBody.Tag = this;
             }
             InitRender();
         }

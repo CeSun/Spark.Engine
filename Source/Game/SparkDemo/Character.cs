@@ -1,4 +1,5 @@
-﻿using SharpGLTF.Schema2;
+﻿using Jitter2.Collision.Shapes;
+using SharpGLTF.Schema2;
 using Silk.NET.Input;
 using Spark.Engine;
 using Spark.Engine.Actors;
@@ -11,19 +12,29 @@ namespace SparkDemo
 {
     public class Character : Actor
     {
-        public float Speed = 10;
+        public float MoveSpeed = 10;
+
+        public Vector3 Speed; 
         public SkeletalMeshComponent Mesh { get; set; }
 
+        public float DownSpeed = 0;
+        public CapsuleComponent CapsuleComponent { get; set; }
 
         public SkeletalMeshComponent Wpn;
 
         public StaticMeshComponent Mag;
-        protected override bool ReceieveUpdate => false;
+        protected override bool ReceieveUpdate => true;
         public Character(Level level, string Name = "") : base(level, Name)
         {
+            CapsuleComponent = new CapsuleComponent(this);
+            CapsuleComponent.Radius = 0.5F;
+            CapsuleComponent.Length = 1;
+            CapsuleComponent.IsStatic = true;
             Mesh = new SkeletalMeshComponent(this);
-            Mesh.WorldScale = new Vector3(0.03F);
+            Mesh.RelativeScale = new Vector3(0.02F);
+            Mesh.RelativeLocation = new Vector3(0, -1F, 0);
             Mesh.IsStatic = true;
+            Mesh.AttachTo(CapsuleComponent, "", Matrix4x4.Identity, AttachRelation.KeepRelativeTransform); ;
 
             var fun = async () =>
             {
@@ -62,31 +73,34 @@ namespace SparkDemo
         protected override void OnUpdate(double DeltaTime)
         {
             base.OnUpdate(DeltaTime);
-            Vector2 Move = new Vector2(0, 0);
-            if (CurrentWorld.Engine.MainKeyBoard.IsKeyPressed(Key.W))
-            {
-                Move.X = 1;
-            }
-            if (CurrentWorld.Engine.MainKeyBoard.IsKeyPressed(Key.S))
-            {
-                Move.X = -1;
-            }
-            if (CurrentWorld.Engine.MainKeyBoard.IsKeyPressed(Key.A))
-            {
-                Move.Y = -1;
-            }
-            if (CurrentWorld.Engine.MainKeyBoard.IsKeyPressed(Key.D))
-            {
-                Move.Y = 1;
-            }
-            if (Move.Length() > 0)
-            {
-                Move = Vector2.Normalize(Move);
+            var Down = this.UpVector * -1;
+            var location = WorldLocation;
 
-                this.WorldLocation += this.ForwardVector * Move.X * Speed * (float)DeltaTime;
+            var AddSpeed = -9.8f;
+            var YSpeed = Speed.Y + AddSpeed * (float)DeltaTime;
+            var dis = YSpeed * (float)DeltaTime;
+            var endLocation = new Vector3(location.X, location.Y + dis, location.Z); ;
+            if (CurrentLevel.PhyWorld.Raycast(this.CapsuleComponent.CapsuleShape, new Jitter2.LinearMath.JVector (location.X, location.Y, location.Z), new Jitter2.LinearMath.JVector(Down.X, Down.Y, Down.Z), out var normal, out var distance))
+            {
+                if (distance - CapsuleComponent.Radius > CapsuleComponent.Length / 2)
+                {
+                    if ((endLocation - location).Length() < (distance - CapsuleComponent.Radius - CapsuleComponent.Length / 2))
+                        this.WorldLocation = endLocation;
+                    else
+                    {
 
-                this.WorldLocation += this.RightVector * Move.Y * Speed * (float)DeltaTime;
+                        this.WorldLocation = new Vector3(location.X, location.Y - (distance - CapsuleComponent.Radius) + CapsuleComponent.Length / 2, location.Z);
+                    }
+                }
+
             }
+            else
+            {
+                this.WorldLocation = endLocation;
+            }
+
+            Speed = (this.WorldLocation - location) / (float)DeltaTime;
         }
+
     }
 }

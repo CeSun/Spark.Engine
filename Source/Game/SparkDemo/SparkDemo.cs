@@ -39,7 +39,6 @@ namespace SparkDemo
             var SkyBoxActor = new Actor(level, "SkyBox Actor");
             var skybox = new SkyboxComponent(SkyBoxActor);
             SkyBoxActor.RootComponent = skybox;
-            // TextureCube.LoadAsync("/Skybox/Standard-Cube-Map/p").Then(texture => skybox.SkyboxCube = texture);
             skybox.SkyboxHDR = texture;
 
             var planeActor = new StaticMeshActor(level);
@@ -49,7 +48,7 @@ namespace SparkDemo
 
 
             var character = new Character(level);
-            character.WorldLocation = new Vector3(5, 1, 5);
+            character.WorldLocation = new Vector3(0, 100, 0);
 
             var camera = new MovableCamera(level);
             camera.WorldLocation = new Vector3(2, 4, 1);
@@ -93,12 +92,11 @@ namespace SparkDemo
             {
                 StaticMeshActor sma = new StaticMeshActor(level);
                 sma.WorldScale = Scales[index];
-                sma.WorldLocation = Locations[index++];
+                sma.WorldLocation = Locations[index++] ;
                 sma.IsStatic = false;
                 StaticMesh.LoadFromGLBAsync(name).Then(mesh => sma.StaticMesh = mesh);
 
             }
-
             
 
         }
