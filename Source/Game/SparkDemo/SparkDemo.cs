@@ -26,7 +26,7 @@ namespace SparkDemo
         public static void BeginPlay(Level level)
         {
 
-            var texture = TextureHDR.LoadFromFile("/Texture/newport_loft.hdr");
+            var texture = TextureHDR.LoadFromFile("/Texture/newport_loft.hdr", true, true);
 
 
             var lightActor = new Actor(level);

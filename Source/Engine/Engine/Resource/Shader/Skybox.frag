@@ -22,9 +22,5 @@ void main()
 {   
 
     vec3 Color = texture(skybox, TexCoords).rgb;
-    // HDR tonemap and gamma correct
-    Color = Color / (Color + vec3(1.0));
-    Color = pow(Color, vec3(1.0/2.2)); 
-
     FragColor = vec4(Color, 1.0f);
 }

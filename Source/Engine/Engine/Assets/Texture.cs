@@ -84,21 +84,31 @@ public class Texture
     {
         Pixels = null;
     }
-    public static async Task<Texture> LoadFromFileAsync(string Path)
+    public static async Task<Texture> LoadFromFileAsync(string Path, bool GammaCorrection = false, bool FlipVertically = false)
     {
-        return await Task.Run(() =>LoadFromFile(Path));
+        return await Task.Run(() =>LoadFromFile(Path, GammaCorrection, FlipVertically));
     }
 
-    public static Texture LoadFromFile(string Path)
+    public static Texture LoadFromFile(string Path, bool GammaCorrection = false, bool FlipVertically = false)
     {
         using var StreamReader = FileSystem.Instance.GetStreamReader("Content" + Path);
+        if (FlipVertically)
+        {
+            StbImage.stbi_set_flip_vertically_on_load(1);
+        }
         var imageResult = ImageResult.FromStream(StreamReader.BaseStream);
+        if (FlipVertically)
+        {
+            StbImage.stbi_set_flip_vertically_on_load(0);
+        }
         if (imageResult != null)
         {
             Texture texture = new Texture();
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
+            if (GammaCorrection)
+                Process(imageResult.Data);
             texture.Pixels.AddRange(imageResult.Data);
             return texture;
         }
@@ -132,15 +142,25 @@ public class Texture
         texture.Pixels.AddRange(data);
         return texture;
     }
-    internal static Texture LoadFromMemory(byte[] memory)
+    internal static Texture LoadFromMemory(byte[] memory, bool GammaCorrection = false, bool FlipVertically = false)
     {
+        if (FlipVertically)
+        {
+            StbImage.stbi_set_flip_vertically_on_load(1);
+        }
         var imageResult = ImageResult.FromMemory(memory);
+        if (FlipVertically)
+        {
+            StbImage.stbi_set_flip_vertically_on_load(0);
+        }
         if (imageResult != null)
         {
             Texture texture = new Texture();
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
+            if (GammaCorrection)
+                Process(imageResult.Data);
             texture.Pixels.AddRange(imageResult.Data);
             return texture;
         }
@@ -219,5 +239,14 @@ public class Texture
         return texture;
 
     }
+
+    private static void Process(byte[] data)
+    {
+        for (int i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)(Math.Pow(data[i] / 255.0f, 1.0f / 2.2f) * 255);
+        }
+    }
+
 
 }

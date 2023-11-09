@@ -171,7 +171,7 @@ public class DeferredSceneRenderer : IRenderer
         }
         // SceneBackFaceDepthBuffer = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 0);
 
-        BrdfTexture = Texture.LoadFromMemory(Resources.brdf);
+        BrdfTexture = Texture.LoadFromMemory(Resources.brdf, true, true);
         BrdfTexture.InitRender(gl);
         InitRender();
         InitSSAORender();

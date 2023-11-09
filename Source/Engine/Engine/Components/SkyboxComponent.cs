@@ -195,6 +195,10 @@ public class SkyboxComponent : PrimitiveComponent
             deferredSceneRenderer.RenderCube();
         }
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+
+        gl.BindTexture(GLEnum.TextureCubeMap, envCubemap);
+        gl.GenerateMipmap(GLEnum.TextureCubeMap);
+
         gl.DeleteFramebuffer(captureFBO);
         gl.DeleteRenderbuffer(captureRBO);
 
