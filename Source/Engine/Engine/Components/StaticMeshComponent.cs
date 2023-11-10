@@ -51,7 +51,7 @@ public class StaticMeshComponent : PrimitiveComponent
                 RigidBody = Owner.CurrentLevel.PhyWorld.CreateRigidBody();
                 foreach(var shape in _StaticMesh.Shapes)
                 {
-                    RigidBody.AddShape(shape);
+                    RigidBody.AddShape(new TransformedShape(shape, JVector.Zero));
                 }
                 RigidBody.Position = new JVector(WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
                 var Matrix = MatrixHelper.CreateTransform(Vector3.Zero, WorldRotation, WorldScale);
