@@ -112,8 +112,6 @@ public class Octree
             return;
         if (Box.MaxPoint.X > MaxPoint.X || Box.MaxPoint.Y > MaxPoint.Y || Box.MaxPoint.Z > MaxPoint.Z)
             return;
-
-      
         if (Layer == MaxLayer)
         {
             goto InsertCurrentNode;
@@ -165,28 +163,13 @@ InsertCurrentNode:
     
     public void RemoveObject(BoundingBox Box)
     {
-        if (CurrentBox.Contains(Box.Box) == false)
+        if (Box.ParentNode == null)
             return;
-        if (boundingBoxes.Contains(Box))
-        {
-            boundingBoxes.Remove(Box);
-            Box.ParentNode = null;
-        }
-        else
-        {
-            if (_Children != null)
-            {
-                foreach(var child in _Children)
-                {
-                    child.RemoveObject(Box);
-                }
-            }
-        }
+        Box.ParentNode.boundingBoxes.Remove(Box);
+        if (Box.ParentNode.NodeCount == 0)
+            Box.ParentNode._Children = null;
 
-        if (NodeCount == 0)
-        {
-            _Children = null;
-        }
+        Box.ParentNode = null;
     }
 
     public void FrustumCulling(List<PrimitiveComponent> Components, Plane[] Planes)

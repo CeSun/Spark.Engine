@@ -43,7 +43,7 @@ public struct Box :
     {
         float min = (MinPoint - location).Length();
 
-        for(int i = 1; i < 6; i ++)
+        for(int i = 1; i < 8; i ++)
         {
             float tmp = (this[i] - location).Length();
             if (tmp < min)
@@ -75,17 +75,21 @@ public struct Box :
             switch (index)
             {
                 case 0:
-                    return _MinPoint;
+                    return new Vector3() { X = MinPoint.X, Y = MinPoint.Y, Z = MinPoint.Z };
                 case 1:
-                    return _MaxPoint;
-                case 2:
-                    return new  Vector3() { X = MinPoint.X, Y = MinPoint.Y, Z = MaxPoint.Z };
-                case 3:
-                    return new Vector3() { X = MinPoint.X, Y = MaxPoint.Y, Z = MaxPoint.Z };
-                case 4:
-                    return new Vector3() { X = MaxPoint.X, Y = MaxPoint.Y, Z = MinPoint.Z };
-                case 5:
                     return new Vector3() { X = MaxPoint.X, Y = MinPoint.Y, Z = MinPoint.Z };
+                case 2:
+                    return new  Vector3() { X = MaxPoint.X, Y = MinPoint.Y, Z = MaxPoint.Z };
+                case 3:
+                    return new Vector3() { X = MinPoint.X, Y = MinPoint.Y, Z = MaxPoint.Z };
+                case 4:
+                    return new Vector3() { X = MinPoint.X, Y = MaxPoint.Y, Z = MinPoint.Z };
+                case 5:
+                    return new Vector3() { X = MaxPoint.X, Y = MaxPoint.Y, Z = MinPoint.Z };
+                case 6:
+                    return new Vector3() { X = MaxPoint.X, Y = MaxPoint.Y, Z = MaxPoint.Z };
+                case 7:
+                    return new Vector3() { X = MinPoint.X, Y = MaxPoint.Y, Z = MaxPoint.Z };
                 default:
                     throw new IndexOutOfRangeException();
             }
@@ -133,14 +137,14 @@ public struct Box :
         for(var i = 0; i < 6; i ++)
         {
             var num = 0;
-            for(var j = 0; j < 6; j ++)
+            for(var j = 0; j < 8; j ++)
             {
                 if (Planes[i].Point2Plane(this[j]) == false)
                 {
                     num++;
                 }
             }
-            if (num >= 6)
+            if (num >= 8)
                 return false;
         }
         return true;

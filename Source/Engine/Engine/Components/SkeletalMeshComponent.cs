@@ -110,6 +110,11 @@ public class SkeletalMeshComponent : PrimitiveComponent
                 AnimBuffer[bone.BoneId] = AnimBuffer[bone.BoneId] * SkeletalMesh.Skeleton.RootParentMatrix;
             }
         }
+
+        foreach(var child in ChildrenComponent)
+        {
+            child.MakeChildrenTranformDirty();
+        }
     }
 
     protected override Matrix4x4 GetSocketWorldTransform(string socket)

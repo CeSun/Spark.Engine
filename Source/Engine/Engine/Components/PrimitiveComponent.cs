@@ -36,18 +36,7 @@ public partial class PrimitiveComponent
     public BoundingBox? BoundingBox 
     {
         get => _BoundingBox;
-        protected set
-        {
-            if (_BoundingBox != null)
-            {
-                CurrentLevel.RenderObjectOctree.RemoveObject(_BoundingBox);
-            }
-            if (value != null)
-            {
-                CurrentLevel.RenderObjectOctree.InsertObject(value);
-            }
-            _BoundingBox = value;
-        }
+        protected set =>_BoundingBox = value;
     }
 
     private BoundingBox? _BoundingBox;

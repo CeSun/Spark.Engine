@@ -5,6 +5,7 @@ using SharpGLTF.Schema2;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
+using Spark.Engine.Physics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -45,10 +46,10 @@ public class StaticMeshComponent : PrimitiveComponent
             RigidBody = null;
             _StaticMesh = value;
             BoundingBox = null;
-            if (value != null)
+            if (_StaticMesh != null)
             {
                 RigidBody = Owner.CurrentLevel.PhyWorld.CreateRigidBody();
-                foreach(var shape in value.Shapes)
+                foreach(var shape in _StaticMesh.Shapes)
                 {
                     RigidBody.AddShape(shape);
                 }
@@ -69,9 +70,21 @@ public class StaticMeshComponent : PrimitiveComponent
                 RigidBody.IsStatic = IsStatic;
                 RigidBody.Tag = this;
                 var worldTransform = WorldTransform;
-               
-                BoundingBox = new Physics.BoundingBox(Vector3.Transform(value.Box.MaxPoint, worldTransform), Vector3.Transform(value.Box.MinPoint, worldTransform), this);
-                UpdateOctree();
+
+                Box box = default;
+                for(int i = 0; i < 8; i ++)
+                {
+                    if (i == 0)
+                    {
+                        box.MinPoint = Vector3.Transform(_StaticMesh.Box[i], worldTransform);
+                        box.MaxPoint = box.MinPoint;
+                    }
+                    else
+                    {
+                        box += Vector3.Transform(_StaticMesh.Box[i], worldTransform);
+                    }
+                }
+                BoundingBox = new BoundingBox(box.MaxPoint, box.MinPoint, this);     
             }
             InitRender();
         }
@@ -86,6 +99,8 @@ public class StaticMeshComponent : PrimitiveComponent
     public override void OnUpdate(double DeltaTime)
     {
         base.OnUpdate(DeltaTime);
+
+
         if (TransformDirtyFlag)
         {
             if (RigidBody != null)
@@ -117,12 +132,27 @@ public class StaticMeshComponent : PrimitiveComponent
             if (BoundingBox != null && StaticMesh != null)
             {
                 var worldTransform = WorldTransform;
-                BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
-                BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
+
+                Box box = default;
+                for (int i = 0; i < 8; i++)
+                {
+                    if (i == 0)
+                    {
+                        box.MinPoint = Vector3.Transform(StaticMesh.Box[i], worldTransform);
+                        box.MaxPoint = box.MinPoint;
+                    }
+                    else
+                    {
+                        box += Vector3.Transform(StaticMesh.Box[i], worldTransform);
+                    }
+                }
+
+                BoundingBox.MaxPoint = box.MaxPoint;
+                BoundingBox.MinPoint = box.MinPoint;
                 UpdateOctree();
             }
         }
-        
+
 
     }
     public override void Render(double DeltaTime)
