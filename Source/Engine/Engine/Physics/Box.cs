@@ -51,6 +51,23 @@ public struct Box :
         }
         return min;
     }
+    public bool Contains(in Box box)
+    {
+        if (box.MinPoint.X < this.MinPoint.X)
+            return false;
+        if (box.MinPoint.Y < this.MinPoint.Y)
+            return false;
+        if (box.MinPoint.Z < this.MinPoint.Z)
+            return false;
+        if (box.MaxPoint.X > this.MaxPoint.X)
+            return false;
+        if (box.MaxPoint.Y > this.MaxPoint.Y)
+            return false;
+        if (box.MaxPoint.Z > this.MaxPoint.Z)
+            return false;
+
+        return true;
+    }
     public Vector3 this[int index]
     {
         get
