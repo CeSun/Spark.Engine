@@ -17,6 +17,7 @@ using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Manager;
 using Jitter2.Collision;
 using PhyWorld = Jitter2.World;
+using Spark.Engine.Physics;
 
 namespace Spark.Engine;
 
@@ -31,10 +32,14 @@ public partial class Level
         CurrentWorld = world;
         UpdateManager = new UpdateManager();
         PhyWorld = new PhyWorld();
+        RenderObjectOctree = new Octree();
+        LightOctree = new Octree();
     }
 
 
+    public Octree RenderObjectOctree { get; private set; }
 
+    public Octree LightOctree { get; private set; }
     public UpdateManager UpdateManager { private set; get; }
 
  

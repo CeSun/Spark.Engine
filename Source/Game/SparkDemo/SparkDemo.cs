@@ -106,7 +106,11 @@ namespace SparkDemo
 
         }
 
-
+        List<StaticMeshComponent> RenderStaticMeshes = new List<StaticMeshComponent>();
+        public void CameraCulling()
+        {
+            
+        }
 
     }
 }

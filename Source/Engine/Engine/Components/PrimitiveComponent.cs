@@ -8,6 +8,7 @@ using System.Numerics;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
+using Spark.Engine.Physics;
 
 namespace Spark.Engine.Components;
 
@@ -28,7 +29,31 @@ public partial class PrimitiveComponent
     protected virtual bool ReceieveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
 
+    public BoundingBox? BoundingBox 
+    {
+        get => _BoundingBox;
+        protected set
+        {
+            if (_BoundingBox != null)
+            {
+                CurrentLevel.RenderObjectOctree.RemoveObject(_BoundingBox);
+            }
+            if (value != null)
+            {
+                CurrentLevel.RenderObjectOctree.InsertObject(value);
+            }
+            _BoundingBox = value;
+        }
+    }
 
+    private BoundingBox? _BoundingBox;
+    public void UpdateOctree()
+    {
+        if (BoundingBox == null)
+            return;
+        CurrentLevel.RenderObjectOctree.RemoveObject(BoundingBox);
+        CurrentLevel.RenderObjectOctree.InsertObject(BoundingBox);
+    }
     public bool IsCastShadowMap { get; set; } = true;
     /// <summary>
     /// 构造函数
@@ -232,7 +257,7 @@ public partial class PrimitiveComponent
     {
 
         get => _RelativeRotation;
-        set => _RelativeRotation = value;
+        set =>_RelativeRotation = value;
     }
 
     public virtual Vector3 RelativeScale

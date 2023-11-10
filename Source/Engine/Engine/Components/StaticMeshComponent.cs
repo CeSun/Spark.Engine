@@ -43,6 +43,7 @@ public class StaticMeshComponent : PrimitiveComponent
             }
             RigidBody = null;
             _StaticMesh = value;
+            BoundingBox = null;
             if (value != null)
             {
                 RigidBody = Owner.CurrentLevel.PhyWorld.CreateRigidBody();
@@ -79,6 +80,10 @@ public class StaticMeshComponent : PrimitiveComponent
 
                 RigidBody.IsStatic = IsStatic;
                 RigidBody.Tag = this;
+                var worldTransform = WorldTransform;
+               
+                BoundingBox = new Physics.BoundingBox(Vector3.Transform(value.Box.MaxPoint, worldTransform), Vector3.Transform(value.Box.MinPoint, worldTransform), this);
+                UpdateOctree();
             }
             InitRender();
         }
@@ -98,6 +103,14 @@ public class StaticMeshComponent : PrimitiveComponent
             if (RigidBody != null)
             {
                 RigidBody.Position = new JVector(WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
+            }
+            if (BoundingBox != null && StaticMesh != null)
+            {
+                var worldTransform = WorldTransform;
+                BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
+                BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
+
+                UpdateOctree();
             }
         } 
     }
@@ -123,6 +136,14 @@ public class StaticMeshComponent : PrimitiveComponent
                     M32 = Matrix.M32,
                     M33 = Matrix.M33,
                 };
+            }
+            if (BoundingBox != null && StaticMesh != null)
+            {
+                var worldTransform = WorldTransform;
+                BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
+                BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
+
+                UpdateOctree();
             }
         }
     }
@@ -154,6 +175,15 @@ public class StaticMeshComponent : PrimitiveComponent
                         M33 = sm.M33,
                     }));
                 }
+            }
+
+            if (BoundingBox != null && StaticMesh != null)
+            {
+                var worldTransform = WorldTransform;
+                BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
+                BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
+
+                UpdateOctree();
             }
         }
     }
@@ -191,6 +221,14 @@ public class StaticMeshComponent : PrimitiveComponent
                 var tmpRelativeTransform = tmpWorldTransform* ParentInverseWorldTransform;
                 _RelativeLocation = tmpRelativeTransform.Translation;
                 _RelativeRotation = tmpRelativeTransform.Rotation();
+
+                if (BoundingBox != null && StaticMesh != null)
+                {
+                    var worldTransform = WorldTransform;
+                    BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
+                    BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
+                    UpdateOctree();
+                }
             }
         }
 

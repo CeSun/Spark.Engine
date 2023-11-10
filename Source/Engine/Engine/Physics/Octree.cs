@@ -35,8 +35,8 @@ public class Octree
     }
     private Octree(Vector3 leftTopPoint, Vector3 rightBottomPoint)
     {
-        MaxPoint = leftTopPoint;
-        MinPoint = rightBottomPoint;
+        MinPoint = leftTopPoint;
+        MaxPoint = rightBottomPoint;
 
         Vector3 HalfVector = (MinPoint + MaxPoint) / 2;
         ChildBox = new Box[]
@@ -92,16 +92,19 @@ public class Octree
 
     readonly Box[] ChildBox;
 
-    public int GetNodeCount()
+    public int NodeCount
     {
-        if (_Children == null)
-            return boundingBoxes.Count;
-        int len = boundingBoxes.Count;
-        foreach(var child in _Children)
+        get
         {
-            len += child.GetNodeCount();
+            if (_Children == null)
+                return boundingBoxes.Count;
+            int len = boundingBoxes.Count;
+            foreach (var child in _Children)
+            {
+                len += child.NodeCount;
+            }
+            return len;
         }
-        return len;
     }
     public void InsertObject(BoundingBox Box)
     {
@@ -180,11 +183,33 @@ InsertCurrentNode:
             }
         }
 
-        if (GetNodeCount() == 0)
+        if (NodeCount == 0)
         {
             _Children = null;
         }
     }
+
+    public void FrustumCulling(List<PrimitiveComponent> Components, Plane[] Planes)
+    {
+        if (this.CurrentBox.TestPlanes(Planes) == false)
+            return;
+        foreach (var subox in boundingBoxes)
+        {
+            if(subox.Box.TestPlanes(Planes))
+            {
+                Components.Add(subox.PrimitiveComponent);
+            }
+        }
+        if (_Children != null)
+        {
+            foreach(var child in _Children)
+            {
+                child.FrustumCulling(Components, Planes);
+            }
+        }
+    }
+
+   
 }
 
 public class BoundingBox

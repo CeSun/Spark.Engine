@@ -885,6 +885,7 @@ public class DeferredSceneRenderer : IRenderer
         gl.PushGroup("Base Pass");
         using (GlobalBuffer.Begin())
         {
+
             gl.Enable(EnableCap.DepthTest);
             gl.ClearColor(Color.FromArgb(0,0,0,0));
             gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -900,7 +901,11 @@ public class DeferredSceneRenderer : IRenderer
                 StaticMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 StaticMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 StaticMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-                foreach (var component in World.CurrentLevel.StaticMeshComponents)
+
+
+                CullingResult.Clear();
+                World.CurrentLevel.RenderObjectOctree.FrustumCulling(CullingResult, CurrentCameraComponent.GetPlanes());
+                foreach (var component in CullingResult)
                 {
                     if (component.IsDestoryed == false)
                     {
@@ -917,6 +922,7 @@ public class DeferredSceneRenderer : IRenderer
                 SkeletalMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 SkeletalMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 SkeletalMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+
                 foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
                 {
                     if (component.IsDestoryed == false)
@@ -1312,7 +1318,7 @@ public class DeferredSceneRenderer : IRenderer
 
 
 
-    
+    private List<PrimitiveComponent> CullingResult = new List<PrimitiveComponent>();
 }
 
 public struct DeferredVertex
