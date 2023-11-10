@@ -24,6 +24,10 @@ public partial class PrimitiveComponent
     public GL gl => Engine.Gl;
     public World World => Owner.CurrentWorld;
 
+    protected bool RotationDirtyFlag = false;
+    protected bool ScaleDirtyFlag = false;
+    protected bool TranslateDirtyFlag = false;
+    protected bool TransformDirtyFlag => RotationDirtyFlag || ScaleDirtyFlag || TranslateDirtyFlag;
     public Level CurrentLevel => Owner.CurrentLevel;
 
     protected virtual bool ReceieveUpdate => false;
@@ -177,6 +181,17 @@ public partial class PrimitiveComponent
         }
         OnUpdate(DeltaTime);
     }
+    public void MakeTranformDirty()
+    {
+        foreach (var child in ChildrenComponent)
+        {
+            child.MakeTranformDirty();
+            child.ScaleDirtyFlag = true;
+            child.RotationDirtyFlag = true;
+            child.TranslateDirtyFlag = true;
+        }
+    }
+
 
     public virtual void OnUpdate(double DeltaTime)
     {
@@ -250,21 +265,37 @@ public partial class PrimitiveComponent
     public virtual Vector3 RelativeLocation
     {
         get => _RelativeLocation;
-        set => _RelativeLocation = value;
+        set
+        {
+            _RelativeLocation = value;
+            TranslateDirtyFlag = true;
+            MakeTranformDirty();
+        }
     }
 
     public virtual Quaternion RelativeRotation
     {
 
         get => _RelativeRotation;
-        set =>_RelativeRotation = value;
+        set
+        {
+            _RelativeRotation = value;
+            RotationDirtyFlag = true;
+            MakeTranformDirty();
+        }
     }
 
     public virtual Vector3 RelativeScale
     {
         get => _RelativeScale;
-        set => _RelativeScale = value;
+        set
+        {
+            _RelativeScale = value;
+            ScaleDirtyFlag = true;
+            MakeTranformDirty();
+        }
     }
+
     public Matrix4x4 RelativeTransform
     {
         get => MatrixHelper.CreateTransform(RelativeLocation, RelativeRotation, RelativeScale);

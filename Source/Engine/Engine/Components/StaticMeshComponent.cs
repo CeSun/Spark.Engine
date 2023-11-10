@@ -32,6 +32,7 @@ public class StaticMeshComponent : PrimitiveComponent
     }
     public RigidBody? RigidBody;
     private StaticMesh? _StaticMesh;
+
     public StaticMesh? StaticMesh 
     {
         get => _StaticMesh;
@@ -94,104 +95,74 @@ public class StaticMeshComponent : PrimitiveComponent
 
     }
 
-    public override Vector3 RelativeLocation 
-    { 
-        get => base.RelativeLocation;
-        set 
-        {
-            base.RelativeLocation = value;
-            if (RigidBody != null)
-            {
-                RigidBody.Position = new JVector(WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
-            }
-            if (BoundingBox != null && StaticMesh != null)
-            {
-                var worldTransform = WorldTransform;
-                BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
-                BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
-
-                UpdateOctree();
-            }
-        } 
-    }
-    public override Quaternion RelativeRotation
-    { 
-        get => base.RelativeRotation;
-        set
-        {
-            base.RelativeRotation = value;
-            if (RigidBody != null)
-            {
-                var Matrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
-
-                RigidBody.Orientation = new JMatrix
-                {
-                    M11 = Matrix.M11,
-                    M12 = Matrix.M12,
-                    M13 = Matrix.M13,
-                    M21 = Matrix.M21,
-                    M22 = Matrix.M22,
-                    M23 = Matrix.M23,
-                    M31 = Matrix.M31,
-                    M32 = Matrix.M32,
-                    M33 = Matrix.M33,
-                };
-            }
-            if (BoundingBox != null && StaticMesh != null)
-            {
-                var worldTransform = WorldTransform;
-                BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
-                BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
-
-                UpdateOctree();
-            }
-        }
-    }
-    public override Vector3 RelativeScale 
-    { 
-        get => base.RelativeScale;
-        set 
-        { 
-            base.RelativeScale = value;
-            if (RigidBody != null && StaticMesh != null)
-            {
-                for (int i = RigidBody.Shapes.Count - 1; i >= 0; i--)
-                {
-                    RigidBody.RemoveShape(RigidBody.Shapes[i]);
-                }
-                var sm = Matrix4x4.CreateScale(WorldScale);
-                foreach (var shape in StaticMesh.Shapes)
-                {
-                    RigidBody.AddShape(new TransformedShape(shape, JVector.Zero, new JMatrix
-                    {
-                        M11 = sm.M11,
-                        M12 = sm.M12,
-                        M13 = sm.M13,
-                        M21 = sm.M21,
-                        M22 = sm.M22,
-                        M23 = sm.M23,
-                        M31 = sm.M31,
-                        M32 = sm.M32,
-                        M33 = sm.M33,
-                    }));
-                }
-            }
-
-            if (BoundingBox != null && StaticMesh != null)
-            {
-                var worldTransform = WorldTransform;
-                BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
-                BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
-
-                UpdateOctree();
-            }
-        }
-    }
-
  
     public override void OnUpdate(double DeltaTime)
     {
         base.OnUpdate(DeltaTime);
+        if (TransformDirtyFlag)
+        {
+            if (RigidBody != null)
+            {
+                if (RotationDirtyFlag == true)
+                {
+                    var Matrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
+
+                    RigidBody.Orientation = new JMatrix
+                    {
+                        M11 = Matrix.M11,
+                        M12 = Matrix.M12,
+                        M13 = Matrix.M13,
+                        M21 = Matrix.M21,
+                        M22 = Matrix.M22,
+                        M23 = Matrix.M23,
+                        M31 = Matrix.M31,
+                        M32 = Matrix.M32,
+                        M33 = Matrix.M33,
+                    };
+                    RotationDirtyFlag = false;
+                }
+
+                if (TranslateDirtyFlag == true)
+                {
+                    RigidBody.Position = new JVector(WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
+                    TranslateDirtyFlag = false;
+                }
+
+                if (ScaleDirtyFlag == true && StaticMesh != null)
+                {
+                    for (int i = RigidBody.Shapes.Count - 1; i >= 0; i--)
+                    {
+                        RigidBody.RemoveShape(RigidBody.Shapes[i]);
+                    }
+                    var sm = Matrix4x4.CreateScale(WorldScale);
+                    foreach (var shape in StaticMesh.Shapes)
+                    {
+                        RigidBody.AddShape(new TransformedShape(shape, JVector.Zero, new JMatrix
+                        {
+                            M11 = sm.M11,
+                            M12 = sm.M12,
+                            M13 = sm.M13,
+                            M21 = sm.M21,
+                            M22 = sm.M22,
+                            M23 = sm.M23,
+                            M31 = sm.M31,
+                            M32 = sm.M32,
+                            M33 = sm.M33,
+                        }));
+                    }
+                    ScaleDirtyFlag = false;
+                }
+            }
+
+            if (BoundingBox != null && StaticMesh != null)
+            {
+                var worldTransform = WorldTransform;
+                BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
+                BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
+
+                UpdateOctree();
+            }
+        }
         if (RigidBody != null && IsStatic == false)
         {
             unsafe
@@ -222,13 +193,7 @@ public class StaticMeshComponent : PrimitiveComponent
                 _RelativeLocation = tmpRelativeTransform.Translation;
                 _RelativeRotation = tmpRelativeTransform.Rotation();
 
-                if (BoundingBox != null && StaticMesh != null)
-                {
-                    var worldTransform = WorldTransform;
-                    BoundingBox.MinPoint = Vector3.Transform(StaticMesh.Box.MinPoint, worldTransform);
-                    BoundingBox.MaxPoint = Vector3.Transform(StaticMesh.Box.MaxPoint, worldTransform);
-                    UpdateOctree();
-                }
+
             }
         }
 
