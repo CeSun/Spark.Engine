@@ -98,6 +98,14 @@ public partial class PrimitiveComponent
             WorldTransform = worldTransform;
         }
         ParentComponent = Parent;
+
+        if (attachRelation== AttachRelation.KeepRelativeTransform)
+        {
+            ScaleDirtyFlag = true;
+            RotationDirtyFlag = true;
+            TranslateDirtyFlag = true;
+            MakeChildrenTranformDirty();
+        }
     }
 
     public void DettachFrom(AttachRelation attachRelation)
@@ -112,6 +120,14 @@ public partial class PrimitiveComponent
         if (attachRelation == AttachRelation.KeepWorldTransform)
         {
             WorldTransform = worldTransform;
+        }
+
+        if (attachRelation == AttachRelation.KeepRelativeTransform)
+        {
+            ScaleDirtyFlag = true;
+            RotationDirtyFlag = true;
+            TranslateDirtyFlag = true;
+            MakeChildrenTranformDirty();
         }
     }
 
@@ -181,11 +197,11 @@ public partial class PrimitiveComponent
         }
         OnUpdate(DeltaTime);
     }
-    public void MakeTranformDirty()
+    public void MakeChildrenTranformDirty()
     {
         foreach (var child in ChildrenComponent)
         {
-            child.MakeTranformDirty();
+            child.MakeChildrenTranformDirty();
             child.ScaleDirtyFlag = true;
             child.RotationDirtyFlag = true;
             child.TranslateDirtyFlag = true;
@@ -269,7 +285,7 @@ public partial class PrimitiveComponent
         {
             _RelativeLocation = value;
             TranslateDirtyFlag = true;
-            MakeTranformDirty();
+            MakeChildrenTranformDirty();
         }
     }
 
@@ -281,7 +297,7 @@ public partial class PrimitiveComponent
         {
             _RelativeRotation = value;
             RotationDirtyFlag = true;
-            MakeTranformDirty();
+            MakeChildrenTranformDirty();
         }
     }
 
@@ -292,7 +308,7 @@ public partial class PrimitiveComponent
         {
             _RelativeScale = value;
             ScaleDirtyFlag = true;
-            MakeTranformDirty();
+            MakeChildrenTranformDirty();
         }
     }
 
@@ -369,10 +385,10 @@ public partial class PrimitiveComponent
 
     private List<PrimitiveComponent> _ChildrenComponent = new List<PrimitiveComponent>();
 
-    protected Vector3 _RelativeLocation;
+    public Vector3 _RelativeLocation;
 
-    protected Quaternion _RelativeRotation;
+    public Quaternion _RelativeRotation;
 
-    protected Vector3 _RelativeScale = Vector3.One;
+    public Vector3 _RelativeScale = Vector3.One;
 
 }

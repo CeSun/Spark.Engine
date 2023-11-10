@@ -18,6 +18,7 @@ using Spark.Engine.Manager;
 using Jitter2.Collision;
 using PhyWorld = Jitter2.World;
 using Spark.Engine.Physics;
+using Jitter2.Dynamics;
 
 namespace Spark.Engine;
 
@@ -62,9 +63,8 @@ public partial class Level
                 PhyWorld.Step((float)tmpTime, false);
                 tmpTime = 0;
             }
-
-
         }
+        PhyRigidUpdateTransform();
         ActorUpdate(DeltaTime);
         UpdateManager.Update(DeltaTime);
     }
@@ -75,6 +75,51 @@ public partial class Level
         foreach (var camera in CameraComponents)
         {
             camera.RenderScene(DeltaTime);
+        }
+    }
+
+    public void PhyRigidUpdateTransform()
+    {
+
+        foreach (var RigidBody in PhyWorld.RigidBodies)
+        {
+            var comp = RigidBody.Tag;
+            if (comp == null)
+                continue;
+            if (comp is PrimitiveComponent primitiveComponent)
+            {
+                if (RigidBody != null && primitiveComponent.IsStatic == false)
+                {
+                    unsafe
+                    {
+                        var rotationM = new Matrix4x4
+                        {
+                            M11 = RigidBody.Orientation.M11,
+                            M12 = RigidBody.Orientation.M12,
+                            M13 = RigidBody.Orientation.M13,
+                            M14 = 0,
+                            M21 = RigidBody.Orientation.M21,
+                            M22 = RigidBody.Orientation.M22,
+                            M23 = RigidBody.Orientation.M23,
+                            M24 = 0,
+                            M31 = RigidBody.Orientation.M31,
+                            M32 = RigidBody.Orientation.M32,
+                            M33 = RigidBody.Orientation.M33,
+                            M34 = 0,
+                            M41 = 0,
+                            M42 = 0,
+                            M43 = 0,
+                            M44 = 1,
+                        };
+
+                        var tmpWorldTransform = MatrixHelper.CreateTransform(new Vector3(RigidBody.Position.X, RigidBody.Position.Y, RigidBody.Position.Z), rotationM.Rotation(), primitiveComponent.WorldScale);
+                        Matrix4x4.Invert(primitiveComponent.ParentWorldTransform, out var ParentInverseWorldTransform);
+                        var tmpRelativeTransform = tmpWorldTransform * ParentInverseWorldTransform;
+                        primitiveComponent._RelativeLocation = tmpRelativeTransform.Translation;
+                        primitiveComponent._RelativeRotation = tmpRelativeTransform.Rotation();
+                    }
+                }
+            }
         }
     }
 }
