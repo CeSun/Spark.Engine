@@ -12,10 +12,19 @@ public class Octree
 {
     static readonly float SideLength = 1024;
     static readonly int MaxLayer = 8;
-    Vector3 MaxPoint;
 
-    Vector3 MinPoint;
+    Box CurrentBox;
 
+    Vector3 MaxPoint
+    {
+        get => CurrentBox.MaxPoint;
+        set => CurrentBox.MaxPoint = value;
+    }
+    Vector3 MinPoint
+    {
+        get => CurrentBox.MinPoint;
+        set => CurrentBox.MinPoint = value;
+    }
     int Layer = 0;
 
     Octree? ParentNode;
@@ -23,14 +32,7 @@ public class Octree
     List<BoundingBox> boundingBoxes = new List<BoundingBox>();
     public Octree() : this(new Vector3(-SideLength / 2, -SideLength / 2, -SideLength / 2), new Vector3(SideLength / 2, SideLength / 2, SideLength / 2))
     {
-
     }
-
-    public float XLength => MaxPoint.X - MinPoint.X;
-
-    public float YLength => MaxPoint.Y - MinPoint.Y;
-
-    public float ZLength => MaxPoint.Z - MinPoint.Z;
     private Octree(Vector3 leftTopPoint, Vector3 rightBottomPoint)
     {
         MaxPoint = leftTopPoint;
@@ -81,12 +83,26 @@ public class Octree
             }
         };
     }
-
+    public float XLength => MaxPoint.X - MinPoint.X;
+    public float YLength => MaxPoint.Y - MinPoint.Y;
+    public float ZLength => MaxPoint.Z - MinPoint.Z;
     public IReadOnlyList<Octree>? Children => _Children;
 
     Octree[]? _Children = null;
 
-    Box[] ChildBox;
+    readonly Box[] ChildBox;
+
+    public int GetNodeCount()
+    {
+        if (_Children == null)
+            return boundingBoxes.Count;
+        int len = boundingBoxes.Count;
+        foreach(var child in _Children)
+        {
+            len += child.GetNodeCount();
+        }
+        return len;
+    }
     public void InsertObject(BoundingBox Box)
     {
         if (Box.MinPoint.X < MinPoint.X || Box.MinPoint.Y < MinPoint.Y || Box.MinPoint.Z < MinPoint.Z)
@@ -142,6 +158,32 @@ InsertCurrentNode:
         boundingBoxes.Add(Box);
         Box.ParentNode = this;
         return;
+    }
+    
+    public void RemoveObject(BoundingBox Box)
+    {
+        if (CurrentBox.Contains(Box.Box) == false)
+            return;
+        if (boundingBoxes.Contains(Box))
+        {
+            boundingBoxes.Remove(Box);
+            Box.ParentNode = null;
+        }
+        else
+        {
+            if (_Children != null)
+            {
+                foreach(var child in _Children)
+                {
+                    child.RemoveObject(Box);
+                }
+            }
+        }
+
+        if (GetNodeCount() == 0)
+        {
+            _Children = null;
+        }
     }
 }
 
