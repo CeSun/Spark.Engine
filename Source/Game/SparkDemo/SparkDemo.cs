@@ -18,6 +18,7 @@ using System.Xml.Linq;
 using System.Collections;
 using System.Reflection.Emit;
 using System.Runtime.Intrinsics.X86;
+using System.Net.Http.Headers;
 
 namespace SparkDemo
 {
@@ -29,13 +30,10 @@ namespace SparkDemo
             var texture = TextureHDR.LoadFromFile("/Texture/newport_loft.hdr", true, true);
 
 
-            var lightActor = new Actor(level);
+            var PointLightActor = new PointLightActor(level);
+            PointLightActor.WorldLocation = new Vector3(0, 0f, 0);
+            PointLightActor.Color = Color.White;
 
-            var DirectionLightActor = new DirectionLightActor(level);
-            DirectionLightActor.LightStrength = 1F;
-            DirectionLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -45f.DegreeToRadians(), 0);
-            DirectionLightActor.Color = Color.White;
-           
             var SkyBoxActor = new Actor(level, "SkyBox Actor");
             var skybox = new SkyboxComponent(SkyBoxActor);
             SkyBoxActor.RootComponent = skybox;
@@ -51,7 +49,7 @@ namespace SparkDemo
             character.WorldLocation = new Vector3(3, 100, 4);
             */
             var camera = new MovableCamera(level);
-            camera.WorldLocation = new Vector3(2, 4, 1);
+            camera.WorldLocation = new Vector3(0, 4, 0);
 
             
 
@@ -90,14 +88,36 @@ namespace SparkDemo
             int index = 0;
             foreach (var name in Models)
             {
-                StaticMeshActor sma = new StaticMeshActor(level);
-                sma.WorldScale = Scales[index];
-                sma.WorldLocation = Locations[index++] ;
-                sma.IsStatic = true;
-                StaticMesh.LoadFromGLBAsync(name).Then(mesh => sma.StaticMesh = mesh);
-            }
-            
+                List<StaticMeshActor> List = new List<StaticMeshActor>();
+                for (int i = 0; i < 1; i ++)
+                {
+                    StaticMeshActor sma = new StaticMeshActor(level);
+                    sma.WorldScale = Scales[index];
+                    sma.WorldLocation = Locations[index]; // + new Vector3(Random.Shared.Next(-30, 30), Random.Shared.Next(-30, 30), Random.Shared.Next(-30, 30));
+                    sma.IsStatic = false;
+                    List.Add(sma);
+                }
 
+                StaticMesh.LoadFromGLBAsync(name).Then(mesh => List.ForEach(sma => sma.StaticMesh = mesh));
+                index++;
+            }
+            level.Engine.MainKeyBoard.KeyDown += (_, KEY, _) =>
+            {
+                if (KEY == Key.Up)
+                {
+
+                    PointLightActor.WorldLocation += new Vector3(0, 1.0f, 0);
+                    Console.WriteLine(PointLightActor.WorldLocation);
+                }
+                if (KEY == Key.Down)
+                {
+
+                    PointLightActor.WorldLocation += new Vector3(0, -1.0f, 0);
+                    Console.WriteLine(PointLightActor.WorldLocation);
+                }
+            };
+           
+            
         }
 
         public static void EndPlay(Level level) 

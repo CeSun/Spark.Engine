@@ -1,35 +1,64 @@
 ﻿using Spark.Engine.Actors;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Attributes;
+using Spark.Engine.Physics;
+using System.Numerics;
 
 namespace Spark.Engine.Components;
 
 public class PointLightComponent : LightComponent
 {
+    protected override bool ReceieveUpdate => true;
     public PointLightComponent(Actor actor) : base(actor)
     {
-
+        AttenuationRadius = 1f;
+        BoundingBox = new BoundingBox(Vector3.Zero, Vector3.Zero, this);
+        UpdateBoundingBox();
         InitRender();
     }
 
-     
+    private void UpdateBoundingBox()
+    {
+        if (BoundingBox == null)
+            return;
+        var worldLocation = WorldLocation;
+        BoundingBox.MinPoint = worldLocation - new Vector3(AttenuationRadius * 8, AttenuationRadius * 8, AttenuationRadius * 8) / 2;
+        BoundingBox.MaxPoint = worldLocation + new Vector3(AttenuationRadius * 8, AttenuationRadius * 8, AttenuationRadius * 8) / 2;
+        UpdateOctree();
+    }
+
+    public override void OnUpdate(double DeltaTime)
+    {
+        base.OnUpdate(DeltaTime);
+
+        if (TranslateDirtyFlag)
+        {
+            UpdateBoundingBox ();
+        }
+        if (TransformDirtyFlag)
+        {
+            TranslateDirtyFlag = false;
+            RotationDirtyFlag = false;
+            ScaleDirtyFlag = false;
+        }
+    }
+
+
     public uint[] ShadowMapTextureIDs =  new uint[6] { 0, 0, 0, 0, 0,0 };
     public uint[] ShadowMapFrameBufferIDs = new uint[6] { 0, 0, 0, 0, 0, 0 };
 
 
-    private float _FalloffRadius = 1f;
+    private float _AttenuationRadius;
     [Property(DisplayName = "FalloffRadius", IsDispaly = true, IsReadOnly = false)]
-    public float FalloffRadius
+    public float AttenuationRadius
     {
-        get => _FalloffRadius;
-        set => _FalloffRadius = value;
+        get => _AttenuationRadius;
+        set => _AttenuationRadius = value;
     }
+
 
     private unsafe void InitRender()
     {
-
-
-       
         for (var i = 0; i < 6; ++i)
         {
 

@@ -80,9 +80,9 @@ public partial class Level
 
     public void PhyRigidUpdateTransform()
     {
-
-        foreach (var RigidBody in PhyWorld.RigidBodies)
+        for (int i = 0; i< PhyWorld.RigidBodies.Active; i ++)
         {
+            RigidBody RigidBody = PhyWorld.RigidBodies[i];
             var comp = RigidBody.Tag;
             if (comp == null)
                 continue;
@@ -116,7 +116,9 @@ public partial class Level
                         Matrix4x4.Invert(primitiveComponent.ParentWorldTransform, out var ParentInverseWorldTransform);
                         var tmpRelativeTransform = tmpWorldTransform * ParentInverseWorldTransform;
                         primitiveComponent._RelativeLocation = tmpRelativeTransform.Translation;
+                        primitiveComponent.TranslateDirtyFlag = true;
                         primitiveComponent._RelativeRotation = tmpRelativeTransform.Rotation();
+                        primitiveComponent.RotationDirtyFlag = true;
                     }
                 }
             }

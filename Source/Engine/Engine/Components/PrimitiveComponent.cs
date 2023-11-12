@@ -24,9 +24,9 @@ public partial class PrimitiveComponent
     public GL gl => Engine.Gl;
     public World World => Owner.CurrentWorld;
 
-    protected bool RotationDirtyFlag = false;
-    protected bool ScaleDirtyFlag = false;
-    protected bool TranslateDirtyFlag = false;
+    public bool RotationDirtyFlag = false;
+    public bool ScaleDirtyFlag = false;
+    public bool TranslateDirtyFlag = false;
     protected bool TransformDirtyFlag => RotationDirtyFlag || ScaleDirtyFlag || TranslateDirtyFlag;
     public Level CurrentLevel => Owner.CurrentLevel;
 
