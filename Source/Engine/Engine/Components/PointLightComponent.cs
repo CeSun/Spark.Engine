@@ -16,6 +16,15 @@ public class PointLightComponent : LightComponent
     public uint[] ShadowMapTextureIDs =  new uint[6] { 0, 0, 0, 0, 0,0 };
     public uint[] ShadowMapFrameBufferIDs = new uint[6] { 0, 0, 0, 0, 0, 0 };
 
+
+    private float _FalloffRadius = 1f;
+    [Property(DisplayName = "FalloffRadius", IsDispaly = true, IsReadOnly = false)]
+    public float FalloffRadius
+    {
+        get => _FalloffRadius;
+        set => _FalloffRadius = value;
+    }
+
     private unsafe void InitRender()
     {
 

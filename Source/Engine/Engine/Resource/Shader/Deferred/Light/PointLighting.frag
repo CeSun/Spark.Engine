@@ -29,6 +29,7 @@ uniform vec3 LightLocation;
 uniform vec3 CameraLocation;
 uniform float FarPlan;
 uniform float LightStrength;
+uniform float FalloffRadius;
 
 const float PI=3.1415926f;
 
@@ -120,8 +121,8 @@ vec3 CalcLightPoint(vec3 albedo, float AO, float metallic, float roughness, vec3
 	vec3 L = normalize(LightLocation - FragWorldLocation);
     vec3 H = normalize(V + L);
     float distance = length(LightLocation - FragWorldLocation);
-    float attenuation = 1.0 / (distance * distance);
-    vec3 radiance = LightColor * attenuation;
+    float attenuation = 1.0 / (distance * (1.0/FalloffRadius) * distance* (1.0/FalloffRadius));
+    vec3 radiance = LightColor * LightStrength * attenuation;
 
     // Cook-Torrance BRDF
     float NDF = DistributionGGX(N, H, roughness);   
@@ -188,7 +189,7 @@ void main()
 	vec3 PBRColor = CalcLightPoint(Color, AO, metallic,roughness, Normal, WorldLocation);
    
 
-    vec3 result = (PBRColor * (1.0 - Shadow))*  LightStrength;//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
+    vec3 result = (PBRColor * (1.0 - Shadow));//vec4((Ambient + (Diffuse + Specular) * (1.0 - Shadow) ) * LightStrength * Color, 1.0f); 
     
 
     glColor = vec4(result, 1.0f);

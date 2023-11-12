@@ -1234,7 +1234,8 @@ public class DeferredSceneRenderer : IRenderer
 
             shader.SetVector3("LightLocation", PointLightComponent.WorldLocation);
             shader.SetVector3("LightColor", PointLightComponent._Color);
-
+            
+            shader.SetFloat("FalloffRadius", PointLightComponent.FalloffRadius);
             shader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
             gl.BindVertexArray(PostProcessVAO);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);

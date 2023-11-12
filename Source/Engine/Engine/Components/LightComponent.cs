@@ -7,23 +7,14 @@ namespace Spark.Engine.Components;
 
 public class LightComponent : PrimitiveComponent
 {
+    private float _LightStrength = 1f;
+
     [Property (DisplayName = "LightStrength", IsDispaly = true, IsReadOnly = false)]
     public float LightStrength
     {
         get => _LightStrength;
-        set
-        {
-            if (value < 0)
-                return;
-            if (value > 1)
-                return;
-            _LightStrength = value;
-
-        }
+        set => _LightStrength = value;
     }
-
-    private float _LightStrength = 2f;
-
 
     [Property(DisplayName = "Color", IsDispaly = true, IsReadOnly = false)]
     public Color Color
