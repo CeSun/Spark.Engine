@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -191,9 +192,23 @@ public partial class PrimitiveComponent
         foreach (var child in ChildrenComponent)
         {
             child.MakeChildrenTranformDirty();
-            child.ScaleDirtyFlag = true;
-            child.RotationDirtyFlag = true;
-            child.TranslateDirtyFlag = true;
+            if (ScaleDirtyFlag)
+            {
+                child.ScaleDirtyFlag = true;
+            }
+            if (RotationDirtyFlag)
+            {
+                child.RotationDirtyFlag = true;
+                var scale = WorldScale;
+                if ((Math.Abs(scale.X - scale.Y ) < 0.0001 && Math.Abs(scale.Z - scale.Y) < 0.0001) == false)
+                {
+                    child.ScaleDirtyFlag = true;
+                }
+            }
+            if (TranslateDirtyFlag)
+            {
+                child.TranslateDirtyFlag = true;
+            }
         }
     }
 

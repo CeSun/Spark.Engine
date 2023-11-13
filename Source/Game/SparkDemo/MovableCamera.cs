@@ -139,6 +139,7 @@ namespace SparkDemo
             Wpn.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0, 90F.DegreeToRadians(), 0);
             Wpn.IsCastShadowMap = false;
 
+
             Mag = new StaticMeshComponent(this);
             StaticMesh.LoadFromGLBAsync("/StaticMesh/AK47_Magazine.glb").Then(Mesh =>
             {

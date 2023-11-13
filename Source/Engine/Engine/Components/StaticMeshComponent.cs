@@ -143,7 +143,7 @@ public class StaticMeshComponent : PrimitiveComponent
                 }
                 if (ScaleDirtyFlag == true)
                 {
-                    //UpdatePhyscisScale();
+                    UpdatePhyscisScale();
                     ScaleDirtyFlag = false;
                 }
                 if (TranslateDirtyFlag == true)

@@ -115,6 +115,8 @@ public class SkeletalMeshComponent : PrimitiveComponent
         {
             child.MakeChildrenTranformDirty();
         }
+
+        ScaleDirtyFlag = false;
     }
 
     protected override Matrix4x4 GetSocketWorldTransform(string socket)
