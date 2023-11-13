@@ -19,19 +19,7 @@ namespace Spark.Engine.Components;
 public class StaticMeshComponent : PrimitiveComponent
 {
     protected override bool ReceieveUpdate => true;
-    public override bool IsStatic 
-    {
-        get => base.IsStatic;
-        set
-        {
-            if (RigidBody != null)
-            {
-                RigidBody.IsStatic = value;
-            }
-            base.IsStatic = value;
-        }
-    }
-    public RigidBody? RigidBody;
+
     private StaticMesh? _StaticMesh;
 
     public StaticMesh? StaticMesh 
@@ -39,25 +27,10 @@ public class StaticMeshComponent : PrimitiveComponent
         get => _StaticMesh;
         set
         {
-            if (RigidBody != null)
-            {
-                Owner.CurrentLevel.PhyWorld.Remove(RigidBody);
-            }
-            RigidBody = null;
             _StaticMesh = value;
             BoundingBox = null;
             if (_StaticMesh != null)
             {
-                RigidBody = Owner.CurrentLevel.PhyWorld.CreateRigidBody();
-                foreach(var shape in _StaticMesh.Shapes)
-                {
-                    RigidBody.AddShape(new TransformedShape(shape, JVector.Zero));
-                }
-                RigidBody.Position = new JVector(WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
-                RigidBody.IsStatic = IsStatic;
-                RigidBody.Tag = this;
-                UpdatePhyscisScale();
-                UpdatePhyscisRotation();
                 var worldTransform = WorldTransform;
                 Box box = default;
                 for(int i = 0; i < 8; i ++)
@@ -77,50 +50,6 @@ public class StaticMeshComponent : PrimitiveComponent
             InitRender();
         }
     }
-    private void UpdatePhyscisRotation()
-    {
-        if (RigidBody == null)
-            return;
-        var Matrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
-        RigidBody.Orientation = new JMatrix
-        {
-            M11 = Matrix.M11,
-            M12 = Matrix.M12,
-            M13 = Matrix.M13,
-            M21 = Matrix.M21,
-            M22 = Matrix.M22,
-            M23 = Matrix.M23,
-            M31 = Matrix.M31,
-            M32 = Matrix.M32,
-            M33 = Matrix.M33,
-        };
-    }
-    private void UpdatePhyscisScale()
-    {
-        if (RigidBody == null)
-            return;
-        var Matrix = Matrix4x4.CreateScale(WorldScale);
-        foreach (var shape in RigidBody.Shapes)
-        {
-            if (shape is TransformedShape transShape)
-            {
-                transShape.Transformation = new JMatrix
-                {
-                    M11 = Matrix.M11,
-                    M12 = Matrix.M12,
-                    M13 = Matrix.M13,
-                    M21 = Matrix.M21,
-                    M22 = Matrix.M22,
-                    M23 = Matrix.M23,
-                    M31 = Matrix.M31,
-                    M32 = Matrix.M32,
-                    M33 = Matrix.M33,
-                };
-            }
-
-        }
-    }
-        
     public StaticMeshComponent(Actor actor) : base(actor)
     {
 
@@ -130,53 +59,29 @@ public class StaticMeshComponent : PrimitiveComponent
     public override void OnUpdate(double DeltaTime)
     {
         base.OnUpdate(DeltaTime);
-
-
-        if (TransformDirtyFlag)
+        if (BoundingBox != null && StaticMesh != null)
         {
-            if (RigidBody != null)
+            var worldTransform = WorldTransform;
+
+            Box box = default;
+            for (int i = 0; i < 8; i++)
             {
-                if (RotationDirtyFlag == true)
+                if (i == 0)
                 {
-                    UpdatePhyscisRotation();
-                    RotationDirtyFlag = false;
+                    box.MinPoint = Vector3.Transform(StaticMesh.Box[i], worldTransform);
+                    box.MaxPoint = box.MinPoint;
                 }
-                if (ScaleDirtyFlag == true)
+                else
                 {
-                    UpdatePhyscisScale();
-                    ScaleDirtyFlag = false;
-                }
-                if (TranslateDirtyFlag == true)
-                {
-                    RigidBody.Position = new JVector(WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
-                    TranslateDirtyFlag = false;
+                    box += Vector3.Transform(StaticMesh.Box[i], worldTransform);
                 }
             }
-            if (BoundingBox != null && StaticMesh != null)
-            {
-                var worldTransform = WorldTransform;
 
-                Box box = default;
-                for (int i = 0; i < 8; i++)
-                {
-                    if (i == 0)
-                    {
-                        box.MinPoint = Vector3.Transform(StaticMesh.Box[i], worldTransform);
-                        box.MaxPoint = box.MinPoint;
-                    }
-                    else
-                    {
-                        box += Vector3.Transform(StaticMesh.Box[i], worldTransform);
-                    }
-                }
+            BoundingBox.MaxPoint = box.MaxPoint;
+            BoundingBox.MinPoint = box.MinPoint;
 
-                BoundingBox.MaxPoint = box.MaxPoint;
-                BoundingBox.MinPoint = box.MinPoint;
-
-                UpdateOctree();
-            }
+            UpdateOctree();
         }
-
 
     }
     public override void Render(double DeltaTime)
@@ -224,18 +129,6 @@ public class StaticMeshComponent : PrimitiveComponent
             {
                 if (texture != null)
                     texture.InitRender(gl);
-            }
-        }
-    }
-    protected override void OnEndPlay()
-    {
-        if (RigidBody != null)
-        {
-            Owner.CurrentLevel.PhyWorld.Remove(RigidBody);
-            if (BoundingBox != null)
-            {
-                CurrentLevel.RenderObjectOctree.RemoveObject(BoundingBox);
-                BoundingBox = null;
             }
         }
     }

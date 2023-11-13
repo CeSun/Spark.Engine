@@ -25,10 +25,6 @@ public partial class PrimitiveComponent
     public GL gl => Engine.Gl;
     public World World => Owner.CurrentWorld;
 
-    public bool RotationDirtyFlag = false;
-    public bool ScaleDirtyFlag = false;
-    public bool TranslateDirtyFlag = false;
-    protected bool TransformDirtyFlag => RotationDirtyFlag || ScaleDirtyFlag || TranslateDirtyFlag;
     public Level CurrentLevel => Owner.CurrentLevel;
 
     protected virtual bool ReceieveUpdate => false;
@@ -89,13 +85,6 @@ public partial class PrimitiveComponent
         }
         ParentComponent = Parent;
 
-        if (attachRelation== AttachRelation.KeepRelativeTransform)
-        {
-            ScaleDirtyFlag = true;
-            RotationDirtyFlag = true;
-            TranslateDirtyFlag = true;
-            MakeChildrenTranformDirty();
-        }
     }
 
     public void DettachFrom(AttachRelation attachRelation)
@@ -112,13 +101,6 @@ public partial class PrimitiveComponent
             WorldTransform = worldTransform;
         }
 
-        if (attachRelation == AttachRelation.KeepRelativeTransform)
-        {
-            ScaleDirtyFlag = true;
-            RotationDirtyFlag = true;
-            TranslateDirtyFlag = true;
-            MakeChildrenTranformDirty();
-        }
     }
 
     protected virtual Matrix4x4 GetSocketWorldTransform(string socket)
@@ -187,31 +169,6 @@ public partial class PrimitiveComponent
         }
         OnUpdate(DeltaTime);
     }
-    public void MakeChildrenTranformDirty()
-    {
-        foreach (var child in ChildrenComponent)
-        {
-            child.MakeChildrenTranformDirty();
-            if (ScaleDirtyFlag)
-            {
-                child.ScaleDirtyFlag = true;
-            }
-            if (RotationDirtyFlag)
-            {
-                child.RotationDirtyFlag = true;
-                var scale = WorldScale;
-                if ((Math.Abs(scale.X - scale.Y ) < 0.0001 && Math.Abs(scale.Z - scale.Y) < 0.0001) == false)
-                {
-                    child.ScaleDirtyFlag = true;
-                }
-            }
-            if (TranslateDirtyFlag)
-            {
-                child.TranslateDirtyFlag = true;
-            }
-        }
-    }
-
 
     public virtual void OnUpdate(double DeltaTime)
     {
@@ -288,8 +245,6 @@ public partial class PrimitiveComponent
         set
         {
             _RelativeLocation = value;
-            TranslateDirtyFlag = true;
-            MakeChildrenTranformDirty();
         }
     }
 
@@ -300,8 +255,6 @@ public partial class PrimitiveComponent
         set
         {
             _RelativeRotation = value;
-            RotationDirtyFlag = true;
-            MakeChildrenTranformDirty();
         }
     }
 
@@ -311,8 +264,6 @@ public partial class PrimitiveComponent
         set
         {
             _RelativeScale = value;
-            ScaleDirtyFlag = true;
-            MakeChildrenTranformDirty();
         }
     }
 

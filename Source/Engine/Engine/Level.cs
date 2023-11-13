@@ -24,7 +24,6 @@ namespace Spark.Engine;
 
 public partial class Level
 {
-    public PhyWorld PhyWorld { get; private set; }
     public World CurrentWorld { private set; get; }
 
     public Engine Engine => CurrentWorld.Engine;
@@ -32,7 +31,6 @@ public partial class Level
     {
         CurrentWorld = world;
         UpdateManager = new UpdateManager();
-        PhyWorld = new PhyWorld();
         RenderObjectOctree = new Octree();
         LightOctree = new Octree();
     }
@@ -51,20 +49,6 @@ public partial class Level
     public void Update(double DeltaTime)
     {
         double tmpTime = DeltaTime;
-        while(tmpTime > 0)
-        {
-            if (tmpTime > 0.1F)
-            {
-                PhyWorld.Step(0.1F, false);
-                tmpTime -= 0.1F;
-            }
-            else
-            {
-                PhyWorld.Step((float)tmpTime, false);
-                tmpTime = 0;
-            }
-        }
-        PhyRigidUpdateTransform();
         ActorUpdate(DeltaTime);
         UpdateManager.Update(DeltaTime);
     }
@@ -78,52 +62,6 @@ public partial class Level
         }
     }
 
-    public void PhyRigidUpdateTransform()
-    {
-        for (int i = 0; i< PhyWorld.RigidBodies.Active; i ++)
-        {
-            RigidBody RigidBody = PhyWorld.RigidBodies[i];
-            var comp = RigidBody.Tag;
-            if (comp == null)
-                continue;
-            if (comp is PrimitiveComponent primitiveComponent)
-            {
-                if (RigidBody != null && primitiveComponent.IsStatic == false)
-                {
-                    unsafe
-                    {
-                        var rotationM = new Matrix4x4
-                        {
-                            M11 = RigidBody.Orientation.M11,
-                            M12 = RigidBody.Orientation.M12,
-                            M13 = RigidBody.Orientation.M13,
-                            M14 = 0,
-                            M21 = RigidBody.Orientation.M21,
-                            M22 = RigidBody.Orientation.M22,
-                            M23 = RigidBody.Orientation.M23,
-                            M24 = 0,
-                            M31 = RigidBody.Orientation.M31,
-                            M32 = RigidBody.Orientation.M32,
-                            M33 = RigidBody.Orientation.M33,
-                            M34 = 0,
-                            M41 = 0,
-                            M42 = 0,
-                            M43 = 0,
-                            M44 = 1,
-                        };
-
-                        var tmpWorldTransform = MatrixHelper.CreateTransform(new Vector3(RigidBody.Position.X, RigidBody.Position.Y, RigidBody.Position.Z), rotationM.Rotation(), primitiveComponent.WorldScale);
-                        Matrix4x4.Invert(primitiveComponent.ParentWorldTransform, out var ParentInverseWorldTransform);
-                        var tmpRelativeTransform = tmpWorldTransform * ParentInverseWorldTransform;
-                        primitiveComponent._RelativeLocation = tmpRelativeTransform.Translation;
-                        primitiveComponent.TranslateDirtyFlag = true;
-                        primitiveComponent._RelativeRotation = tmpRelativeTransform.Rotation();
-                        primitiveComponent.RotationDirtyFlag = true;
-                    }
-                }
-            }
-        }
-    }
 }
 
 

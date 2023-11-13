@@ -73,33 +73,6 @@ namespace SparkDemo
         protected override void OnUpdate(double DeltaTime)
         {
             base.OnUpdate(DeltaTime);
-            var Down = this.UpVector * -1;
-            var location = WorldLocation;
-
-            var AddSpeed = -9.8f;
-            var YSpeed = Speed.Y + AddSpeed * (float)DeltaTime;
-            var dis = YSpeed * (float)DeltaTime;
-            var endLocation = new Vector3(location.X, location.Y + dis, location.Z); ;
-            if (CurrentLevel.PhyWorld.Raycast(this.CapsuleComponent.CapsuleShape, new Jitter2.LinearMath.JVector (location.X, location.Y, location.Z), new Jitter2.LinearMath.JVector(Down.X, Down.Y, Down.Z), out var normal, out var distance))
-            {
-                if (distance - CapsuleComponent.Radius > CapsuleComponent.Length / 2)
-                {
-                    if ((endLocation - location).Length() < (distance - CapsuleComponent.Radius - CapsuleComponent.Length / 2))
-                        this.WorldLocation = endLocation;
-                    else
-                    {
-
-                        this.WorldLocation = new Vector3(location.X, location.Y - (distance - CapsuleComponent.Radius) + CapsuleComponent.Length / 2, location.Z);
-                    }
-                }
-
-            }
-            else
-            {
-                this.WorldLocation = endLocation;
-            }
-
-            Speed = (this.WorldLocation - location) / (float)DeltaTime;
         }
 
     }

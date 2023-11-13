@@ -17,9 +17,6 @@ public class CapsuleComponent : PrimitiveComponent
     public CapsuleComponent(Actor actor) : base(actor)
     {
         CapsuleShape = new CapsuleShape();
-        RigidBody = CurrentLevel.PhyWorld.CreateRigidBody();
-        RigidBody.Tag = this;
-        RigidBody.AddShape(CapsuleShape);
     }
 
 
@@ -134,6 +131,5 @@ public class CapsuleComponent : PrimitiveComponent
     }
     protected override void OnEndPlay()
     {
-        CurrentLevel.PhyWorld.Remove(RigidBody);
     }
 }

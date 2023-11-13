@@ -30,17 +30,7 @@ public class PointLightComponent : LightComponent
     public override void OnUpdate(double DeltaTime)
     {
         base.OnUpdate(DeltaTime);
-
-        if (TranslateDirtyFlag)
-        {
-            UpdateBoundingBox ();
-        }
-        if (TransformDirtyFlag)
-        {
-            TranslateDirtyFlag = false;
-            RotationDirtyFlag = false;
-            ScaleDirtyFlag = false;
-        }
+        UpdateBoundingBox ();
     }
 
 
