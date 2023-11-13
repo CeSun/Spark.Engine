@@ -129,8 +129,8 @@ public static class MatrixHelper
 
 public static class PlaneHelper
 {
-    public static bool Point2Plane(this Plane plane, Vector3 Point)
+    public static float Point2Plane(this Plane plane, Vector3 Point)
     {
-        return plane.Normal.X * Point.X + plane.Normal.Y * Point.Y + plane.Normal.Z * Point.Z + plane.D >= 0;
+        return plane.Normal.X * Point.X + plane.Normal.Y * Point.Y + plane.Normal.Z * Point.Z + plane.D;
     }
 }

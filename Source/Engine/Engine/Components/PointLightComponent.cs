@@ -9,21 +9,24 @@ namespace Spark.Engine.Components;
 public class PointLightComponent : LightComponent
 {
     protected override bool ReceieveUpdate => true;
+
+    private BoundingSphere BoundingSphere;
+
+    public override BaseBounding? Bounding => BoundingSphere;
     public PointLightComponent(Actor actor) : base(actor)
     {
         AttenuationRadius = 1f;
-        BoundingBox = new BoundingBox(Vector3.Zero, Vector3.Zero, this);
+        BoundingSphere = new BoundingSphere(this);
+        BoundingSphere.Radius = AttenuationRadius * 4;
+        BoundingSphere.Location = this.WorldLocation;
         UpdateBoundingBox();
         InitRender();
     }
 
     private void UpdateBoundingBox()
     {
-        if (BoundingBox == null)
-            return;
-        var worldLocation = WorldLocation;
-        BoundingBox.MinPoint = worldLocation - new Vector3(AttenuationRadius * 8, AttenuationRadius * 8, AttenuationRadius * 8) / 2;
-        BoundingBox.MaxPoint = worldLocation + new Vector3(AttenuationRadius * 8, AttenuationRadius * 8, AttenuationRadius * 8) / 2;
+        BoundingSphere.Radius = AttenuationRadius * 4;
+        BoundingSphere.Location = this.WorldLocation;
         UpdateOctree();
     }
 

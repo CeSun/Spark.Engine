@@ -348,9 +348,9 @@ public class DeferredSceneRenderer : IRenderer
             PostProcessBuffer3?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         }
         //SceneBackFaceDepthBuffer?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+
+        CameraCulling();
         gl.PopGroup();
-
-
         gl.PushGroup("Init Status");
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Back);
@@ -716,6 +716,7 @@ public class DeferredSceneRenderer : IRenderer
         SpotLightingShader.UnUse();
         gl.PopGroup();
     }
+
     private void PointLightShadowMap(double DeltaTime)
     {
 
@@ -723,9 +724,11 @@ public class DeferredSceneRenderer : IRenderer
             return;
         gl.PushGroup("PointLight");
         PointLightShadowShader.Use();
-        foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
+        foreach (var PointLightComponent in PointLightComponents)
         {
-
+            tmpCullingStaticMesh.Clear();
+            World.CurrentLevel.RenderObjectOctree.SphereCulling<StaticMeshComponent>(tmpCullingStaticMesh, new Physics.Sphere() { Location = PointLightComponent.WorldLocation, Radius = PointLightComponent.AttenuationRadius * 4 });
+          
             if (PointLightComponent.IsCastShadowMap == false)
             {
                 continue;
@@ -740,7 +743,6 @@ public class DeferredSceneRenderer : IRenderer
             Views[5] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, -1, 0), new Vector3(0, 0, -1));
 
 
-
             gl.Viewport(new Rectangle(0, 0, PointLightComponent.ShadowMapSize.X, PointLightComponent.ShadowMapSize.Y));
             for (int i = 0; i < 6; i++)
             {
@@ -749,9 +751,11 @@ public class DeferredSceneRenderer : IRenderer
                 gl.Clear(ClearBufferMask.DepthBufferBit);
                 PointLightShadowShader.SetMatrix("ViewTransform", Views[i]);
                 PointLightShadowShader.SetMatrix("ProjectionTransform", Projection);
-                foreach (var component in World.CurrentLevel.StaticMeshComponents)
+                foreach (var component in CullingResult)
                 {
                     if (component == null)
+                        continue;
+                    if (component is not StaticMeshComponent staticMeshComponent)
                         continue;
                     if (component.IsDestoryed)
                         continue;
@@ -903,9 +907,7 @@ public class DeferredSceneRenderer : IRenderer
                 StaticMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
 
 
-                CullingResult.Clear();
-                World.CurrentLevel.RenderObjectOctree.FrustumCulling(CullingResult, CurrentCameraComponent.GetPlanes());
-                foreach (var component in CullingResult)
+                foreach (var component in StaticMeshComponents)
                 {
                     if (component.IsDestoryed == false)
                     {
@@ -1178,7 +1180,7 @@ public class DeferredSceneRenderer : IRenderer
             return;
         gl.PushGroup("PointLight Pass");
         PointLightingShader.Use();
-        foreach (var PointLightComponent in World.CurrentLevel.PointLightComponents)
+        foreach (var PointLightComponent in PointLightComponents)
         {
             Shader shader = PointLightComponent.IsCastShadowMap ? PointLightingShader : PointLightingShaderNoShadow;
 
@@ -1318,8 +1320,36 @@ public class DeferredSceneRenderer : IRenderer
     }
 
 
+    private void CameraCulling()
+    {
+        if (CurrentCameraComponent == null)
+            return;
+        CullingResult.Clear();
+        PointLightComponents.Clear();
+        StaticMeshComponents.Clear();
+
+        World.CurrentLevel.RenderObjectOctree.FrustumCulling(CullingResult, CurrentCameraComponent.GetPlanes());
+
+        foreach(var compoment in CullingResult)
+        {
+            if (compoment is StaticMeshComponent staticMeshComponent)
+            {
+                StaticMeshComponents.Add(staticMeshComponent);
+            }
+            else if (compoment is PointLightComponent pointLightComponent)
+            {
+                PointLightComponents.Add(pointLightComponent);
+            }
+        }
+    }
 
     private List<PrimitiveComponent> CullingResult = new List<PrimitiveComponent>();
+
+    private List<StaticMeshComponent> tmpCullingStaticMesh = new List<StaticMeshComponent>();
+
+    private List<StaticMeshComponent> StaticMeshComponents = new List<StaticMeshComponent>();
+
+    private List<PointLightComponent> PointLightComponents = new List<PointLightComponent>();
 }
 
 public struct DeferredVertex

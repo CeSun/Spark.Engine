@@ -134,12 +134,12 @@ public struct Box :
 
     public bool TestPlanes(Plane[] Planes)
     {
-        for(var i = 0; i < 6; i ++)
+        foreach(var plane in Planes)
         {
             var num = 0;
             for(var j = 0; j < 8; j ++)
             {
-                if (Planes[i].Point2Plane(this[j]) == false)
+                if (plane.Point2Plane(this[j]) >= 0 == false)
                 {
                     num++;
                 }

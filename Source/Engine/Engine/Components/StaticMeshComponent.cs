@@ -21,7 +21,9 @@ public class StaticMeshComponent : PrimitiveComponent
     protected override bool ReceieveUpdate => true;
 
     private StaticMesh? _StaticMesh;
+    public BoundingBox? BoundingBox;
 
+    public override BaseBounding? Bounding => BoundingBox;
     public StaticMesh? StaticMesh 
     {
         get => _StaticMesh;
@@ -45,7 +47,9 @@ public class StaticMeshComponent : PrimitiveComponent
                         box += Vector3.Transform(_StaticMesh.Box[i], worldTransform);
                     }
                 }
-                BoundingBox = new BoundingBox(box.MaxPoint, box.MinPoint, this);     
+                BoundingBox = new BoundingBox(this);
+                BoundingBox.Box.MaxPoint = box.MaxPoint;
+                BoundingBox.Box.MinPoint = box.MinPoint;
             }
             InitRender();
         }
@@ -77,8 +81,8 @@ public class StaticMeshComponent : PrimitiveComponent
                 }
             }
 
-            BoundingBox.MaxPoint = box.MaxPoint;
-            BoundingBox.MinPoint = box.MinPoint;
+            BoundingBox.Box.MaxPoint = box.MaxPoint;
+            BoundingBox.Box.MinPoint = box.MinPoint;
 
             UpdateOctree();
         }

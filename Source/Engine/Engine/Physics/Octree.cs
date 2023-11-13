@@ -1,4 +1,5 @@
-﻿using Spark.Engine.Components;
+﻿
+using Spark.Engine.Components;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,7 +30,7 @@ public class Octree
 
     Octree? ParentNode;
 
-    List<BoundingBox> boundingBoxes = new List<BoundingBox>();
+    List<BaseBounding> boundingBoxes = new List<BaseBounding>();
     public Octree() : this(new Vector3(-SideLength / 2, -SideLength / 2, -SideLength / 2), new Vector3(SideLength / 2, SideLength / 2, SideLength / 2))
     {
     }
@@ -106,7 +107,7 @@ public class Octree
             return len;
         }
     }
-    public void InsertObject(BoundingBox Box)
+    public void InsertObject(BaseBounding Box)
     {
         if (Box.MinPoint.X < MinPoint.X || Box.MinPoint.Y < MinPoint.Y || Box.MinPoint.Z < MinPoint.Z)
             return;
@@ -124,7 +125,7 @@ public class Octree
         for (int i = 0; i < 8; i ++)
         {
             var subBox = ChildBox[i];
-            if (subBox.Contains(Box.Box))
+            if (subBox.Contains(new Box() { MaxPoint = Box.MaxPoint, MinPoint = Box.MinPoint}))
             {
                 TargetIndex = i;
                 break;
@@ -161,7 +162,7 @@ InsertCurrentNode:
         return;
     }
     
-    public void RemoveObject(BoundingBox Box)
+    public void RemoveObject(BaseBounding Box)
     {
         if (Box.ParentNode == null)
             return;
@@ -172,60 +173,123 @@ InsertCurrentNode:
         Box.ParentNode = null;
     }
 
-    public void FrustumCulling(List<PrimitiveComponent> Components, Plane[] Planes)
+    public void FrustumCulling<T>(List<T> Components, Plane[] Planes)
     {
         if (this.CurrentBox.TestPlanes(Planes) == false)
             return;
         foreach (var subox in boundingBoxes)
         {
-            if(subox.Box.TestPlanes(Planes))
+            if (subox.PrimitiveComponent is T t && subox.TestPlanes(Planes))
             {
-                Components.Add(subox.PrimitiveComponent);
+                Components.Add(t);
             }
         }
         if (_Children != null)
         {
-            foreach(var child in _Children)
+            foreach (var child in _Children)
             {
                 child.FrustumCulling(Components, Planes);
             }
         }
     }
-
-   
+    public void SphereCulling<T>(List<T> Components, Sphere sphere) where T : PrimitiveComponent
+    {
+        if (sphere.TestBox(CurrentBox) == false)
+            return;
+        foreach (var subox in boundingBoxes)
+        {
+            if (subox.PrimitiveComponent is T t &&  sphere.TestBox(new Box() { MinPoint = subox.MinPoint, MaxPoint = subox.MaxPoint }))
+            {
+                Components.Add(t);
+            }
+        }
+        if (_Children != null)
+        {
+            foreach (var child in _Children)
+            {
+                child.SphereCulling<T>(Components, sphere);
+            }
+        }
+    }
 }
 
-public class BoundingBox
+
+public abstract class BaseBounding
 {
+    public BaseBounding(PrimitiveComponent PrimitiveComponent)
+    {
+        this.PrimitiveComponent = PrimitiveComponent;
+    }
     public Octree? ParentNode;
 
     public PrimitiveComponent PrimitiveComponent;
+    public abstract bool TestPlanes(Plane[] planes);
+
+    public abstract float XLength { get; }
+
+    public abstract float YLength { get; }
+    public abstract float ZLength { get; }
+
+    public abstract Vector3 MinPoint { get;}
+    public abstract Vector3 MaxPoint { get;}
+
+
+}
+public class BoundingBox : BaseBounding
+{
 
     public Box Box;
-    public BoundingBox(Vector3 MaxPoint, Vector3 MinPoint, PrimitiveComponent PrimitiveComponent)
+    public BoundingBox(PrimitiveComponent PrimitiveComponent) : base(PrimitiveComponent)
     {
-        this.MinPoint = MinPoint;
-        this.MaxPoint = MaxPoint;
-        this.PrimitiveComponent = PrimitiveComponent;
+        Box.MinPoint = Vector3.Zero;
+        Box.MaxPoint = Vector3.Zero;
     }
 
-    public float XLength => MaxPoint.X - MinPoint.X;
+    public override float XLength => MaxPoint.X - MinPoint.X;
 
-    public float YLength => MaxPoint.Y - MinPoint.Y;
+    public override float YLength => MaxPoint.Y - MinPoint.Y;
+    public override float ZLength => MaxPoint.Z - MinPoint.Z;
 
+    public override Vector3 MinPoint => Box.MinPoint;
 
-    public float ZLength => MaxPoint.Z - MinPoint.Z;
+    public override Vector3 MaxPoint => Box.MaxPoint;
 
-    public Vector3 MinPoint
+    public override bool TestPlanes(Plane[] planes)
     {
-        get => Box.MinPoint;
-        set => Box.MinPoint = value;
+        return Box.TestPlanes(planes);
+    }
+}
+
+public class BoundingSphere : BaseBounding
+{
+    public Sphere Sphere;
+    public BoundingSphere(PrimitiveComponent PrimitiveComponent) : base(PrimitiveComponent)
+    {
+
     }
 
-    public Vector3 MaxPoint
+    public float Radius
     {
-        get => Box.MaxPoint;
-        set => Box.MaxPoint = value;
+        get => Sphere.Radius;
+        set => Sphere.Radius = value;
     }
-    
+
+    public Vector3 Location
+    {
+        get => Sphere.Location;
+        set => Sphere.Location = value;
+    }
+    public override float XLength => Sphere.Radius * 2;
+
+    public override float YLength => Sphere.Radius * 2;
+
+    public override float ZLength => Sphere.Radius * 2;
+
+    public override Vector3 MinPoint => Sphere.Location - new Vector3(Sphere.Radius, Sphere.Radius, Sphere.Radius);
+    public override Vector3 MaxPoint => Sphere.Location + new Vector3(Sphere.Radius, Sphere.Radius, Sphere.Radius);
+
+    public override bool TestPlanes(Plane[] planes)
+    {
+        return Sphere.TestPlanes(planes);
+    }
 }

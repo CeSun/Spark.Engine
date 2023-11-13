@@ -30,19 +30,17 @@ public partial class PrimitiveComponent
     protected virtual bool ReceieveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
 
-    public BoundingBox? BoundingBox 
+    public virtual BaseBounding? Bounding
     {
-        get => _BoundingBox;
-        protected set =>_BoundingBox = value;
+        get => null;
     }
 
-    private BoundingBox? _BoundingBox;
     public void UpdateOctree()
     {
-        if (BoundingBox == null)
+        if (Bounding == null)
             return;
-        CurrentLevel.RenderObjectOctree.RemoveObject(BoundingBox);
-        CurrentLevel.RenderObjectOctree.InsertObject(BoundingBox);
+        CurrentLevel.RenderObjectOctree.RemoveObject(Bounding);
+        CurrentLevel.RenderObjectOctree.InsertObject(Bounding);
     }
     public bool IsCastShadowMap { get; set; } = true;
     /// <summary>
