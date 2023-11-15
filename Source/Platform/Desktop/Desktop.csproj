@@ -10,10 +10,10 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Silk.NET.Input" Version="2.18.0" />
-    <PackageReference Include="Silk.NET.OpenGLES" Version="2.18.0" />
-    <PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="2.18.0" />
-    <PackageReference Include="Silk.NET.Windowing" Version="2.18.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.OpenGLES" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.19.0" />
   </ItemGroup>
 
   <ItemGroup>

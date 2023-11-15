@@ -19,6 +19,7 @@ using Jitter2.Collision;
 using PhyWorld = Jitter2.World;
 using Spark.Engine.Physics;
 using Jitter2.Dynamics;
+using Spark.Engine.GUI;
 
 namespace Spark.Engine;
 
@@ -33,6 +34,7 @@ public partial class Level
         UpdateManager = new UpdateManager();
         RenderObjectOctree = new Octree();
         LightOctree = new Octree();
+        ImGuiWarp = new ImGuiWarp(this);
     }
 
 
@@ -60,6 +62,7 @@ public partial class Level
         {
             camera.RenderScene(DeltaTime);
         }
+        ImGuiWarp.Render(DeltaTime);
     }
 
 }
@@ -287,52 +290,17 @@ public partial class Level
 
 public partial class Level
 {
-    Actor? RobotActor;
-    CameraComponent? CameraComponent;
-
-    Vector2 MoveData = default;
-    Vector2 LastPosition;
-
-    private MouseButton ViewButton = MouseButton.Right;
-    public void OnMouseMove(IMouse mouse, Vector2 position)
-    {
-        if (Engine.MainMouse.IsButtonPressed(ViewButton))
-        {
-            if (CameraComponent == null)
-                return;
-            var moveable = position - LastPosition;
-            LastPosition = position;
-
-            MoveData += (moveable * 0.1f);
-            var rotation = Quaternion.CreateFromYawPitchRoll(-1 * MoveData.X.DegreeToRadians(), -1 * MoveData.Y.DegreeToRadians(), 0);
-            CameraComponent.WorldRotation = rotation;
-
-
-            rotation = Quaternion.CreateFromYawPitchRoll(-1 * MoveData.X.DegreeToRadians(), 0, 0);
-
-            // RobotActor.WorldRotation = rotation;
-        }
-    }
-
-    public void OnMouseKeyDown(IMouse mouse, Silk.NET.Input.MouseButton key)
-    {
-        if (key == ViewButton)
-        {
-            LastPosition = mouse.Position;
-        }
-    }
-
-    Actor? CameraActor;
-
     public void EndPlay()
     {
         Engine.OnEndPlay?.Invoke(this);
+        ImGuiWarp.Fini();
     }
     public void BeginPlay()
     {
         Engine.OnBeginPlay?.Invoke(this);
-       
-    }
-   
 
+        ImGuiWarp.Init();
+    }
+
+    ImGuiWarp ImGuiWarp;
 }
