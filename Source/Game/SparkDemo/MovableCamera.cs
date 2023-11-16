@@ -124,6 +124,9 @@ namespace SparkDemo
                 var (_, _, anim) = await SkeletalMesh.ImportFromGLBAsync("/StaticMesh/AK47_Arm_Anim.glb");
                 Arm.SkeletalMesh = mesh;
                 Arm.AnimSequence = anim[0];
+
+                var ctx = SynchronizationContext.Current;
+
             };
             fun();
 
