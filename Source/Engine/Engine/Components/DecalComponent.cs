@@ -20,11 +20,14 @@ public class DecalComponent : PrimitiveComponent
             _Material = value;
             if (_Material != null)
             {
-                foreach (var texture in _Material.Textures)
+                Engine.NextFrame.Add(() =>
                 {
-                    if (texture != null)
-                        texture.InitRender(gl);
-                }
+                    foreach (var texture in _Material.Textures)
+                    {
+                        if (texture != null)
+                            texture.InitRender(gl);
+                    }
+                });
 
             }
         }

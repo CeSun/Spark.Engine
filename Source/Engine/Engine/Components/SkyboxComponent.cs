@@ -214,8 +214,11 @@ public class SkyboxComponent : PrimitiveComponent
             _SkyboxCube = value;
             if (_SkyboxCube != null)
             {
-                _SkyboxCube.InitRender(gl);
-                InitIBL();
+                Engine.NextFrame.Add(() =>
+                {
+                    _SkyboxCube.InitRender(gl);
+                    InitIBL();
+                });
             }
         }
     }
