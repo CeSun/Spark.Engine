@@ -97,6 +97,8 @@ public class StaticMeshComponent : PrimitiveComponent
             gl.PushGroup("Render Static Mesh:" + StaticMesh.Path);
             foreach (var element in StaticMesh.Elements)
             {
+                if (element.VertexArrayObjectIndex == 0)
+                    continue;
                 for (int i = 0; i < element.Material.Textures.Count(); i++)
                 {
                     var texture = element.Material.Textures[i];

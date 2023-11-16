@@ -252,6 +252,8 @@ public class SkyboxComponent : PrimitiveComponent
     {
         if (SkyboxCube == null)
             return;
+        if (SkyboxCube.TextureId == 0)
+            return;
         gl.DepthMask(false);
         gl.ActiveTexture(GLEnum.Texture0);
         gl.BindTexture(GLEnum.TextureCubeMap, SkyboxCube.TextureId);

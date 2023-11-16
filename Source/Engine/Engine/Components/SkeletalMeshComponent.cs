@@ -59,6 +59,8 @@ public class SkeletalMeshComponent : PrimitiveComponent
            
             foreach (var element in SkeletalMesh.Elements)
             {
+                if (element.VertexArrayObjectIndex == 0)
+                    continue;
                 for (int i = 0; i < element.Material.Textures.Count(); i++)
                 {
                     var texture = element.Material.Textures[i];

@@ -59,9 +59,13 @@ public partial class Engine
 
     public void Update(double DeltaTime)
     {
-        SyncContext?.Tick();
-        NextFrame.ForEach(action => action());
+        var count = NextFrame.Count;
+        for(int i = 0; i < count; i++)
+        {
+            NextFrame[i]?.Invoke();
+        }
         NextFrame.Clear();
+        SyncContext?.Tick();
         Worlds.ForEach(world => world.Update(DeltaTime));
     }
 
