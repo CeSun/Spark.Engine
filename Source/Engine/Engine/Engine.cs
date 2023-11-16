@@ -12,16 +12,22 @@ namespace Spark.Engine;
 
 public partial class Engine
 {
-    public SingleThreadSyncContext SyncContext { get; private set; }
+    public SingleThreadSyncContext? SyncContext { get; private set; }
 
+    public List<Action> NextFrame { get; private set; }
+   
     public bool IsMobile { private set; get; } = false;
 
     public uint DefaultFBOID ;
     public Engine()
     {
-        SyncContext = new SingleThreadSyncContext();
-        SynchronizationContext.SetSynchronizationContext(SyncContext);
-
+        if (SynchronizationContext.Current == null)
+        {
+            SyncContext = new SingleThreadSyncContext();
+            SynchronizationContext.SetSynchronizationContext(SyncContext);
+        }
+        NextFrame = new List<Action>();
+       
     }
     private IView? _view;
     public IView View
@@ -53,7 +59,9 @@ public partial class Engine
 
     public void Update(double DeltaTime)
     {
-        SyncContext.Tick();
+        NextFrame.ForEach(action => action());
+        NextFrame.Clear();
+        SyncContext?.Tick();
         Worlds.ForEach(world => world.Update(DeltaTime));
     }
 

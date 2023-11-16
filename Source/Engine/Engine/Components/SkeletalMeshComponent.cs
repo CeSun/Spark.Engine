@@ -23,7 +23,7 @@ public class SkeletalMeshComponent : PrimitiveComponent
         set
         {
             _SkeletalMesh = value;
-            InitRender();
+            Engine.NextFrame.Add(InitRender);
         }
     }
 
