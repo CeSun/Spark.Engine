@@ -1,48 +1,48 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net8.0-android33.0</TargetFramework>
-    <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
-    <OutputType>Exe</OutputType>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationId>com.spark.engine.android</ApplicationId>
-    <ApplicationVersion>1</ApplicationVersion>
-    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-    <AndroidSigningKeyStore>cesun.keystore</AndroidSigningKeyStore>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <AndroidPackageFormat>apk</AndroidPackageFormat>
-    <EnableLLVM>False</EnableLLVM>
-    <JavaMaximumHeapSize>4G</JavaMaximumHeapSize>
-    <AndroidKeyStore>True</AndroidKeyStore>
-    <AndroidSigningStorePass>123456</AndroidSigningStorePass>
-    <AndroidSigningKeyAlias>cesun</AndroidSigningKeyAlias>
-    <AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
-	<IsTrimmable>true</IsTrimmable>
-	<TrimMode>full</TrimMode>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <EnableLLVM>False</EnableLLVM>
-    <EmbedAssembliesIntoApk>False</EmbedAssembliesIntoApk>
-    <JavaMaximumHeapSize>4G</JavaMaximumHeapSize>
-    <AndroidKeyStore>True</AndroidKeyStore>
-    <AndroidSigningStorePass>123456</AndroidSigningStorePass>
-    <AndroidSigningKeyAlias>cesun</AndroidSigningKeyAlias>
-    <AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
-  </PropertyGroup>
-  <ItemGroup>
-    <AndroidAsset Include="..\Resource\**\*">
-      <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AndroidAsset>
-  </ItemGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0-android34.0</TargetFramework>
+		<SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+		<OutputType>Exe</OutputType>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ApplicationId>com.spark.engine.android</ApplicationId>
+		<ApplicationVersion>1</ApplicationVersion>
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<AndroidSigningKeyStore>cesun.keystore</AndroidSigningKeyStore>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<AndroidPackageFormat>apk</AndroidPackageFormat>
+		<EnableLLVM>False</EnableLLVM>
+		<JavaMaximumHeapSize>4G</JavaMaximumHeapSize>
+		<AndroidKeyStore>True</AndroidKeyStore>
+		<AndroidSigningStorePass>123456</AndroidSigningStorePass>
+		<AndroidSigningKeyAlias>cesun</AndroidSigningKeyAlias>
+		<AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
+		<IsTrimmable>true</IsTrimmable>
+		<TrimMode>full</TrimMode>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<EnableLLVM>False</EnableLLVM>
+		<EmbedAssembliesIntoApk>False</EmbedAssembliesIntoApk>
+		<JavaMaximumHeapSize>4G</JavaMaximumHeapSize>
+		<AndroidKeyStore>True</AndroidKeyStore>
+		<AndroidSigningStorePass>123456</AndroidSigningStorePass>
+		<AndroidSigningKeyAlias>cesun</AndroidSigningKeyAlias>
+		<AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
+	</PropertyGroup>
+	<ItemGroup>
+		<AndroidAsset Include="..\Resource\**\*">
+			<Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</AndroidAsset>
+	</ItemGroup>
 
-	
-  <ItemGroup>
-	<ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
-    <PackageReference Include="Silk.NET" Version="2.19.0" />
-	<PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="2.19.0" />
-  </ItemGroup>
-	
-	
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
+		<PackageReference Include="Silk.NET" Version="2.19.0" />
+		<PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="2.19.0" />
+	</ItemGroup>
+
+
 </Project>

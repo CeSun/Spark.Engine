@@ -107,8 +107,17 @@ namespace SparkDemo
                 StaticMesh.LoadFromGLBAsync(name).Then(mesh => List.ForEach(sma => sma.StaticMesh = mesh));
                 index++;
             }
-          
-            
+
+
+            DecalActor decalActor = new DecalActor(level);
+            decalActor.Material = new Spark.Engine.Assets.Material()
+            {
+                BaseColor = Texture.LoadFromFile("/Texture/bear.png")
+            };
+            decalActor.WorldLocation = new Vector3(0, 1, 0);
+            decalActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, 90f.DegreeToRadians(), 0);
+
+
         }
 
         public static void EndPlay(Level level) 

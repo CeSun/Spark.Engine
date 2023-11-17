@@ -246,6 +246,8 @@ public class DeferredSceneRenderer : IRenderer
             return;
         if (IsMobile == true)
             return;
+        if (DecalComponents.Count == 0)
+            return;
         gl.PushGroup("Decal Pass");
         gl.PushGroup("Decal PrePass");
         using (PostProcessBuffer2.Begin())
@@ -281,7 +283,7 @@ public class DeferredSceneRenderer : IRenderer
                 gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
             }
 
-            foreach (var DecalComponent in World.CurrentLevel.DecalComponents)
+            foreach (var DecalComponent in DecalComponents)
             {
                 if (DecalComponent.Material == null)
                     continue;
@@ -1327,6 +1329,7 @@ public class DeferredSceneRenderer : IRenderer
         CullingResult.Clear();
         PointLightComponents.Clear();
         StaticMeshComponents.Clear();
+        DecalComponents.Clear();
 
         World.CurrentLevel.RenderObjectOctree.FrustumCulling(CullingResult, CurrentCameraComponent.GetPlanes());
 
@@ -1340,6 +1343,10 @@ public class DeferredSceneRenderer : IRenderer
             {
                 PointLightComponents.Add(pointLightComponent);
             }
+            else if (compoment is DecalComponent DecalComponent)
+            {
+                DecalComponents.Add(DecalComponent);
+            }
         }
     }
 
@@ -1350,6 +1357,7 @@ public class DeferredSceneRenderer : IRenderer
     private List<StaticMeshComponent> StaticMeshComponents = new List<StaticMeshComponent>();
 
     private List<PointLightComponent> PointLightComponents = new List<PointLightComponent>();
+    private List<DecalComponent> DecalComponents = new List<DecalComponent>();
 }
 
 public struct DeferredVertex
