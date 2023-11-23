@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Spark.Engine;
+using Spark.Engine.Components;
 using Spark.Engine.Render.Renderer;
 
 namespace Spark.Engine;
@@ -17,6 +20,7 @@ public class World
         SceneRenderer = new DeferredSceneRenderer(this);
     }
     public Level? _Level;
+
 
     public Level CurrentLevel
     {
@@ -52,6 +56,9 @@ public class World
     {
         CurrentLevel.Update(DeltaTime);
     }
+
+
+
 
     public void Render(double DeltaTime)
     {

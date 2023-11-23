@@ -10,19 +10,21 @@ namespace Spark.Engine.Components;
 
 public class CapsuleComponent : PrimitiveComponent
 {
-    public CapsuleShape CapsuleShape { get;private set; }
-    public RigidBody RigidBody { get; private set; }
+    public CapsuleShape _CapsuleShape { get;private set; }
 
+    private RigidBody _RigidBody;
     protected override bool ReceieveUpdate => true;
     public CapsuleComponent(Actor actor) : base(actor)
     {
-        CapsuleShape = new CapsuleShape();
+        _CapsuleShape = new CapsuleShape();
+        _RigidBody = PhysicsWorld.CreateRigidBody();
+        _RigidBody.AddShape( _CapsuleShape );
     }
 
 
-    public float Radius { get => CapsuleShape.Radius; set => CapsuleShape.Radius = value; }
-    public float Length { get => CapsuleShape.Length; set => CapsuleShape.Length = value; }
-    public override  bool IsStatic { get => RigidBody.IsStatic; set => RigidBody.IsStatic = value; }
+    public float Radius { get => _CapsuleShape.Radius; set => _CapsuleShape.Radius = value; }
+    public float Length { get => _CapsuleShape.Length; set => _CapsuleShape.Length = value; }
+    public override  bool IsStatic { get => _RigidBody.IsStatic; set => _RigidBody.IsStatic = value; }
 
 
     public override Vector3 RelativeLocation
@@ -75,7 +77,7 @@ public class CapsuleComponent : PrimitiveComponent
                     RigidBody.RemoveShape(RigidBody.Shapes[i]);
                 }
                 var sm = Matrix4x4.CreateScale(WorldScale);
-                RigidBody.AddShape(new TransformedShape(CapsuleShape, JVector.Zero, new JMatrix
+                RigidBody.AddShape(new TransformedShape(_CapsuleShape, JVector.Zero, new JMatrix
                 {
                     M11 = sm.M11,
                     M12 = sm.M12,

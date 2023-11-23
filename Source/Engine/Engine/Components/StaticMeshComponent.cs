@@ -1,18 +1,8 @@
-﻿using Jitter2.Collision.Shapes;
-using Jitter2.Dynamics;
-using Jitter2.LinearMath;
-using SharpGLTF.Schema2;
-using Silk.NET.OpenGLES;
+﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Physics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace Spark.Engine.Components;
 

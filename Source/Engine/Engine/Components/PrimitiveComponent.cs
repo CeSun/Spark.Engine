@@ -6,6 +6,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
+using Jitter2.Collision.Shapes;
+using Jitter2.Dynamics;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
@@ -26,7 +28,7 @@ public partial class PrimitiveComponent
     public World World => Owner.CurrentWorld;
 
     public Level CurrentLevel => Owner.CurrentLevel;
-
+    public Jitter2.World PhysicsWorld => CurrentLevel.PhysicsWorld;
     protected virtual bool ReceieveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
 
@@ -117,6 +119,11 @@ public partial class PrimitiveComponent
             return;
         }
         OnEndPlay();
+        if (RigidBody != null)
+        {
+            RigidBody.Tag = null;
+            CurrentLevel.PhysicsWorld.Remove(RigidBody);
+        }
         Owner.UnregistComponent(this);
         if (ParentComponent != null)
         {
@@ -324,6 +331,12 @@ public partial class PrimitiveComponent
         }
     }
 
+    public void PhysicsUpdateTransform(Vector3 Location, in Matrix4x4 matrix4X4)
+    {
+        this.WorldLocation = Location;
+        this.WorldRotation = Quaternion.CreateFromRotationMatrix(matrix4X4);
+    }
+
 
     public Vector3 ForwardVector => Vector3.Transform(new Vector3(0, 0, -1), WorldRotation);
     public Vector3 RightVector => Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
@@ -344,4 +357,9 @@ public partial class PrimitiveComponent
 
     public Vector3 _RelativeScale = Vector3.One;
 
+}
+public partial class PrimitiveComponent
+{
+    public virtual RigidBody? RigidBody { get; }
+    public virtual Shape? Shape { get; }
 }

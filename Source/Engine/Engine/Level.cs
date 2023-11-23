@@ -27,6 +27,7 @@ public partial class Level
 {
     public World CurrentWorld { private set; get; }
 
+    public Jitter2.World PhysicsWorld;
     public Engine Engine => CurrentWorld.Engine;
     public Level(World world)
     {
@@ -35,6 +36,7 @@ public partial class Level
         RenderObjectOctree = new Octree();
         LightOctree = new Octree();
         ImGuiWarp = new ImGuiWarp(this);
+        PhysicsWorld = new();
     }
 
 
@@ -98,10 +100,7 @@ public partial class Level
 
     public void ActorUpdate(double DeltaTime)
     {
-        //foreach (Actor actor in _Actors)
-        //{
-        //    actor.Update(DeltaTime);
-        //}
+        PhysicsUpdate(DeltaTime);
         _Actors.AddRange(_AddActors);
         _AddActors.Clear();
         _DelActors.ForEach(actor => _Actors.Remove(actor));
@@ -303,4 +302,58 @@ public partial class Level
     }
 
     ImGuiWarp ImGuiWarp;
+
+
+    private void PhysicsUpdate(double DeltaTime)
+    {
+        while (DeltaTime > 0.03)
+        {
+            PhysicsWorld.Step(0.03f);
+            DeltaTime -= 0.03f;
+        }
+        if (DeltaTime > 0)
+        {
+            PhysicsWorld.Step((float)DeltaTime);
+        }
+
+        for (int i = 0; i < PhysicsWorld.RigidBodies.Active; i++)
+        {
+            if (PhysicsWorld.RigidBodies[i].Tag == null)
+                continue;
+            if (PhysicsWorld.RigidBodies[i].Tag is PrimitiveComponent primitiveComponent == false)
+                continue;
+
+            primitiveComponent.PhysicsUpdateTransform(new Vector3
+            {
+                X = PhysicsWorld.RigidBodies[i].Position.X,
+                Y = PhysicsWorld.RigidBodies[i].Position.Y,
+                Z = PhysicsWorld.RigidBodies[i].Position.Z,
+
+            }, new Matrix4x4
+            {
+                M11 = PhysicsWorld.RigidBodies[i].Orientation.M11,
+                M12 = PhysicsWorld.RigidBodies[i].Orientation.M12,
+                M13 = PhysicsWorld.RigidBodies[i].Orientation.M13,
+                M14 = 0,
+
+                M21 = PhysicsWorld.RigidBodies[i].Orientation.M21,
+                M22 = PhysicsWorld.RigidBodies[i].Orientation.M22,
+                M23 = PhysicsWorld.RigidBodies[i].Orientation.M23,
+                M24 = 0,
+
+
+                M31 = PhysicsWorld.RigidBodies[i].Orientation.M31,
+                M32 = PhysicsWorld.RigidBodies[i].Orientation.M32,
+                M33 = PhysicsWorld.RigidBodies[i].Orientation.M33,
+                M34 = 0,
+
+                M41 = 0,
+                M42 = 0,
+                M43 = 0,
+                M44 = 1,
+
+            });
+
+        }
+    }
 }
