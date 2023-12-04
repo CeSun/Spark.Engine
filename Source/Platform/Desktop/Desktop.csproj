@@ -17,13 +17,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
 	  <Content Include="..\Resource\**\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Editor\Editor.csproj" />
+    <ProjectReference Include="..\..\Engine\Engine\Engine.csproj" />
+    <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
   </ItemGroup>
 
 </Project>

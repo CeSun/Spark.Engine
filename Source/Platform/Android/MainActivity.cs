@@ -42,7 +42,7 @@ public class MainActivity : SilkActivity
 
             var InitFun = () =>
             {
-                Engine.InitEngine(new string[0], new Dictionary<string, object>
+                Engine.InitEngine(new string[] { "-game", "SparkDemo" }, new Dictionary<string, object>
                 {
                 { "OpenGL", GL.GetApi(view) },
                 { "WindowSize", new System.Drawing.Point(view.Size.X , view.Size.Y) },
@@ -54,8 +54,6 @@ public class MainActivity : SilkActivity
                 });
             };
 
-            Engine.OnBeginPlay = SparkDemo.SparkDemo.BeginPlay;
-            Engine.OnEndPlay = SparkDemo.SparkDemo.EndPlay;
             view.Render += Engine.Render;
             view.Update += Engine.Update;
             view.Load += (InitFun + Engine.Start);

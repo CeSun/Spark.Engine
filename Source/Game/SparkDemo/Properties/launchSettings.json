@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SparkDemo": {
+      "commandName": "Project",
+      "remoteDebugEnabled": false
+    }
+  }
+}

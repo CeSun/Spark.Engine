@@ -1,11 +1,12 @@
 {
   "profiles": {
-    "Desktop": {
-      "commandName": "Project"
+    "SparkDemo": {
+      "commandName": "Project",
+      "commandLineArgs": "-game SparkDemo"
     },
-    "WSL": {
-      "commandName": "WSL2",
-      "distributionName": ""
+    "Editor": {
+      "commandName": "Project",
+      "commandLineArgs": "-game Editor"
     }
   }
 }

@@ -2,11 +2,9 @@
 using Silk.NET.Windowing;
 using Silk.NET.OpenGLES;
 using Spark.Engine;
-using System.Numerics;
 using Silk.NET.Maths;
 using System.Drawing;
 using Silk.NET.Input;
-using Spark.Util;
 using Silk.NET.Windowing.Glfw;
 using Silk.NET.Input.Glfw;
 using Spark.Engine.Platform;
@@ -22,6 +20,7 @@ option.Size = new Vector2D<int>(800, 600);
 
 var Engine = new Engine();
 var window = Window.Create(option);
+
 var InitFun = () =>
 {
     FileSystem.Init(new Desktop.DesktopFileSystem());
@@ -36,10 +35,6 @@ var InitFun = () =>
         { "DefaultFBOID", 0 }
     });
 };
-
-Engine.OnBeginPlay = SparkDemo.SparkDemo.BeginPlay;
-Engine.OnEndPlay = SparkDemo.SparkDemo.EndPlay;
-
 window.Render += Engine.Render;
 window.Update += Engine.Update;
 window.Load += (InitFun + Engine.Start);
