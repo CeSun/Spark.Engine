@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 using Spark.Engine.Actors;
@@ -11,5 +12,7 @@ public interface IGame
 {
     public PlayerController CreatePlayerController(Level level);
 
-    public Pawn CreatePawn(PlayerController playerController);
+    public Pawn CreatePawn(Level level);
+
+    public GameMode CreateGameMode(Level level);
 }

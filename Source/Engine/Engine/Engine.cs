@@ -59,7 +59,7 @@ public partial class Engine
 
 
     }
-    IGame? Game;
+    public IGame? Game { get; private set; }
     public void InitGameDll()
     {
         string? GameDllName = null;
@@ -82,9 +82,9 @@ public partial class Engine
             {
                 if (type == null)
                     continue;
-                if (type.GetInterface("Spark.Engine.GamePlay.IGame") != null)
+                if (type.GetInterface(typeof(IGame).FullName??"") != null)
                 {
-                    var obj = assembly.CreateInstance(type.FullName);
+                    var obj = assembly.CreateInstance(type.FullName??"");
                     Game = obj as IGame;
                     return;
                 }

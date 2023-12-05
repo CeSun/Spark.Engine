@@ -1,24 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using SharpGLTF.Schema2;
-using Silk.NET.OpenGLES;
+﻿using System.Numerics;
 using Spark.Engine.Actors;
-using Spark.Engine.Assets;
 using Spark.Engine.Components;
-using Spark.Util;
-using Silk.NET.Input;
-
-using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Manager;
-using Jitter2.Collision;
 using PhyWorld = Jitter2.World;
 using Spark.Engine.Physics;
-using Jitter2.Dynamics;
 using Spark.Engine.GUI;
 
 namespace Spark.Engine;
@@ -27,14 +12,15 @@ public partial class Level
 {
     public World CurrentWorld { private set; get; }
 
-    public Jitter2.World PhysicsWorld;
+    public PhyWorld PhysicsWorld;
     public Engine Engine => CurrentWorld.Engine;
+
+    public PlayerController LocalPlayerController;
     public Level(World world)
     {
         CurrentWorld = world;
         UpdateManager = new UpdateManager();
         RenderObjectOctree = new Octree();
-        LightOctree = new Octree();
         ImGuiWarp = new ImGuiWarp(this);
         PhysicsWorld = new();
     }
@@ -42,7 +28,6 @@ public partial class Level
 
     public Octree RenderObjectOctree { get; private set; }
 
-    public Octree LightOctree { get; private set; }
     public UpdateManager UpdateManager { private set; get; }
 
  
@@ -289,6 +274,7 @@ public partial class Level
 
 public partial class Level
 {
+    GameMode GameMode;
     public void EndPlay()
     {
         Engine.OnEndPlay?.Invoke(this);
@@ -299,6 +285,13 @@ public partial class Level
         Engine.OnBeginPlay?.Invoke(this);
 
         ImGuiWarp.Init();
+
+        if (Engine.Game == null)
+            return;
+        var GameMode = Engine.Game.CreateGameMode(this);
+        LocalPlayerController = Engine.Game.CreatePlayerController(this);
+        GameMode.OnPlayerConnect(LocalPlayerController);
+
     }
 
     ImGuiWarp ImGuiWarp;
