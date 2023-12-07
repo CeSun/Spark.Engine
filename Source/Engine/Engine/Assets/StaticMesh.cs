@@ -15,7 +15,6 @@ public class StaticMesh
     public List<Element<StaticMeshVertex>> Elements = new List<Element<StaticMeshVertex>>();
     public List<Shape> Shapes = new List<Shape>();
     public Box Box { get; private set; }
-
     public List<Box> Boxes { get; private set; } = new List<Box>();
     public string Path { get; private set; }
     public StaticMesh()
@@ -142,11 +141,7 @@ public class StaticMesh
                         box += Vertex.Location;
                     }
                     sm.Boxes.Add(box);
-                    List<uint> Indices = new List<uint>();
-                    foreach (var index in glPrimitive.IndexAccessor.AsIndicesArray())
-                    {
-                        Indices.Add(index);
-                    }
+                    List<uint> Indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
                     var Material = new Material();
                     byte[]? MetallicRoughness = null;
                     byte[]? AmbientOcclusion = null;

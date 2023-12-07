@@ -51,8 +51,9 @@ public static class ChannelHelper
     }
 
 }
-public class Texture
+public class Texture : ISerializable
 {
+    static int AssetVersion = 1;
     public uint TextureId { get; protected set; }
     public uint Width { get; set; }
     public uint Height { get; set; }
@@ -61,6 +62,41 @@ public class Texture
 
     public TexFilter Filter { get; set; } = TexFilter.Liner;
 
+
+    public void Serialize(StreamWriter StreamWriter)
+    {
+        var bw = new BinaryWriter(StreamWriter.BaseStream);
+        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
+        bw.Write(BitConverter.GetBytes(MagicCode.Texture));
+        bw.Write(AssetVersion);
+        bw.Write(BitConverter.GetBytes(Width));
+        bw.Write(BitConverter.GetBytes(Height));
+        bw.Write(BitConverter.GetBytes((int)Channel));
+        bw.Write(BitConverter.GetBytes((int)Filter));
+        bw.Write(Pixels.Count);
+        bw.Write(Pixels.ToArray());
+    }
+
+    public void Deserialize(StreamReader Reader)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+        var AssetMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        if (AssetMagicCode != MagicCode.Asset)
+            throw new Exception("");
+        var TextureMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        if (TextureMagicCode != MagicCode.Texture)
+            throw new Exception("");
+        var version = BitConverter.ToInt32(br.ReadBytes(4));
+        if (version > AssetVersion)
+            throw new Exception("");
+        Width = BitConverter.ToUInt32(br.ReadBytes(4));
+        Height = BitConverter.ToUInt32(br.ReadBytes(4));
+        Channel = (TexChannel)BitConverter.ToInt32(br.ReadBytes(4));
+        Filter = (TexFilter)BitConverter.ToInt32(br.ReadBytes(4));
+        var pixelsLen = BitConverter.ToInt32(br.ReadBytes(4));
+        Pixels.AddRange(br.ReadBytes(pixelsLen));
+
+    }
     public unsafe void InitRender(GL gl)
     {
         if (TextureId > 0)
