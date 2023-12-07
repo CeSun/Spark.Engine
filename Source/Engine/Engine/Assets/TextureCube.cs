@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 namespace Spark.Engine.Assets;
 
 
-public class SubTexture
+public class SubTexture : ISerializable
 {
     public uint Width { get;  set; }
     public uint Height { get;  set; }
@@ -17,6 +17,27 @@ public class SubTexture
 
     public GLEnum Target;
 
+    public void Serialize(StreamWriter Writer)
+    {
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.Write(BitConverter.GetBytes(Width));
+        bw.Write(BitConverter.GetBytes(Height));
+        bw.Write(BitConverter.GetBytes((int)Channel));
+        bw.Write(BitConverter.GetBytes((int)Target));
+        bw.Write(BitConverter.GetBytes(Pixels.Count));
+        bw.Write(Pixels.ToArray());
+    }
+
+    public void Deserialize(StreamReader Reader)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+        Width = br.ReadUInt32();
+        Height = br.ReadUInt32();
+        Channel = (TexChannel)br.ReadInt32();
+        Target = (GLEnum)br.ReadInt32();
+        var pixelsLen = br.ReadInt32();
+        Pixels.AddRange(br.ReadBytes(pixelsLen));
+    }
 }
 public class TextureCube
 {
