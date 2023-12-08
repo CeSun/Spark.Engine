@@ -15,7 +15,7 @@ using Spark.Engine.Platform;
 
 namespace Spark.Engine.Assets;
 
-public partial class SkeletalMesh
+public partial class SkeletalMesh : AssetBase
 {
 
 
@@ -95,7 +95,7 @@ public partial class SkeletalMesh
     
 }
 
-public partial class SkeletalMesh
+public partial class SkeletalMesh : ISerializable
 {
     public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(string Path)
     {
@@ -508,9 +508,47 @@ public partial class SkeletalMesh
             element.Indices = null;
         }
     }
+
+
+    public void Serialize(StreamWriter Writer)
+    {
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
+        bw.Write(BitConverter.GetBytes(MagicCode.SkeletalMesh));
+        bw.Write(BitConverter.GetBytes(Elements.Count));
+        foreach (var element in Elements)
+        {
+            element.Serialize(Writer);
+        }
+    }
+
+    public void Deserialize(StreamReader Reader)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+        var AssetMagicCode = br.ReadInt32();
+        if (AssetMagicCode != MagicCode.Asset)
+            throw new Exception("");
+        var TextureMagicCode = br.ReadInt32();
+        if (TextureMagicCode != MagicCode.SkeletalMesh)
+            throw new Exception("");
+        var count = br.ReadInt32();
+        for (var i = 0; i < count; i++)
+        {
+            var element = new Element<SkeletalMeshVertex>()
+            {
+                Vertices = new List<SkeletalMeshVertex>(),
+                Indices = new List<uint>(),
+                Material = new Material()
+            };
+            element.Deserialize(Reader);
+            _Elements.Add(element);
+        }
+
+    }
+
 }
 
-public struct SkeletalMeshVertex
+public struct SkeletalMeshVertex : ISerializable
 {
     public Vector3 Location;
 
@@ -527,4 +565,92 @@ public struct SkeletalMeshVertex
     public Vector4 BoneIds;
 
     public Vector4 BoneWeights;
+
+    public void Deserialize(StreamReader Reader)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+
+        Location.X = br.ReadSingle();
+        Location.Y = br.ReadSingle();
+        Location.Z = br.ReadSingle();
+
+
+        Normal.X = br.ReadSingle();
+        Normal.Y = br.ReadSingle();
+        Normal.Z = br.ReadSingle();
+
+        Tangent.X = br.ReadSingle();
+        Tangent.Y = br.ReadSingle();
+        Tangent.Z = br.ReadSingle();
+
+        BitTangent.X = br.ReadSingle();
+        BitTangent.Y = br.ReadSingle();
+        BitTangent.Z = br.ReadSingle();
+
+        Color.X = br.ReadSingle();
+        Color.Y = br.ReadSingle();
+        Color.Z = br.ReadSingle();
+
+        TexCoord.X = br.ReadSingle();
+        TexCoord.Y = br.ReadSingle();
+
+
+        BoneIds.X = br.ReadSingle();
+        BoneIds.Y = br.ReadSingle();
+        BoneIds.Z = br.ReadSingle();
+        BoneIds.W = br.ReadSingle();
+
+
+
+        BoneWeights.X = br.ReadSingle();
+        BoneWeights.Y = br.ReadSingle();
+        BoneWeights.Z = br.ReadSingle();
+        BoneWeights.W = br.ReadSingle();
+
+    }
+
+    public void Serialize(StreamWriter Writer)
+    {
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.Write(BitConverter.GetBytes(Location.X));
+        bw.Write(BitConverter.GetBytes(Location.Y));
+        bw.Write(BitConverter.GetBytes(Location.Z));
+
+
+        bw.Write(BitConverter.GetBytes(Normal.X));
+        bw.Write(BitConverter.GetBytes(Normal.Y));
+        bw.Write(BitConverter.GetBytes(Normal.Z));
+
+
+
+        bw.Write(BitConverter.GetBytes(Tangent.X));
+        bw.Write(BitConverter.GetBytes(Tangent.Y));
+        bw.Write(BitConverter.GetBytes(Tangent.Z));
+
+        bw.Write(BitConverter.GetBytes(BitTangent.X));
+        bw.Write(BitConverter.GetBytes(BitTangent.Y));
+        bw.Write(BitConverter.GetBytes(BitTangent.Z));
+
+        bw.Write(BitConverter.GetBytes(Color.X));
+        bw.Write(BitConverter.GetBytes(Color.Y));
+        bw.Write(BitConverter.GetBytes(Color.Z));
+
+
+        bw.Write(BitConverter.GetBytes(TexCoord.X));
+        bw.Write(BitConverter.GetBytes(TexCoord.Y));
+
+
+        bw.Write(BitConverter.GetBytes(BoneIds.X));
+        bw.Write(BitConverter.GetBytes(BoneIds.Y));
+        bw.Write(BitConverter.GetBytes(BoneIds.Z));
+        bw.Write(BitConverter.GetBytes(BoneIds.W));
+
+        bw.Write(BitConverter.GetBytes(BoneWeights.X));
+        bw.Write(BitConverter.GetBytes(BoneWeights.Y));
+        bw.Write(BitConverter.GetBytes(BoneWeights.Z));
+        bw.Write(BitConverter.GetBytes(BoneWeights.W));
+
+
+
+    }
 }

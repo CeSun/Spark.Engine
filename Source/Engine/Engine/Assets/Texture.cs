@@ -51,7 +51,7 @@ public static class ChannelHelper
     }
 
 }
-public class Texture : ISerializable
+public class Texture : AssetBase, ISerializable
 {
     static int AssetVersion = 1;
     public uint TextureId { get; protected set; }
@@ -62,13 +62,11 @@ public class Texture : ISerializable
 
     public TexFilter Filter { get; set; } = TexFilter.Liner;
 
-
     public void Serialize(StreamWriter StreamWriter)
     {
         var bw = new BinaryWriter(StreamWriter.BaseStream);
         bw.Write(BitConverter.GetBytes(MagicCode.Asset));
         bw.Write(BitConverter.GetBytes(MagicCode.Texture));
-        bw.Write(AssetVersion);
         bw.Write(BitConverter.GetBytes(Width));
         bw.Write(BitConverter.GetBytes(Height));
         bw.Write(BitConverter.GetBytes((int)Channel));
@@ -85,9 +83,6 @@ public class Texture : ISerializable
             throw new Exception("");
         var TextureMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
         if (TextureMagicCode != MagicCode.Texture)
-            throw new Exception("");
-        var version = BitConverter.ToInt32(br.ReadBytes(4));
-        if (version > AssetVersion)
             throw new Exception("");
         Width = BitConverter.ToUInt32(br.ReadBytes(4));
         Height = BitConverter.ToUInt32(br.ReadBytes(4));

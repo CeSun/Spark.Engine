@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace Spark.Engine.Assets;
 
-public class AnimSequence : AnimBase
+public class AnimSequence : AnimBase, ISerializable
 {
     public Skeleton Skeleton { get; set; }
     public AnimSequence (string AnimName, float Duration, Skeleton Skeleton,Dictionary<int, BoneChannel> boneChannels)
@@ -32,6 +32,16 @@ public class AnimSequence : AnimBase
             }
             ChannelsTransform.Add(id, Transforms);
         }
+    }
+
+    public void Serialize(StreamWriter Writer)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void Deserialize(StreamReader Reader)
+    {
+        throw new NotImplementedException();
     }
 
     public double Duration { private set; get; }

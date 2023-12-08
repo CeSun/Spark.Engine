@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class Material
+public class Material : AssetBase
 {
     public Texture[] Textures = new Texture[4];
     public string[] TextureNames = new string[4]{

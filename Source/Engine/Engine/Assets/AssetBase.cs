@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public abstract class AnimBase : AssetBase
+public class AssetBase
 {
-
+    public string Path = string.Empty;
 }

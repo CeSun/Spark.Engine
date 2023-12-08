@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 namespace Spark.Engine.Assets;
 
 
-public class SubTexture : ISerializable
+public class SubTexture : AssetBase, ISerializable
 {
     public uint Width { get;  set; }
     public uint Height { get;  set; }
@@ -39,7 +39,7 @@ public class SubTexture : ISerializable
         Pixels.AddRange(br.ReadBytes(pixelsLen));
     }
 }
-public class TextureCube
+public class TextureCube : ISerializable
 {
     static GLEnum[] TexTargets = new[]
     {
@@ -160,4 +160,32 @@ public class TextureCube
         Textures = null;
     }
 
+    public void Serialize(StreamWriter Writer)
+    {
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
+        bw.Write(BitConverter.GetBytes(MagicCode.TextureCube));
+        bw.Write(BitConverter.GetBytes(Textures.Count));
+        foreach(var texture in Textures)
+        {
+            texture.Serialize(Writer);
+        }
+    }
+
+    public void Deserialize(StreamReader Reader)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+        var AssetMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        if (AssetMagicCode != MagicCode.Asset)
+            throw new Exception("");
+        var TextureMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        if (TextureMagicCode != MagicCode.TextureCube)
+            throw new Exception("");
+        var count = br.ReadInt32();
+        for(int i = 0; i < count; i++)
+        {
+            var texture = new Texture();
+            texture.Deserialize(Reader);
+        }
+    }
 }

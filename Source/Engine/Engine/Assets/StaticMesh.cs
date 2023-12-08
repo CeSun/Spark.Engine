@@ -7,10 +7,11 @@ using Jitter2.LinearMath;
 using System.Collections.ObjectModel;
 using Jitter2.Collision.Shapes;
 using Spark.Engine.Platform;
+using Jitter2.Dynamics;
 
 namespace Spark.Engine.Assets;
 
-public class StaticMesh
+public class StaticMesh : AssetBase, ISerializable
 {
     public List<Element<StaticMeshVertex>> Elements = new List<Element<StaticMeshVertex>>();
     public List<Shape> Shapes = new List<Shape>();
@@ -380,9 +381,44 @@ public class StaticMesh
             element.Indices = null;
         }
     }
+
+    public void Serialize(StreamWriter Writer)
+    {
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
+        bw.Write(BitConverter.GetBytes(MagicCode.StaticMesh));
+        bw.Write(BitConverter.GetBytes(Elements.Count));
+        foreach(var element in Elements)
+        {
+            element.Serialize(Writer);
+        }
+    }
+
+    public void Deserialize(StreamReader Reader)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+        var AssetMagicCode = br.ReadInt32();
+        if (AssetMagicCode != MagicCode.Asset)
+            throw new Exception("");
+        var TextureMagicCode = br.ReadInt32();
+        if (TextureMagicCode != MagicCode.StaticMesh)
+            throw new Exception("");
+        var count = br.ReadInt32();
+        for(var i = 0; i < count; i++)
+        {
+            var element = new Element<StaticMeshVertex>() {
+                Vertices = new List<StaticMeshVertex>(),
+                Indices = new List<uint>(),
+                Material = new Material()
+            };
+            element.Deserialize(Reader);
+            Elements.Add(element);
+        }
+
+    }
 }
 
-public class Element<T> where T  : struct
+public class Element<T> : ISerializable  where T  : struct, ISerializable
 {
     public required List<T> Vertices;
     public required List<uint> Indices;
@@ -391,9 +427,43 @@ public class Element<T> where T  : struct
     public uint VertexBufferObjectIndex;
     public uint ElementBufferObjectIndex;
     public uint IndicesLen;
+
+    public void Deserialize(StreamReader Reader)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+        var count = br.ReadInt32();
+        for(int i = 0; i < count; i ++ )
+        {
+            var vertex = new T();
+            vertex.Deserialize(Reader);
+            Vertices.Add(vertex);
+        }
+
+        count = br.ReadInt32();
+
+        for (int i = 0; i < count; i++)
+        {
+            Indices.Add(br.ReadUInt32());
+        }
+    }
+
+    public void Serialize(StreamWriter Writer)
+    {
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.Write(BitConverter.GetBytes(Vertices.Count));
+        foreach(var vertex in Vertices)
+        {
+            vertex.Serialize(Writer);
+        }
+        bw.Write(BitConverter.GetBytes(Indices.Count));
+        foreach (var index in Indices)
+        {
+            bw.Write(BitConverter.GetBytes(index));
+        }
+    }
 }
 
-public struct StaticMeshVertex
+public struct StaticMeshVertex: ISerializable
 {
     public Vector3 Location;
 
@@ -406,4 +476,65 @@ public struct StaticMeshVertex
     public Vector3 Color;
 
     public Vector2 TexCoord;
+
+    public void Deserialize(StreamReader Reader)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+
+        Location.X = br.ReadSingle();
+        Location.Y = br.ReadSingle();
+        Location.Z = br.ReadSingle();
+
+
+        Normal.X = br.ReadSingle();
+        Normal.Y = br.ReadSingle();
+        Normal.Z = br.ReadSingle();
+
+        Tangent.X = br.ReadSingle();
+        Tangent.Y = br.ReadSingle();
+        Tangent.Z = br.ReadSingle();
+
+        BitTangent.X = br.ReadSingle();
+        BitTangent.Y = br.ReadSingle();
+        BitTangent.Z = br.ReadSingle();
+
+        Color.X = br.ReadSingle();
+        Color.Y = br.ReadSingle();
+        Color.Z = br.ReadSingle();
+
+        TexCoord.X = br.ReadSingle();
+        TexCoord.Y = br.ReadSingle();
+    }
+
+    public void Serialize(StreamWriter Writer)
+    {
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.Write(BitConverter.GetBytes(Location.X));
+        bw.Write(BitConverter.GetBytes(Location.Y));
+        bw.Write(BitConverter.GetBytes(Location.Z));
+
+
+        bw.Write(BitConverter.GetBytes(Normal.X));
+        bw.Write(BitConverter.GetBytes(Normal.Y));
+        bw.Write(BitConverter.GetBytes(Normal.Z));
+
+
+
+        bw.Write(BitConverter.GetBytes(Tangent.X));
+        bw.Write(BitConverter.GetBytes(Tangent.Y));
+        bw.Write(BitConverter.GetBytes(Tangent.Z));
+
+        bw.Write(BitConverter.GetBytes(BitTangent.X));
+        bw.Write(BitConverter.GetBytes(BitTangent.Y));
+        bw.Write(BitConverter.GetBytes(BitTangent.Z));
+
+        bw.Write(BitConverter.GetBytes(Color.X));
+        bw.Write(BitConverter.GetBytes(Color.Y));
+        bw.Write(BitConverter.GetBytes(Color.Z));
+
+
+        bw.Write(BitConverter.GetBytes(TexCoord.X));
+        bw.Write(BitConverter.GetBytes(TexCoord.Y));
+
+    }
 }

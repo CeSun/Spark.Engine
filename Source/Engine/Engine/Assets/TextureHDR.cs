@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class TextureHDR
+public class TextureHDR : AssetBase, ISerializable
 {
 
     public uint TextureId { get; protected set; }
@@ -113,6 +113,43 @@ public class TextureHDR
         for(int i = 0; i < data.Length; i++)
         {
             data[i] = MathF.Pow(data[i], 1.0f/2.2f);
+        }
+    }
+
+
+    public void Serialize(StreamWriter StreamWriter)
+    {
+        var bw = new BinaryWriter(StreamWriter.BaseStream);
+        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
+        bw.Write(BitConverter.GetBytes(MagicCode.Texture));
+        bw.Write(BitConverter.GetBytes(Width));
+        bw.Write(BitConverter.GetBytes(Height));
+        bw.Write(BitConverter.GetBytes((int)Channel));
+        bw.Write(BitConverter.GetBytes((int)Filter));
+        bw.Write(Pixels.Count);
+        foreach(var num in Pixels)
+        {
+            bw.Write(BitConverter.GetBytes(num));
+        }
+    }
+
+    public void Deserialize(StreamReader Reader)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+        var AssetMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        if (AssetMagicCode != MagicCode.Asset)
+            throw new Exception("");
+        var TextureMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        if (TextureMagicCode != MagicCode.Texture)
+            throw new Exception("");
+        Width = BitConverter.ToUInt32(br.ReadBytes(4));
+        Height = BitConverter.ToUInt32(br.ReadBytes(4));
+        Channel = (TexChannel)BitConverter.ToInt32(br.ReadBytes(4));
+        Filter = (TexFilter)BitConverter.ToInt32(br.ReadBytes(4));
+        var pixelsLen = BitConverter.ToInt32(br.ReadBytes(4));
+        for(var i = 0; i < pixelsLen; i++)
+        {
+            Pixels.Add(br.ReadSingle());
         }
     }
 

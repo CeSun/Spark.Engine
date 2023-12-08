@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class Skeleton
+public class Skeleton : AssetBase
 {
     public Skeleton(BoneNode root, List<BoneNode> list, Matrix4x4 RootParentMatrix)
     {
