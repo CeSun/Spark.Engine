@@ -8,9 +8,9 @@ namespace Spark.Engine.Assets;
 
 public interface ISerializable
 {
-    public void Serialize(StreamWriter Writer);
+    public void Serialize(StreamWriter Writer, Engine engine);
 
-    public void Deserialize(StreamReader Reader);
+    public void Deserialize(StreamReader Reader, Engine engine);
 }
 
 

@@ -117,7 +117,7 @@ public class TextureHDR : AssetBase, ISerializable
     }
 
 
-    public void Serialize(StreamWriter StreamWriter)
+    public void Serialize(StreamWriter StreamWriter, Engine engine)
     {
         var bw = new BinaryWriter(StreamWriter.BaseStream);
         bw.Write(BitConverter.GetBytes(MagicCode.Asset));
@@ -133,7 +133,7 @@ public class TextureHDR : AssetBase, ISerializable
         }
     }
 
-    public void Deserialize(StreamReader Reader)
+    public void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = BitConverter.ToInt32(br.ReadBytes(4));

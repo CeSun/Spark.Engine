@@ -510,7 +510,7 @@ public partial class SkeletalMesh : ISerializable
     }
 
 
-    public void Serialize(StreamWriter Writer)
+    public void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
         bw.Write(BitConverter.GetBytes(MagicCode.Asset));
@@ -518,11 +518,11 @@ public partial class SkeletalMesh : ISerializable
         bw.Write(BitConverter.GetBytes(Elements.Count));
         foreach (var element in Elements)
         {
-            element.Serialize(Writer);
+            element.Serialize(Writer, engine);
         }
     }
 
-    public void Deserialize(StreamReader Reader)
+    public void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
@@ -540,7 +540,7 @@ public partial class SkeletalMesh : ISerializable
                 Indices = new List<uint>(),
                 Material = new Material()
             };
-            element.Deserialize(Reader);
+            element.Deserialize(Reader, engine);
             _Elements.Add(element);
         }
 
@@ -566,7 +566,7 @@ public struct SkeletalMeshVertex : ISerializable
 
     public Vector4 BoneWeights;
 
-    public void Deserialize(StreamReader Reader)
+    public void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
 
@@ -609,7 +609,7 @@ public struct SkeletalMeshVertex : ISerializable
 
     }
 
-    public void Serialize(StreamWriter Writer)
+    public void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
         bw.Write(BitConverter.GetBytes(Location.X));

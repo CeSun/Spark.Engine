@@ -382,7 +382,7 @@ public class StaticMesh : AssetBase, ISerializable
         }
     }
 
-    public void Serialize(StreamWriter Writer)
+    public void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
         bw.Write(BitConverter.GetBytes(MagicCode.Asset));
@@ -390,11 +390,11 @@ public class StaticMesh : AssetBase, ISerializable
         bw.Write(BitConverter.GetBytes(Elements.Count));
         foreach(var element in Elements)
         {
-            element.Serialize(Writer);
+            element.Serialize(Writer, engine);
         }
     }
 
-    public void Deserialize(StreamReader Reader)
+    public void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
@@ -411,7 +411,7 @@ public class StaticMesh : AssetBase, ISerializable
                 Indices = new List<uint>(),
                 Material = new Material()
             };
-            element.Deserialize(Reader);
+            element.Deserialize(Reader, engine);
             Elements.Add(element);
         }
 
@@ -428,14 +428,14 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
     public uint ElementBufferObjectIndex;
     public uint IndicesLen;
 
-    public void Deserialize(StreamReader Reader)
+    public void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var count = br.ReadInt32();
         for(int i = 0; i < count; i ++ )
         {
             var vertex = new T();
-            vertex.Deserialize(Reader);
+            vertex.Deserialize(Reader, engine);
             Vertices.Add(vertex);
         }
 
@@ -447,13 +447,13 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
         }
     }
 
-    public void Serialize(StreamWriter Writer)
+    public void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
         bw.Write(BitConverter.GetBytes(Vertices.Count));
         foreach(var vertex in Vertices)
         {
-            vertex.Serialize(Writer);
+            vertex.Serialize(Writer, engine);
         }
         bw.Write(BitConverter.GetBytes(Indices.Count));
         foreach (var index in Indices)
@@ -477,7 +477,7 @@ public struct StaticMeshVertex: ISerializable
 
     public Vector2 TexCoord;
 
-    public void Deserialize(StreamReader Reader)
+    public void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
 
@@ -506,7 +506,7 @@ public struct StaticMeshVertex: ISerializable
         TexCoord.Y = br.ReadSingle();
     }
 
-    public void Serialize(StreamWriter Writer)
+    public void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
         bw.Write(BitConverter.GetBytes(Location.X));

@@ -62,7 +62,7 @@ public class Texture : AssetBase, ISerializable
 
     public TexFilter Filter { get; set; } = TexFilter.Liner;
 
-    public void Serialize(StreamWriter StreamWriter)
+    public void Serialize(StreamWriter StreamWriter, Engine engine)
     {
         var bw = new BinaryWriter(StreamWriter.BaseStream);
         bw.Write(BitConverter.GetBytes(MagicCode.Asset));
@@ -75,7 +75,7 @@ public class Texture : AssetBase, ISerializable
         bw.Write(Pixels.ToArray());
     }
 
-    public void Deserialize(StreamReader Reader)
+    public void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = BitConverter.ToInt32(br.ReadBytes(4));

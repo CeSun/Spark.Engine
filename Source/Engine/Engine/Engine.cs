@@ -7,18 +7,17 @@ using Spark.Engine.Platform;
 using Spark.Engine.Render;
 using Silk.NET.Windowing;
 using Silk.NET.OpenGLES.Extensions.EXT;
-using Spark.Engine.GamePlay;
 using System.Reflection;
 using System.Runtime.Loader;
+using Spark.Engine.Assets;
 
 namespace Spark.Engine;
 
 public partial class Engine
 {
+    public AssetMgr AssetMgr { get; private set; }
     public SingleThreadSyncContext? SyncContext { get; private set; }
-
     public List<Action> NextFrame { get; private set; }
-
     private List<string> Args { get; set; } = new List<string>();
     public bool IsMobile { private set; get; } = false;
 
@@ -31,7 +30,7 @@ public partial class Engine
             SynchronizationContext.SetSynchronizationContext(SyncContext);
         }
         NextFrame = new List<Action>();
-       
+        AssetMgr = new AssetMgr() { engine = this };
     }
     private IView? _view;
     public IView View
@@ -53,44 +52,9 @@ public partial class Engine
         IsMobile = (bool)objects["IsMobile"];
         DefaultFBOID = (uint)(int)objects["DefaultFBOID"];
         _view = (IView)objects["View"];
-
-        InitGameDll();
         Worlds.Add(new World(this));
-
-
     }
-    public IGame? Game { get; private set; }
-    public void InitGameDll()
-    {
-        string? GameDllName = null;
-        for (int i = 0; i < Args.Count; i++)
-        {
-            if (Args[i] == "-game" && i + 1 < Args.Count)
-            {
-                GameDllName = Args[i + 1];
-                break;
-            }
-        }
-        if (GameDllName == null)
-            throw new Exception("no game dll");
-        using var sr = FileSystem.Instance.GetStreamReader(GameDllName + ".dll");
-        var asm = AssemblyLoadContext.Default.LoadFromStream(sr.BaseStream);
-
-        foreach(var assembly in AssemblyLoadContext.Default.Assemblies)
-        {
-            foreach(var type in assembly.GetTypes())
-            {
-                if (type == null)
-                    continue;
-                if (type.GetInterface(typeof(IGame).FullName??"") != null)
-                {
-                    var obj = assembly.CreateInstance(type.FullName??"");
-                    Game = obj as IGame;
-                    return;
-                }
-            }
-        }
-    }
+   
 
     public Action<Level>? OnBeginPlay;
     public Action<Level>? OnEndPlay;
