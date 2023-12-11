@@ -445,6 +445,7 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
         {
             Indices.Add(br.ReadUInt32());
         }
+        Material = ISerializable.AssetDeserialize<Material>(Reader, engine);
     }
 
     public void Serialize(StreamWriter Writer, Engine engine)
@@ -460,6 +461,7 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
         {
             bw.Write(BitConverter.GetBytes(index));
         }
+        ISerializable.AssetSerialize(Material, Writer, engine);
     }
 }
 

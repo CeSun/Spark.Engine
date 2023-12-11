@@ -476,7 +476,12 @@ public partial class SkeletalMesh : ISerializable
             if (Bone.ParentId < 0)
                 TreeRoots.Add(Bone);
         }
-        return new Skeleton(TreeRoots[0], BoneList, Bone2Node[TreeRoots[0].BoneId].VisualParent.WorldMatrix);
+        return new Skeleton() 
+        {
+            Root = TreeRoots[0],
+            BoneList = BoneList,
+            RootParentMatrix =  Bone2Node[TreeRoots[0].BoneId].VisualParent.WorldMatrix
+        };
     }
 
     public static void ProcessBoneTransform(BoneNode Bone)
@@ -520,6 +525,7 @@ public partial class SkeletalMesh : ISerializable
         {
             element.Serialize(Writer, engine);
         }
+        ISerializable.AssetSerialize(Skeleton, Writer, engine);
     }
 
     public void Deserialize(StreamReader Reader, Engine engine)
@@ -543,6 +549,8 @@ public partial class SkeletalMesh : ISerializable
             element.Deserialize(Reader, engine);
             _Elements.Add(element);
         }
+        Skeleton = ISerializable.AssetDeserialize<Skeleton>(Reader, engine);
+
 
     }
 

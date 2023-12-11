@@ -8,5 +8,4 @@ namespace Spark.Engine.Assets;
 
 public abstract class AnimBase : AssetBase
 {
-
 }

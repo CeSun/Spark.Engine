@@ -19,9 +19,16 @@ public class AssetMgr
             if (Asset is T t)
                 return t;
         }
+        return Reload<T>(path);
+    }
+
+
+    public T? Reload<T>(string path) where T : AssetBase, ISerializable, new()
+    {
         var stream = FileSystem.Instance.GetStream(path);
         var asset = new T();
         asset.Deserialize(new StreamReader(stream), engine);
+        Assets[path] = asset;
         return asset;
     }
 }

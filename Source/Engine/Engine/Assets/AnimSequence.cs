@@ -34,12 +34,15 @@ public class AnimSequence : AnimBase, ISerializable
         }
     }
 
-    public void Serialize(StreamWriter Writer)
+    public void Serialize(StreamWriter Writer, Engine engine)
     {
-        throw new NotImplementedException();
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
+        bw.Write(BitConverter.GetBytes(MagicCode.AnimSequence));
+
     }
 
-    public void Deserialize(StreamReader Reader)
+    public void Deserialize(StreamReader Reader, Engine engine)
     {
         throw new NotImplementedException();
     }

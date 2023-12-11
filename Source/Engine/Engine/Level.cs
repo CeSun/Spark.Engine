@@ -283,15 +283,7 @@ public partial class Level
     public void BeginPlay()
     {
         Engine.OnBeginPlay?.Invoke(this);
-
         ImGuiWarp.Init();
-
-        if (Engine.Game == null)
-            return;
-        var GameMode = Engine.Game.CreateGameMode(this);
-        LocalPlayerController = Engine.Game.CreatePlayerController(this);
-        GameMode.OnPlayerConnect(LocalPlayerController);
-
     }
 
     ImGuiWarp ImGuiWarp;
