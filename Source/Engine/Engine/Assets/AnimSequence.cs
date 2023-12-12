@@ -5,7 +5,12 @@ namespace Spark.Engine.Assets;
 
 public class AnimSequence : AnimBase, ISerializable
 {
-    public Skeleton Skeleton { get; set; }
+    public Skeleton? Skeleton { get; set; }
+    public AnimSequence()
+    {
+        ChannelsTransform = new();
+        Channels = new();
+    }
     public AnimSequence (string AnimName, float Duration, Skeleton Skeleton,Dictionary<int, BoneChannel> boneChannels)
     {
         this.AnimName = AnimName;
@@ -39,12 +44,40 @@ public class AnimSequence : AnimBase, ISerializable
         var bw = new BinaryWriter(Writer.BaseStream);
         bw.Write(BitConverter.GetBytes(MagicCode.Asset));
         bw.Write(BitConverter.GetBytes(MagicCode.AnimSequence));
+        ISerializable.StringSerialize(AnimName, Writer);
+        bw.Write(BitConverter.GetBytes(Duration));
+        ISerializable.AssetSerialize(Skeleton, Writer, engine);
+        bw.Write(BitConverter.GetBytes(Channels.Count));
+        foreach(var (id, channel) in Channels)
+        {
+            bw.Write(BitConverter.GetBytes(id));
+            channel.Serialize(Writer, engine);
+        }
+
 
     }
 
     public void Deserialize(StreamReader Reader, Engine engine)
     {
-        throw new NotImplementedException();
+        var br = new BinaryReader(Reader.BaseStream);
+        var AssetMagicCode = br.ReadInt32();
+        if (AssetMagicCode != MagicCode.Asset)
+            throw new Exception("");
+        var TextureMagicCode = br.ReadInt32();
+        if (TextureMagicCode != MagicCode.AnimSequence)
+            throw new Exception("");
+        AnimName = ISerializable.StringDeserialize(Reader);
+        Duration = br.ReadSingle();
+        Skeleton = ISerializable.AssetDeserialize<Skeleton>(Reader, engine);
+        var count = br.ReadInt32();
+        for (int i = 0; i < count; i++)
+        {
+            var id = br.ReadInt32();
+            var channel = new BoneChannel();
+            channel.Deserialize(Reader, engine);
+            Channels.Add(id, channel);
+        }
+        InitTransform();
     }
 
     public double Duration { private set; get; }
@@ -58,7 +91,7 @@ public class BoneTransform
     public int BoneId;
     public List<(float, Matrix4x4)> Transforms = new List<(float, Matrix4x4)> ();
 }
-public class BoneChannel
+public class BoneChannel : ISerializable
 {
     public int BoneId;
 
@@ -67,6 +100,64 @@ public class BoneChannel
     public List<(float, Quaternion)> Rotation = new List<(float, Quaternion)>();
 
     public List<(float, Vector3)> Scale = new List<(float, Vector3)>();
+
+    public void Deserialize(StreamReader Reader, Engine engine)
+    {
+        var br = new BinaryReader(Reader.BaseStream);
+        BoneId = br.ReadInt32();
+        var count = br.ReadInt32();
+        for(int i = 0; i < count; i++)
+        {
+            var time = br.ReadSingle();
+            var translation = br.ReadVector3();
+            Translation.Add((time, translation));
+        }
+
+        count = br.ReadInt32();
+        for (int i = 0; i < count; i++)
+        {
+            var time = br.ReadSingle();
+            var rotation = br.ReadQuaternion();
+            Rotation.Add((time, rotation));
+        }
+
+
+        count = br.ReadInt32();
+        for (int i = 0; i < count; i++)
+        {
+            var time = br.ReadSingle();
+            var scale = br.ReadVector3();
+            Scale.Add((time, scale));
+        }
+    }
+
+    public void Serialize(StreamWriter Writer, Engine engine)
+    {
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.Write(BitConverter.GetBytes(BoneId));
+        bw.Write(BitConverter.GetBytes(Translation.Count));
+        foreach(var (time, translation) in Translation)
+        {
+            bw.Write(BitConverter.GetBytes(time));
+            bw.Write(translation);
+        }
+
+
+        bw.Write(BitConverter.GetBytes(Rotation.Count));
+        foreach (var (time, rotation) in Rotation)
+        {
+            bw.Write(BitConverter.GetBytes(time));
+            bw.Write(rotation);
+        }
+
+
+        bw.Write(BitConverter.GetBytes(Scale.Count));
+        foreach (var (time, scale) in Scale)
+        {
+            bw.Write(BitConverter.GetBytes(time));
+            bw.Write(scale);
+        }
+    }
 }
 
 

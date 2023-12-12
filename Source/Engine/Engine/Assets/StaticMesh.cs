@@ -17,7 +17,6 @@ public class StaticMesh : AssetBase, ISerializable
     public List<Shape> Shapes = new List<Shape>();
     public Box Box { get; private set; }
     public List<Box> Boxes { get; private set; } = new List<Box>();
-    public string Path { get; private set; }
     public StaticMesh()
     {
         Path = string.Empty;
