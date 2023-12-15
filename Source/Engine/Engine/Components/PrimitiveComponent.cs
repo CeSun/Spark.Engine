@@ -11,6 +11,7 @@ using Jitter2.Dynamics;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
+using Spark.Engine.Attributes;
 using Spark.Engine.Physics;
 
 namespace Spark.Engine.Components;
@@ -272,6 +273,7 @@ public partial class PrimitiveComponent
         }
     }
 
+    [Property(IsDispaly = false)]
     public Matrix4x4 RelativeTransform
     {
         get => MatrixHelper.CreateTransform(RelativeLocation, RelativeRotation, RelativeScale);

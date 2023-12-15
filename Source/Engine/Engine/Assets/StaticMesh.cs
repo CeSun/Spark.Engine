@@ -446,12 +446,12 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
 
     public void Serialize(BinaryWriter bw, Engine engine)
     {
-        bw.Write(BitConverter.GetBytes(Vertices.Count));
+        bw.WriteInt32(Vertices.Count);
         foreach(var vertex in Vertices)
         {
             vertex.Serialize(bw, engine);
         }
-        bw.Write(BitConverter.GetBytes(Indices.Count));
+        bw.WriteInt32(Indices.Count);
         foreach (var index in Indices)
         {
             bw.Write(BitConverter.GetBytes(index));

@@ -6,6 +6,7 @@ using PhyWorld = Jitter2.World;
 using Spark.Engine.Physics;
 using Spark.Engine.GUI;
 using Spark.Engine.Attributes;
+using Spark.Engine.Assets;
 
 namespace Spark.Engine;
 
@@ -285,29 +286,49 @@ public partial class Level
     {
         Engine.OnBeginPlay?.Invoke(this);
         ImGuiWarp.Init();
-        var actor = new NewActor(this);
-        using (StreamWriter sw = new StreamWriter("actor.asset"))
+        var (mesh, skeletal, anims) = SkeletalMesh.ImportFromGLB("/StaticMesh/Soldier.glb");
+        mesh.Path = "Soldier.Asset";
+        skeletal.Path = "Soldier.Skelton,Asset";
+        anims[0].Path = "idle.Asset";
+
+        using (var sw = new StreamWriter(skeletal.Path)) 
         {
-            actor.Serialize(new BinaryWriter(sw.BaseStream), Engine);
+            var bw = new BinaryWriter(sw.BaseStream);
+            skeletal.Serialize(bw, Engine);
+        }
+
+        using (var sw = new StreamWriter(mesh.Path))
+        {
+            var bw = new BinaryWriter(sw.BaseStream);
+            mesh.Serialize(bw, Engine);
         }
 
 
-    }
-    public class NewActor : Actor
-    {
-        public NewActor(Level level, string Name = "") : base(level, Name)
+        using (var sw = new StreamWriter(anims[0].Path))
         {
+            var bw = new BinaryWriter(sw.BaseStream);
+            anims[0].Serialize(bw, Engine);
         }
 
-        [Property]
-        int test { get; set; }
+        var sma = new SkeletalMeshActor(this, "test");
+        sma.SkeletalMesh = mesh;
+        sma.AnimSequence = anims[0];
 
-        [Property]
-        float ftest { get; set; }
+        using (var sw = new StreamWriter("testactor.asset"))
+        {
+            var bw = new BinaryWriter(sw.BaseStream);
+            sma.Serialize(bw, Engine);
+        }
 
-        [Property]
-        string sTest{get; set;}
-    
+        using (var sr = new StreamReader("testactor.asset"))
+        {
+            var br = new BinaryReader(sr.BaseStream);
+            var type = Type.GetType(br.ReadString2());
+            var actor = (Actor)Activator.CreateInstance(type, new object[] { this, ""});
+            actor.Deserialize(br, Engine);
+        }
+
+
     }
 
     ImGuiWarp ImGuiWarp;

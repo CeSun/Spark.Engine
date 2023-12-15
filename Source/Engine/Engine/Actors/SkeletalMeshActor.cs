@@ -1,4 +1,5 @@
 ﻿using Spark.Engine.Assets;
+using Spark.Engine.Attributes;
 using Spark.Engine.Components;
 using System;
 using System.Collections.Generic;
@@ -16,8 +17,10 @@ public class SkeletalMeshActor : Actor
         SkeletalMeshComponent = new SkeletalMeshComponent(this);
     }
 
+    [Property(IgnoreSerialize = true)]
     public AnimSequence? AnimSequence { get => SkeletalMeshComponent.AnimSequence; set => SkeletalMeshComponent.AnimSequence = value; }
 
+    [Property(IgnoreSerialize = true)]
     public SkeletalMesh? SkeletalMesh { get => SkeletalMeshComponent.SkeletalMesh; set => SkeletalMeshComponent.SkeletalMesh = value; }
     
 }

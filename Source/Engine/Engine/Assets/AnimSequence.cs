@@ -64,7 +64,7 @@ public class AnimSequence : AnimBase
         if (TextureMagicCode != MagicCode.AnimSequence)
             throw new Exception("");
         AnimName = br.ReadString2();
-        Duration = br.ReadSingle();
+        Duration = br.ReadDouble();
         Skeleton = ISerializable.AssetDeserialize<Skeleton>(br, engine);
         var count = br.ReadInt32();
         for (int i = 0; i < count; i++)
@@ -130,8 +130,8 @@ public class BoneChannel : ISerializable
     public void Serialize(BinaryWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
-        bw.Write(BitConverter.GetBytes(BoneId));
-        bw.Write(BitConverter.GetBytes(Translation.Count));
+        bw.WriteInt32(BoneId);
+        bw.WriteInt32(Translation.Count);
         foreach(var (time, translation) in Translation)
         {
             bw.WriteSingle(time);
@@ -139,7 +139,7 @@ public class BoneChannel : ISerializable
         }
 
 
-        bw.Write(BitConverter.GetBytes(Rotation.Count));
+        bw.WriteInt32(Rotation.Count);
         foreach (var (time, rotation) in Rotation)
         {
             bw.WriteSingle(time);
@@ -147,7 +147,7 @@ public class BoneChannel : ISerializable
         }
 
 
-        bw.Write(BitConverter.GetBytes(Scale.Count));
+        bw.WriteInt32(Scale.Count);
         foreach (var (time, scale) in Scale)
         {
             bw.WriteSingle(time);

@@ -26,10 +26,10 @@ public class Skeleton : AssetBase
             }
         }
     }
-    public List<BoneNode> _BoneList;
+    public List<BoneNode> _BoneList = new List<BoneNode>();
     public BoneNode Root;
     public Matrix4x4 RootParentMatrix;
-    private Dictionary<string, BoneNode> _BonesMap;
+    private Dictionary<string, BoneNode> _BonesMap = new Dictionary<string, BoneNode>();
     public IReadOnlyDictionary<string, BoneNode> BonesMap => _BonesMap;
 
     public override void Serialize(BinaryWriter bw, Engine engine)
@@ -125,9 +125,9 @@ public class BoneNode: ISerializable
 
     public void Serialize(BinaryWriter bw, Engine engine)
     {
-        bw.Write(Name);
-        bw.Write(BitConverter.GetBytes(BoneId));
-        bw.Write(BitConverter.GetBytes(ParentId));
+        bw.WriteString2(Name);
+        bw.WriteInt32(BoneId);
+        bw.WriteInt32(ParentId);
 
         bw.Write(RelativeLocation);
         bw.Write(RelativeRotation);

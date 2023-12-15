@@ -228,25 +228,25 @@ public partial class Actor : ISerializable
     {
         bw.WriteString2(GetType().FullName);
         bw.WriteString2(Name);
-        var Properties = new List<(PropertyAttribute, PropertyInfo)>();
-        var type = this.GetType();
-        foreach (var Property in type.GetProperties())
+        ISerializable.ReflectionSerialize(this, bw, engine);
+        bw.WriteInt32(PrimitiveComponents.Count);
+        foreach(var component in  PrimitiveComponents)
         {
-            var att = Property.GetAttribute<PropertyAttribute>();
-            if (att != null)
-            {
-                Properties.Add((att, Property));
-            }
-        }
-        bw.Write(BitConverter.GetBytes(Properties.Count));
-        foreach(var (att, prop) in Properties)
-        {
-            ISerializable.ReflectionSerialize(prop, this, bw, engine);
+            ISerializable.ReflectionSerialize(component, bw, engine);
         }
     }
 
-    public void Deserialize(BinaryReader Reader, Engine engine)
+    public void Deserialize(BinaryReader br, Engine engine)
     {
-       
+        Name = br.ReadString2();
+        ISerializable.ReflectionDeserialize(this, br, engine);
+        var cmpNums = br.ReadInt32();
+        if (cmpNums != PrimitiveComponents.Count)
+            throw new Exception("");
+        foreach(var component in PrimitiveComponents)
+        {
+            ISerializable.ReflectionDeserialize(component, br, engine);
+        }
+
     }
 }
