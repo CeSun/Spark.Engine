@@ -1,9 +1,12 @@
 ﻿using Silk.NET.OpenGLES;
+using Spark.Engine.Assets;
+using Spark.Engine.Attributes;
 using Spark.Engine.Components;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
@@ -144,7 +147,7 @@ public partial class Actor
 /// <summary>
 /// Component
 /// </summary>
-public partial class Actor
+public partial class Actor : ISerializable
 {
     List<PrimitiveComponent> _PrimitiveComponents = new List<PrimitiveComponent>();
     public IReadOnlyList<PrimitiveComponent> PrimitiveComponents { get { return _PrimitiveComponents; } }
@@ -219,5 +222,32 @@ public partial class Actor
             }
         }
         return list;
+    }
+
+    public void Serialize(StreamWriter Writer, Engine engine)
+    {
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.WriteString2(GetType().FullName);
+        bw.WriteString2(Name);
+        var Properties = new List<(PropertyAttribute, PropertyInfo)>();
+        var type = this.GetType();
+        foreach (var Property in type.GetProperties())
+        {
+            var att = Property.GetAttribute<PropertyAttribute>();
+            if (att != null)
+            {
+                Properties.Add((att, Property));
+            }
+        }
+        bw.Write(BitConverter.GetBytes(Properties.Count));
+        foreach(var (att, prop) in Properties)
+        {
+            ISerializable.ReflectionSerialize(prop, this, Writer, engine);
+        }
+    }
+
+    public void Deserialize(StreamReader Reader, Engine engine)
+    {
+       
     }
 }

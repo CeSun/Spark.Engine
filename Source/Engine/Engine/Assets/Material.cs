@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class Material : AssetBase, ISerializable
+public class Material : AssetBase
 {
     public Texture[] Textures = new Texture[4];
     public string[] TextureNames = new string[4]{
@@ -29,18 +29,18 @@ public class Material : AssetBase, ISerializable
 
     }
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
-        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
-        bw.Write(BitConverter.GetBytes(MagicCode.Material));
+        bw.WriteInt32(MagicCode.Asset);
+        bw.WriteInt32(MagicCode.Material);
         ISerializable.AssetSerialize(BaseColor, Writer, engine);
         ISerializable.AssetSerialize(Normal, Writer, engine);
         ISerializable.AssetSerialize(Arm, Writer, engine);
         ISerializable.AssetSerialize(Parallax, Writer, engine);
     }
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();

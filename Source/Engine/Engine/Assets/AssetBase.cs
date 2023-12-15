@@ -6,7 +6,11 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class AssetBase
+public abstract class AssetBase: ISerializable
 {
     public string Path = string.Empty;
+
+    abstract public void Deserialize(StreamReader Reader, Engine engine);
+
+    abstract public void Serialize(StreamWriter Writer, Engine engine);
 }

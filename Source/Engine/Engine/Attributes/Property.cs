@@ -10,6 +10,7 @@ namespace Spark.Engine.Attributes;
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
 public class PropertyAttribute : Attribute
 {
+    public bool IgnoreSerialize = false;
     public bool IsDispaly = false;
 
     public string? DisplayName;

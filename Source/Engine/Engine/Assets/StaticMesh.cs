@@ -11,7 +11,7 @@ using Jitter2.Dynamics;
 
 namespace Spark.Engine.Assets;
 
-public class StaticMesh : AssetBase, ISerializable
+public class StaticMesh : AssetBase
 {
     public List<Element<StaticMeshVertex>> Elements = new List<Element<StaticMeshVertex>>();
     public List<Shape> Shapes = new List<Shape>();
@@ -381,19 +381,19 @@ public class StaticMesh : AssetBase, ISerializable
         }
     }
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
-        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
-        bw.Write(BitConverter.GetBytes(MagicCode.StaticMesh));
-        bw.Write(BitConverter.GetBytes(Elements.Count));
+        bw.WriteInt32(MagicCode.Asset);
+        bw.WriteInt32(MagicCode.StaticMesh);
+        bw.WriteInt32(Elements.Count);
         foreach(var element in Elements)
         {
             element.Serialize(Writer, engine);
         }
     }
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();

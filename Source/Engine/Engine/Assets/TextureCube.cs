@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 namespace Spark.Engine.Assets;
 
 
-public class SubTexture : AssetBase, ISerializable
+public class SubTexture : AssetBase
 {
     public uint Width { get;  set; }
     public uint Height { get;  set; }
@@ -17,18 +17,18 @@ public class SubTexture : AssetBase, ISerializable
 
     public GLEnum Target;
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
-        bw.Write(BitConverter.GetBytes(Width));
-        bw.Write(BitConverter.GetBytes(Height));
-        bw.Write(BitConverter.GetBytes((int)Channel));
-        bw.Write(BitConverter.GetBytes((int)Target));
-        bw.Write(BitConverter.GetBytes(Pixels.Count));
+        bw.WriteUInt32(Width);
+        bw.WriteUInt32(Height);
+        bw.WriteInt32((int)Channel);
+        bw.WriteInt32((int)Target);
+        bw.WriteInt32(Pixels.Count);
         bw.Write(Pixels.ToArray());
     }
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         Width = br.ReadUInt32();
@@ -163,9 +163,9 @@ public class TextureCube : ISerializable
     public void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
-        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
-        bw.Write(BitConverter.GetBytes(MagicCode.TextureCube));
-        bw.Write(BitConverter.GetBytes(Textures.Count));
+        bw.WriteInt32(MagicCode.Asset);
+        bw.WriteInt32(MagicCode.TextureCube);
+        bw.WriteInt32(Textures.Count);
         foreach(var texture in Textures)
         {
             texture.Serialize(Writer, engine);
@@ -175,10 +175,10 @@ public class TextureCube : ISerializable
     public void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
-        var AssetMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        var AssetMagicCode = br.ReadInt32();
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
-        var TextureMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        var TextureMagicCode = br.ReadInt32();
         if (TextureMagicCode != MagicCode.TextureCube)
             throw new Exception("");
         var count = br.ReadInt32();

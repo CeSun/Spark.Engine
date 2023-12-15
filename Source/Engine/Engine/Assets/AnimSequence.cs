@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace Spark.Engine.Assets;
 
-public class AnimSequence : AnimBase, ISerializable
+public class AnimSequence : AnimBase
 {
     public Skeleton? Skeleton { get; set; }
     public AnimSequence()
@@ -39,25 +39,24 @@ public class AnimSequence : AnimBase, ISerializable
         }
     }
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
-        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
-        bw.Write(BitConverter.GetBytes(MagicCode.AnimSequence));
-        ISerializable.StringSerialize(AnimName, Writer);
-        bw.Write(BitConverter.GetBytes(Duration));
+        bw.WriteInt32(MagicCode.Asset);
+        bw.WriteInt32(MagicCode.AnimSequence);
+        bw.WriteString2(AnimName);
+        bw.WriteDouble(Duration);
         ISerializable.AssetSerialize(Skeleton, Writer, engine);
-        bw.Write(BitConverter.GetBytes(Channels.Count));
-        foreach(var (id, channel) in Channels)
+        bw.WriteInt32(Channels.Count);
+        foreach (var (id, channel) in Channels)
         {
-            bw.Write(BitConverter.GetBytes(id));
+            bw.WriteInt32(id);
             channel.Serialize(Writer, engine);
         }
 
-
     }
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
@@ -66,7 +65,7 @@ public class AnimSequence : AnimBase, ISerializable
         var TextureMagicCode = br.ReadInt32();
         if (TextureMagicCode != MagicCode.AnimSequence)
             throw new Exception("");
-        AnimName = ISerializable.StringDeserialize(Reader);
+        AnimName = br.ReadString2();
         Duration = br.ReadSingle();
         Skeleton = ISerializable.AssetDeserialize<Skeleton>(Reader, engine);
         var count = br.ReadInt32();

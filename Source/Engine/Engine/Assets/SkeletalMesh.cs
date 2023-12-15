@@ -95,7 +95,7 @@ public partial class SkeletalMesh : AssetBase
     
 }
 
-public partial class SkeletalMesh : ISerializable
+public partial class SkeletalMesh
 {
     public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(string Path)
     {
@@ -515,12 +515,12 @@ public partial class SkeletalMesh : ISerializable
     }
 
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
-        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
-        bw.Write(BitConverter.GetBytes(MagicCode.SkeletalMesh));
-        bw.Write(BitConverter.GetBytes(Elements.Count));
+        bw.WriteInt32(MagicCode.Asset);
+        bw.WriteInt32(MagicCode.SkeletalMesh);
+        bw.WriteInt32(Elements.Count);
         foreach (var element in Elements)
         {
             element.Serialize(Writer, engine);
@@ -528,7 +528,7 @@ public partial class SkeletalMesh : ISerializable
         ISerializable.AssetSerialize(Skeleton, Writer, engine);
     }
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();

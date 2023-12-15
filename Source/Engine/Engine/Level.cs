@@ -5,6 +5,7 @@ using Spark.Engine.Manager;
 using PhyWorld = Jitter2.World;
 using Spark.Engine.Physics;
 using Spark.Engine.GUI;
+using Spark.Engine.Attributes;
 
 namespace Spark.Engine;
 
@@ -284,6 +285,29 @@ public partial class Level
     {
         Engine.OnBeginPlay?.Invoke(this);
         ImGuiWarp.Init();
+        var actor = new NewActor(this);
+        using (StreamWriter sw = new StreamWriter("actor.asset"))
+        {
+            actor.Serialize(sw, Engine);
+        }
+
+
+    }
+    public class NewActor : Actor
+    {
+        public NewActor(Level level, string Name = "") : base(level, Name)
+        {
+        }
+
+        [Property]
+        int test { get; set; }
+
+        [Property]
+        float ftest { get; set; }
+
+        [Property]
+        string sTest{get; set;}
+    
     }
 
     ImGuiWarp ImGuiWarp;

@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGLES;
+﻿using Jitter2.Dynamics;
+using Silk.NET.OpenGLES;
 using Spark.Engine.Platform;
 using StbImageSharp;
 using System;
@@ -11,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class TextureHDR : AssetBase, ISerializable
+public class TextureHDR : AssetBase
 {
 
     public uint TextureId { get; protected set; }
@@ -117,15 +118,16 @@ public class TextureHDR : AssetBase, ISerializable
     }
 
 
-    public void Serialize(StreamWriter StreamWriter, Engine engine)
+    public override void Serialize(StreamWriter Writer, Engine engine)
     {
-        var bw = new BinaryWriter(StreamWriter.BaseStream);
-        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
-        bw.Write(BitConverter.GetBytes(MagicCode.Texture));
-        bw.Write(BitConverter.GetBytes(Width));
-        bw.Write(BitConverter.GetBytes(Height));
-        bw.Write(BitConverter.GetBytes((int)Channel));
-        bw.Write(BitConverter.GetBytes((int)Filter));
+        var bw = new BinaryWriter(Writer.BaseStream);
+        bw.WriteInt32(MagicCode.Asset);
+        bw.WriteInt32(MagicCode.TextureHDR);
+        bw.WriteUInt32(Width);
+        bw.WriteUInt32(Height);
+        bw.WriteInt32((int)Channel);
+        bw.WriteInt32((int)Filter);
+        bw.WriteInt32(Pixels.Count);
         bw.Write(Pixels.Count);
         foreach(var num in Pixels)
         {
@@ -133,20 +135,20 @@ public class TextureHDR : AssetBase, ISerializable
         }
     }
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
-        var AssetMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        var AssetMagicCode = br.ReadInt32();
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
-        var TextureMagicCode = BitConverter.ToInt32(br.ReadBytes(4));
+        var TextureMagicCode = br.ReadInt32();
         if (TextureMagicCode != MagicCode.Texture)
             throw new Exception("");
-        Width = BitConverter.ToUInt32(br.ReadBytes(4));
-        Height = BitConverter.ToUInt32(br.ReadBytes(4));
-        Channel = (TexChannel)BitConverter.ToInt32(br.ReadBytes(4));
-        Filter = (TexFilter)BitConverter.ToInt32(br.ReadBytes(4));
-        var pixelsLen = BitConverter.ToInt32(br.ReadBytes(4));
+        Width = br.ReadUInt32();
+        Height = br.ReadUInt32();
+        Channel = (TexChannel)br.ReadInt32();
+        Filter = (TexFilter)br.ReadInt32();
+        var pixelsLen = br.ReadInt32();
         for(var i = 0; i < pixelsLen; i++)
         {
             Pixels.Add(br.ReadSingle());

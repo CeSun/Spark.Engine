@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class Skeleton : AssetBase, ISerializable
+public class Skeleton : AssetBase
 {
     public Skeleton()
     {
@@ -32,12 +32,12 @@ public class Skeleton : AssetBase, ISerializable
     private Dictionary<string, BoneNode> _BonesMap;
     public IReadOnlyDictionary<string, BoneNode> BonesMap => _BonesMap;
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
-        bw.Write(BitConverter.GetBytes(MagicCode.Asset));
-        bw.Write(BitConverter.GetBytes(MagicCode.Skeleton));
-        bw.Write(BitConverter.GetBytes(_BoneList.Count));
+        bw.WriteInt32(MagicCode.Asset);
+        bw.WriteInt32(MagicCode.Skeleton);
+        bw.WriteInt32(_BoneList.Count);
         foreach(var bone in _BoneList)
         {
             bone.Serialize(Writer, engine);
@@ -45,7 +45,7 @@ public class Skeleton : AssetBase, ISerializable
 
     }
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
@@ -113,7 +113,7 @@ public class BoneNode: ISerializable
     public void Deserialize(StreamReader Reader, Engine engine)
     {
         var br = new BinaryReader(Reader.BaseStream);
-        Name = ISerializable.StringDeserialize(Reader);
+        Name = br.ReadString2();
         BoneId = br.ReadInt32();
         ParentId = br.ReadInt32();
 
@@ -129,7 +129,7 @@ public class BoneNode: ISerializable
     public void Serialize(StreamWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
-        ISerializable.StringSerialize(Name, Writer);
+        bw.Write(Name);
         bw.Write(BitConverter.GetBytes(BoneId));
         bw.Write(BitConverter.GetBytes(ParentId));
 
