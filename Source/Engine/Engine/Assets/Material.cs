@@ -29,29 +29,27 @@ public class Material : AssetBase
 
     }
 
-    public override void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.WriteInt32(MagicCode.Asset);
         bw.WriteInt32(MagicCode.Material);
-        ISerializable.AssetSerialize(BaseColor, Writer, engine);
-        ISerializable.AssetSerialize(Normal, Writer, engine);
-        ISerializable.AssetSerialize(Arm, Writer, engine);
-        ISerializable.AssetSerialize(Parallax, Writer, engine);
+        ISerializable.AssetSerialize(BaseColor, bw, engine);
+        ISerializable.AssetSerialize(Normal, bw, engine);
+        ISerializable.AssetSerialize(Arm, bw, engine);
+        ISerializable.AssetSerialize(Parallax, bw, engine);
     }
 
-    public override void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var TextureMagicCode = br.ReadInt32();
         if (TextureMagicCode != MagicCode.Material)
             throw new Exception("");
-        BaseColor = ISerializable.AssetDeserialize<Texture>(Reader, engine);
-        Normal = ISerializable.AssetDeserialize<Texture>(Reader, engine);
-        Arm = ISerializable.AssetDeserialize<Texture>(Reader, engine);
-        Parallax = ISerializable.AssetDeserialize<Texture>(Reader, engine);
+        BaseColor = ISerializable.AssetDeserialize<Texture>(br, engine);
+        Normal = ISerializable.AssetDeserialize<Texture>(br, engine);
+        Arm = ISerializable.AssetDeserialize<Texture>(br, engine);
+        Parallax = ISerializable.AssetDeserialize<Texture>(br, engine);
     }
 }

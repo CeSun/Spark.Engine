@@ -118,9 +118,8 @@ public class TextureHDR : AssetBase
     }
 
 
-    public override void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.WriteInt32(MagicCode.Asset);
         bw.WriteInt32(MagicCode.TextureHDR);
         bw.WriteUInt32(Width);
@@ -131,13 +130,12 @@ public class TextureHDR : AssetBase
         bw.Write(Pixels.Count);
         foreach(var num in Pixels)
         {
-            bw.Write(BitConverter.GetBytes(num));
+            bw.WriteSingle(num);
         }
     }
 
-    public override void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");

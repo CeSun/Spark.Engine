@@ -36,7 +36,7 @@ public class AssetMgr
     {
         var stream = FileSystem.Instance.GetStream(path);
         var asset = (AssetBase)Activator.CreateInstance(assetType);
-        asset.Deserialize(new StreamReader(stream), engine);
+        asset.Deserialize(new BinaryReader(stream), engine);
         Assets[path] = asset;
         return asset;
     }
@@ -44,7 +44,7 @@ public class AssetMgr
     {
         var stream = FileSystem.Instance.GetStream(path);
         var asset = new T();
-        asset.Deserialize(new StreamReader(stream), engine);
+        asset.Deserialize(new BinaryReader(stream), engine);
         Assets[path] = asset;
         return asset;
     }

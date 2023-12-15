@@ -17,9 +17,8 @@ public class SubTexture : AssetBase
 
     public GLEnum Target;
 
-    public override void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.WriteUInt32(Width);
         bw.WriteUInt32(Height);
         bw.WriteInt32((int)Channel);
@@ -28,9 +27,8 @@ public class SubTexture : AssetBase
         bw.Write(Pixels.ToArray());
     }
 
-    public override void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         Width = br.ReadUInt32();
         Height = br.ReadUInt32();
         Channel = (TexChannel)br.ReadInt32();
@@ -160,21 +158,19 @@ public class TextureCube : ISerializable
         Textures = null;
     }
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.WriteInt32(MagicCode.Asset);
         bw.WriteInt32(MagicCode.TextureCube);
         bw.WriteInt32(Textures.Count);
         foreach(var texture in Textures)
         {
-            texture.Serialize(Writer, engine);
+            texture.Serialize(bw, engine);
         }
     }
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
@@ -185,7 +181,7 @@ public class TextureCube : ISerializable
         for(int i = 0; i < count; i++)
         {
             var texture = new SubTexture();
-            texture.Deserialize(Reader, engine);
+            texture.Deserialize(br, engine);
             Textures.Add(texture);
         }
     }

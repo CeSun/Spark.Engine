@@ -39,26 +39,24 @@ public class AnimSequence : AnimBase
         }
     }
 
-    public override void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.WriteInt32(MagicCode.Asset);
         bw.WriteInt32(MagicCode.AnimSequence);
         bw.WriteString2(AnimName);
         bw.WriteDouble(Duration);
-        ISerializable.AssetSerialize(Skeleton, Writer, engine);
+        ISerializable.AssetSerialize(Skeleton, bw, engine);
         bw.WriteInt32(Channels.Count);
         foreach (var (id, channel) in Channels)
         {
             bw.WriteInt32(id);
-            channel.Serialize(Writer, engine);
+            channel.Serialize(bw, engine);
         }
 
     }
 
-    public override void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
@@ -67,13 +65,13 @@ public class AnimSequence : AnimBase
             throw new Exception("");
         AnimName = br.ReadString2();
         Duration = br.ReadSingle();
-        Skeleton = ISerializable.AssetDeserialize<Skeleton>(Reader, engine);
+        Skeleton = ISerializable.AssetDeserialize<Skeleton>(br, engine);
         var count = br.ReadInt32();
         for (int i = 0; i < count; i++)
         {
             var id = br.ReadInt32();
             var channel = new BoneChannel();
-            channel.Deserialize(Reader, engine);
+            channel.Deserialize(br, engine);
             Channels.Add(id, channel);
         }
         InitTransform();
@@ -100,9 +98,8 @@ public class BoneChannel : ISerializable
 
     public List<(float, Vector3)> Scale = new List<(float, Vector3)>();
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         BoneId = br.ReadInt32();
         var count = br.ReadInt32();
         for(int i = 0; i < count; i++)
@@ -130,14 +127,14 @@ public class BoneChannel : ISerializable
         }
     }
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public void Serialize(BinaryWriter Writer, Engine engine)
     {
         var bw = new BinaryWriter(Writer.BaseStream);
         bw.Write(BitConverter.GetBytes(BoneId));
         bw.Write(BitConverter.GetBytes(Translation.Count));
         foreach(var (time, translation) in Translation)
         {
-            bw.Write(BitConverter.GetBytes(time));
+            bw.WriteSingle(time);
             bw.Write(translation);
         }
 
@@ -145,7 +142,7 @@ public class BoneChannel : ISerializable
         bw.Write(BitConverter.GetBytes(Rotation.Count));
         foreach (var (time, rotation) in Rotation)
         {
-            bw.Write(BitConverter.GetBytes(time));
+            bw.WriteSingle(time);
             bw.Write(rotation);
         }
 
@@ -153,7 +150,7 @@ public class BoneChannel : ISerializable
         bw.Write(BitConverter.GetBytes(Scale.Count));
         foreach (var (time, scale) in Scale)
         {
-            bw.Write(BitConverter.GetBytes(time));
+            bw.WriteSingle(time);
             bw.Write(scale);
         }
     }

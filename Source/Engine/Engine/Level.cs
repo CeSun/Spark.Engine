@@ -288,7 +288,7 @@ public partial class Level
         var actor = new NewActor(this);
         using (StreamWriter sw = new StreamWriter("actor.asset"))
         {
-            actor.Serialize(sw, Engine);
+            actor.Serialize(new BinaryWriter(sw.BaseStream), Engine);
         }
 
 

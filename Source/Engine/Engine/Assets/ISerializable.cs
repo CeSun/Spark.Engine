@@ -16,12 +16,12 @@ namespace Spark.Engine.Assets;
 
 public interface ISerializable
 {
-    public void Serialize(StreamWriter Writer, Engine engine);
+    public void Serialize(BinaryWriter Writer, Engine engine);
 
-    public void Deserialize(StreamReader Reader, Engine engine);
+    public void Deserialize(BinaryReader Reader, Engine engine);
 
 
-    public static void AssetSerialize<T>(T? asset, StreamWriter Writer, Engine engine) where T : AssetBase
+    public static void AssetSerialize<T>(T? asset, BinaryWriter Writer, Engine engine) where T : AssetBase
     {
         var bw = new BinaryWriter(Writer.BaseStream);
         if (asset == null || string.IsNullOrEmpty(asset.Path))
@@ -35,9 +35,8 @@ public interface ISerializable
             bw.Write(str);
         }
     }
-    public static T? AssetDeserialize<T>(StreamReader Reader, Engine engine) where T : AssetBase, new()
+    public static T? AssetDeserialize<T>(BinaryReader br, Engine engine) where T : AssetBase, new()
     {
-        var br = new BinaryReader(Reader.BaseStream);
         var len = br.ReadInt32();
         if (len == 0)
             return null;
@@ -49,8 +48,10 @@ public interface ISerializable
 
     public static void ReflectionSerialize(object obj, StreamWriter Writer, Engine engine)
     {
+        var bw = new BinaryWriter(Writer.BaseStream);
         var type = obj.GetType();
 
+        var properties = new List<PropertyInfo>();
         foreach(var property in type.GetProperties())
         {
             if (property.CanWrite && property.CanRead == false)
@@ -60,12 +61,15 @@ public interface ISerializable
                 continue;
             if (att.IgnoreSerialize) 
                 continue;
-            ReflectionSerialize(property, obj, Writer, engine);
+            properties.Add(property);
+        }
+        foreach(var property in properties)
+        {
+            ReflectionSerialize(property, obj, bw, engine);
         }
     }
-    public static void ReflectionSerialize(PropertyInfo property, object obj , StreamWriter Writer, Engine engine)
+    public static void ReflectionSerialize(PropertyInfo property, object obj , BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         var value = property.GetValue(obj);
         if (value is int v1)
         {
@@ -97,7 +101,7 @@ public interface ISerializable
         }
         else if (value is AssetBase v8)
         {
-            AssetSerialize(v8, Writer, engine);
+            AssetSerialize(v8, bw, engine);
         }
     }
 
@@ -194,6 +198,19 @@ public static class StreamHelper
         bw.WriteSingle(v.Y);
         bw.WriteSingle(v.Z);
     }
+
+    public static void Write(this BinaryWriter bw, Vector2 v)
+    {
+        bw.WriteSingle(v.X);
+        bw.WriteSingle(v.Y);
+    }
+    public static void Write(this BinaryWriter bw, Vector4 v)
+    {
+        bw.WriteSingle(v.X);
+        bw.WriteSingle(v.Y);
+        bw.WriteSingle(v.Z);
+        bw.WriteSingle(v.W);
+    }
     public static void Write(this BinaryWriter bw, Quaternion q)
     {
         bw.WriteSingle(q.X);
@@ -233,6 +250,24 @@ public static class StreamHelper
         v.Z = br.ReadSingle();
         return v;
     }
+
+    public static Vector2 ReadVector2(this BinaryReader br)
+    {
+        var v = new Vector2();
+        v.X = br.ReadSingle();
+        v.Y = br.ReadSingle();
+        return v;
+    }
+    public static Vector4 ReadVector4(this BinaryReader br)
+    {
+        var v = new Vector4();
+        v.X = br.ReadSingle();
+        v.Y = br.ReadSingle();
+        v.Z = br.ReadSingle();
+        v.W = br.ReadSingle();
+        return v;
+    }
+
     public static Quaternion ReadQuaternion(this BinaryReader br)
     {
         var q = new Quaternion();

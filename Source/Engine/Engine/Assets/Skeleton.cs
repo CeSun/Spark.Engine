@@ -32,22 +32,20 @@ public class Skeleton : AssetBase
     private Dictionary<string, BoneNode> _BonesMap;
     public IReadOnlyDictionary<string, BoneNode> BonesMap => _BonesMap;
 
-    public override void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.WriteInt32(MagicCode.Asset);
         bw.WriteInt32(MagicCode.Skeleton);
         bw.WriteInt32(_BoneList.Count);
         foreach(var bone in _BoneList)
         {
-            bone.Serialize(Writer, engine);
+            bone.Serialize(bw, engine);
         }
 
     }
 
-    public override void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
@@ -59,7 +57,7 @@ public class Skeleton : AssetBase
         for(var i = 0; i < count; i++)
         {
             var bone = new BoneNode();
-            bone.Deserialize(Reader, engine);
+            bone.Deserialize(br, engine);
             BoneList.Add(bone);
         }
         foreach(var bone in BoneList)
@@ -110,9 +108,8 @@ public class BoneNode: ISerializable
     public Matrix4x4 LocalToWorldTransform;
     public Matrix4x4 WorldToLocalTransform;
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         Name = br.ReadString2();
         BoneId = br.ReadInt32();
         ParentId = br.ReadInt32();
@@ -126,9 +123,8 @@ public class BoneNode: ISerializable
 
     }
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.Write(Name);
         bw.Write(BitConverter.GetBytes(BoneId));
         bw.Write(BitConverter.GetBytes(ParentId));

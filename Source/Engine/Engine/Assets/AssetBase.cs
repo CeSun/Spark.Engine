@@ -10,7 +10,7 @@ public abstract class AssetBase: ISerializable
 {
     public string Path = string.Empty;
 
-    abstract public void Deserialize(StreamReader Reader, Engine engine);
+    abstract public void Deserialize(BinaryReader Reader, Engine engine);
 
-    abstract public void Serialize(StreamWriter Writer, Engine engine);
+    abstract public void Serialize(BinaryWriter Writer, Engine engine);
 }

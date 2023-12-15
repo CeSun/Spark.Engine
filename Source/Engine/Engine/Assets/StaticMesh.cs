@@ -381,21 +381,19 @@ public class StaticMesh : AssetBase
         }
     }
 
-    public override void Serialize(StreamWriter Writer, Engine engine)
+    public override void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.WriteInt32(MagicCode.Asset);
         bw.WriteInt32(MagicCode.StaticMesh);
         bw.WriteInt32(Elements.Count);
         foreach(var element in Elements)
         {
-            element.Serialize(Writer, engine);
+            element.Serialize(bw, engine);
         }
     }
 
-    public override void Deserialize(StreamReader Reader, Engine engine)
+    public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         var AssetMagicCode = br.ReadInt32();
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
@@ -410,7 +408,7 @@ public class StaticMesh : AssetBase
                 Indices = new List<uint>(),
                 Material = new Material()
             };
-            element.Deserialize(Reader, engine);
+            element.Deserialize(br, engine);
             Elements.Add(element);
         }
 
@@ -427,14 +425,13 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
     public uint ElementBufferObjectIndex;
     public uint IndicesLen;
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
         var count = br.ReadInt32();
         for(int i = 0; i < count; i ++ )
         {
             var vertex = new T();
-            vertex.Deserialize(Reader, engine);
+            vertex.Deserialize(br, engine);
             Vertices.Add(vertex);
         }
 
@@ -444,23 +441,22 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
         {
             Indices.Add(br.ReadUInt32());
         }
-        Material = ISerializable.AssetDeserialize<Material>(Reader, engine);
+        Material = ISerializable.AssetDeserialize<Material>(br, engine);
     }
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.Write(BitConverter.GetBytes(Vertices.Count));
         foreach(var vertex in Vertices)
         {
-            vertex.Serialize(Writer, engine);
+            vertex.Serialize(bw, engine);
         }
         bw.Write(BitConverter.GetBytes(Indices.Count));
         foreach (var index in Indices)
         {
             bw.Write(BitConverter.GetBytes(index));
         }
-        ISerializable.AssetSerialize(Material, Writer, engine);
+        ISerializable.AssetSerialize(Material, bw, engine);
     }
 }
 
@@ -478,64 +474,23 @@ public struct StaticMeshVertex: ISerializable
 
     public Vector2 TexCoord;
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public void Deserialize(BinaryReader br, Engine engine)
     {
-        var br = new BinaryReader(Reader.BaseStream);
-
-        Location.X = br.ReadSingle();
-        Location.Y = br.ReadSingle();
-        Location.Z = br.ReadSingle();
-
-
-        Normal.X = br.ReadSingle();
-        Normal.Y = br.ReadSingle();
-        Normal.Z = br.ReadSingle();
-
-        Tangent.X = br.ReadSingle();
-        Tangent.Y = br.ReadSingle();
-        Tangent.Z = br.ReadSingle();
-
-        BitTangent.X = br.ReadSingle();
-        BitTangent.Y = br.ReadSingle();
-        BitTangent.Z = br.ReadSingle();
-
-        Color.X = br.ReadSingle();
-        Color.Y = br.ReadSingle();
-        Color.Z = br.ReadSingle();
-
-        TexCoord.X = br.ReadSingle();
-        TexCoord.Y = br.ReadSingle();
+        Location = br.ReadVector3();
+        Normal = br.ReadVector3();
+        Tangent = br.ReadVector3();
+        BitTangent = br.ReadVector3();
+        Color = br.ReadVector3();
+        TexCoord = br.ReadVector2();
     }
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
-        bw.Write(BitConverter.GetBytes(Location.X));
-        bw.Write(BitConverter.GetBytes(Location.Y));
-        bw.Write(BitConverter.GetBytes(Location.Z));
-
-
-        bw.Write(BitConverter.GetBytes(Normal.X));
-        bw.Write(BitConverter.GetBytes(Normal.Y));
-        bw.Write(BitConverter.GetBytes(Normal.Z));
-
-
-
-        bw.Write(BitConverter.GetBytes(Tangent.X));
-        bw.Write(BitConverter.GetBytes(Tangent.Y));
-        bw.Write(BitConverter.GetBytes(Tangent.Z));
-
-        bw.Write(BitConverter.GetBytes(BitTangent.X));
-        bw.Write(BitConverter.GetBytes(BitTangent.Y));
-        bw.Write(BitConverter.GetBytes(BitTangent.Z));
-
-        bw.Write(BitConverter.GetBytes(Color.X));
-        bw.Write(BitConverter.GetBytes(Color.Y));
-        bw.Write(BitConverter.GetBytes(Color.Z));
-
-
-        bw.Write(BitConverter.GetBytes(TexCoord.X));
-        bw.Write(BitConverter.GetBytes(TexCoord.Y));
-
+        bw.Write(Location);
+        bw.Write(Normal);
+        bw.Write(Tangent);
+        bw.Write(BitTangent);
+        bw.Write(Color);
+        bw.Write(TexCoord);
     }
 }

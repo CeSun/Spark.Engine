@@ -224,9 +224,8 @@ public partial class Actor : ISerializable
         return list;
     }
 
-    public void Serialize(StreamWriter Writer, Engine engine)
+    public void Serialize(BinaryWriter bw, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
         bw.WriteString2(GetType().FullName);
         bw.WriteString2(Name);
         var Properties = new List<(PropertyAttribute, PropertyInfo)>();
@@ -242,11 +241,11 @@ public partial class Actor : ISerializable
         bw.Write(BitConverter.GetBytes(Properties.Count));
         foreach(var (att, prop) in Properties)
         {
-            ISerializable.ReflectionSerialize(prop, this, Writer, engine);
+            ISerializable.ReflectionSerialize(prop, this, bw, engine);
         }
     }
 
-    public void Deserialize(StreamReader Reader, Engine engine)
+    public void Deserialize(BinaryReader Reader, Engine engine)
     {
        
     }
