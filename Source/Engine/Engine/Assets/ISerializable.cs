@@ -335,7 +335,33 @@ public static class StreamHelper
         bw.WriteSingle(m.M44);
     }
 
+    public static void Write(this BinaryWriter bw, Type? type)
+    {
+        if (type == null || type.FullName == null)
+        {
+            bw.Write(false);
+        }
+        else
+        {
+            bw.Write(true);
+            bw.WriteString2(type.FullName);
+        }
+    }
 
+    public static Type? ReadType(this BinaryReader br)
+    {
+        var isNotNull = br.ReadBoolean();
+        if (isNotNull == false)
+            return null;
+        var fullClassName = br.ReadString2();
+        foreach(var assembly in AssemblyLoadContext.Default.Assemblies)
+        {
+            var type = assembly.GetType(fullClassName);
+            if (type != null)
+                return type;
+        }
+        return null;
+    }
     public static Vector3 ReadVector3(this BinaryReader br)
     {
         var v = new Vector3();
@@ -412,5 +438,6 @@ public static class MagicCode
     public static int Skeleton = 6;
     public static int AnimSequence = 7;
     public static int Actor = 8;
+    public static int Level = 9;
 
 }

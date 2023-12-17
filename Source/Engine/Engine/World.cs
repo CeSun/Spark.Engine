@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Spark.Engine;
 using Spark.Engine.Components;
+using Spark.Engine.Platform;
 using Spark.Engine.Render.Renderer;
 
 namespace Spark.Engine;
@@ -71,8 +72,12 @@ public class World
         {
             CurrentLevel.Destory();
         }
-        CurrentLevel = new Level(this);
-        CurrentLevel.BeginPlay();
+        using (var stream = FileSystem.Instance.GetStream(path))
+        {
+            CurrentLevel = new Level(this);
+            CurrentLevel.Deserialize(new BinaryReader(stream), Engine);
+            CurrentLevel.BeginPlay();
+        }
     }
 
     public void Destory()

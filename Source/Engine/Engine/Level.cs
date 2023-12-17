@@ -7,17 +7,20 @@ using Spark.Engine.Physics;
 using Spark.Engine.GUI;
 using Spark.Engine.Attributes;
 using Spark.Engine.Assets;
+using Spark.Util;
 
 namespace Spark.Engine;
 
-public partial class Level
+public partial class Level : ISerializable
 {
+    public LevelConfig Config;
     public World CurrentWorld { private set; get; }
 
     public PhyWorld PhysicsWorld;
     public Engine Engine => CurrentWorld.Engine;
 
-    public PlayerController LocalPlayerController;
+    public PlayerController? LocalPlayerController;
+    public string Name = string.Empty;
     public Level(World world)
     {
         CurrentWorld = world;
@@ -54,6 +57,60 @@ public partial class Level
         ImGuiWarp.Render(DeltaTime);
     }
 
+    public void Serialize(BinaryWriter Writer, Engine engine)
+    {
+        Writer.WriteInt32(MagicCode.Asset);
+        Writer.WriteInt32(MagicCode.Level);
+        Writer.WriteString2(Name);
+        Config.Serialize(Writer, engine);
+        Writer.WriteInt32(Actors.Count);
+        foreach(var actor in Actors)
+        {
+            actor.Serialize(Writer, engine);
+        }
+
+    }
+
+    public void Deserialize(BinaryReader Reader, Engine engine)
+    {
+        if (Reader.ReadInt32() != MagicCode.Asset)
+            throw new Exception("");
+        if (Reader.ReadInt32() != MagicCode.Level)
+            throw new Exception("");
+        Name = Reader.ReadString2();
+        Config.Deserialize(Reader, engine);
+        var actorNum = Reader.ReadInt32();
+        for (int i = 0; i < actorNum; i++)
+        {
+            var type = Type.GetType(Reader.ReadString2());
+            var actor = (Actor)Activator.CreateInstance(type, new object[] { this, "" });
+            actor.Deserialize(Reader, Engine);
+        }
+    }
+}
+
+
+public struct LevelConfig : ISerializable
+{
+    public Type? PawnClass { get; private set; }
+
+    public Type? GameModeClass { get; private set; }
+
+    public Type? PlayerControllerClass { get; private set; }
+
+    public void Deserialize(BinaryReader Reader, Engine engine)
+    {
+        PawnClass = Reader.ReadType();
+        GameModeClass = Reader.ReadType();
+        PlayerControllerClass = Reader.ReadType();
+    }
+
+    public void Serialize(BinaryWriter Writer, Engine engine)
+    {
+        Writer.Write(PawnClass);
+        Writer.Write(GameModeClass);
+        Writer.Write(PlayerControllerClass);
+    }
 }
 
 
@@ -313,7 +370,8 @@ public partial class Level
         var sma = new SkeletalMeshActor(this, "test");
         sma.SkeletalMesh = mesh;
         sma.AnimSequence = anims[0];
-
+        sma.WorldLocation = new Vector3(100, 1, 1);
+        sma.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), 0, 0);
         using (var sw = new StreamWriter("testactor.asset"))
         {
             var bw = new BinaryWriter(sw.BaseStream);

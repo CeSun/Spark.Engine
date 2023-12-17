@@ -97,11 +97,13 @@ public class SkeletalMeshComponent : PrimitiveComponent
         SkeletalMesh.InitRender(gl);
         foreach(var element in SkeletalMesh.Elements)
         {
-            foreach(var texture in 
-            element.Material.Textures)
+            if (element.Material == null)
+                continue;
+            foreach(var texture in element.Material.Textures)
             {
-                if (texture != null)
-                    texture.InitRender(gl);
+                if (texture == null)
+                    continue;
+                texture.InitRender(gl);
             }
         }
     }
