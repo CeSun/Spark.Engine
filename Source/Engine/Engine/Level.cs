@@ -82,7 +82,8 @@ public partial class Level : ISerializable
         var actorNum = Reader.ReadInt32();
         for (int i = 0; i < actorNum; i++)
         {
-            var type = Type.GetType(Reader.ReadString2());
+            var typename = Reader.ReadString2();
+            var type = Type.GetType(typename);
             var actor = (Actor)Activator.CreateInstance(type, new object[] { this, "" });
             actor.Deserialize(Reader, Engine);
         }
@@ -343,12 +344,19 @@ public partial class Level
     {
         Engine.OnBeginPlay?.Invoke(this);
         ImGuiWarp.Init();
+       
+
+    }
+
+
+    public void TestCreateLevel()
+    {
         var (mesh, skeletal, anims) = SkeletalMesh.ImportFromGLB("/StaticMesh/Soldier.glb");
         mesh.Path = "Soldier.Asset";
         skeletal.Path = "Soldier.Skelton,Asset";
         anims[0].Path = "idle.Asset";
 
-        using (var sw = new StreamWriter(skeletal.Path)) 
+        using (var sw = new StreamWriter(skeletal.Path))
         {
             var bw = new BinaryWriter(sw.BaseStream);
             skeletal.Serialize(bw, Engine);
@@ -382,13 +390,11 @@ public partial class Level
         {
             var br = new BinaryReader(sr.BaseStream);
             var type = Type.GetType(br.ReadString2());
-            var actor = (Actor)Activator.CreateInstance(type, new object[] { this, ""});
+            var actor = (Actor)Activator.CreateInstance(type, [this, ""]);
             actor.Deserialize(br, Engine);
         }
-
-
+        
     }
-
     ImGuiWarp ImGuiWarp;
 
 

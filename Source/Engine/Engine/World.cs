@@ -42,7 +42,7 @@ public class World
     public IRenderer SceneRenderer;
     public void BeginPlay()
     {
-        OpenLevel("Default");
+        OpenLevel("Content/test.level");
         OnBeginPlay();
     }
 

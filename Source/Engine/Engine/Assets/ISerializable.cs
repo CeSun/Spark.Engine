@@ -4,6 +4,7 @@ using SharpGLTF.Schema2;
 using Silk.NET.Maths;
 using Spark.Engine.Attributes;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -70,7 +71,8 @@ public interface ISerializable
                 continue;
             if (att.IgnoreSerialize)
                 continue;
-            ReflectionDeSerialize(property, obj, br, engine);
+            var value = ReflectionDeSerialize(property.PropertyType, br, engine);
+            property.SetValue(obj, value);
         }
     }
     public static void ReflectionSerialize(object obj, BinaryWriter bw, Engine engine)
@@ -91,64 +93,95 @@ public interface ISerializable
         }
         foreach(var property in properties)
         {
-            ReflectionSerialize(property, obj, bw, engine);
+            var value = property.GetValue(obj);
+            ReflectionSerialize(property.PropertyType, value, bw, engine);
         }
     }
 
-    public static void ReflectionDeSerialize(PropertyInfo property, object obj, BinaryReader br, Engine engine)
+    public static object? ReflectionDeSerialize(Type type, BinaryReader br, Engine engine)
     {
-        if (property.PropertyType == typeof(int))
+        if (type == typeof(int))
         {
-            property.SetValue(obj, br.ReadInt32());
+            return br.ReadInt32();
         }
-        else if (property.PropertyType == typeof(uint))
+        else if (type == typeof(uint))
         {
-            property.SetValue(obj, br.ReadUInt32());
+            return br.ReadUInt32();
         }
-        else if (property.PropertyType == typeof(long))
+        else if (type == typeof(long))
         {
-            property.SetValue(obj, br.ReadInt64());
+            return br.ReadInt64();
         }
-        else if (property.PropertyType == typeof(ulong))
+        else if (type == typeof(ulong))
         {
-            property.SetValue(obj, br.ReadUInt64());
+            return br.ReadUInt64();
         }
-        else if (property.PropertyType == typeof(float))
+        else if (type == typeof(float))
         {
-            property.SetValue(obj, br.ReadSingle());
+            return br.ReadSingle();
         }
-        else if (property.PropertyType == typeof(double))
+        else if (type == typeof(double))
         {
-            property.SetValue(obj, br.ReadDouble());
+            return br.ReadDouble();
         }
-        else if (property.PropertyType == typeof(string))
+        else if (type == typeof(string))
         {
-            property.SetValue(obj, br.ReadString2());
+            return br.ReadString2();
         }
-        else if (property.PropertyType.IsSubclassOf(typeof(AssetBase)))
+        else if (type.IsSubclassOf(typeof(AssetBase)))
         {
-            property.SetValue(obj, AssetDeserialize(property.PropertyType, br, engine));
+            return AssetDeserialize(type, br, engine);
         }
-        else if (property.PropertyType == typeof(Matrix4x4))
+        else if (type == typeof(Matrix4x4))
         {
-            property.SetValue(obj, br.ReadMatrix4x4());
+            return br.ReadMatrix4x4();
         }
-        else if (property.PropertyType == typeof(Vector3))
+        else if (type == typeof(Vector3))
         {
-            property.SetValue(obj, br.ReadVector3());
+            return br.ReadVector3();
         }
-        else if (property.PropertyType == typeof(Vector2))
+        else if (type == typeof(Vector2))
         {
-            property.SetValue(obj, br.ReadVector2());
+            return br.ReadVector2();
         }
-        else if (property.PropertyType == typeof(Vector4))
+        else if (type == typeof(Vector4))
         {
-            property.SetValue(obj, br.ReadVector4());
+            return br.ReadVector4();
         }
+        else if (type.IsSubclassOf(typeof(Enum)))
+        {
+            return br.ReadInt32();
+        }
+        else if (type == typeof(List<>))
+        {
+            Type specificListType = typeof(List<>).MakeGenericType(type.GetGenericArguments());
+            var instance = (IList)Activator.CreateInstance(specificListType);
+            var count = br.ReadInt32();
+            for(var i = 0; i < count; i ++)
+            {
+                var typename = br.ReadString2();
+                Type itemType = typeof(object);
+                foreach(var assembly in AssemblyLoadContext.Default.Assemblies)
+                {
+                    var temp = assembly.GetType(typename);
+                    if (temp != null)
+                        itemType = temp;
+                }
+                instance.Add(ReflectionDeSerialize(itemType, br, engine));
+            }
+            return instance;
+        }
+        else
+        {
+            if (type.IsClass)
+                return null;
+            else
+                return Activator.CreateInstance(type);
+        }
+
     }
-    public static void ReflectionSerialize(PropertyInfo property, object obj , BinaryWriter bw, Engine engine)
+    public static void ReflectionSerialize(Type type, object? value, BinaryWriter bw, Engine engine)
     {
-        var value = property.GetValue(obj);
         if (value is int v1)
         {
             bw.WriteInt32(v1);
@@ -196,6 +229,30 @@ public interface ISerializable
         else if (value is Vector4 v12)
         {
             bw.Write(v12);
+        }
+        else if (type.IsEnum)
+        {
+            bw.WriteInt32(Convert.ToInt32(value));
+        }
+        else if (type == typeof(List<>))
+        {
+            var list = value as IList;
+            if (list == null)
+                bw.WriteInt32(0);
+            else
+            {
+                bw.WriteInt32(list.Count);
+                foreach (var item in list)
+                {
+                    var itemType = typeof(object);
+                    if (item != null)
+                    {
+                        itemType = item.GetType();
+                    }
+                    bw.WriteString2(itemType.FullName);
+                    ReflectionSerialize(itemType, item, bw, engine);
+                }
+            }
         }
     }
 

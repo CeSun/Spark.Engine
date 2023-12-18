@@ -1,6 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
+using Spark.Engine.Attributes;
 using Spark.Engine.Physics;
 using System.Numerics;
 
@@ -14,6 +15,7 @@ public class StaticMeshComponent : PrimitiveComponent
     public BoundingBox? BoundingBox;
 
     public override BaseBounding? Bounding => BoundingBox;
+    [Property]
     public StaticMesh? StaticMesh 
     {
         get => _StaticMesh;

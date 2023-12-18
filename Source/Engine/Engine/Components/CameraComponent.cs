@@ -1,4 +1,5 @@
 ﻿using Spark.Engine.Actors;
+using Spark.Engine.Attributes;
 using Spark.Engine.Render;
 using Spark.Util;
 using System;
@@ -19,6 +20,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     public RenderTarget RenderTarget { get; set; }
 
     public static CameraComponent? CurrentCameraComponent { get; private set; }
+    [Property]
     public int Order { get; set; }
     public CameraComponent(Actor actor) : base(actor)
     {
@@ -31,10 +33,12 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         Engine.OnWindowResize += RenderTarget.Resize;
     }
 
+    [Property]
     public ProjectionType ProjectionType { get; set; }
     /// <summary>
     /// 视角角度，FOV
     /// </summary>
+    [Property]
     public float FieldOfView
     {
         get => _Fov;
@@ -51,6 +55,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     /// <summary>
     /// 远平面
     /// </summary>
+    [Property]
     public float FarPlaneDistance
     {
         get => _Far;
@@ -63,6 +68,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     /// <summary>
     /// 近平面
     /// </summary>
+    [Property]
     public float NearPlaneDistance
     {
         get => _Near;

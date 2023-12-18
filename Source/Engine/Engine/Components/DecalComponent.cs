@@ -1,6 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
+using Spark.Engine.Attributes;
 using Spark.Engine.Physics;
 using System.Numerics;
 
@@ -45,6 +46,7 @@ public class DecalComponent : PrimitiveComponent
 
 
     private Material? _Material;
+    [Property]
     public Material? Material 
     {
         get => _Material;

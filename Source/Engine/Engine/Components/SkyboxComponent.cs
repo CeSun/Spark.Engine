@@ -5,6 +5,7 @@ using Spark.Util;
 using System.Numerics;
 using Spark.Engine.Render.Renderer;
 using System.Drawing;
+using Spark.Engine.Attributes;
 
 namespace Spark.Engine.Components;
 
@@ -225,6 +226,7 @@ public class SkyboxComponent : PrimitiveComponent
 
     private TextureHDR? _SkyboxHDR;
 
+    [Property]
     public TextureHDR? SkyboxHDR
     {
         get => _SkyboxHDR;

@@ -5,6 +5,7 @@ using Jitter2.Dynamics;
 using System.Numerics;
 using Jitter2.LinearMath;
 using Spark.Engine.Assets;
+using Spark.Engine.Attributes;
 
 namespace Spark.Engine.Components;
 
@@ -22,7 +23,9 @@ public class CapsuleComponent : PrimitiveComponent
     }
 
 
+    [Property]
     public float Radius { get => _CapsuleShape.Radius; set => _CapsuleShape.Radius = value; }
+    [Property]
     public float Length { get => _CapsuleShape.Length; set => _CapsuleShape.Length = value; }
     public override  bool IsStatic { get => _RigidBody.IsStatic; set => _RigidBody.IsStatic = value; }
 

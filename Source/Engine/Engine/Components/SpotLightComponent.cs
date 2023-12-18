@@ -1,5 +1,6 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
+using Spark.Engine.Attributes;
 using System.Drawing;
 
 
@@ -15,8 +16,10 @@ public class SpotLightComponent : LightComponent
         InitShadowMap();
     }
 
+    [Property]
     public float InnerAngle { get; set; }
 
+    [Property]
     public float OuterAngle { get; set; }
 
 
