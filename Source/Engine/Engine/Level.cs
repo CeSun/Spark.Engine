@@ -42,7 +42,6 @@ public partial class Level : ISerializable
     }
     public void Update(double DeltaTime)
     {
-        double tmpTime = DeltaTime;
         ActorUpdate(DeltaTime);
         UpdateManager.Update(DeltaTime);
     }
@@ -349,25 +348,46 @@ public partial class Level
     }
 
 
-    public void TestCreateLevel()
+    public void CreateLevel()
     {
         var (mesh, skeletal, anims) = SkeletalMesh.ImportFromGLB("/StaticMesh/Soldier.glb");
         mesh.Path = "Soldier.Asset";
-        skeletal.Path = "Soldier.Skelton,Asset";
+        skeletal.Path = "Soldier.Skelton.Asset";
         anims[0].Path = "idle.Asset";
 
+        var Camera = new CameraActor(this);
+        Camera.FarPlaneDistance = 1000;
+        Camera.NearPlaneDistance = 1;
         using (var sw = new StreamWriter(skeletal.Path))
         {
             var bw = new BinaryWriter(sw.BaseStream);
             skeletal.Serialize(bw, Engine);
         }
+        int i = 0;
+        foreach(var element in mesh.Elements)
+        {
 
+            foreach(var texture in element.Material.Textures)
+            {
+                if (texture == null)
+                    continue;
+                texture.Path = "Texture." + (i++) + ".asset";
+                using(var sw = new StreamWriter(texture.Path))
+                {
+                    texture.Serialize(new BinaryWriter(sw.BaseStream), Engine);
+                }
+            }
+            element.Material.Path = "Material." + (i++) + ".asset";
+            using (var sw = new StreamWriter(element.Material.Path))
+            {
+                element.Material.Serialize(new BinaryWriter(sw.BaseStream), Engine);
+            }
+        }
         using (var sw = new StreamWriter(mesh.Path))
         {
             var bw = new BinaryWriter(sw.BaseStream);
             mesh.Serialize(bw, Engine);
         }
-
 
         using (var sw = new StreamWriter(anims[0].Path))
         {
@@ -378,7 +398,7 @@ public partial class Level
         var sma = new SkeletalMeshActor(this, "test");
         sma.SkeletalMesh = mesh;
         sma.AnimSequence = anims[0];
-        sma.WorldLocation = new Vector3(100, 1, 1);
+        sma.WorldLocation = Camera.ForwardVector * 100;
         sma.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), 0, 0);
         using (var sw = new StreamWriter("testactor.asset"))
         {
@@ -393,6 +413,9 @@ public partial class Level
             var actor = (Actor)Activator.CreateInstance(type, [this, ""]);
             actor.Deserialize(br, Engine);
         }
+
+
+       
         
     }
     ImGuiWarp ImGuiWarp;

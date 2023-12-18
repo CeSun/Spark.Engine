@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -9,6 +10,7 @@ using Spark.Engine;
 using Spark.Engine.Components;
 using Spark.Engine.Platform;
 using Spark.Engine.Render.Renderer;
+using Spark.Util;
 
 namespace Spark.Engine;
 
@@ -42,7 +44,7 @@ public class World
     public IRenderer SceneRenderer;
     public void BeginPlay()
     {
-        OpenLevel("Content/test.level");
+        CreateLevel("Content/test.level");
         OnBeginPlay();
     }
 
@@ -78,6 +80,24 @@ public class World
             CurrentLevel.Deserialize(new BinaryReader(stream), Engine);
             CurrentLevel.BeginPlay();
         }
+    }
+
+    public void CreateLevel(string path)
+    {
+        CurrentLevel = new Level(this);
+        CurrentLevel.BeginPlay();
+        CurrentLevel.CreateLevel();
+
+        Task.Delay(100).Then(() =>
+        {
+            using (var stream = new StreamWriter(path))
+            {
+                CurrentLevel.Serialize(new BinaryWriter(stream.BaseStream), Engine);
+            }
+            OpenLevel("Content/test.level");
+
+        });
+
     }
 
     public void Destory()
