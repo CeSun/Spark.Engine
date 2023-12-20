@@ -2,11 +2,13 @@
   "profiles": {
     "SparkDemo": {
       "commandName": "Project",
-      "commandLineArgs": "-game SparkDemo"
+      "commandLineArgs": "-game SparkDemo",
+      "workingDirectory": "..\\..\\..\\Resource"
     },
     "Editor": {
       "commandName": "Project",
-      "commandLineArgs": "-game Editor"
+      "commandLineArgs": "-game Editor",
+      "workingDirectory": "..\\..\\..\\Resource"
     }
   }
 }

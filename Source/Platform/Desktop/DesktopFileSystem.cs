@@ -14,6 +14,10 @@ public class DesktopFileSystem : FileSystem
         return new StreamReader(path).BaseStream;
     }
 
+    public StreamWriter GetStreamWriter(string path) 
+    { 
+        return new StreamWriter(path);
+    }
     public StreamReader GetStreamReader(string path)
     {
         return new StreamReader(path);

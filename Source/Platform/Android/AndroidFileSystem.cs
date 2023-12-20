@@ -17,10 +17,7 @@ public class AndroidFileSystem : FileSystem
     AssetManager AssetManager;
     public StreamReader GetStreamReader(string path)
     {
-        var filesize = 1024 * 1024 * 10 ;
-        using var stream = new BinaryReader (AssetManager.Open(path));
-        byte[] buffer = stream.ReadBytes(filesize);
-        return new StreamReader(new MemoryStream(buffer));
+        return new StreamReader(AssetManager.Open(path));
     }
 
     public string LoadText(string path)
@@ -34,5 +31,10 @@ public class AndroidFileSystem : FileSystem
     public Stream GetStream(string path)
     {
         return AssetManager.Open(path);
+    }
+
+    public StreamWriter GetStreamWriter(string path)
+    {
+        throw new NotImplementedException();
     }
 }
