@@ -53,9 +53,32 @@ public partial class Engine
         DefaultFBOID = (uint)(int)objects["DefaultFBOID"];
         _view = (IView)objects["View"];
         Worlds.Add(new World(this));
+        ProcessArgs();
+        LoadSetting();
     }
    
+    public void ProcessArgs()
+    {
+        for(int i = 0; i < Args.Count; i++)
+        {
+            if (i < Args.Count - 1)
+            {
+                if (Args[i] == "-game")
+                    GameName = Args[i + 1];
+            }
+        }
 
+    }
+
+
+    public void LoadSetting()
+    {
+        var text = FileSystem.Instance.LoadText($"{GameName}/DefaultGame.ini");
+
+    }
+
+
+    public string GameName { get; private set; } = string.Empty;
     public Action<Level>? OnBeginPlay;
     public Action<Level>? OnEndPlay;
 
