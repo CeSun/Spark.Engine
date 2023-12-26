@@ -10,6 +10,8 @@ using Silk.NET.OpenGLES.Extensions.EXT;
 using System.Reflection;
 using System.Runtime.Loader;
 using Spark.Engine.Assets;
+using IniParser.Parser;
+using Spark.Engine.Actors;
 
 namespace Spark.Engine;
 
@@ -54,6 +56,7 @@ public partial class Engine
         _view = (IView)objects["View"];
         Worlds.Add(new World(this));
         ProcessArgs();
+        LoadGameDll();
         LoadSetting();
     }
    
@@ -70,13 +73,47 @@ public partial class Engine
 
     }
 
-
+    public void LoadGameDll()
+    {
+        using(var stream =  FileSystem.Instance.GetStream($"{GameName}/{GameName}.dll"))
+        {
+            AssemblyLoadContext.Default.LoadFromStream(stream);
+        }
+    }
     public void LoadSetting()
     {
         var text = FileSystem.Instance.LoadText($"{GameName}/DefaultGame.ini");
+        var parser =new IniDataParser();
+        var ini = parser.Parse(text);
+        var DefaultGameMode = ini["Game"]["DefaultGameMode"];
+        GameConfig gameConfig = new GameConfig
+        {
+            DefaultGameModeClass = typeof(GameMode),
+            DefaultPawnClass = typeof(Pawn),
+            DefaultPlayerControllerClass = typeof(PlayerController),
+        };
 
+        if (string.IsNullOrEmpty(DefaultGameMode) == false)
+        {
+            gameConfig.DefaultGameModeClass = AssemblyHelper.GetType(DefaultGameMode);
+        }
+        var DefaultPawn = ini["Game"]["DefaultPawn"];
+        if (string.IsNullOrEmpty(DefaultGameMode) == false)
+        {
+            gameConfig.DefaultPawnClass = AssemblyHelper.GetType(DefaultPawn);
+        }
+        var DefaultPlayerController = ini["Game"]["DefaultPlayerController"];
+        if (string.IsNullOrEmpty(DefaultPlayerController) == false)
+        {
+            gameConfig.DefaultPlayerControllerClass = AssemblyHelper.GetType(DefaultPlayerController);
+        }
+        GameConfig = gameConfig;
+        DefaultLevelPath = ini["Game"]["DefaultLevel"];
     }
 
+    public GameConfig GameConfig { get; private set; }
+
+    public string DefaultLevelPath { get; private set; }
 
     public string GameName { get; private set; } = string.Empty;
     public Action<Level>? OnBeginPlay;
@@ -242,6 +279,17 @@ public static class GLExternFunctions
 
 }
 
+public struct GameConfig
+{
+    public Type? DefaultPawnClass;
+    public Type? DefaultPlayerControllerClass;
+    public Type? DefaultGameModeClass;
+    public string DefaultLevel = string.Empty;
+
+    public GameConfig()
+    {
+    }
+}
 class OpenGLStates
 {
 

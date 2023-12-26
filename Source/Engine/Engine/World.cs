@@ -44,8 +44,17 @@ public class World
     public IRenderer SceneRenderer;
     public void BeginPlay()
     {
-        CreateLevel("Content/test.level");
         OnBeginPlay();
+        var Level = new Level(this);
+        if (Engine.GameConfig.DefaultLevel != null)
+        {
+            using (var stream = FileSystem.Instance.GetStream(Engine.GameConfig.DefaultLevel))
+            {
+                var br = new BinaryReader(stream);
+                Level.Deserialize(br, this.Engine);
+            }
+
+        }
     }
 
     protected virtual void OnBeginPlay()

@@ -5,6 +5,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	<OutputPath>..\..\Resource\Editor</OutputPath>
+	<DebugType>Embedded</DebugType>
   </PropertyGroup>
 
   <ItemGroup>

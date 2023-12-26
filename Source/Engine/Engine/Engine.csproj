@@ -9,6 +9,7 @@
       </PropertyGroup>
 
       <ItemGroup>
+        <PackageReference Include="ini-parser-netstandard" Version="2.5.2" />
         <PackageReference Include="Jitter2" Version="2.1.1" />
         <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0030" />
 	    <PackageReference Include="Silk.NET.Input.Common" Version="2.20.0" />

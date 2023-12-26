@@ -8,6 +8,7 @@ using Spark.Engine.GUI;
 using Spark.Engine.Attributes;
 using Spark.Engine.Assets;
 using Spark.Util;
+using IniParser.Model.Formatting;
 
 namespace Spark.Engine;
 
@@ -28,6 +29,17 @@ public partial class Level : ISerializable
         RenderObjectOctree = new Octree();
         ImGuiWarp = new ImGuiWarp(this);
         PhysicsWorld = new();
+        GameMode = CreateGameMode();
+    }
+
+    public GameMode CreateGameMode()
+    {
+        Type GameModeClass = typeof(GameMode);
+        if (Engine.GameConfig.DefaultGameModeClass != null)
+            GameModeClass = Engine.GameConfig.DefaultGameModeClass;
+        if (Config.GameModeClass != null)
+            GameModeClass = Config.GameModeClass;
+        return (GameMode)Activator.CreateInstance(GameModeClass, new object[] { this, "" });
     }
 
 
@@ -343,8 +355,6 @@ public partial class Level
     {
         Engine.OnBeginPlay?.Invoke(this);
         ImGuiWarp.Init();
-       
-
     }
 
 
@@ -364,15 +374,15 @@ public partial class Level
             skeletal.Serialize(bw, Engine);
         }
         int i = 0;
-        foreach(var element in mesh.Elements)
+        foreach (var element in mesh.Elements)
         {
 
-            foreach(var texture in element.Material.Textures)
+            foreach (var texture in element.Material.Textures)
             {
                 if (texture == null)
                     continue;
                 texture.Path = "Texture." + (i++) + ".asset";
-                using(var sw = new StreamWriter(texture.Path))
+                using (var sw = new StreamWriter(texture.Path))
                 {
                     texture.Serialize(new BinaryWriter(sw.BaseStream), Engine);
                 }
@@ -415,11 +425,10 @@ public partial class Level
         }
 
 
-       
-        
+
+
     }
     ImGuiWarp ImGuiWarp;
-
 
     private void PhysicsUpdate(double DeltaTime)
     {
