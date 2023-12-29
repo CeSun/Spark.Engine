@@ -30,4 +30,9 @@ public class DesktopFileSystem : FileSystem
             return sr.ReadToEnd();
         }
     }
+
+    public bool FileExits(string Path)
+    {
+        return File.Exists(Path);
+    }
 }

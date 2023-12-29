@@ -45,16 +45,15 @@ public class World
     public void BeginPlay()
     {
         OnBeginPlay();
-        var Level = new Level(this);
-        if (Engine.GameConfig.DefaultLevel != null)
+        if (Engine.GameConfig.DefaultLevel != null && FileSystem.Instance.FileExits(Engine.GameConfig.DefaultLevel) == true)
         {
-            using (var stream = FileSystem.Instance.GetStream(Engine.GameConfig.DefaultLevel))
-            {
-                var br = new BinaryReader(stream);
-                Level.Deserialize(br, this.Engine);
-            }
-
+            OpenLevel(Engine.GameConfig.DefaultLevel);
         }
+        else
+        {
+            CurrentLevel = new Level(this); ;
+        }
+
     }
 
     protected virtual void OnBeginPlay()

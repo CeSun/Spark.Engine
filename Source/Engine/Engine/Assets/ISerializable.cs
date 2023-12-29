@@ -3,6 +3,7 @@ using Jitter2.Dynamics;
 using SharpGLTF.Schema2;
 using Silk.NET.Maths;
 using Spark.Engine.Attributes;
+using Spark.Util;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -160,13 +161,7 @@ public interface ISerializable
             for(var i = 0; i < count; i ++)
             {
                 var typename = br.ReadString2();
-                Type itemType = typeof(object);
-                foreach(var assembly in AssemblyLoadContext.Default.Assemblies)
-                {
-                    var temp = assembly.GetType(typename);
-                    if (temp != null)
-                        itemType = temp;
-                }
+                var itemType = AssemblyHelper.GetType(typename);
                 instance.Add(ReflectionDeSerialize(itemType, br, engine));
             }
             return instance;
@@ -411,13 +406,7 @@ public static class StreamHelper
         if (isNotNull == false)
             return null;
         var fullClassName = br.ReadString2();
-        foreach(var assembly in AssemblyLoadContext.Default.Assemblies)
-        {
-            var type = assembly.GetType(fullClassName);
-            if (type != null)
-                return type;
-        }
-        return null;
+        return AssemblyHelper.GetType(fullClassName);
     }
     public static Vector3 ReadVector3(this BinaryReader br)
     {

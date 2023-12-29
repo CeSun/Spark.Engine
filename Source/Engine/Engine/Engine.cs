@@ -12,6 +12,7 @@ using System.Runtime.Loader;
 using Spark.Engine.Assets;
 using IniParser.Parser;
 using Spark.Engine.Actors;
+using Spark.Engine.Assembly;
 
 namespace Spark.Engine;
 
@@ -55,6 +56,7 @@ public partial class Engine
         DefaultFBOID = (uint)(int)objects["DefaultFBOID"];
         _view = (IView)objects["View"];
         Worlds.Add(new World(this));
+        GameAssemblyLoadContext.InitInstance(this);
         ProcessArgs();
         LoadGameDll();
         LoadSetting();
@@ -77,7 +79,7 @@ public partial class Engine
     {
         using(var stream =  FileSystem.Instance.GetStream($"{GameName}/{GameName}.dll"))
         {
-            AssemblyLoadContext.Default.LoadFromStream(stream);
+            GameAssemblyLoadContext.Instance.LoadFromStream(stream);
         }
     }
     public void LoadSetting()

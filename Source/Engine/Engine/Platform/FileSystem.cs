@@ -26,6 +26,7 @@ public interface FileSystem
     }
     string LoadText(string path);
 
+    bool FileExits(string Path);
     StreamReader GetStreamReader(string path);
 
     StreamWriter GetStreamWriter(string path);

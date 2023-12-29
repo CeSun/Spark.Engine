@@ -13,11 +13,14 @@ public static class AssemblyHelper
     {
         if (string.IsNullOrWhiteSpace(Name))
             return null;
-        foreach(var assembly in AssemblyLoadContext.Default.Assemblies)
+        foreach(var ctx in AssemblyLoadContext.All)
         {
-            var type = assembly.GetType(Name);
-            if (type != null) 
-                return type;
+            foreach (var assembly in ctx.Assemblies)
+            {
+                var type = assembly.GetType(Name);
+                if (type != null)
+                    return type;
+            }
         }
         return null;
     }

@@ -37,4 +37,19 @@ public class AndroidFileSystem : FileSystem
     {
         throw new NotImplementedException();
     }
+
+    public bool FileExits(string Path)
+    {
+        try
+        {
+            using(var s = AssetManager.Open(Path))
+            {
+                return true;
+            }
+        } 
+        catch
+        {
+            return false;
+        }
+    }
 }
