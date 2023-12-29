@@ -1,4 +1,5 @@
-﻿using Android.Content.Res;
+﻿using Android.Content;
+using Android.Content.Res;
 using Spark.Engine.Platform;
 using System;
 using System.Collections.Generic;
@@ -10,16 +11,21 @@ namespace Android;
 
 public class AndroidFileSystem : FileSystem
 {
-    public AndroidFileSystem(AssetManager AssetManager)
+    public AndroidFileSystem(Context ApplicationContext)
     {
-        this.AssetManager = AssetManager;
+        this.ApplicationContext = ApplicationContext;
     }
-    AssetManager AssetManager;
+    Context ApplicationContext;
     public StreamReader GetStreamReader(string path)
     {
+        if(File.Exists(ApplicationContext.GetExternalFilesDir("") + "/" + path))
+        {
+            return new StreamReader(ApplicationContext.GetExternalFilesDir("") + "/" + path);
+        }
+
         List<byte> list = new List<byte>();
         byte[] buffer = new byte[1024];
-        using(var stream = AssetManager.Open(path))
+        using(var stream = ApplicationContext.Assets.Open(path))
         {
             while(true)
             {
@@ -34,7 +40,7 @@ public class AndroidFileSystem : FileSystem
 
     public string LoadText(string path)
     {
-        using (var sr = new StreamReader(AssetManager.Open(path)))
+        using (var sr = new StreamReader(ApplicationContext.Assets.Open(path)))
         {
             return sr.ReadToEnd();
         }
@@ -43,14 +49,18 @@ public class AndroidFileSystem : FileSystem
 
     public StreamWriter GetStreamWriter(string path)
     {
-        throw new NotImplementedException();
+        return new StreamWriter(ApplicationContext.GetExternalFilesDir("") + "/" + path);
     }
 
     public bool FileExits(string Path)
     {
+        if (File.Exists(ApplicationContext.GetExternalFilesDir("") + "/" + Path))
+        {
+            return true;        
+        }
         try
         {
-            using(var s = AssetManager.Open(Path))
+            using(var s = ApplicationContext.Assets.Open(Path))
             {
                 return true;
             }
