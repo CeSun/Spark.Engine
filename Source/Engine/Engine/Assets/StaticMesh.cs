@@ -31,8 +31,8 @@ public class StaticMesh : AssetBase
     public async static Task<StaticMesh> LoadFromGLBAsync(string Path)
     {
 
-        using var sr = FileSystem.Instance.GetStream("Content" + Path);
-        return await LoadFromGLBAsync(sr);
+        using var sr = FileSystem.Instance.GetStreamReader("Content" + Path);
+        return await LoadFromGLBAsync(sr.BaseStream);
     }
     public async static Task<StaticMesh> LoadFromGLBAsync(Stream stream)
     {
@@ -49,8 +49,8 @@ public class StaticMesh : AssetBase
     public static StaticMesh LoadFromGLB(string Path)
     {
     
-        using var sr = FileSystem.Instance.GetStream("Content" + Path);
-        return LoadFromGLB(sr);
+        using var sr = FileSystem.Instance.GetStreamReader("Content" + Path);
+        return LoadFromGLB(sr.BaseStream);
     }
     public static StaticMesh LoadFromGLB(Stream stream)
     {

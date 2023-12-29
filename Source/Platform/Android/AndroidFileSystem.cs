@@ -17,7 +17,19 @@ public class AndroidFileSystem : FileSystem
     AssetManager AssetManager;
     public StreamReader GetStreamReader(string path)
     {
-        return new StreamReader(AssetManager.Open(path));
+        List<byte> list = new List<byte>();
+        byte[] buffer = new byte[1024];
+        using(var stream = AssetManager.Open(path))
+        {
+            while(true)
+            {
+                var len = stream.Read(buffer, 0, buffer.Length);
+                if (len <= 0)
+                    break;
+                list.AddRange(buffer.Take(len));
+            }
+        }
+        return new StreamReader(new MemoryStream(list.ToArray()));
     }
 
     public string LoadText(string path)
@@ -28,10 +40,6 @@ public class AndroidFileSystem : FileSystem
         }
     }
 
-    public Stream GetStream(string path)
-    {
-        return AssetManager.Open(path);
-    }
 
     public StreamWriter GetStreamWriter(string path)
     {

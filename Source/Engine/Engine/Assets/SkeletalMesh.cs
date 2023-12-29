@@ -99,15 +99,15 @@ public partial class SkeletalMesh
 {
     public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(string Path)
     {
-        using var sr = FileSystem.Instance.GetStream("Content" + Path);
-        return ImportFromGLB(sr);
+        using var sr = FileSystem.Instance.GetStreamReader("Content" + Path);
+        return ImportFromGLB(sr.BaseStream);
     }
 
 
     public async static Task<(SkeletalMesh, Skeleton, List<AnimSequence>)> ImportFromGLBAsync(string Path)
     {
-        using var sr = FileSystem.Instance.GetStream("Content" + Path);
-        return await ImportFromGLBAsync(sr);
+        using var sr = FileSystem.Instance.GetStreamReader("Content" + Path);
+        return await ImportFromGLBAsync(sr.BaseStream);
     }
 
     public async static Task<(SkeletalMesh, Skeleton, List<AnimSequence>)> ImportFromGLBAsync(Stream stream)

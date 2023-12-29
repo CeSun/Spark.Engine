@@ -77,9 +77,9 @@ public partial class Engine
 
     public void LoadGameDll()
     {
-        using(var stream =  FileSystem.Instance.GetStream($"{GameName}/{GameName}.dll"))
+        using(var stream =  FileSystem.Instance.GetStreamReader($"{GameName}/{GameName}.dll"))
         {
-            GameAssemblyLoadContext.Instance.LoadFromStream(stream);
+            GameAssemblyLoadContext.Instance.LoadFromStream(stream.BaseStream);
         }
     }
     public void LoadSetting()

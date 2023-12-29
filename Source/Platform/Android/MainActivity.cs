@@ -42,7 +42,7 @@ public class MainActivity : SilkActivity
 
             var InitFun = () =>
             {
-                Engine.InitEngine(new string[] { "-game", "SparkDemo" }, new Dictionary<string, object>
+                Engine.InitEngine(new string[] { "-game", "Editor" }, new Dictionary<string, object>
                 {
                 { "OpenGL", GL.GetApi(view) },
                 { "WindowSize", new System.Drawing.Point(view.Size.X , view.Size.Y) },

@@ -14,6 +14,5 @@ public class EditorGameMode : GameMode
 {
     public EditorGameMode(Level level, string Name = "") : base(level, Name)
     {
-        "http://baidu.com".GetAsync().ReceiveString().Then(Console.WriteLine);
     }
 }

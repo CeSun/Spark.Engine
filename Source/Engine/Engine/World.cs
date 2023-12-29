@@ -82,10 +82,10 @@ public class World
         {
             CurrentLevel.Destory();
         }
-        using (var stream = FileSystem.Instance.GetStream(path))
+        using (var stream = FileSystem.Instance.GetStreamReader(path))
         {
             CurrentLevel = new Level(this);
-            CurrentLevel.Deserialize(new BinaryReader(stream), Engine);
+            CurrentLevel.Deserialize(new BinaryReader(stream.BaseStream), Engine);
             CurrentLevel.BeginPlay();
         }
     }

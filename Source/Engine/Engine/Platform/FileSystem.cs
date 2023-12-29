@@ -30,6 +30,5 @@ public interface FileSystem
     StreamReader GetStreamReader(string path);
 
     StreamWriter GetStreamWriter(string path);
-    Stream GetStream(string path);
 }
 

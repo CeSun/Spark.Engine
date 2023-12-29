@@ -30,14 +30,13 @@
 		<AndroidSigningKeyAlias>cesun</AndroidSigningKeyAlias>
 		<AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
 	</PropertyGroup>
-<!--
+	
 	<ItemGroup>
-		<AndroidAsset Include="..\Resource\**\*">
+		<AndroidAsset Include="..\..\..\Resource\**\*">
 			<Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</AndroidAsset>
 	</ItemGroup>
--->
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />

@@ -34,17 +34,17 @@ public class AssetMgr
 
     public AssetBase? Reload(Type assetType, string path) 
     {
-        var stream = FileSystem.Instance.GetStream(path);
+        var stream = FileSystem.Instance.GetStreamReader(path);
         var asset = (AssetBase)Activator.CreateInstance(assetType);
-        asset.Deserialize(new BinaryReader(stream), engine);
+        asset.Deserialize(new BinaryReader(stream.BaseStream), engine);
         Assets[path] = asset;
         return asset;
     }
     public T? Reload<T>(string path) where T : AssetBase, ISerializable, new()
     {
-        var stream = FileSystem.Instance.GetStream(path);
+        var stream = FileSystem.Instance.GetStreamReader(path);
         var asset = new T();
-        asset.Deserialize(new BinaryReader(stream), engine);
+        asset.Deserialize(new BinaryReader(stream.BaseStream), engine);
         Assets[path] = asset;
         return asset;
     }
