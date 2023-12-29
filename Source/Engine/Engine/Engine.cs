@@ -24,6 +24,8 @@ public partial class Engine
     private List<string> Args { get; set; } = new List<string>();
     public bool IsMobile { private set; get; } = false;
 
+    public bool IsDS = false;
+
     public uint DefaultFBOID ;
     public Engine()
     {
@@ -91,31 +93,17 @@ public partial class Engine
         GameConfig gameConfig = new GameConfig
         {
             DefaultGameModeClass = typeof(GameMode),
-            DefaultPawnClass = typeof(Pawn),
-            DefaultPlayerControllerClass = typeof(PlayerController),
         };
 
         if (string.IsNullOrEmpty(DefaultGameMode) == false)
         {
             gameConfig.DefaultGameModeClass = AssemblyHelper.GetType(DefaultGameMode);
         }
-        var DefaultPawn = ini["Game"]["DefaultPawn"];
-        if (string.IsNullOrEmpty(DefaultGameMode) == false)
-        {
-            gameConfig.DefaultPawnClass = AssemblyHelper.GetType(DefaultPawn);
-        }
-        var DefaultPlayerController = ini["Game"]["DefaultPlayerController"];
-        if (string.IsNullOrEmpty(DefaultPlayerController) == false)
-        {
-            gameConfig.DefaultPlayerControllerClass = AssemblyHelper.GetType(DefaultPlayerController);
-        }
+        gameConfig.DefaultLevel = ini["Game"]["DefaultLevel"];
         GameConfig = gameConfig;
-        DefaultLevelPath = ini["Game"]["DefaultLevel"];
     }
 
     public GameConfig GameConfig { get; private set; }
-
-    public string DefaultLevelPath { get; private set; }
 
     public string GameName { get; private set; } = string.Empty;
     public Action<Level>? OnBeginPlay;
@@ -283,8 +271,6 @@ public static class GLExternFunctions
 
 public struct GameConfig
 {
-    public Type? DefaultPawnClass;
-    public Type? DefaultPlayerControllerClass;
     public Type? DefaultGameModeClass;
     public string DefaultLevel = string.Empty;
 

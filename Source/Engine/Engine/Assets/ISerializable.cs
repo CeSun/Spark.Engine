@@ -166,6 +166,10 @@ public interface ISerializable
             }
             return instance;
         }
+        else if (type == typeof(Type))
+        {
+            return br.ReadType();
+        }
         else
         {
             if (type.IsClass)
@@ -248,6 +252,10 @@ public interface ISerializable
                     ReflectionSerialize(itemType, item, bw, engine);
                 }
             }
+        }
+        else if (value is Type v13)
+        {
+            bw.Write(v13);
         }
     }
 

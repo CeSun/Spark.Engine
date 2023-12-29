@@ -7,7 +7,7 @@ using Silk.NET.Windowing.Sdl;
 using Silk.NET.Windowing.Sdl.Android;
 using Spark.Engine;
 using Spark.Engine.Platform;
-using System.Text;
+using Silk.NET.Input.Extensions;
 
 namespace Android;
 

@@ -20,6 +20,9 @@
 		<AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
 		<IsTrimmable>true</IsTrimmable>
 		<TrimMode>full</TrimMode>
+		<RunAOTCompilation>False</RunAOTCompilation>
+		<PublishTrimmed>False</PublishTrimmed>
+		<AndroidUseAapt2>True</AndroidUseAapt2>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<EnableLLVM>False</EnableLLVM>
@@ -29,6 +32,8 @@
 		<AndroidSigningStorePass>123456</AndroidSigningStorePass>
 		<AndroidSigningKeyAlias>cesun</AndroidSigningKeyAlias>
 		<AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
+		<RunAOTCompilation>False</RunAOTCompilation>
+		<AndroidUseAapt2>True</AndroidUseAapt2>
 	</PropertyGroup>
 	
 	<ItemGroup>
@@ -41,6 +46,8 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
 		<PackageReference Include="Silk.NET" Version="2.20.0" />
+		<PackageReference Include="Silk.NET.Input" Version="2.20.0" />
+		<PackageReference Include="Silk.NET.Input.Extensions" Version="2.20.0" />
 		<PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="2.20.0" />
 	</ItemGroup>
 

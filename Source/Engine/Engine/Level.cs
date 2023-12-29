@@ -9,12 +9,12 @@ using Spark.Engine.Attributes;
 using Spark.Engine.Assets;
 using Spark.Util;
 using IniParser.Model.Formatting;
+using System;
 
 namespace Spark.Engine;
 
 public partial class Level : ISerializable
 {
-    public LevelConfig Config;
     public World CurrentWorld { private set; get; }
 
     public PhyWorld PhysicsWorld;
@@ -27,19 +27,9 @@ public partial class Level : ISerializable
         CurrentWorld = world;
         UpdateManager = new UpdateManager();
         RenderObjectOctree = new Octree();
-        ImGuiWarp = new ImGuiWarp(this);
+        ImGuiWarp = new ImGuiSystem(this);
+        ImGuiWarp.Init();
         PhysicsWorld = new();
-        GameMode = CreateGameMode();
-    }
-
-    public GameMode CreateGameMode()
-    {
-        Type GameModeClass = typeof(GameMode);
-        if (Engine.GameConfig.DefaultGameModeClass != null)
-            GameModeClass = Engine.GameConfig.DefaultGameModeClass;
-        if (Config.GameModeClass != null)
-            GameModeClass = Config.GameModeClass;
-        return (GameMode)Activator.CreateInstance(GameModeClass, new object[] { this, "" });
     }
 
 
@@ -73,13 +63,23 @@ public partial class Level : ISerializable
         Writer.WriteInt32(MagicCode.Asset);
         Writer.WriteInt32(MagicCode.Level);
         Writer.WriteString2(Name);
-        Config.Serialize(Writer, engine);
-        Writer.WriteInt32(Actors.Count);
+        var actors = new List<Actor>();
         foreach(var actor in Actors)
         {
-            actor.Serialize(Writer, engine);
+            if (_DelActors.Contains(actor))
+                continue;
+            actors.Add(actor);
+        }
+        foreach (var actor in _AddActors)
+        {
+            if (_DelActors.Contains(actor))
+                continue;
+            actors.Add(actor);
         }
 
+        Writer.WriteInt32(actors.Count);
+        actors.ForEach(actor => actor.Serialize(Writer, engine));
+        
     }
 
     public void Deserialize(BinaryReader Reader, Engine engine)
@@ -89,39 +89,14 @@ public partial class Level : ISerializable
         if (Reader.ReadInt32() != MagicCode.Level)
             throw new Exception("");
         Name = Reader.ReadString2();
-        Config.Deserialize(Reader, engine);
         var actorNum = Reader.ReadInt32();
         for (int i = 0; i < actorNum; i++)
         {
             var typename = Reader.ReadString2();
-            var type = Type.GetType(typename);
+            var type = AssemblyHelper.GetType(typename);
             var actor = (Actor)Activator.CreateInstance(type, new object[] { this, "" });
             actor.Deserialize(Reader, Engine);
         }
-    }
-}
-
-
-public struct LevelConfig : ISerializable
-{
-    public Type? PawnClass { get; private set; }
-
-    public Type? GameModeClass { get; private set; }
-
-    public Type? PlayerControllerClass { get; private set; }
-
-    public void Deserialize(BinaryReader Reader, Engine engine)
-    {
-        PawnClass = Reader.ReadType();
-        GameModeClass = Reader.ReadType();
-        PlayerControllerClass = Reader.ReadType();
-    }
-
-    public void Serialize(BinaryWriter Writer, Engine engine)
-    {
-        Writer.Write(PawnClass);
-        Writer.Write(GameModeClass);
-        Writer.Write(PlayerControllerClass);
     }
 }
 
@@ -345,7 +320,6 @@ public partial class Level
 
 public partial class Level
 {
-    GameMode GameMode;
     public void EndPlay()
     {
         Engine.OnEndPlay?.Invoke(this);
@@ -419,7 +393,7 @@ public partial class Level
         using (var sr = new StreamReader("testactor.asset"))
         {
             var br = new BinaryReader(sr.BaseStream);
-            var type = Type.GetType(br.ReadString2());
+            var type = AssemblyHelper.GetType(br.ReadString2());
             var actor = (Actor)Activator.CreateInstance(type, [this, ""]);
             actor.Deserialize(br, Engine);
         }
@@ -428,7 +402,7 @@ public partial class Level
 
 
     }
-    ImGuiWarp ImGuiWarp;
+    ImGuiSystem ImGuiWarp;
 
     private void PhysicsUpdate(double DeltaTime)
     {

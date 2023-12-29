@@ -34,6 +34,7 @@ public partial class Actor
         this.Name = Name;
         CurrentLevel = level;
         level.RegistActor(this);
+        CurrentLevel.Engine.NextFrame.Add(BeginPlay);
         if (ReceieveUpdate == true)
         {
             CurrentLevel.UpdateManager.RegistUpdate(Update);
@@ -42,16 +43,14 @@ public partial class Actor
 
     public void BeginPlay()
     {
+        IsBegined = true;
         OnBeginPlay();
     }
     private bool IsBegined = false;
     public void Update(double DeltaTime)
     {
         if (IsBegined == false)
-        {
-            IsBegined = true;
-            BeginPlay();
-        }
+            return;
         OnUpdate(DeltaTime);
     }
 

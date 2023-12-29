@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Spark.Engine;
+using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Platform;
 using Spark.Engine.Render.Renderer;
@@ -52,6 +53,12 @@ public class World
         else
         {
             CurrentLevel = new Level(this); ;
+            new GameMode(CurrentLevel);
+
+            using(var sw = FileSystem.Instance.GetStreamWriter("level"))
+            {
+                CurrentLevel.Serialize(new BinaryWriter(sw.BaseStream), Engine);
+            }
         }
 
     }
