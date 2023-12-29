@@ -402,7 +402,7 @@ public partial class Level
 
 
     }
-    ImGuiSystem ImGuiWarp;
+    public ImGuiSystem ImGuiWarp { get; private set; }
 
     private void PhysicsUpdate(double DeltaTime)
     {

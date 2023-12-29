@@ -14,14 +14,14 @@ namespace Spark.Engine.GUI;
 public class ImGuiSystem
 {
 
-    List<ImGUICanvas> ImGUICanvasList = new List<ImGUICanvas>();
-    public void AddCanvas(ImGUICanvas imGUICanvas)
+    List<ImGUIContext> ImGUICanvasList = new List<ImGUIContext>();
+    public void AddCanvas(ImGUIContext imGUICanvas)
     {
         ImGUICanvasList.Add(imGUICanvas);
        
     }
 
-    public void RemoveCanvase(ImGUICanvas imGUICanvas)
+    public void RemoveCanvase(ImGUIContext imGUICanvas)
     {
         ImGUICanvasList.Remove(imGUICanvas);
         
@@ -41,6 +41,8 @@ public class ImGuiSystem
         try
         {
             Controller = new ImGuiController(CurrentLevel.Engine.Gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input);
+            ref var v = ref ImGui.GetIO().WantSaveIniSettings;
+            v = false; 
         } 
         catch (Exception e)
         { 
