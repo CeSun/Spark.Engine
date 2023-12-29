@@ -23,6 +23,7 @@
 		<RunAOTCompilation>False</RunAOTCompilation>
 		<PublishTrimmed>False</PublishTrimmed>
 		<AndroidUseAapt2>True</AndroidUseAapt2>
+		<Debugger>Xamarin</Debugger>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<EnableLLVM>False</EnableLLVM>
@@ -34,6 +35,7 @@
 		<AndroidSigningKeyPass>123456</AndroidSigningKeyPass>
 		<RunAOTCompilation>False</RunAOTCompilation>
 		<AndroidUseAapt2>True</AndroidUseAapt2>
+		<Debugger>Xamarin</Debugger>
 	</PropertyGroup>
 	
 	<ItemGroup>
@@ -45,10 +47,9 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
-		<PackageReference Include="Silk.NET" Version="2.20.0" />
 		<PackageReference Include="Silk.NET.Input" Version="2.20.0" />
-		<PackageReference Include="Silk.NET.Input.Extensions" Version="2.20.0" />
-		<PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="2.20.0" />
+		<PackageReference Include="Silk.NET.Input.Sdl" Version="2.20.0" />
+		<PackageReference Include="Silk.NET.OpenGLES" Version="2.20.0" />
 	</ItemGroup>
 
 

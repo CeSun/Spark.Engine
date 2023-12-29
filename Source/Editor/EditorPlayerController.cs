@@ -19,11 +19,14 @@ public class EditorImguiContext : ImGUIContext
 {
     public EditorImguiContext(Level level) : base(level)
     {
+        ref var flags = ref ImGui.GetIO().ConfigFlags;
+        flags |= ImGuiConfigFlags.DockingEnable;
+
     }
 
     public override void Render(double deltaTime)
     {
-        
+        ImGui.DockSpaceOverViewport(ImGui.GetMainViewport());
 
         ImGui.Begin("Hello Editor!");
         ImGui.Button("button");

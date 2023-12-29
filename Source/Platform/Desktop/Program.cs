@@ -22,13 +22,15 @@ option.Size = new Vector2D<int>(800, 600);
 
 var Engine = new Engine();
 var window = Window.Create(option);
-
+GL? gl = null;
 var InitFun = () =>
 {
+    gl = GL.GetApi(window);
+
     FileSystem.Init(new Desktop.DesktopFileSystem());
     Engine.InitEngine(args, new Dictionary<string, object>
     {
-        { "OpenGL", GL.GetApi(window) },
+        { "OpenGL", gl },
         { "WindowSize", new Point(option.Size.X , option.Size.Y) },
         { "InputContext", window.CreateInput()},
         { "FileSystem", FileSystem.Instance},
@@ -42,4 +44,8 @@ window.Update += Engine.Update;
 window.Load += (InitFun + Engine.Start);
 window.Closing += Engine.Stop;
 window.Resize += size => Engine.Resize(size.X, size.Y);
+window.FramebufferResize += size =>
+{
+    gl?.Viewport(size);
+};
 window.Run();
