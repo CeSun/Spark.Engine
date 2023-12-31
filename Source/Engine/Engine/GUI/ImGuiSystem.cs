@@ -45,6 +45,7 @@ public class ImGuiSystem
             Controller = new ImGuiController(CurrentLevel.Engine.Gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input);
             ref var v = ref ImGui.GetIO().WantSaveIniSettings;
             v = false;
+            /*
             List<byte> data = new List<byte>();
             using (var sr = FileSystem.Instance.GetStreamReader("Fonts/simhei.ttf"))
             {
@@ -75,6 +76,7 @@ public class ImGuiSystem
                 var config = ImGuiNative.ImFontConfig_ImFontConfig();
                 var font = io.Fonts.AddFontFromFileTTF("Fonts/simhei.ttf", 13, config, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull());
             }
+            */
         } 
         catch (Exception e)
         { 
