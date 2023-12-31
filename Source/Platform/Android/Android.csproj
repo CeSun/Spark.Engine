@@ -44,10 +44,14 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</AndroidAsset>
 	</ItemGroup>
+	
+	<ItemGroup>
+	  <AndroidNativeLibrary Remove="libs\arm64-v8a\libcimgui.so" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
-		<PackageReference Include="Silk.NET.Input" Version="2.20.0" />
+		<PackageReference Include="Silk.NET.Input.Extensions" Version="2.20.0" />
 		<PackageReference Include="Silk.NET.Input.Sdl" Version="2.20.0" />
 		<PackageReference Include="Silk.NET.OpenGLES" Version="2.20.0" />
 	</ItemGroup>

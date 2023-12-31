@@ -24,7 +24,14 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     public int Order { get; set; }
     public CameraComponent(Actor actor) : base(actor)
     {
-        RenderTarget = CurrentLevel.CurrentWorld.SceneRenderer.CreateRenderTarget(Engine.WindowSize.X, Engine.WindowSize.Y);
+        if (CurrentLevel.CurrentWorld.WorldMainRenderTarget != null)
+        {
+            RenderTarget = CurrentLevel.CurrentWorld.WorldMainRenderTarget;
+        }
+        else
+        {
+            RenderTarget = CurrentLevel.CurrentWorld.SceneRenderer.CreateRenderTarget(this.Engine.WindowSize.X, this.Engine.WindowSize.Y);
+        }
         FieldOfView = 90;
         NearPlaneDistance = 10;
         FarPlaneDistance = 100;

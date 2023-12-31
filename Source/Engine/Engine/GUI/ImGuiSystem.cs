@@ -5,9 +5,11 @@ using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
 using Spark.Engine.Components;
+using Spark.Engine.Platform;
 using Spark.Util;
 using System.ComponentModel;
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Spark.Engine.GUI;
 
@@ -42,7 +44,37 @@ public class ImGuiSystem
         {
             Controller = new ImGuiController(CurrentLevel.Engine.Gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input);
             ref var v = ref ImGui.GetIO().WantSaveIniSettings;
-            v = false; 
+            v = false;
+            List<byte> data = new List<byte>();
+            using (var sr = FileSystem.Instance.GetStreamReader("Fonts/simhei.ttf"))
+            {
+                var br = new BinaryReader(sr.BaseStream);
+
+                byte[] buffer = new byte[1024];
+                while (true)
+                {
+                    var len = br.Read(buffer, 0, buffer.Length);
+                    if (len <= 0)
+                    {
+                        break;
+                    }
+                    data.AddRange(buffer.Take(len));
+                }
+            }
+            unsafe
+            {
+                fixed(void* p = CollectionsMarshal.AsSpan(data))
+                {
+                }
+            }
+
+            var io = ImGui.GetIO();
+            unsafe
+            {
+
+                var config = ImGuiNative.ImFontConfig_ImFontConfig();
+                var font = io.Fonts.AddFontFromFileTTF("Fonts/simhei.ttf", 13, config, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull());
+            }
         } 
         catch (Exception e)
         { 

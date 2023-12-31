@@ -10,6 +10,7 @@ using Spark.Engine;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Platform;
+using Spark.Engine.Render;
 using Spark.Engine.Render.Renderer;
 using Spark.Util;
 
@@ -18,6 +19,8 @@ namespace Spark.Engine;
 public class World
 {
     public Engine Engine { get; set; }
+
+    public RenderTarget? WorldMainRenderTarget;
     public World(Engine engine)
     {
         Engine = engine;

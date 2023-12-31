@@ -26,6 +26,7 @@ public partial class Engine
 
     public bool IsDS = false;
 
+    public World? MainWorld;
     public uint DefaultFBOID ;
     public Engine()
     {
@@ -57,7 +58,9 @@ public partial class Engine
         IsMobile = (bool)objects["IsMobile"];
         DefaultFBOID = (uint)(int)objects["DefaultFBOID"];
         _view = (IView)objects["View"];
-        Worlds.Add(new World(this));
+        MainWorld = new World(this);
+        MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTarget(this.WindowSize.X, this.WindowSize.Y);
+        Worlds.Add(MainWorld);
         GameAssemblyLoadContext.InitInstance(this);
         ProcessArgs();
         LoadGameDll();

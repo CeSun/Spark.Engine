@@ -1,6 +1,6 @@
 using Android.Content;
 using Android.Views;
-
+using Silk.NET.Input.Extensions;
 namespace Android;
 
 [Activity(Label = "Lanucher",MainLauncher = true)]
@@ -16,6 +16,8 @@ public class Launcher : Activity
     [Java.Interop.Export]
     public void StartEngine(View v)
     {
+        InputSnapshot a =  null;
+
         var EditText = FindViewById<EditText>(Resource.Id.ArgsEditText);
 
         Intent intent = new Intent(this, typeof(MainActivity));

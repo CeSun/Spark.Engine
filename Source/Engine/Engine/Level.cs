@@ -28,7 +28,6 @@ public partial class Level : ISerializable
         UpdateManager = new UpdateManager();
         RenderObjectOctree = new Octree();
         ImGuiWarp = new ImGuiSystem(this);
-        ImGuiWarp.Init();
         PhysicsWorld = new();
     }
 
