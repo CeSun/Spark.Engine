@@ -16,14 +16,14 @@ namespace Spark.Engine.GUI;
 public class ImGuiSystem
 {
 
-    List<ImGUIContext> ImGUICanvasList = new List<ImGUIContext>();
-    public void AddCanvas(ImGUIContext imGUICanvas)
+    List<ImGUIWindow> ImGUICanvasList = new List<ImGUIWindow>();
+    public void AddCanvas(ImGUIWindow imGUICanvas)
     {
         ImGUICanvasList.Add(imGUICanvas);
        
     }
 
-    public void RemoveCanvase(ImGUIContext imGUICanvas)
+    public void RemoveCanvas(ImGUIWindow imGUICanvas)
     {
         ImGUICanvasList.Remove(imGUICanvas);
         
@@ -42,41 +42,48 @@ public class ImGuiSystem
     {
         try
         {
-            Controller = new ImGuiController(CurrentLevel.Engine.Gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input);
-            ref var v = ref ImGui.GetIO().WantSaveIniSettings;
-            v = false;
-            /*
-            List<byte> data = new List<byte>();
-            using (var sr = FileSystem.Instance.GetStreamReader("Fonts/simhei.ttf"))
+            Controller = new ImGuiController(CurrentLevel.Engine.Gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input,null, () =>
             {
-                var br = new BinaryReader(sr.BaseStream);
-
-                byte[] buffer = new byte[1024];
-                while (true)
+                ref var flags = ref ImGui.GetIO().ConfigFlags;
+                flags |= ImGuiConfigFlags.DockingEnable;
+                ImGui.StyleColorsDark();
+                List<byte> data = new List<byte>();
+                using (var sr = FileSystem.Instance.GetStreamReader("Fonts/msyh.ttc"))
                 {
-                    var len = br.Read(buffer, 0, buffer.Length);
-                    if (len <= 0)
+                    var br = new BinaryReader(sr.BaseStream);
+
+                    byte[] buffer = new byte[1024];
+                    while (true)
                     {
-                        break;
+                        var len = br.Read(buffer, 0, buffer.Length);
+                        if (len <= 0)
+                        {
+                            break;
+                        }
+                        data.AddRange(buffer.Take(len));
                     }
-                    data.AddRange(buffer.Take(len));
                 }
-            }
-            unsafe
-            {
-                fixed(void* p = CollectionsMarshal.AsSpan(data))
+                unsafe
                 {
+                    fixed (void* p = CollectionsMarshal.AsSpan(data))
+                    {
+                        ImGui.GetIO().Fonts.AddFontFromMemoryTTF((nint)p, 14, 14,0, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull());
+                    }
                 }
-            }
 
-            var io = ImGui.GetIO();
-            unsafe
-            {
+                unsafe
+                {
+                    ImGui.GetIO().NativePtr->IniFilename = (byte*)0;//(byte*)Marshal.StringToHGlobalAnsi(CurrentLevel.Engine.GameName + "/ImguiLayout.ini");
 
-                var config = ImGuiNative.ImFontConfig_ImFontConfig();
-                var font = io.Fonts.AddFontFromFileTTF("Fonts/simhei.ttf", 13, config, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull());
-            }
-            */
+                    var io = ImGui.GetIO();
+                    io.WantSaveIniSettings = false;
+                }
+                if (FileSystem.Instance.FileExits(CurrentLevel.Engine.GameName + "/ImguiLayout.ini"))
+                {
+                    ImGui.LoadIniSettingsFromMemory(FileSystem.Instance.GetStreamReader(CurrentLevel.Engine.GameName + "/ImguiLayout.ini").ReadToEnd());
+                }
+            });
+        
         } 
         catch (Exception e)
         { 
@@ -102,6 +109,11 @@ public class ImGuiSystem
     {
         if (CurrentLevel.CurrentWorld.Engine.IsMobile)
             return;
+        var ini = ImGui.SaveIniSettingsToMemory();
+        using(var sw = FileSystem.Instance.GetStreamWriter(CurrentLevel.Engine.GameName + "/ImguiLayout.ini"))
+        {
+            sw.Write(ini);
+        }
         Controller?.Dispose();
     }
 }
