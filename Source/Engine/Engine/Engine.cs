@@ -53,7 +53,7 @@ public partial class Engine
             return _view;
         }
     }
-    List<World> Worlds = new List<World>();
+    public List<World> Worlds = new List<World>();
     public void InitEngine(string[] args, Dictionary<string, object> objects)
     {
         Args.AddRange(args);

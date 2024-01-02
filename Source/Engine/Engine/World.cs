@@ -49,7 +49,7 @@ public class World
     public void BeginPlay()
     {
         OnBeginPlay();
-        if (Engine.GameConfig.DefaultLevel != null && FileSystem.Instance.FileExits(Engine.GameConfig.DefaultLevel) == true)
+        if (Engine.MainWorld == this && Engine.GameConfig.DefaultLevel != null && FileSystem.Instance.FileExits(Engine.GameConfig.DefaultLevel) == true)
         {
             OpenLevel(Engine.GameConfig.DefaultLevel);
         }

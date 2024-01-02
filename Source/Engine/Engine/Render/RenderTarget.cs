@@ -76,7 +76,7 @@ public class RenderTarget : IDisposable
             BufferHeight = height;
             return;
         }
-        if (BufferWidth != Width || BufferHeight != Height)
+        if (BufferWidth < Width || BufferHeight < Height)
         {
             if (BufferWidth < width)
             {
