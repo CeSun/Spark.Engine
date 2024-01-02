@@ -1,4 +1,5 @@
-﻿using Spark.Engine.Components;
+﻿using Spark.Engine.Attributes;
+using Spark.Engine.Components;
 using Spark.Engine.Render;
 using System;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
+[ActorInfo(DisplayOnEditor = true)]
 public class CameraActor : Actor
 {
     public CameraComponent CameraComponent { get; private set; }

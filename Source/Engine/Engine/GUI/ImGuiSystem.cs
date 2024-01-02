@@ -97,6 +97,8 @@ public class ImGuiSystem
             return;
         if (CurrentLevel.Engine.Gl == null)
             return;
+        CurrentLevel.CurrentWorld.Engine.Gl.Viewport(new System.Drawing.Size(CurrentLevel.CurrentWorld.Engine.WindowSize.X, CurrentLevel.CurrentWorld.Engine.WindowSize.Y));
+        
         Controller?.Update((float)DeltaTime);
         ImGUICanvasList.ForEach(item => item.Render(DeltaTime));
         CurrentLevel.Engine.Gl.PushGroup("GUI Pass");

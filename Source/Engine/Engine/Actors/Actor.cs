@@ -88,7 +88,7 @@ public partial class Actor
 }
 
 
-
+[ActorInfo(DisplayOnEditor = false)]
 public partial class Actor
 {
     public PrimitiveComponent? RootComponent;

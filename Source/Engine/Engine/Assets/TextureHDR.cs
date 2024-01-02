@@ -59,7 +59,7 @@ public class TextureHDR : AssetBase
 
     public static TextureHDR LoadFromFile(string Path, bool GammaCorrection = false, bool FlipVertically = false)
     {
-        using var StreamReader = FileSystem.Instance.GetStreamReader("Content" + Path);
+        using var StreamReader = FileSystem.Instance.GetStreamReader(Path);
         if (FlipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(1);
@@ -127,7 +127,6 @@ public class TextureHDR : AssetBase
         bw.WriteInt32((int)Channel);
         bw.WriteInt32((int)Filter);
         bw.WriteInt32(Pixels.Count);
-        bw.Write(Pixels.Count);
         foreach(var num in Pixels)
         {
             bw.WriteSingle(num);
@@ -140,7 +139,7 @@ public class TextureHDR : AssetBase
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var TextureMagicCode = br.ReadInt32();
-        if (TextureMagicCode != MagicCode.Texture)
+        if (TextureMagicCode != MagicCode.TextureHDR)
             throw new Exception("");
         Width = br.ReadUInt32();
         Height = br.ReadUInt32();
