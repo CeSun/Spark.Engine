@@ -24,4 +24,18 @@ public static class AssemblyHelper
         }
         return null;
     }
+
+    public static IEnumerable<Type> GetAllType()
+    {
+        foreach(var ctx in AssemblyLoadContext.All)
+        {
+            foreach(var assembly in ctx.Assemblies)
+            {
+                foreach(var type in assembly.GetTypes())
+                {
+                    yield return type;
+                }
+            }
+        }
+    }
 }

@@ -13,6 +13,8 @@ using Spark.Engine.Assets;
 using IniParser.Parser;
 using Spark.Engine.Actors;
 using Spark.Engine.Assembly;
+using Spark.Engine.Attributes;
+using System.Linq;
 
 namespace Spark.Engine;
 
@@ -28,6 +30,9 @@ public partial class Engine
 
     public World? MainWorld;
     public uint DefaultFBOID ;
+    public List<BaseSubSystem> SubSystems = new List<BaseSubSystem>();
+
+    public Dictionary<string, bool> SubsystemConfigs= new();
     public Engine()
     {
         if (SynchronizationContext.Current == null)
@@ -65,6 +70,7 @@ public partial class Engine
         ProcessArgs();
         LoadGameDll();
         LoadSetting();
+        LoadSubsystem();
     }
    
     public void ProcessArgs()
@@ -80,6 +86,54 @@ public partial class Engine
 
     }
 
+    public T? GetSubSystem<T>() where T : BaseSubSystem
+    {
+        foreach(var subsytem in SubSystems)
+        {
+            if (subsytem is T t)
+                return t;
+        }
+        return null;
+    }
+    private void LoadSubsystem()
+    {
+        foreach(var type in AssemblyHelper.GetAllType())
+        {
+            if (type.IsSubclassOf(typeof(BaseSubSystem)) == false)
+                continue;
+            if (type.FullName == null || SubsystemConfigs.Keys.Contains(type.FullName) == true)
+                continue;
+            var att = type.GetCustomAttribute<SubsystemAttribute>();
+            if (att == null || att.Enable == false)
+            {
+                SubsystemConfigs.Add(type.FullName, false);
+            }    
+            else
+            {
+                SubsystemConfigs.Add(type.FullName, true);
+            }
+            
+        }
+
+        foreach(var (k, v) in SubsystemConfigs.ToDictionary())
+        {
+            var type = AssemblyHelper.GetType(k);
+            if (type == null || type.IsSubclassOf(typeof(BaseSubSystem)) == false)
+            {
+                SubsystemConfigs.Remove(k);
+                continue;
+            }
+            if (v == false)
+                continue;
+            var obj = Activator.CreateInstance(type, new[] { this });
+            if (obj != null && obj is BaseSubSystem subsystem)
+            {
+                SubSystems.Add(subsystem);
+            }
+        }
+
+
+    }
     public void LoadGameDll()
     {
         using(var stream =  FileSystem.Instance.GetStreamReader($"{GameName}/{GameName}.dll"))
@@ -104,6 +158,20 @@ public partial class Engine
         }
         gameConfig.DefaultLevel = ini["Game"]["DefaultLevel"];
         GameConfig = gameConfig;
+
+        foreach (var item in ini["Subsystem"])
+        {
+            if (SubsystemConfigs.Keys.Contains(item.KeyName))
+                continue;
+            if (item.Value.ToLower() == "true")
+            {
+                SubsystemConfigs.Add(item.KeyName, true);
+            }
+            if (item.Value.ToLower() == "false")
+            {
+                SubsystemConfigs.Add(item.KeyName, false);
+            }
+        }
     }
 
     public GameConfig GameConfig { get; private set; }
@@ -122,6 +190,14 @@ public partial class Engine
         NextFrame.Clear();
         SyncContext?.Tick();
         Worlds.ForEach(world => world.Update(DeltaTime));
+
+        foreach(var subsystem in SubSystems)
+        {
+            if (subsystem != null && subsystem.ReceiveUpdate == true)
+            {
+                subsystem.Update(DeltaTime);
+            }
+        }
     }
 
     public void Render(double DeltaTime)
@@ -132,10 +208,12 @@ public partial class Engine
     public void Start()
     {
         Worlds.ForEach(world => world.BeginPlay());
+        SubSystems.ForEach(subsystem => subsystem.BeginPlay());
     }
 
     public void Stop()
     {
+        SubSystems.ForEach(subsystem => subsystem.EndPlay());
         Worlds.ForEach(world => world.Destory());
     }
 
