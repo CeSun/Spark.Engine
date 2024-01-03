@@ -19,6 +19,7 @@ public partial class Actor
     /// Actor所在关卡
     /// </summary>
     public Level CurrentLevel { get; private set; }
+    static Dictionary<string, int> NameMap = new Dictionary<string, int>();
 
     protected virtual bool ReceieveUpdate => false;
 
@@ -31,7 +32,22 @@ public partial class Actor
 
     public Actor(Level level, string Name = "")
     {
-        this.Name = Name;
+        if (string.IsNullOrEmpty(Name))
+        {
+            var typeName = GetType().Name;
+
+            if (NameMap.ContainsKey(typeName) == false)
+            {
+                NameMap[typeName] = 0;
+            }
+            var index = ++NameMap[typeName] ;
+
+            this.Name = typeName + index;
+        }
+        else
+        {
+            this.Name = Name;
+        }
         CurrentLevel = level;
         level.RegistActor(this);
         CurrentLevel.Engine.NextFrame.Add(BeginPlay);
@@ -88,7 +104,7 @@ public partial class Actor
 }
 
 
-[ActorInfo(DisplayOnEditor = false)]
+[ActorInfo(Group = "Base")]
 public partial class Actor
 {
     public PrimitiveComponent? RootComponent;

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
+[ActorInfo(DisplayOnEditor = true, Group = "Visuals")]
 public class SkeletalMeshActor : Actor
 {
     public SkeletalMeshComponent SkeletalMeshComponent { get; private set; }

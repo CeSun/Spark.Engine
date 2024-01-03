@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
+[ActorInfo(DisplayOnEditor = true, Group = "Lights")]
 public class DirectionLightActor : LightActor
 {
     public DirectionLightComponent DirectionLightComponent { get; private set; }

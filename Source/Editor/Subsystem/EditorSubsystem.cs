@@ -15,6 +15,7 @@ namespace Editor.Subsystem;
 [Subsystem(Enable = true)]
 public class EditorSubsystem : BaseSubSystem
 {
+    public Type? ClickType = null;
     public override bool ReceiveUpdate => true;
 
     public bool IsProjectOpened = false;
@@ -29,7 +30,7 @@ public class EditorSubsystem : BaseSubSystem
 
     }
 
-
+    public Actor? SelectedActor;
     public override void BeginPlay()
     {
         base.BeginPlay();

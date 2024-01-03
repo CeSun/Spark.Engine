@@ -1,8 +1,10 @@
 ﻿using Spark.Engine.Assets;
+using Spark.Engine.Attributes;
 using Spark.Engine.Components;
 
 namespace Spark.Engine.Actors;
 
+[ActorInfo(DisplayOnEditor = true, Group = "Visuals")]
 public class DecalActor : Actor
 {
     public DecalActor(Level level, string Name = "") : base(level, Name)

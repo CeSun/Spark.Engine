@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
-[ActorInfo(DisplayOnEditor = true)]
+[ActorInfo(DisplayOnEditor = true, Group = "Base")]
 public class CameraActor : Actor
 {
     public CameraComponent CameraComponent { get; private set; }

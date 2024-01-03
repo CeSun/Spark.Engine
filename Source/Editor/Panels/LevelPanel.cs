@@ -1,5 +1,6 @@
 ﻿using Editor.Subsystem;
 using ImGuiNET;
+using Silk.NET.Input;
 using Spark.Engine;
 using Spark.Engine.GUI;
 using Spark.Util;
@@ -43,12 +44,18 @@ public class LevelPanel : ImGUIWindow
             ImGui.Image((nint)EditorSubsystem.LevelWorld.WorldMainRenderTarget.GBufferIds[0], windowSize, uv1, uv2);
 
 
-            if(ImGui.IsWindowHovered())
+            var min = ImGui.GetItemRectMin();
+            var max = ImGui.GetItemRectMax();
+
+            if(ImGui.IsItemHovered())
             {
                 if (ImGui.IsMouseDown(ImGuiMouseButton.Left) && IsPressed == false)
                 {
-                    IsPressed = true;
-                    PressedPosition = ImGui.GetMousePos();
+                    if (ImGui.IsMouseHoveringRect(min, max))
+                    {
+                        IsPressed = true;
+                        PressedPosition = ImGui.GetMousePos();
+                    }
                 }
             }
 
@@ -67,6 +74,16 @@ public class LevelPanel : ImGUIWindow
         if (IsPressed == true && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
         {
             IsPressed = false;
+        }
+
+        if (ImGui.IsMouseHoveringRect(ImGui.GetWindowPos(), ImGui.GetWindowPos() + ImGui.GetWindowSize()) && EditorSubsystem.ClickType != null && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+        {
+            if (EditorSubsystem.LevelWorld != null)
+            {
+                var level = EditorSubsystem.LevelWorld.CurrentLevel;
+                var actor = Activator.CreateInstance(EditorSubsystem.ClickType, [level, ""]);
+            }
+            EditorSubsystem.ClickType = null;
         }
 
         ImGui.End();

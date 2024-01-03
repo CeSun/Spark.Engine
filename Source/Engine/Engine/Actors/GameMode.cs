@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
+[ActorInfo(DisplayOnEditor = false)]
 public class GameMode : Actor
 {
     List<PlayerController> _PlayerControllers = new List<PlayerController>();

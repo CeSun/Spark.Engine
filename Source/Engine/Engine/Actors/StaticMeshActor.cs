@@ -4,6 +4,7 @@ using Spark.Engine.Components;
 
 namespace Spark.Engine.Actors;
 
+[ActorInfo(DisplayOnEditor = true, Group = "Visuals")]
 public class StaticMeshActor : Actor
 {
     [Property]
