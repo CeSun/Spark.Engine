@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors
 {
-    [ActorInfo(DisplayOnEditor = true, Group = "Lights")]
+    [ActorInfo(DisplayOnEditor = false, Group = "Lights")]
     abstract public class LightActor : Actor
     {
         public abstract LightComponent LightComponent { get; }

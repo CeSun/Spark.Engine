@@ -59,14 +59,6 @@ public class OutlinerPanel : ImGUIWindow
                     EditorSubsystem.SelectedActor = actor;
                 }
                 ImGui.PopStyleColor();
-                /*
-                if (ImGui.TreeNode(actor.Name))
-                {
-
-                    ImGui.TreePop();
-                    // ImGui.Button(actor.Name);
-                }
-                */
             }
 
             ImGui.TreePop();
