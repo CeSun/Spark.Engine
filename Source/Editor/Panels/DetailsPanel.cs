@@ -30,6 +30,7 @@ namespace Editor.Panels
             ImGui.Begin("Details##details");
             if (EditorSubsystem.SelectedActor != null)
             {
+                bool Modify = false;
                 ImGui.Text("Name: ");
                 ImGui.SameLine();
                 var name = EditorSubsystem.SelectedActor.Name;
@@ -55,36 +56,71 @@ namespace Editor.Panels
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(50);
                 ImGui.InputFloat("##locationX", ref location.X);
+
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    Modify = true;
+                }
                 ImGui.SameLine();
                 ImGui.Text("Y");
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(50);
                 ImGui.InputFloat("##locationY", ref location.Y);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    Modify = true;
+                }
+
                 ImGui.SameLine();
                 ImGui.Text("Z");
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(50);
                 ImGui.InputFloat("##locationZ", ref location.Z);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    Modify = true;
+                }
+                if (Modify == true)
+                {
+                    EditorSubsystem.SelectedActor.WorldLocation = location;
+                }
+
 
                 ImGui.NewLine();
 
-                
+                Modify = false;
                 var scale = EditorSubsystem.SelectedActor.WorldScale;
                 ImGui.Text("X");
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(50);
-                ImGui.InputFloat("##scaleX", ref scale.X);
+                ImGui.InputFloat("##scaleX", ref scale.X); 
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    Modify = true;
+                }
                 ImGui.SameLine();
                 ImGui.Text("Y");
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(50);
                 ImGui.InputFloat("##scaleY", ref scale.Y);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    Modify = true;
+                }
                 ImGui.SameLine();
                 ImGui.Text("Z");
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(50);
                 ImGui.InputFloat("##scaleZ", ref scale.Z);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    Modify = true;
+                }
+                if (Modify)
+                {
 
+                    EditorSubsystem.SelectedActor.WorldScale = scale;
+                }
             }
 
             ImGui.End();
