@@ -8,7 +8,7 @@ namespace Spark.Engine.GUI;
 
 public class ImGUIWindow
 {
-    Level level;
+    protected Level level;
     public ImGUIWindow(Level level)
     {
         this.level = level;

@@ -20,7 +20,7 @@ public class SpotLightActor : LightActor
     }
 
     public override LightComponent LightComponent => SpotLightComponent;
-
+    
     public float InnerAngle { get => SpotLightComponent.InnerAngle; set=> SpotLightComponent.InnerAngle = value; }
 
     public float OuterAngle { get => SpotLightComponent.OuterAngle; set => SpotLightComponent.OuterAngle = value; }

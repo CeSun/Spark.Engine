@@ -11,7 +11,7 @@ namespace Spark.Engine.Attributes;
 public class PropertyAttribute : Attribute
 {
     public bool IgnoreSerialize = false;
-    public bool IsDispaly = false;
+    public bool IsDispaly = true;
 
     public string? DisplayName;
 
