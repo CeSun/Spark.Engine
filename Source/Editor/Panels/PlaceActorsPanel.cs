@@ -66,13 +66,17 @@ public class PlaceActorsPanel : ImGUIWindow
 
     public Dictionary<string, List<Type>> ActorsTypeMap = new Dictionary<string, List<Type>>();
 
+    public bool IsFirst = true;
     public override void Render(double DeltaTime)
     {
         ImGui.Begin("Place Actors##placeactors");
 
 
-        ImGui.Columns(2); 
-        ImGui.SetColumnWidth(0, 100);
+        ImGui.Columns(2);
+        if (IsFirst == true)
+        {
+            ImGui.SetColumnWidth(0, 100);
+        }
         ImGui.BeginChild("123"); 
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
         float buttonWidth = ImGui.GetContentRegionAvail().X;
@@ -131,5 +135,9 @@ public class PlaceActorsPanel : ImGUIWindow
 
         ImGui.End();
 
+
+
+        if (IsFirst == true)
+            IsFirst = false;
     }
 }

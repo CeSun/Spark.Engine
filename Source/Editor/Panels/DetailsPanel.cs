@@ -20,6 +20,8 @@ namespace Editor.Panels
     public class DetailsPanel : ImGUIWindow
     {
         EditorSubsystem EditorSubsystem;
+
+        public bool IsFirst = true;
         public DetailsPanel(Level level) : base(level)
         {
             var system = level.Engine.GetSubSystem<EditorSubsystem>();
@@ -43,11 +45,13 @@ namespace Editor.Panels
                 bool Modify = false;
                 ImGui.Columns(2);
                 var leftWidth = ContentWidth * 0.3;
-                if (leftWidth < 120)
-                    leftWidth = 120;
-
-
-                ImGui.SetColumnWidth(0, (float)leftWidth);
+                if (leftWidth < 100)
+                    leftWidth = 100;
+                
+                if (IsFirst == true)
+                {
+                    ImGui.SetColumnWidth(0, (float)leftWidth);
+                }
                 ImGui.Text("Name: ");
                 ImGui.NextColumn();
                 var Name = Actor.Name;
@@ -172,6 +176,8 @@ namespace Editor.Panels
             ImGui.End();
 
 
+            if (IsFirst == true)
+                IsFirst = false;
 
         }
 
@@ -192,12 +198,16 @@ namespace Editor.Panels
                 ImGui.Columns(1);
                 var width = ImGui.GetContentRegionAvail().X;
                 ImGui.SetNextItemWidth(width);
-                ImGui.Text(type.Name + "");
+                // ImGui.Text(type.Name + "");
 
-                ImGui.Columns(2);
-                foreach (var (att, property) in properties)
+                if(ImGui.CollapsingHeader(type.Name, ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    RenderProperty(att, property, obj);
+
+                    ImGui.Columns(2);
+                    foreach (var (att, property) in properties)
+                    {
+                        RenderProperty(att, property, obj);
+                    }
                 }
             }
         }
