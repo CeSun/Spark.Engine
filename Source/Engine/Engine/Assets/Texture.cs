@@ -119,6 +119,22 @@ public class Texture : AssetBase
         return await Task.Run(() =>LoadFromFile(Path, GammaCorrection, FlipVertically));
     }
 
+    public static Texture LoadFromMemory(byte[] data)
+    {
+
+        var imageResult = ImageResult.FromMemory(data);
+        if (imageResult != null)
+        {
+            Texture texture = new Texture();
+            texture.Width = (uint)imageResult.Width;
+            texture.Height = (uint)imageResult.Height;
+            texture.Channel = imageResult.Comp.ToTexChannel();
+            texture.Pixels.AddRange(imageResult.Data);
+            return texture;
+        }
+        throw new Exception("Load Texture error");
+    }
+
     public static Texture LoadFromFile(string Path, bool GammaCorrection = false, bool FlipVertically = false)
     {
         using var StreamReader = FileSystem.Instance.GetStreamReader("Content" + Path);

@@ -25,6 +25,23 @@ public class EditorSubsystem : BaseSubSystem
     public World? LevelWorld = null;
 
     public CameraActor? EditorCameraActor = null;
+
+    private Dictionary<string, object?> Maps = new Dictionary<string, object?>();
+    public T? GetValue<T>(string key)
+    {
+        if (Maps.TryGetValue(key, out var value))
+        {
+            if (value is T t)
+                return t;
+            return default;
+        }
+        return default;
+    }
+
+    public void SetValue(string key, object? obj)
+    {
+        Maps[key] = obj;
+    }
     public EditorSubsystem(Engine engine) : base(engine)
     {
 
