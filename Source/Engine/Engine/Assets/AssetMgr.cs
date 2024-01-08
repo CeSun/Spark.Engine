@@ -38,6 +38,7 @@ public class AssetMgr
         var asset = (AssetBase)Activator.CreateInstance(assetType);
         asset.Deserialize(new BinaryReader(stream.BaseStream), engine);
         Assets[path] = asset;
+        asset.Path = path;
         return asset;
     }
     public T? Reload<T>(string path) where T : AssetBase, ISerializable, new()
@@ -46,6 +47,7 @@ public class AssetMgr
         var asset = new T();
         asset.Deserialize(new BinaryReader(stream.BaseStream), engine);
         Assets[path] = asset;
+        asset.Path = path;
         return asset;
     }
 }

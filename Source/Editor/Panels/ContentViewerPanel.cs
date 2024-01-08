@@ -33,8 +33,9 @@ public class ContentViewerPanel : ImGUIWindow
         texture.InitRender(level.Engine.Gl);
     }
 
-    Folder? CurrentSelectDir;
+    Folder? CurrentViewDir;
 
+    Folder? CurrentSelectDir;
     Folder Root;
 
     public List<Folder> Folders { get; set; } = new List<Folder>();
@@ -61,7 +62,7 @@ public class ContentViewerPanel : ImGUIWindow
     }
     public override void Render(double DeltaTime)
     {
-        CurrentSelectDir = EditorSubsystem.GetValue<Folder>("CurrentSelectDirection");
+        CurrentViewDir = EditorSubsystem.GetValue<Folder>("CurrentViewDir");
         ImGui.Begin("Content Viewer");
         if (ImGui.Button("添加"))
         {
@@ -87,20 +88,35 @@ public class ContentViewerPanel : ImGUIWindow
     {
         if (ImGui.BeginChild("#right"))
         {
-            if (CurrentSelectDir == null)
+            if (CurrentViewDir == null)
                 return;
             var width = ImGui.GetContentRegionAvail().X;
-            int columnNum = (int)(width / 80f);
-
+            int columnNum = (int)(width / 100f);
+            if (columnNum == 0)
+                columnNum = 1;
             ImGui.Columns(columnNum, "##", false);
             int i = 0;
-            foreach (var folder in CurrentSelectDir.Children)
+            foreach (var folder in CurrentViewDir.Children)
             {
                 var w = ImGui.GetColumnWidth();
-                if (FileButton(folder.Path,folder.Name, texture.TextureId, (int)w - 2* (ImGui.GetStyle().FramePadding * 2).X))
+                switch (FileButton(folder.Path,folder.Name, texture.TextureId, (int)w - 2* (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectDir == folder))
                 {
-                    EditorSubsystem.SetValue("CurrentSelectDirection", folder);
-                    OnChangeDir?.Invoke(folder);
+                    case FileButtonAction.DoubleClick:
+                    {
+
+                        EditorSubsystem.SetValue("CurrentViewDir", folder);
+                            CurrentSelectDir = null;
+                            OnChangeDir?.Invoke(folder);
+                        break;
+                    }
+                    case FileButtonAction.Click:
+                    {
+                        CurrentSelectDir = folder;
+                        Console.WriteLine("Click");
+                        break;
+                    }
+                    default:
+                        break;
                 }
                 /*
                 Vector4 vector4 = default;
@@ -134,10 +150,16 @@ public class ContentViewerPanel : ImGUIWindow
         }
 
     }
-
-    public bool FileButton(string id, string title, uint textureid, float width)
+    public enum FileButtonAction
     {
-        bool rtl = false;
+        None = 0,
+        Click,
+        DoubleClick
+
+    }
+    public FileButtonAction FileButton(string id, string title, uint textureid, float width, bool IsSelect = false)
+    {
+        FileButtonAction rtl = FileButtonAction.None;
         var location = ImGui.GetCursorPos();
         var textSize = ImGui.CalcTextSize(title);
         var controlSize = new Vector2(width, width + textSize.Y + ImGui.GetStyle().ItemSpacing.Y * 2);
@@ -154,18 +176,33 @@ public class ContentViewerPanel : ImGUIWindow
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, *ImGui.GetStyleColorVec4(ImGuiCol.Button));
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, *ImGui.GetStyleColorVec4(ImGuiCol.Button));
         }
-        ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
+        if (IsSelect == false)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
+        }
         if (ImGui.Button("##" + id + "_button" + title ,controlSize))
         {
             if (ImGui.GetTime() - last_click_time <= ImGui.GetIO().MouseDoubleClickTime)
             {
-                rtl = true;
+                rtl = FileButtonAction.DoubleClick;
+                last_click_time = 0;
             }
-            last_click_time = ImGui.GetTime(); ;
+            else
+            {
+                last_click_time = ImGui.GetTime();
+            }
+        }
+        if (ImGui.GetTime() - last_click_time > ImGui.GetIO().MouseDoubleClickTime && last_click_time != 0)
+        {
+            rtl = FileButtonAction.Click;
+            last_click_time = 0;
         }
         ImGui.PopStyleColor();
         ImGui.PopStyleColor();
-        ImGui.PopStyleColor();
+        if (IsSelect == false)
+        {
+            ImGui.PopStyleColor();
+        }
 
 
         return rtl;
@@ -192,11 +229,11 @@ public class ContentViewerPanel : ImGUIWindow
     {
         bool rtl = false;
         ImGuiTreeNodeFlags flag = ImGuiTreeNodeFlags.None ;
-        if (CurrentSelectDir != null && CurrentSelectDir.IsSubDirOf(dir))
+        if (CurrentViewDir != null && CurrentViewDir.IsSubDirOf(dir))
         {
             flag |= ImGuiTreeNodeFlags.DefaultOpen;
         }
-        if (CurrentSelectDir != null && CurrentSelectDir.Path ==  dir.Path)
+        if (CurrentViewDir != null && CurrentViewDir.Path ==  dir.Path)
         {
             flag |= ImGuiTreeNodeFlags.Selected;
         }
@@ -212,9 +249,10 @@ public class ContentViewerPanel : ImGUIWindow
                 if (FirstChange == false)
                 {
                     FirstChange = true;
-                    if (CurrentSelectDir != dir)
+                    if (CurrentViewDir != dir)
                     {
-                        EditorSubsystem.SetValue("CurrentSelectDirection", dir);
+                        EditorSubsystem.SetValue("CurrentViewDir", dir);
+                        CurrentSelectDir = null;
                         OnChangeDir?.Invoke(dir);
                     }
                     rtl = true;
@@ -225,8 +263,6 @@ public class ContentViewerPanel : ImGUIWindow
             {
                 RenderSubDir(Direction);
             }
-
-           
             ImGui.TreePop();
         }
         if (rtl == false)
@@ -236,9 +272,10 @@ public class ContentViewerPanel : ImGUIWindow
                 if (FirstChange == false)
                 {
                     FirstChange = true;
-                    if (CurrentSelectDir != dir)
+                    if (CurrentViewDir != dir)
                     {
-                        EditorSubsystem.SetValue("CurrentSelectDirection", dir);
+                        EditorSubsystem.SetValue("CurrentViewDir", dir);
+                        CurrentSelectDir = null;
                         OnChangeDir?.Invoke(dir);
                     }
                 }

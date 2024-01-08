@@ -354,7 +354,14 @@ namespace Editor.Panels
                 {
                     path = asset.Path;
                 }
+                ImGui.SetNextItemWidth(width - 100);
                 ImGui.InputText("##"  + obj.GetHashCode() + Name, ref path, 256, flag);
+                ImGui.SameLine();
+                if (string.IsNullOrEmpty(path) == false)
+                {
+                    ImGui.Button("🔍");
+                }    
+                
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
                     if (FileSystem.Instance.FileExits(path))

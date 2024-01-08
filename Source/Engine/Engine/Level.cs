@@ -67,6 +67,8 @@ public partial class Level : ISerializable
         {
             if (_DelActors.Contains(actor))
                 continue;
+            if (actor.IsEditorActor == true)
+                continue;
             actors.Add(actor);
         }
         foreach (var actor in _AddActors)

@@ -15,6 +15,8 @@ namespace Spark.Engine.Actors;
 
 public partial class Actor
 {
+
+    public bool IsEditorActor = false;
     /// <summary>
     /// Actor所在关卡
     /// </summary>
@@ -23,7 +25,7 @@ public partial class Actor
 
     protected virtual bool ReceieveUpdate => false;
 
-    public string Name { get ; private set; }
+    public string Name { get ;  set; }
  
     /// <summary>
     /// Actor所在世界

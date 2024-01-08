@@ -57,8 +57,9 @@ public class EditorSubsystem : BaseSubSystem
         world.BeginPlay();
         LevelWorld = world;
         var cameraActor = new CameraActor(world.CurrentLevel);
+        cameraActor.IsEditorActor = true;
         EditorCameraActor = cameraActor;
-        var SkyboxActor = new Actor(world.CurrentLevel);
+        var SkyboxActor = new Actor(world.CurrentLevel, "SkyboxActor");
         var SkyboxComponent = new SkyboxComponent(SkyboxActor);
         SkyboxComponent.SkyboxHDR = CurrentEngine.AssetMgr.Load<TextureHDR>(CurrentEngine.GameName + "/Assets/SkyboxHDR2.asset");
 

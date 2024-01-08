@@ -37,6 +37,34 @@ public class ImGuiSystem
     }
 
 
+    private void LoadFont(string Path)
+    {
+        List<byte> data = new List<byte>();
+        using (var sr = FileSystem.Instance.GetStreamReader(Path))
+        {
+            var br = new BinaryReader(sr.BaseStream);
+
+            byte[] buffer = new byte[1024];
+            while (true)
+            {
+                var len = br.Read(buffer, 0, buffer.Length);
+                if (len <= 0)
+                {
+                    break;
+                }
+                data.AddRange(buffer.Take(len));
+            }
+        }
+        unsafe
+        {
+            fixed (void* p = CollectionsMarshal.AsSpan(data))
+            {
+                ImGui.GetIO().Fonts.AddFontFromMemoryTTF((nint)p, 14, 14, 0, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull());
+            }
+        }
+    }
+
+
     ImGuiController? Controller;
     public void Init()
     {
@@ -47,29 +75,8 @@ public class ImGuiSystem
                 ref var flags = ref ImGui.GetIO().ConfigFlags;
                 flags |= ImGuiConfigFlags.DockingEnable;
                 ImGui.StyleColorsDark();
-                List<byte> data = new List<byte>();
-                using (var sr = FileSystem.Instance.GetStreamReader("Fonts/msyh.ttc"))
-                {
-                    var br = new BinaryReader(sr.BaseStream);
-
-                    byte[] buffer = new byte[1024];
-                    while (true)
-                    {
-                        var len = br.Read(buffer, 0, buffer.Length);
-                        if (len <= 0)
-                        {
-                            break;
-                        }
-                        data.AddRange(buffer.Take(len));
-                    }
-                }
-                unsafe
-                {
-                    fixed (void* p = CollectionsMarshal.AsSpan(data))
-                    {
-                        ImGui.GetIO().Fonts.AddFontFromMemoryTTF((nint)p, 14, 14,0, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull());
-                    }
-                }
+                LoadFont("Fonts/msyh.ttc");
+                LoadFont("Fonts/forkawesome-webfont.ttf");
 
                 unsafe
                 {

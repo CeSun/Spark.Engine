@@ -40,6 +40,8 @@ public class OutlinerPanel : ImGUIWindow
         {
             foreach (var actor in EditorSubsystem.LevelWorld.CurrentLevel.Actors)
             {
+                if (actor.IsEditorActor == true)
+                    continue;
                 var cond = EditorSubsystem.SelectedActor != actor;
                 if (cond)
                 {
