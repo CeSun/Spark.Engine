@@ -52,6 +52,10 @@ namespace Editor.Panels
                 {
                     ImGui.SetColumnWidth(0, (float)leftWidth);
                 }
+                var leftwidth = ImGui.GetColumnWidth() - ImGui.GetStyle().FramePadding.X * 2;
+                
+
+                ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize("Name: ").X);
                 ImGui.Text("Name: ");
                 ImGui.NextColumn();
                 var Name = Actor.Name;
@@ -64,6 +68,7 @@ namespace Editor.Panels
 
 
                 ImGui.NextColumn();
+                ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize("Location：").X);
                 ImGui.Text("Location：");
                 ImGui.NextColumn();
                 ImGui.Text("X");
@@ -102,6 +107,7 @@ namespace Editor.Panels
 
 
                 ImGui.NextColumn();
+                ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize("Rotation：").X);
                 ImGui.Text("Rotation：");
                 ImGui.NextColumn();
 
@@ -127,6 +133,7 @@ namespace Editor.Panels
 
 
                 ImGui.NextColumn();
+                ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize("Scale：").X);
                 ImGui.Text("Scale："); 
                 ImGui.NextColumn();
                 
@@ -214,9 +221,11 @@ namespace Editor.Panels
         private Vector3 tempColor;
         public void RenderProperty(PropertyAttribute attr, PropertyInfo property, Object obj)
         {
+            var leftwidth = ImGui.GetColumnWidth() - ImGui.GetStyle().FramePadding.X * 2;
             var Name = attr.DisplayName;
             if (string.IsNullOrEmpty(Name))
                 Name = property.Name;
+            ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize(Name + "：").X);
             ImGui.Text(Name + "：");
             ImGui.NextColumn();
 

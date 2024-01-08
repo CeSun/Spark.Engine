@@ -6,6 +6,7 @@ using Spark.Engine.Assets;
 using Spark.Engine.GUI;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using static Editor.Panels.ContentViewerPanel;
 
 namespace Editor.Panels;
 
@@ -89,55 +90,101 @@ public class ContentViewerPanel : ImGUIWindow
             if (CurrentSelectDir == null)
                 return;
             var width = ImGui.GetContentRegionAvail().X;
-            int columnNum = (int)(width / 100f);
+            int columnNum = (int)(width / 80f);
 
             ImGui.Columns(columnNum, "##", false);
-
+            int i = 0;
             foreach (var folder in CurrentSelectDir.Children)
             {
+                var w = ImGui.GetColumnWidth();
+                if (FileButton(folder.Path,folder.Name, texture.TextureId, (int)w - 2* (ImGui.GetStyle().FramePadding * 2).X))
+                {
+                    EditorSubsystem.SetValue("CurrentSelectDirection", folder);
+                    OnChangeDir?.Invoke(folder);
+                }
+                /*
                 Vector4 vector4 = default;
                 unsafe
                 {
                     vector4 = *ImGui.GetStyleColorVec4(ImGuiCol.ButtonHovered);
                 }
+                ;
+
                 double current_time = ImGui.GetTime();
-                if (ImGui.ImageButton("##" + folder.Path, (nint)texture.TextureId, new Vector2(80f)))
+                if (ImGui.ImageButton("##" + folder.Path, (nint)texture.TextureId, new Vector2(w - ImGui.GetStyle().FramePadding.X * 4), Vector2.Zero, Vector2.One))
                 {
                     if (current_time - last_click_time <= ImGui.GetIO().MouseDoubleClickTime)
                     {
-                        Console.WriteLine(ImGui.GetIO().MouseDoubleClickTime);
-                        Console.WriteLine(current_time - last_click_time);
                         EditorSubsystem.SetValue("CurrentSelectDirection", folder);
                         OnChangeDir?.Invoke(folder);
                     }
                     // 更新上一次点击的时间
                     last_click_time = current_time;
-
                 }
-
-                var ButtonWidth = ImGui.GetItemRectSize().x;
-
                 var textWidth = ImGui.CalcTextSize(folder.Name).X;
-
-                float centerPos = (ButtonWidth - textWidth) * 0.5f;
-
+                var colum = i % columnNum;
+                float centerPos = colum * w + (w - textWidth) * 0.5f;
                 ImGui.SetCursorPosX(centerPos);
                 ImGui.Text(folder.Name);
+                */
                 ImGui.NextColumn();
+
+                i++;
             }
         }
 
     }
 
+    public bool FileButton(string id, string title, uint textureid, float width)
+    {
+        bool rtl = false;
+        var location = ImGui.GetCursorPos();
+        var textSize = ImGui.CalcTextSize(title);
+        var controlSize = new Vector2(width, width + textSize.Y + ImGui.GetStyle().ItemSpacing.Y * 2);
+
+        ImGui.SetCursorPos(location + ImGui.GetStyle().FramePadding);
+        ImGui.Image((nint)textureid, new Vector2(width -ImGui.GetStyle().FramePadding.X * 2, width -  ImGui.GetStyle().FramePadding.Y * 2));
+        ImGui.SetCursorPosX(location.X + (width - textSize.X) / 2);
+
+        ImGui.Text(title);
+
+        ImGui.SetCursorPos(location);
+        unsafe
+        {
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, *ImGui.GetStyleColorVec4(ImGuiCol.Button));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, *ImGui.GetStyleColorVec4(ImGuiCol.Button));
+        }
+        ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
+        if (ImGui.Button("##" + id + "_button" + title ,controlSize))
+        {
+            if (ImGui.GetTime() - last_click_time <= ImGui.GetIO().MouseDoubleClickTime)
+            {
+                rtl = true;
+            }
+            last_click_time = ImGui.GetTime(); ;
+        }
+        ImGui.PopStyleColor();
+        ImGui.PopStyleColor();
+        ImGui.PopStyleColor();
+
+
+        return rtl;
+    }
+
+
     public void RenderDirTree()
     {
-        FirstChange = false;
-        if (ImGui.CollapsingHeader($"All##all", ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.BeginChild("#left"))
         {
-            foreach (var dir in Root.Children)
+            FirstChange = false;
+            if (ImGui.CollapsingHeader($"All##all", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                RenderSubDir(dir);
+                foreach (var dir in Root.Children)
+                {
+                    RenderSubDir(dir);
+                }
             }
+            ImGui.EndChild();
         }
     }
     bool FirstChange = false;
@@ -145,6 +192,10 @@ public class ContentViewerPanel : ImGUIWindow
     {
         bool rtl = false;
         ImGuiTreeNodeFlags flag = ImGuiTreeNodeFlags.None ;
+        if (CurrentSelectDir != null && CurrentSelectDir.IsSubDirOf(dir))
+        {
+            flag |= ImGuiTreeNodeFlags.DefaultOpen;
+        }
         if (CurrentSelectDir != null && CurrentSelectDir.Path ==  dir.Path)
         {
             flag |= ImGuiTreeNodeFlags.Selected;
@@ -228,6 +279,12 @@ public class ContentViewerPanel : ImGUIWindow
             return !(left == right);
         }
 
+        public bool IsSubDirOf(Folder Other)
+        {
+            if (this.Path.IndexOf(Other.Path) == 0 && Other.Path != this.Path)
+                return true;
+            return false;
+        }
         public override bool Equals(object? obj)
         {
             if (obj == null) 
