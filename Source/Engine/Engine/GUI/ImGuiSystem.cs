@@ -76,7 +76,6 @@ public class ImGuiSystem
                 flags |= ImGuiConfigFlags.DockingEnable;
                 ImGui.StyleColorsDark();
                 LoadFont("Fonts/msyh.ttc");
-                LoadFont("Fonts/forkawesome-webfont.ttf");
 
                 unsafe
                 {

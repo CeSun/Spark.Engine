@@ -4,6 +4,7 @@ using ImGuiNET;
 using Spark.Engine;
 using Spark.Engine.Assets;
 using Spark.Engine.GUI;
+using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using static Editor.Panels.ContentViewerPanel;
@@ -13,13 +14,14 @@ namespace Editor.Panels;
 public class ContentViewerPanel : ImGUIWindow
 {
 
-    Texture texture;
+    Texture FolderTextureId;
+
     EditorSubsystem EditorSubsystem;
     public ContentViewerPanel(Level level) : base(level)
     {
         EditorSubsystem = level.Engine.GetSubSystem<EditorSubsystem>();
 
-        BuildDirectionTree();
+        BuildFolderTree();
 
         OnChangeDir += dir =>
         {
@@ -29,24 +31,38 @@ public class ContentViewerPanel : ImGUIWindow
          
 
         };
-        texture = Texture.LoadFromMemory(Resources.Asset_Folder);
-        texture.InitRender(level.Engine.Gl);
+        FolderTextureId = Texture.LoadFromMemory(Resources.Asset_Folder);
+        FolderTextureId.InitRender(level.Engine.Gl);
     }
 
-    Folder? CurrentViewDir;
+    Folder? CurrentViewFolder
+    {
+        get
+        {
+            var folder = EditorSubsystem.GetValue<Folder>("CurrentViewFolder");
+            CurrentViewFolderCache = folder;
+            return folder;
+        }
+        set => EditorSubsystem.SetValue("CurrentViewFolder", value);
+    }
+    Folder? CurrentViewFolderCache;
 
-    Folder? CurrentSelectDir;
+    Folder? CurrentSelectFile 
+    { 
+        get => EditorSubsystem.GetValue<Folder>("CurrentSelectFile");
+        set => EditorSubsystem.SetValue("CurrentSelectFile", value);
+    }
     Folder Root;
 
     public List<Folder> Folders { get; set; } = new List<Folder>();
-    private void BuildDirectionTree()
+    private void BuildFolderTree()
     {
         Root = CreateFolder(new DirectoryInfo(Directory.GetCurrentDirectory()));
     }
 
     private Folder CreateFolder(DirectoryInfo dir, bool IgnoreSubDir = false)
     {
-        var direction = new Folder
+        var foler = new Folder
         {
             Path = dir.FullName,
             Name = dir.Name,
@@ -55,14 +71,30 @@ public class ContentViewerPanel : ImGUIWindow
         {
             foreach (var subdir in dir.GetDirectories())
             {
-                direction.Children.Add(CreateFolder(subdir));
+                foler.Children.Add(CreateFolder(subdir));
+            }
+
+            foreach(var file in dir.GetFiles())
+            {
+                foler.Children.Add(CreateAssetFile(file));
             }
         }
-        return direction;
+        return foler;
+    }
+
+    private AssetFile CreateAssetFile(FileInfo File)
+    {
+        return new AssetFile
+        {
+            Path = File.FullName,
+            Name = File.Name,
+        };
+
+        
+
     }
     public override void Render(double DeltaTime)
     {
-        CurrentViewDir = EditorSubsystem.GetValue<Folder>("CurrentViewDir");
         ImGui.Begin("Content Viewer");
         if (ImGui.Button("添加"))
         {
@@ -83,12 +115,11 @@ public class ContentViewerPanel : ImGUIWindow
         RenderFileList();
         ImGui.End();
     }
-    double last_click_time = 0.0;
     public void RenderFileList()
     {
         if (ImGui.BeginChild("#right"))
         {
-            if (CurrentViewDir == null)
+            if (CurrentViewFolder == null)
                 return;
             var width = ImGui.GetContentRegionAvail().X;
             int columnNum = (int)(width / 100f);
@@ -96,53 +127,34 @@ public class ContentViewerPanel : ImGUIWindow
                 columnNum = 1;
             ImGui.Columns(columnNum, "##", false);
             int i = 0;
-            foreach (var folder in CurrentViewDir.Children)
+            foreach (var file in CurrentViewFolder.Children)
             {
+                
                 var w = ImGui.GetColumnWidth();
-                switch (FileButton(folder.Path,folder.Name, texture.TextureId, (int)w - 2* (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectDir == folder))
+                switch (ImGUICtl.FolderButton(file.Path, file.Name, "123", FolderTextureId.TextureId, (int)w - 2* (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectFile == file))
                 {
                     case FileButtonAction.DoubleClick:
-                    {
-
-                        EditorSubsystem.SetValue("CurrentViewDir", folder);
-                            CurrentSelectDir = null;
-                            OnChangeDir?.Invoke(folder);
-                        break;
-                    }
+                        {
+                            if (file is Folder folder)
+                            {
+                                CurrentViewFolder = folder;
+                                CurrentSelectFile = null;
+                                OnChangeDir?.Invoke(folder);
+                            }
+                            break;
+                        }
                     case FileButtonAction.Click:
                     {
-                        CurrentSelectDir = folder;
-                        Console.WriteLine("Click");
-                        break;
+                            if (file is Folder folder)
+                            {
+                                CurrentSelectFile = folder;
+                                Console.WriteLine("Click");
+                            }
+                            break;
                     }
                     default:
                         break;
                 }
-                /*
-                Vector4 vector4 = default;
-                unsafe
-                {
-                    vector4 = *ImGui.GetStyleColorVec4(ImGuiCol.ButtonHovered);
-                }
-                ;
-
-                double current_time = ImGui.GetTime();
-                if (ImGui.ImageButton("##" + folder.Path, (nint)texture.TextureId, new Vector2(w - ImGui.GetStyle().FramePadding.X * 4), Vector2.Zero, Vector2.One))
-                {
-                    if (current_time - last_click_time <= ImGui.GetIO().MouseDoubleClickTime)
-                    {
-                        EditorSubsystem.SetValue("CurrentSelectDirection", folder);
-                        OnChangeDir?.Invoke(folder);
-                    }
-                    // 更新上一次点击的时间
-                    last_click_time = current_time;
-                }
-                var textWidth = ImGui.CalcTextSize(folder.Name).X;
-                var colum = i % columnNum;
-                float centerPos = colum * w + (w - textWidth) * 0.5f;
-                ImGui.SetCursorPosX(centerPos);
-                ImGui.Text(folder.Name);
-                */
                 ImGui.NextColumn();
 
                 i++;
@@ -150,63 +162,8 @@ public class ContentViewerPanel : ImGUIWindow
         }
 
     }
-    public enum FileButtonAction
-    {
-        None = 0,
-        Click,
-        DoubleClick
-
-    }
-    public FileButtonAction FileButton(string id, string title, uint textureid, float width, bool IsSelect = false)
-    {
-        FileButtonAction rtl = FileButtonAction.None;
-        var location = ImGui.GetCursorPos();
-        var textSize = ImGui.CalcTextSize(title);
-        var controlSize = new Vector2(width, width + textSize.Y + ImGui.GetStyle().ItemSpacing.Y * 2);
-
-        ImGui.SetCursorPos(location + ImGui.GetStyle().FramePadding);
-        ImGui.Image((nint)textureid, new Vector2(width -ImGui.GetStyle().FramePadding.X * 2, width -  ImGui.GetStyle().FramePadding.Y * 2));
-        ImGui.SetCursorPosX(location.X + (width - textSize.X) / 2);
-
-        ImGui.Text(title);
-
-        ImGui.SetCursorPos(location);
-        unsafe
-        {
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, *ImGui.GetStyleColorVec4(ImGuiCol.Button));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, *ImGui.GetStyleColorVec4(ImGuiCol.Button));
-        }
-        if (IsSelect == false)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
-        }
-        if (ImGui.Button("##" + id + "_button" + title ,controlSize))
-        {
-            if (ImGui.GetTime() - last_click_time <= ImGui.GetIO().MouseDoubleClickTime)
-            {
-                rtl = FileButtonAction.DoubleClick;
-                last_click_time = 0;
-            }
-            else
-            {
-                last_click_time = ImGui.GetTime();
-            }
-        }
-        if (ImGui.GetTime() - last_click_time > ImGui.GetIO().MouseDoubleClickTime && last_click_time != 0)
-        {
-            rtl = FileButtonAction.Click;
-            last_click_time = 0;
-        }
-        ImGui.PopStyleColor();
-        ImGui.PopStyleColor();
-        if (IsSelect == false)
-        {
-            ImGui.PopStyleColor();
-        }
-
-
-        return rtl;
-    }
+ 
+   
 
 
     public void RenderDirTree()
@@ -218,50 +175,56 @@ public class ContentViewerPanel : ImGUIWindow
             {
                 foreach (var dir in Root.Children)
                 {
-                    RenderSubDir(dir);
+                    if (dir is Folder foler)
+                    {
+                        RenderSubDir(foler);
+                    }
                 }
             }
             ImGui.EndChild();
         }
     }
     bool FirstChange = false;
-    public void RenderSubDir(Folder dir)
+    public void RenderSubDir(Folder folder)
     {
         bool rtl = false;
         ImGuiTreeNodeFlags flag = ImGuiTreeNodeFlags.None ;
-        if (CurrentViewDir != null && CurrentViewDir.IsSubDirOf(dir))
+        if (CurrentViewFolder != null && CurrentViewFolder.IsSubDirOf(folder))
         {
             flag |= ImGuiTreeNodeFlags.DefaultOpen;
         }
-        if (CurrentViewDir != null && CurrentViewDir.Path ==  dir.Path)
+        if (CurrentViewFolder != null && CurrentViewFolder.Path ==  folder.Path)
         {
             flag |= ImGuiTreeNodeFlags.Selected;
         }
-        if (dir.Children.Count == 0)
+        if (folder.Children.Count == 0)
         {
             flag |= ImGuiTreeNodeFlags.Leaf;
         }
         bool IsClick = false;
-        if (ImGui.TreeNodeEx($"{dir.Name}##{dir.Path}", flag))
+        if (ImGui.TreeNodeEx($"{folder.Name}##{folder.Path}", flag))
         {
             if (ImGui.IsItemClicked())
             {
                 if (FirstChange == false)
                 {
                     FirstChange = true;
-                    if (CurrentViewDir != dir)
+                    if (CurrentViewFolder != folder)
                     {
-                        EditorSubsystem.SetValue("CurrentViewDir", dir);
-                        CurrentSelectDir = null;
-                        OnChangeDir?.Invoke(dir);
+                        CurrentViewFolder = folder;
+                        CurrentSelectFile = null;
+                        OnChangeDir?.Invoke(folder);
                     }
                     rtl = true;
                 }
             }
 
-            foreach (var Direction in dir.Children)
+            foreach (var directory in folder.Children)
             {
-                RenderSubDir(Direction);
+                if (directory is Folder foler)
+                {
+                    RenderSubDir(foler);
+                }
             }
             ImGui.TreePop();
         }
@@ -272,11 +235,11 @@ public class ContentViewerPanel : ImGUIWindow
                 if (FirstChange == false)
                 {
                     FirstChange = true;
-                    if (CurrentViewDir != dir)
+                    if (CurrentViewFolder != folder)
                     {
-                        EditorSubsystem.SetValue("CurrentViewDir", dir);
-                        CurrentSelectDir = null;
-                        OnChangeDir?.Invoke(dir);
+                        CurrentViewFolder = folder;
+                        CurrentSelectFile = null;
+                        OnChangeDir?.Invoke(folder);
                     }
                 }
             }
@@ -285,17 +248,15 @@ public class ContentViewerPanel : ImGUIWindow
 
     public event Action<Folder>? OnChangeDir;
 
-    public class Folder
+
+    public class BaseFile
     {
         public string Path = string.Empty;
         public string Name = string.Empty;
 
-        public List<Folder> Children = new List<Folder>()
-        {
-            
-        };
 
-        public static bool operator ==(Folder? left, Folder? right)
+        public virtual bool IsDirectory { get;} = false;
+        public static bool operator ==(BaseFile? left, BaseFile? right)
         {
             if (ReferenceEquals(left, right))
             {
@@ -311,20 +272,14 @@ public class ContentViewerPanel : ImGUIWindow
             }
             return left.Path == right.Path;
         }
-        public static bool operator !=(Folder? left, Folder? right)
+        public static bool operator !=(BaseFile? left, BaseFile? right)
         {
             return !(left == right);
         }
 
-        public bool IsSubDirOf(Folder Other)
-        {
-            if (this.Path.IndexOf(Other.Path) == 0 && Other.Path != this.Path)
-                return true;
-            return false;
-        }
         public override bool Equals(object? obj)
         {
-            if (obj == null) 
+            if (obj == null)
                 return false;
             if (ReferenceEquals(this, obj))
             {
@@ -336,7 +291,7 @@ public class ContentViewerPanel : ImGUIWindow
                 return false;
             }
 
-            if ( obj is Folder dir)
+            if (obj is Folder dir)
             {
                 return dir.Path.Equals(this.Path);
             }
@@ -349,6 +304,28 @@ public class ContentViewerPanel : ImGUIWindow
         public override int GetHashCode()
         {
             return Path.GetHashCode();
+        }
+    }
+
+    public class AssetFile : BaseFile
+    {
+        public override bool IsDirectory => false;
+    }
+    public class Folder : BaseFile
+    {
+
+        public List<BaseFile> Children = new List<BaseFile>()
+        {
+            
+        };
+
+        public override bool IsDirectory => true;
+
+        public bool IsSubDirOf(BaseFile Other)
+        {
+            if (this.Path.IndexOf(Other.Path) == 0 && Other.Path != this.Path)
+                return true;
+            return false;
         }
     }
 }
