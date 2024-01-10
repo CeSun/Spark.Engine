@@ -354,15 +354,26 @@ namespace Editor.Panels
                 {
                     path = asset.Path;
                 }
-                ImGui.SetNextItemWidth(width - 100);
+
+
+                ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
+                var ButtonWidth = ImGui.CalcTextSize([(char)0x00f060, (char)0x00f002]).X + ImGui.GetStyle().ItemSpacing.X * 3 + ImGui.GetStyle().FramePadding.X * 4;
+                ImGui.PopFont();
+                ImGui.SetNextItemWidth(width - ButtonWidth);
                 ImGui.InputText("##"  + obj.GetHashCode() + Name, ref path, 256, flag);
                 ImGui.SameLine();
                 if (string.IsNullOrEmpty(path) == false)
                 {
                     ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
-                    ImGui.Button([(char)0x00f060]);
+                    if(ImGui.Button([(char)0x00f060]))
+                    {
+                        // todo： 当前选中的资源设置到输入框中
+                    }
                     ImGui.SameLine();
-                    ImGui.Button([(char)0x00f002]);
+                    if(ImGui.Button([(char)0x00f002]))
+                    {
+                        // todo: 在文件浏览器里查看输入框里的资源
+                    }
                     ImGui.PopFont();
                 }    
                 

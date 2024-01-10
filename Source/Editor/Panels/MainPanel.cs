@@ -57,9 +57,11 @@ public class MainPanel : ImGUIWindow
         }
 
 
-        ImGui.Button("Save##editorsave");
+        ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
+        ImGui.Button(new string([(char)0x000f0c7])+ "##editorsave");
         ImGui.SameLine();
-        ImGui.Button("Run##editorrun");
+        ImGui.Button(new string([(char)0x000f04b]) + "##editorrun");
+        ImGui.PopFont();
         ImGui.DockSpace(viewport.ID);
 
         ImGui.End();
