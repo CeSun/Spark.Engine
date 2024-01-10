@@ -1,5 +1,6 @@
 ﻿using ImGuiNET;
 using System.Numerics;
+using System.Runtime.InteropServices;
 namespace Editor
 {
     public enum FileButtonAction
@@ -27,10 +28,15 @@ namespace Editor
 
             if (string.IsNullOrEmpty(label) == false)
             {
-                var textHeight = ImGui.GetCursorPosY() - ImGui.CalcTextSize(label).Y - ImGui.GetStyle().FramePadding.Y * 3;
-                ImGui.SetCursorPosY(textHeight);
-                ImGui.SetCursorPosX(location.X + ImGui.GetStyle().FramePadding.Y  * 2);
+                var texSize = ImGui.CalcTextSize(label);
+                var textHeight = ImGui.GetCursorPosY() - texSize.Y - ImGui.GetStyle().FramePadding.Y * 3;
+
+                Vector2 Left = new Vector2(location.X + ImGui.GetStyle().FramePadding.Y * 2, textHeight);
+                Vector2 Right = Left + texSize;
+                ImGui.SetCursorPos(Left);
                 ImGui.Text(label);
+                var color = ImGui.GetColorU32(ImGuiCol.Header);
+                RenderFrame(Left, Right, color, false, 0);
             }
             ImGui.SetCursorPosX(location.X + (width - textSize.X) / 2);
             ImGui.Text(title);
@@ -65,5 +71,9 @@ namespace Editor
             }
             return rtl;
         }
+        [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igRenderFrame")]
+        public static extern void RenderFrame(Vector2 Min, Vector2 Max, uint Color, bool Border, float Rounding);
     }
+
+
 }
