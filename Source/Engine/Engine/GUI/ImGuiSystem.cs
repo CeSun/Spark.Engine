@@ -36,8 +36,17 @@ public class ImGuiSystem
         CurrentLevel = level;
     }
 
-
-    private void LoadFont(string Path)
+    private ImFontPtr LoadFont(string Path, int fontSize, char[] glyphRanges)
+    {
+        unsafe
+        {
+            fixed(void* p = glyphRanges)
+            {
+                return LoadFont(Path, fontSize, (nint)p);
+            }
+        }
+    }
+    private ImFontPtr LoadFont(string Path, int fontSize, nint glyphRanges)
     {
         List<byte> data = new List<byte>();
         using (var sr = FileSystem.Instance.GetStreamReader(Path))
@@ -59,11 +68,14 @@ public class ImGuiSystem
         {
             fixed (void* p = CollectionsMarshal.AsSpan(data))
             {
-                ImGui.GetIO().Fonts.AddFontFromMemoryTTF((nint)p, 14, 14, 0, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull());
+                return ImGui.GetIO().Fonts.AddFontFromMemoryTTF((nint)p, fontSize, fontSize, 0, glyphRanges);
             }
         }
     }
 
+    Dictionary<string, ImFontPtr> _Fonts = new Dictionary<string, ImFontPtr>();
+
+    public IReadOnlyDictionary<string, ImFontPtr> Fonts => _Fonts;
 
     ImGuiController? Controller;
     public void Init()
@@ -75,7 +87,13 @@ public class ImGuiSystem
                 ref var flags = ref ImGui.GetIO().ConfigFlags;
                 flags |= ImGuiConfigFlags.DockingEnable;
                 ImGui.StyleColorsDark();
-                LoadFont("Fonts/msyh.ttc");
+                _Fonts.Add("msyh", LoadFont("Fonts/msyh.ttc", 14, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull()));
+
+                _Fonts.Add("forkawesome", LoadFont("Fonts/forkawesome-webfont.ttf", 14,
+                [
+                    (char)0xf000,
+                    (char)0xf372
+                ]));
 
                 unsafe
                 {

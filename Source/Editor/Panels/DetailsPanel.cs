@@ -359,7 +359,11 @@ namespace Editor.Panels
                 ImGui.SameLine();
                 if (string.IsNullOrEmpty(path) == false)
                 {
-                    ImGui.Button("🔍");
+                    ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
+                    ImGui.Button([(char)0x00f060]);
+                    ImGui.SameLine();
+                    ImGui.Button([(char)0x00f002]);
+                    ImGui.PopFont();
                 }    
                 
                 if (ImGui.IsItemDeactivatedAfterEdit())

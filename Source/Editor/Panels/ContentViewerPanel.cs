@@ -146,7 +146,6 @@ public class ContentViewerPanel : ImGUIWindow
                             if (file is Folder folder)
                             {
                                 CurrentSelectFile = folder;
-                                Console.WriteLine("Click");
                             }
                             break;
                     }
@@ -251,8 +250,6 @@ public class ContentViewerPanel : ImGUIWindow
     {
         public string Path = string.Empty;
         public string Name = string.Empty;
-
-
         public virtual bool IsDirectory { get;} = false;
         public static bool operator ==(BaseFile? left, BaseFile? right)
         {
