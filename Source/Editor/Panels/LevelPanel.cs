@@ -59,6 +59,34 @@ public class LevelPanel : ImGUIWindow
                 }
             }
 
+            if (ImGui.IsMouseHoveringRect(min, max))
+            {
+                Vector2 movement = Vector2.Zero;
+                if(level.Engine.MainKeyBoard.IsKeyPressed(Key.W))
+                {
+                    movement.Y = 1;
+                }
+                else if (level.Engine.MainKeyBoard.IsKeyPressed(Key.S))
+                {
+                    movement.Y = -1;
+                }
+                else if (level.Engine.MainKeyBoard.IsKeyPressed(Key.A))
+                {
+                    movement.X = -1;
+                }
+                else if (level.Engine.MainKeyBoard.IsKeyPressed(Key.D))
+                {
+                    movement.X = 1;
+                }
+                if (movement != Vector2.Zero)
+                {
+                    movement = Vector2.Normalize(movement);
+
+                    EditorSubsystem.EditorCameraActor.WorldLocation += (EditorSubsystem.EditorCameraActor.ForwardVector * movement.Y + EditorSubsystem.EditorCameraActor.RightVector * movement.X) * (float)deltaTime;
+
+                }
+            }
+
         }
 
         if (EditorSubsystem.EditorCameraActor != null)

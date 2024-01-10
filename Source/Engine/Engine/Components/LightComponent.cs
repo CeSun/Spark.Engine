@@ -16,7 +16,7 @@ public class LightComponent : PrimitiveComponent
         set => _LightStrength = value;
     }
 
-    [Property(DisplayName = "Color", IsDispaly = true, IsReadOnly = true)]
+    [Property(DisplayName = "Color", IsDispaly = true, IsReadOnly = false)]
     public Color Color
     {
         get

@@ -14,6 +14,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using static Editor.Panels.ContentViewerPanel;
 
 namespace Editor.Panels
 {
@@ -295,7 +296,6 @@ namespace Editor.Panels
                 {
                     property.SetValue(obj, data);
                 }
-                   
             }
             else if (property.PropertyType == typeof(double))
             {
@@ -355,39 +355,57 @@ namespace Editor.Panels
                     path = asset.Path;
                 }
 
-
+                bool IsModifyInput = false;
                 ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
                 var ButtonWidth = ImGui.CalcTextSize([(char)0x00f060, (char)0x00f002]).X + ImGui.GetStyle().ItemSpacing.X * 3 + ImGui.GetStyle().FramePadding.X * 4;
                 ImGui.PopFont();
                 ImGui.SetNextItemWidth(width - ButtonWidth);
                 ImGui.InputText("##"  + obj.GetHashCode() + Name, ref path, 256, flag);
                 ImGui.SameLine();
-                if (string.IsNullOrEmpty(path) == false)
+               
+
+                ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
+                if(ImGui.Button(new string([(char)0x00f060]) + "##set_" + property.DeclaringType.FullName + "_"+property.Name))
                 {
-                    ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
-                    if(ImGui.Button([(char)0x00f060]))
+                    var file = EditorSubsystem.GetValue<AssetFile>("CurrentSelectFile");
+                    if (file != null)
                     {
-                        // todo： 当前选中的资源设置到输入框中
+                        var MyPath = file.Path.Replace("\\", "/");
+                        MyPath = MyPath.Substring(EditorSubsystem.CurrentPath.Length + 1, MyPath.Length - EditorSubsystem.CurrentPath.Length - 1);
+                        path = MyPath;
+                        IsModifyInput = true;
                     }
-                    ImGui.SameLine();
-                    if(ImGui.Button([(char)0x00f002]))
-                    {
-                        // todo: 在文件浏览器里查看输入框里的资源
-                    }
-                    ImGui.PopFont();
-                }    
-                
+                    // todo： 当前选中的资源设置到输入框中
+                }
+                ImGui.SameLine();
+                if(ImGui.Button(new string([(char)0x00f002]) + "##set_" + property.DeclaringType.FullName + "_" + property.Name))
+                {
+                    // todo: 在文件浏览器里查看输入框里的资源
+                }
+                ImGui.PopFont();
+               
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
-                    if (FileSystem.Instance.FileExits(path))
+                    IsModifyInput = true;
+                    
+                }
+                if (IsModifyInput && FileSystem.Instance.FileExits(path))
+                {
+                    if (path == "")
+                    {
+                        property.SetValue(obj, null);
+                    }
+                    else
                     {
                         try
                         {
                             asset = this.level.Engine.AssetMgr.Load(property.PropertyType, path);
                             property.SetValue(obj, asset);
-                        } 
-                        catch 
-                        { 
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e.ToString());
+                            Console.WriteLine(e.StackTrace);
                         }
                     }
                 }

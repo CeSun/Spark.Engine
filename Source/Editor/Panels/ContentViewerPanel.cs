@@ -4,7 +4,10 @@ using ImGuiNET;
 using Spark.Engine;
 using Spark.Engine.Assets;
 using Spark.Engine.GUI;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net.Http.Headers;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using static Editor.Panels.ContentViewerPanel;
@@ -33,8 +36,65 @@ public class ContentViewerPanel : ImGUIWindow
         };
         FolderTextureId = Texture.LoadFromMemory(Resources.Asset_Folder);
         FolderTextureId.InitRender(level.Engine.Gl);
+
+        level.Engine.OnFileDrog += OnFileDrog;
     }
 
+
+    public void OnFileDrog(string[] paths)
+    {
+        var currentPath = EditorSubsystem.CurrentPath;
+        if (CurrentViewFolder != null)
+        {
+            currentPath = CurrentViewFolder.Path;
+        }
+        List<(AssetBase, string)> assets = new List<(AssetBase, string)>();
+        foreach (var path in paths)
+        {
+            var Extension = Path.GetExtension(path);
+            if (Extension == ".bmp" || Extension == ".png" || Extension == ".tga")
+            {
+                assets.Add((Spark.Engine.Assets.Texture.LoadFromFile(path), path));
+            }
+            else if (Extension == ".hdr")
+            {
+                assets.Add((TextureHDR.LoadFromFile(path), path));
+            }
+            else if (Extension == ".glb")
+            {
+                SkeletalMesh.ImportFromGLB(path).ForEach(asset =>
+                {
+                    assets.Add((asset, path));
+                });
+            }
+        }
+
+        foreach(var (asset, path) in assets)
+        {
+            if (asset != null)
+            {
+                var fileName = Path.GetFileName(path).Split(".")[0];
+                string FullFileName = currentPath + "/" + fileName + ".asset";
+                if (File.Exists(FullFileName))
+                {
+                    for (int i = 1; true; i++)
+                    {
+                        if (File.Exists(currentPath + "/" + fileName + i + ".asset") == false)
+                        {
+                            FullFileName = currentPath + "/" + fileName + i + ".asset";
+                            break;
+                        }
+                    }
+                }
+                asset.Path = FullFileName.Substring(EditorSubsystem.CurrentPath.Length + 1, FullFileName.Length - EditorSubsystem.CurrentPath.Length - 1);
+                using (var sw = new StreamWriter(FullFileName))
+                {
+                    asset.Serialize(new BinaryWriter(sw.BaseStream), level.Engine);
+                }
+            }
+        }
+        BuildFolderTree();
+    }
     Folder? CurrentViewFolder
     {
         get
@@ -47,9 +107,9 @@ public class ContentViewerPanel : ImGUIWindow
     }
     Folder? CurrentViewFolderCache;
 
-    Folder? CurrentSelectFile 
+    BaseFile? CurrentSelectFile 
     { 
-        get => EditorSubsystem.GetValue<Folder>("CurrentSelectFile");
+        get => EditorSubsystem.GetValue<BaseFile>("CurrentSelectFile");
         set => EditorSubsystem.SetValue("CurrentSelectFile", value);
     }
     Folder Root;
@@ -62,7 +122,7 @@ public class ContentViewerPanel : ImGUIWindow
 
     private Folder CreateFolder(DirectoryInfo dir, bool IgnoreSubDir = false)
     {
-        var foler = new Folder
+        var folder = new Folder
         {
             Path = dir.FullName,
             Name = dir.Name,
@@ -71,26 +131,51 @@ public class ContentViewerPanel : ImGUIWindow
         {
             foreach (var subdir in dir.GetDirectories())
             {
-                foler.Children.Add(CreateFolder(subdir));
+                folder.ChildFolders.Add(CreateFolder(subdir));
             }
 
             foreach(var file in dir.GetFiles())
             {
-                foler.Children.Add(CreateAssetFile(file));
+                folder.ChildAssetFiles.Add(CreateAssetFile(file));
             }
         }
-        return foler;
+        if (CurrentViewFolder != null)
+        {
+            if (ReferenceEquals(CurrentViewFolder, folder) == false && CurrentViewFolder == folder )
+            {
+                CurrentViewFolder = folder;
+            }
+        }
+        return folder;
     }
 
     private AssetFile CreateAssetFile(FileInfo File)
     {
-        return new AssetFile
+        var file = new AssetFile
         {
             Path = File.FullName,
             Name = File.Name,
         };
+        using (var sr = new StreamReader(File.FullName))
+        {
+            var br = new BinaryReader(sr.BaseStream);
 
-        
+            var magicCode  = br.ReadInt32();
+
+            var AssetType = br.ReadInt32();
+
+            if (magicCode != MagicCode.Asset)
+            {
+                file.AssetType = -1;
+            }
+            else
+            {
+                file.AssetType = AssetType;
+            }
+
+        }
+        return file;
+
 
     }
     public override void Render(double DeltaTime)
@@ -125,37 +210,51 @@ public class ContentViewerPanel : ImGUIWindow
                 columnNum = 1;
             ImGui.Columns(columnNum, "##", false);
             int i = 0;
-            foreach (var file in CurrentViewFolder.Children)
+            foreach (var file in CurrentViewFolder.ChildFolders)
             {
-                
                 var w = ImGui.GetColumnWidth();
-                switch (ImGUICtl.FolderButton(file.Path, file.Name, "123", FolderTextureId.TextureId, (int)w - 2* (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectFile == file))
+                switch (ImGUICtl.FolderButton(file.Path, file.Name, "", FolderTextureId.TextureId, (int)w - 2* (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectFile == file))
                 {
                     case FileButtonAction.DoubleClick:
                         {
-                            if (file is Folder folder)
-                            {
-                                CurrentViewFolder = folder;
-                                CurrentSelectFile = null;
-                                OnChangeDir?.Invoke(folder);
-                            }
+                            CurrentViewFolder = file;
+                            CurrentSelectFile = null;
+                            OnChangeDir?.Invoke(file);
                             break;
                         }
                     case FileButtonAction.Click:
-                    {
-                            if (file is Folder folder)
-                            {
-                                CurrentSelectFile = folder;
-                            }
+                        {
+                            CurrentSelectFile = file;
                             break;
-                    }
+                        }
                     default:
                         break;
                 }
                 ImGui.NextColumn();
-
                 i++;
             }
+            foreach (var file in CurrentViewFolder.ChildAssetFiles)
+            {
+                var w = ImGui.GetColumnWidth();
+                switch (ImGUICtl.FolderButton(file.Path, file.Name, MagicCode.GetName(file.AssetType), FolderTextureId.TextureId, (int)w - 2 * (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectFile == file))
+                {
+                    case FileButtonAction.DoubleClick:
+                        {
+                            // todo openasset Panel
+                            break;
+                        }
+                    case FileButtonAction.Click:
+                        {
+                            CurrentSelectFile = file;
+                            break;
+                        }
+                    default:
+                        break;
+                }
+                ImGui.NextColumn();
+                i++;
+            }
+
         }
 
     }
@@ -170,7 +269,7 @@ public class ContentViewerPanel : ImGUIWindow
             FirstChange = false;
             if (ImGui.CollapsingHeader($"All##all", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                foreach (var dir in Root.Children)
+                foreach (var dir in Root.ChildFolders)
                 {
                     if (dir is Folder foler)
                     {
@@ -194,7 +293,7 @@ public class ContentViewerPanel : ImGUIWindow
         {
             flag |= ImGuiTreeNodeFlags.Selected;
         }
-        if (folder.Children.Count == 0)
+        if (folder.ChildFolders.Count == 0)
         {
             flag |= ImGuiTreeNodeFlags.Leaf;
         }
@@ -216,7 +315,7 @@ public class ContentViewerPanel : ImGUIWindow
                 }
             }
 
-            foreach (var directory in folder.Children)
+            foreach (var directory in folder.ChildFolders)
             {
                 if (directory is Folder foler)
                 {
@@ -304,16 +403,14 @@ public class ContentViewerPanel : ImGUIWindow
 
     public class AssetFile : BaseFile
     {
+        public int AssetType;
         public override bool IsDirectory => false;
     }
     public class Folder : BaseFile
     {
+        public List<Folder> ChildFolders = new List<Folder>();
 
-        public List<BaseFile> Children = new List<BaseFile>()
-        {
-            
-        };
-
+        public List<AssetFile> ChildAssetFiles = new List<AssetFile>(); 
         public override bool IsDirectory => true;
 
         public bool IsSubDirOf(BaseFile Other)

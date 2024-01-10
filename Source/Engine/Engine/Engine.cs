@@ -67,11 +67,21 @@ public partial class Engine
         MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTarget(this.WindowSize.X, this.WindowSize.Y);
         Worlds.Add(MainWorld);
         GameAssemblyLoadContext.InitInstance(this);
+
+        if (_view is IWindow window)
+        {
+            window.FileDrop += paths =>
+            {
+                OnFileDrog.Invoke(paths);
+            };
+        }
         ProcessArgs();
         LoadGameDll();
         LoadSetting();
         LoadSubsystem();
     }
+
+    public event Action<string[]> OnFileDrog = paths => { };
    
     public void ProcessArgs()
     {

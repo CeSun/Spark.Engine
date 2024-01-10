@@ -931,11 +931,22 @@ public class DeferredSceneRenderer : IRenderer
                 {
                     if (component.IsDestoryed == false)
                     {
-                        if (component.AnimSampler != null && component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
+                        if (component.SkeletalMesh != null && component.SkeletalMesh.Skeleton != null)
                         {
-                            for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
+                            if (component.AnimSampler != null)
                             {
-                                SkeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
+
+                                for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
+                                {
+                                    SkeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
+                                }
+                            }
+                            else
+                            {
+                                for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
+                                {
+                                    SkeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", Matrix4x4.Identity);
+                                }
                             }
                         }
                         SkeletalMeshBaseShader.SetMatrix("ModelTransform", component.WorldTransform);

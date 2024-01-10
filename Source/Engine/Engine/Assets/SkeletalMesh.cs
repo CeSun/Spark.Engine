@@ -13,6 +13,7 @@ using System.Collections;
 using Silk.NET.Input;
 using Spark.Engine.Platform;
 
+
 namespace Spark.Engine.Assets;
 
 public partial class SkeletalMesh : AssetBase
@@ -97,20 +98,20 @@ public partial class SkeletalMesh : AssetBase
 
 public partial class SkeletalMesh
 {
-    public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(string Path)
+    public static List<AssetBase> ImportFromGLB(string Path)
     {
-        using var sr = FileSystem.Instance.GetStreamReader("Content" + Path);
+        using var sr = FileSystem.Instance.GetStreamReader( Path);
         return ImportFromGLB(sr.BaseStream);
     }
 
 
-    public async static Task<(SkeletalMesh, Skeleton, List<AnimSequence>)> ImportFromGLBAsync(string Path)
+    public async static Task<List<AssetBase>> ImportFromGLBAsync(string Path)
     {
-        using var sr = FileSystem.Instance.GetStreamReader("Content" + Path);
+        using var sr = FileSystem.Instance.GetStreamReader( Path);
         return await ImportFromGLBAsync(sr.BaseStream);
     }
 
-    public async static Task<(SkeletalMesh, Skeleton, List<AnimSequence>)> ImportFromGLBAsync(Stream stream)
+    public async static Task<List<AssetBase>> ImportFromGLBAsync(Stream stream)
     {
         SkeletalMesh sk = new SkeletalMesh();
         ModelRoot? model = null;
@@ -133,11 +134,24 @@ public partial class SkeletalMesh
             throw new Exception("skeleton load error");
         if (anims == null)
             throw new Exception("anims load error");
-        return (sk, skeleton, anims);
+        List<AssetBase> assets = new List<AssetBase>();
+
+        foreach (var element in sk.Elements)
+        {
+            foreach (var texture in element.Material.Textures)
+            {
+                assets.Add(texture);
+            }
+            assets.Add(element.Material);
+        }
+        assets.Add(skeleton);
+        assets.AddRange(anims);
+        assets.Add(sk);
+        return assets;
     }
 
 
-    public static (SkeletalMesh, Skeleton, List<AnimSequence>) ImportFromGLB(Stream stream)
+    public static List<AssetBase> ImportFromGLB(Stream stream)
     {
         SkeletalMesh sk = new SkeletalMesh();
         var model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix});
@@ -145,7 +159,20 @@ public partial class SkeletalMesh
         var skeleton = LoadBones(model);
         sk.Skeleton = skeleton;
         var anims = LoadAnimSequence(model, skeleton);
-        return (sk, skeleton, anims);
+        List<AssetBase> assets = new List<AssetBase>();
+
+        foreach(var element in sk.Elements)
+        {
+            foreach(var texture in element.Material.Textures)
+            {
+                assets.Add(texture);
+            }
+            assets.Add(element.Material);
+        }
+        assets.Add(skeleton);
+        assets.AddRange(anims);
+        assets.Add(sk);
+        return assets;
     }
 
     static List<AnimSequence> LoadAnimSequence(ModelRoot model, Skeleton skeleton)

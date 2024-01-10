@@ -27,6 +27,8 @@ public class EditorSubsystem : BaseSubSystem
     public CameraActor? EditorCameraActor = null;
 
     private Dictionary<string, object?> Maps = new Dictionary<string, object?>();
+
+    public string CurrentPath = Directory.GetCurrentDirectory().Replace("\\", "/");
     public T? GetValue<T>(string key)
     {
         if (Maps.TryGetValue(key, out var value))
@@ -57,11 +59,11 @@ public class EditorSubsystem : BaseSubSystem
         world.BeginPlay();
         LevelWorld = world;
         var cameraActor = new CameraActor(world.CurrentLevel);
-        cameraActor.IsEditorActor = true;
+        cameraActor.NearPlaneDistance = 1;
+        //cameraActor.IsEditorActor = true;
         EditorCameraActor = cameraActor;
         var SkyboxActor = new Actor(world.CurrentLevel, "SkyboxActor");
         var SkyboxComponent = new SkyboxComponent(SkyboxActor);
-        SkyboxComponent.SkyboxHDR = CurrentEngine.AssetMgr.Load<TextureHDR>(CurrentEngine.GameName + "/Assets/SkyboxHDR2.asset");
 
         /*
         using (var sw = FileSystem.Instance.GetStreamWriter("SkyboxHDR.asset"))

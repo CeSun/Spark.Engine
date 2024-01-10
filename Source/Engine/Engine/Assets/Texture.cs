@@ -137,7 +137,7 @@ public class Texture : AssetBase
 
     public static Texture LoadFromFile(string Path, bool GammaCorrection = false, bool FlipVertically = false)
     {
-        using var StreamReader = FileSystem.Instance.GetStreamReader("Content" + Path);
+        using var StreamReader = FileSystem.Instance.GetStreamReader(Path);
         if (FlipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(1);

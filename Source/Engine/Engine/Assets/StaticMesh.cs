@@ -442,6 +442,8 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
             Indices.Add(br.ReadUInt32());
         }
         Material = ISerializable.AssetDeserialize<Material>(br, engine);
+
+        IndicesLen = (uint)Indices.Count;
     }
 
     public void Serialize(BinaryWriter bw, Engine engine)

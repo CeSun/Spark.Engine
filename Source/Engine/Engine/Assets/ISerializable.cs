@@ -482,16 +482,34 @@ public static class StreamHelper
 
 public static class MagicCode
 {
-    public static int Asset = 19980625;
-    public static int Texture = 1;
-    public static int TextureCube = 2;
-    public static int TextureHDR = 2;
-    public static int StaticMesh = 3;
-    public static int SkeletalMesh = 4;
-    public static int Material = 5;
-    public static int Skeleton = 6;
-    public static int AnimSequence = 7;
-    public static int Actor = 8;
-    public static int Level = 9;
+    public const int Asset = 19980625;
+    public const  int Texture = 1;
+    public const int TextureCube = 2;
+    public const int TextureHDR = 3;
+    public const int StaticMesh = 4;
+    public const int SkeletalMesh = 5;
+    public const int Material = 6;
+    public const int Skeleton = 7;
+    public const int AnimSequence = 8;
+    public const int Actor = 9;
+    public const int Level = 10;
 
+    public static string GetName(int AssetMagicCode)
+    {
+        return AssetMagicCode switch
+        {
+            Texture => "Texture",
+            TextureCube => "TextureCube",
+            TextureHDR => "TextureHDR",
+            StaticMesh => "StaticMesh",
+            SkeletalMesh => "SkeletalMesh",
+            Material => "Material",
+            Skeleton => "Skeleton",
+            AnimSequence => "AnimSequence",
+            Actor => "Actor",
+            Level => "Level",
+            _ => "Unknow"
+        };
+    }
 }
+

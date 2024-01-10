@@ -36,7 +36,6 @@ namespace Editor
                 ImGui.SetCursorPos(Left);
                 ImGui.Text(label);
                 var color = ImGui.GetColorU32(ImGuiCol.Header);
-                RenderFrame(Left, Right, color, false, 0);
             }
             ImGui.SetCursorPosX(location.X + (width - textSize.X) / 2);
             ImGui.Text(title);

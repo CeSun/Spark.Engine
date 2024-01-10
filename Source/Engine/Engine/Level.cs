@@ -335,72 +335,7 @@ public partial class Level
 
     public void CreateLevel()
     {
-        var (mesh, skeletal, anims) = SkeletalMesh.ImportFromGLB("/StaticMesh/Soldier.glb");
-        mesh.Path = "Soldier.Asset";
-        skeletal.Path = "Soldier.Skelton.Asset";
-        anims[0].Path = "idle.Asset";
-
-        var Camera = new CameraActor(this);
-        Camera.FarPlaneDistance = 1000;
-        Camera.NearPlaneDistance = 1;
-        using (var sw = new StreamWriter(skeletal.Path))
-        {
-            var bw = new BinaryWriter(sw.BaseStream);
-            skeletal.Serialize(bw, Engine);
-        }
-        int i = 0;
-        foreach (var element in mesh.Elements)
-        {
-
-            foreach (var texture in element.Material.Textures)
-            {
-                if (texture == null)
-                    continue;
-                texture.Path = "Texture." + (i++) + ".asset";
-                using (var sw = new StreamWriter(texture.Path))
-                {
-                    texture.Serialize(new BinaryWriter(sw.BaseStream), Engine);
-                }
-            }
-            element.Material.Path = "Material." + (i++) + ".asset";
-            using (var sw = new StreamWriter(element.Material.Path))
-            {
-                element.Material.Serialize(new BinaryWriter(sw.BaseStream), Engine);
-            }
-        }
-        using (var sw = new StreamWriter(mesh.Path))
-        {
-            var bw = new BinaryWriter(sw.BaseStream);
-            mesh.Serialize(bw, Engine);
-        }
-
-        using (var sw = new StreamWriter(anims[0].Path))
-        {
-            var bw = new BinaryWriter(sw.BaseStream);
-            anims[0].Serialize(bw, Engine);
-        }
-
-        var sma = new SkeletalMeshActor(this, "test");
-        sma.SkeletalMesh = mesh;
-        sma.AnimSequence = anims[0];
-        sma.WorldLocation = Camera.ForwardVector * 100;
-        sma.WorldRotation = Quaternion.CreateFromYawPitchRoll(90f.DegreeToRadians(), 0, 0);
-        using (var sw = new StreamWriter("testactor.asset"))
-        {
-            var bw = new BinaryWriter(sw.BaseStream);
-            sma.Serialize(bw, Engine);
-        }
-
-        using (var sr = new StreamReader("testactor.asset"))
-        {
-            var br = new BinaryReader(sr.BaseStream);
-            var type = AssemblyHelper.GetType(br.ReadString2());
-            var actor = (Actor)Activator.CreateInstance(type, [this, ""]);
-            actor.Deserialize(br, Engine);
-        }
-
-
-
+       
 
     }
     public ImGuiSystem ImGuiWarp { get; private set; }
