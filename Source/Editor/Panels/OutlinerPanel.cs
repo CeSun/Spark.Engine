@@ -4,6 +4,7 @@ using Silk.NET.Input;
 using Spark.Engine;
 using Spark.Engine.Actors;
 using Spark.Engine.GUI;
+using Spark.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,12 +31,7 @@ public class OutlinerPanel : ImGUIWindow
     {
         base.Render(deltaTime);
         ImGui.Begin("Outliner##outliner", ImGuiWindowFlags.NoCollapse);
-
-        if (ImGui.IsWindowHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
-        {
-            EditorSubsystem.SelectedActor = null;
-
-        }
+    
         if(ImGui.TreeNodeEx("All Actors", ImGuiTreeNodeFlags.DefaultOpen))
         {
             foreach (var actor in EditorSubsystem.LevelWorld.CurrentLevel.Actors)
@@ -58,13 +54,30 @@ public class OutlinerPanel : ImGUIWindow
 
                 if (ImGui.Button(actor.Name))
                 {
-                    EditorSubsystem.SelectedActor = actor;
+                    if (cond == false)
+                    {
+                        EditorSubsystem.EditorCameraActor.WorldLocation = actor.WorldLocation + actor.ForwardVector * 10 + actor.UpVector * 5;
+                        EditorSubsystem.EditorCameraActor.WorldRotation = actor.WorldRotation;
+
+                        EditorSubsystem.EditorCameraActor.WorldRotation *= Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
+                    }
+                    else
+                    {
+                        EditorSubsystem.SelectedActor = actor;
+                    }
                 }
                 ImGui.PopStyleColor();
             }
 
             ImGui.TreePop();
         }
+
+        if (ImGui.IsWindowHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+        {
+            EditorSubsystem.SelectedActor = null;
+
+        }
         ImGui.End();
+
     }
 }
