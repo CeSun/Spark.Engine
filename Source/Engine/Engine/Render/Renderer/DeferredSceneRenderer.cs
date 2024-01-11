@@ -150,27 +150,25 @@ public class DeferredSceneRenderer : IRenderer
 
         if (IsMicroGBuffer == true)
         {
-            GlobalBuffer = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
+            GlobalBuffer = CreateRenderTarget(1, 1, 1);
         }
         else
         {
-            GlobalBuffer = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 2);
+            GlobalBuffer = CreateRenderTarget(1, 1, 2);
         }
-        PostProcessBuffer1 = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1, World.Engine, new List<(GLEnum, GLEnum)>
+        PostProcessBuffer1 = new RenderTarget(1, 1, 1, World.Engine, new List<(GLEnum, GLEnum)>
         {
             (GLEnum.Rgba32f, GLEnum.Float),
             (GLEnum.DepthComponent32f, GLEnum.DepthComponent)
         });
         if (IsMobile == false)
         {
-            PostProcessBuffer2 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
-            PostProcessBuffer3 = CreateRenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 1);
+            PostProcessBuffer2 = CreateRenderTarget(1, 1, 1);
+            PostProcessBuffer3 = CreateRenderTarget(1, 1, 1);
             NoiseTexture = Texture.CreateNoiseTexture(64, 64);
             NoiseTexture.InitRender(gl);
 
         }
-        // SceneBackFaceDepthBuffer = new RenderTarget(World.Engine.WindowSize.X, World.Engine.WindowSize.Y, 0);
-
         BrdfTexture = Texture.LoadFromMemory(Resources.brdf, true, true);
         BrdfTexture.InitRender(gl);
         InitRender();
@@ -485,7 +483,7 @@ public class DeferredSceneRenderer : IRenderer
             return;
         SkyboxShader.Use();
         Matrix4x4 View = Matrix4x4.CreateLookAt(Vector3.Zero, Vector3.Zero + CurrentCameraComponent.ForwardVector, CurrentCameraComponent.UpVector);
-        Matrix4x4 Projection = Matrix4x4.CreatePerspectiveFieldOfView(CurrentCameraComponent.FieldOfView.DegreeToRadians(), World.Engine.WindowSize.X / (float)World.Engine.WindowSize.Y, 0.1f, 100f);
+        Matrix4x4 Projection = Matrix4x4.CreatePerspectiveFieldOfView(CurrentCameraComponent.FieldOfView.DegreeToRadians(), World.WorldMainRenderTarget.Width / (float)World.WorldMainRenderTarget.Height, 0.1f, 100f);
         SkyboxShader.SetMatrix("view", View);
         SkyboxShader.SetMatrix("projection", Projection);
 
