@@ -20,7 +20,8 @@ float GetDepth(vec2 ScreenLocation)
 
 void main()
 {   
-
-    vec3 Color = texture(skybox, TexCoords).rgb;
+    vec3 v = TexCoords;
+    v.y = v.y * -1.0f;
+    vec3 Color = texture(skybox, v).rgb;
     FragColor = vec4(Color, 1.0f);
 }

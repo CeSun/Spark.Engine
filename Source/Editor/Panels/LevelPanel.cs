@@ -39,8 +39,8 @@ public class LevelPanel : ImGUIWindow
         {
             var rt = EditorSubsystem.LevelWorld.WorldMainRenderTarget;
             rt.Resize((int)windowSize.X, (int)windowSize.Y);
-            var uv1 = new Vector2(0, 0);
-            var uv2 = new Vector2(rt.Width / (float)rt.BufferWidth, (rt.Height / (float)rt.BufferHeight));
+            var uv1 = new Vector2(0, (rt.Height / (float)rt.BufferHeight));
+            var uv2 = new Vector2(rt.Width / (float)rt.BufferWidth, 0);
             ImGui.Image((nint)EditorSubsystem.LevelWorld.WorldMainRenderTarget.GBufferIds[0], windowSize, uv1, uv2);
 
 
@@ -95,7 +95,7 @@ public class LevelPanel : ImGUIWindow
             {
                 var currentPos = ImGui.GetMousePos();
                 var deltaPos = currentPos - PressedPosition;
-                EditorSubsystem.EditorCameraActor.WorldRotation *= Quaternion.CreateFromYawPitchRoll(-1 * deltaPos.X.DegreeToRadians(),  deltaPos.Y.DegreeToRadians(), 0);
+                EditorSubsystem.EditorCameraActor.WorldRotation *= Quaternion.CreateFromYawPitchRoll(-1 * deltaPos.X.DegreeToRadians(), -1 *  deltaPos.Y.DegreeToRadians(), 0);
                 PressedPosition = currentPos;
             }
         }

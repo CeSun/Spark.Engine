@@ -36,6 +36,7 @@ public class Skeleton : AssetBase
     {
         bw.WriteInt32(MagicCode.Asset);
         bw.WriteInt32(MagicCode.Skeleton);
+        bw.Write(RootParentMatrix);
         bw.WriteInt32(_BoneList.Count);
         foreach(var bone in _BoneList)
         {
@@ -52,6 +53,7 @@ public class Skeleton : AssetBase
         var TextureMagicCode = br.ReadInt32();
         if (TextureMagicCode != MagicCode.Skeleton)
             throw new Exception("");
+        RootParentMatrix = br.ReadMatrix4x4();
         var count = br.ReadInt32();
         BoneList.Clear();
         for(var i = 0; i < count; i++)
