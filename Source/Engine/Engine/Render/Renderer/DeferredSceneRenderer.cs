@@ -367,7 +367,6 @@ public class DeferredSceneRenderer : IRenderer
         }
         using (PostProcessBuffer1.Begin())
         {
-            gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
             gl.PushGroup("Lighting Pass");
             // 延迟光照
             LightingPass(DeltaTime);
@@ -709,7 +708,6 @@ public class DeferredSceneRenderer : IRenderer
                 SkeletakMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
                 component.Render(DeltaTime);
             }
-            gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
 
         }
 
@@ -803,7 +801,6 @@ public class DeferredSceneRenderer : IRenderer
                 gl.PopGroup();
             }
 
-            gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }
         PointLightShadowShader.UnUse();
         gl.PopGroup();
@@ -878,7 +875,6 @@ public class DeferredSceneRenderer : IRenderer
                 SkeletakMeshDLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
                 component.Render(DeltaTime);
             }
-            gl.Viewport(new Rectangle(0, 0, CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height));
         }
         DLShadowMapShader.UnUse();
         gl.PopGroup();

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -147,6 +148,7 @@ public class RenderTarget : IDisposable
     public RenderTarget Begin()
     {
         gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
+        gl.Viewport(new Rectangle(0, 0, Width, Height));
         return this;
     }
 
