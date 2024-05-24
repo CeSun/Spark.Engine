@@ -11,10 +11,10 @@ namespace Spark.Engine.Components;
 
 public class SkyboxComponent : PrimitiveComponent
 {
-    private DeferredSceneRenderer deferredSceneRenderer;
+    private readonly DeferredSceneRenderer _deferredSceneRenderer;
     public SkyboxComponent(Actor actor) : base(actor)
     {
-        deferredSceneRenderer = (DeferredSceneRenderer)World.SceneRenderer;
+        _deferredSceneRenderer = (DeferredSceneRenderer)World.SceneRenderer;
     }
 
     public uint IrradianceMapId = 0;
@@ -68,9 +68,9 @@ public class SkyboxComponent : PrimitiveComponent
 
         gl.PushGroup("IrradianceShader PreProcess");
 
-        deferredSceneRenderer.IrradianceShader.Use();
-        deferredSceneRenderer.IrradianceShader.SetInt("environmentMap", 0);
-        deferredSceneRenderer.IrradianceShader.SetMatrix("projection", captureProjection);
+        _deferredSceneRenderer.IrradianceShader.Use();
+        _deferredSceneRenderer.IrradianceShader.SetInt("environmentMap", 0);
+        _deferredSceneRenderer.IrradianceShader.SetMatrix("projection", captureProjection);
         gl.ActiveTexture(GLEnum.Texture0);
         gl.BindTexture(GLEnum.TextureCubeMap, SkyboxCube.TextureId);
         gl.Viewport(new Rectangle { X = 0, Y = 0, Height = 32, Width = 32 });
@@ -78,10 +78,10 @@ public class SkyboxComponent : PrimitiveComponent
 
         for (int i = 0; i < 6; ++i)
         {
-            deferredSceneRenderer.IrradianceShader.SetMatrix("view", captureViews[i]);
+            _deferredSceneRenderer.IrradianceShader.SetMatrix("view", captureViews[i]);
             gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, IrradianceMapId, 0);
             gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-            deferredSceneRenderer.RenderCube();
+            _deferredSceneRenderer.RenderCube();
         }
 
         if (PrefilterMapId == 0)
@@ -105,11 +105,11 @@ public class SkyboxComponent : PrimitiveComponent
         gl.PopGroup();
 
         gl.PushGroup("Prefilter PreProcess");
-        deferredSceneRenderer.PrefilterShader.Use();
-        deferredSceneRenderer.PrefilterShader.SetInt("environmentMap", 0);
+        _deferredSceneRenderer.PrefilterShader.Use();
+        _deferredSceneRenderer.PrefilterShader.SetInt("environmentMap", 0);
         gl.ActiveTexture(GLEnum.Texture0);
         gl.BindTexture(GLEnum.TextureCubeMap, SkyboxCube.TextureId);
-        deferredSceneRenderer.PrefilterShader.SetMatrix("projection", captureProjection);
+        _deferredSceneRenderer.PrefilterShader.SetMatrix("projection", captureProjection);
         gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
         int maxMipLevels = 5;
         for (int mip = 0; mip < maxMipLevels; ++mip)
@@ -121,14 +121,14 @@ public class SkyboxComponent : PrimitiveComponent
             gl.Viewport(0, 0, mipWidth, mipHeight);
 
             float roughness = (float)mip / (float)(maxMipLevels - 1);
-            deferredSceneRenderer.PrefilterShader.SetFloat("roughness", roughness);
+            _deferredSceneRenderer.PrefilterShader.SetFloat("roughness", roughness);
             for (int i = 0; i < 6; ++i)
             {
-                deferredSceneRenderer.PrefilterShader.SetMatrix("view", captureViews[i]);
+                _deferredSceneRenderer.PrefilterShader.SetMatrix("view", captureViews[i]);
                 gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, PrefilterMapId, mip);
 
                 gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-                deferredSceneRenderer.RenderCube();
+                _deferredSceneRenderer.RenderCube();
             }
         }
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
@@ -179,9 +179,9 @@ public class SkyboxComponent : PrimitiveComponent
             Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f, -1.0f), new Vector3(0.0f, -1.0f,  0.0f))
         };
 
-        deferredSceneRenderer.HDRI2CubeMapShader.Use();
-        deferredSceneRenderer.HDRI2CubeMapShader.SetInt("equirectangularMap", 0);
-        deferredSceneRenderer.HDRI2CubeMapShader.SetMatrix("projection", captureProjection);
+        _deferredSceneRenderer.Hdri2CubeMapShader.Use();
+        _deferredSceneRenderer.Hdri2CubeMapShader.SetInt("equirectangularMap", 0);
+        _deferredSceneRenderer.Hdri2CubeMapShader.SetMatrix("projection", captureProjection);
         gl.ActiveTexture(GLEnum.Texture0);
         gl.BindTexture(GLEnum.Texture2D, SkyboxHDR.TextureId);
 
@@ -189,11 +189,11 @@ public class SkyboxComponent : PrimitiveComponent
         gl.Viewport(0, 0, 512, 512);
         for (int i = 0; i < 6; ++i)
         {
-            deferredSceneRenderer.HDRI2CubeMapShader.SetMatrix("view", captureViews[i]);
+            _deferredSceneRenderer.Hdri2CubeMapShader.SetMatrix("view", captureViews[i]);
             gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, envCubemap, 0);
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
 
-            deferredSceneRenderer.RenderCube();
+            _deferredSceneRenderer.RenderCube();
         }
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
 
@@ -259,7 +259,7 @@ public class SkyboxComponent : PrimitiveComponent
         gl.DepthMask(false);
         gl.ActiveTexture(GLEnum.Texture0);
         gl.BindTexture(GLEnum.TextureCubeMap, SkyboxCube.TextureId);
-        deferredSceneRenderer.RenderCube();
+        _deferredSceneRenderer.RenderCube();
         gl.DepthMask(true);
     }
 

@@ -1,75 +1,72 @@
 ﻿using Spark.Engine.Components;
 using System.Drawing;
 using Silk.NET.OpenGLES;
-using Shader = Spark.Engine.Render.Shader;
 using static Spark.Engine.Components.CameraComponent;
 using System.Numerics;
 using Spark.Util;
 using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Properties;
-using System.ComponentModel;
+
 namespace Spark.Engine.Render.Renderer;
 
 public class DeferredSceneRenderer : IRenderer
 {
-    RenderTarget GlobalBuffer;
-    Shader StaticMeshBaseShader;
-    Shader DirectionalLightingShader;
-    Shader SpotLightingShader;
-    Shader PointLightingShader;
+    private readonly RenderTarget _globalBuffer;
+    private readonly Shader _staticMeshBaseShader;
+    private readonly Shader _directionalLightingShader;
+    private readonly Shader _spotLightingShader;
+    private readonly Shader _pointLightingShader;
 
-    Shader DirectionalLightingShaderNoShadow;
-    Shader SpotLightingShaderNoShadow;
-    Shader PointLightingShaderNoShadow;
+    private readonly Shader _directionalLightingShaderNoShadow;
+    private readonly Shader _spotLightingShaderNoShadow;
+    private readonly Shader _pointLightingShaderNoShadow;
 
-    Shader DLShadowMapShader;
-    Shader InstanceDLShadowMapShader;
-    Shader SpotShadowMapShader;
-    Shader InstanceSpotShadowMapShader;
-    Shader InstancePointLightingShader;
-    Shader SkyboxShader;
-    Shader PointLightShadowShader;
-    Shader BloomPreShader;
-    Shader BloomShader;
-    Shader RenderToCamera;
-    Shader ScreenSpaceReflectionShader;
-    Shader BackFaceDepthShader;
-    Shader HISMShader;
-    Shader DecalShader;
-    Shader DecalPostShader;
-    Shader SSAOShader;
+    private readonly Shader _dlShadowMapShader;
+    private readonly Shader _instanceDlShadowMapShader;
+    private readonly Shader _spotShadowMapShader;
+    private readonly Shader _instanceSpotShadowMapShader;
+    private readonly Shader _instancePointLightingShader;
+    private readonly Shader _skyboxShader;
+    private readonly Shader _pointLightShadowShader;
+    private readonly Shader _bloomPreShader;
+    private readonly Shader _bloomShader;
+    private readonly Shader _renderToCamera;
+    private readonly Shader _hismShader;
+    private readonly Shader _decalShader;
+    private readonly Shader _decalPostShader;
+    private readonly Shader _ssaoShader;
 
-    Shader SkeletakMeshDLShadowMapShader;
-    Shader SkeletakMeshSpotShadowMapShader;
-    Shader SkeletakMeshPointLightingShader;
+    private readonly Shader _skeletalMeshDlShadowMapShader;
+    private readonly Shader _skeletalMeshSpotShadowMapShader;
+    private readonly Shader _skeletalMeshPointLightingShader;
 
-    Shader SkeletalMeshBaseShader;
-    Shader BloomPostShader;
+    private readonly Shader _skeletalMeshBaseShader;
+    private readonly Shader _bloomPostShader;
     public Shader IrradianceShader;
     public Shader PrefilterShader;
     public Shader IndirectLightShader;
-    public Shader HDRI2CubeMapShader;
+    public Shader Hdri2CubeMapShader;
 
 
-    RenderTarget PostProcessBuffer1;
-    RenderTarget? PostProcessBuffer2;
-    RenderTarget? PostProcessBuffer3;
-    World World { get; set; }
+    private readonly RenderTarget _postProcessBuffer1;
+    private readonly RenderTarget? _postProcessBuffer2;
+    private readonly RenderTarget? _postProcessBuffer3;
+    private World World { get; set; }
 
-    Texture BrdfTexture;
+    private readonly Texture _brdfTexture;
 
-    Texture? NoiseTexture;
-    List<Vector3> HalfSpherical = new List<Vector3>();
+    private readonly Texture? _noiseTexture;
+    private readonly List<Vector3> _halfSpherical = [];
 
-    uint PostProcessVAO = 0;
-    uint PostProcessVBO = 0;
-    uint PostProcessEBO = 0;
-    bool IsMobile = false;
-    bool IsMicroGBuffer = false;
+    private uint _postProcessVao;
+    private uint _postProcessVbo;
+    private uint _postProcessEbo;
+    private readonly bool _isMobile;
+    private readonly bool _isMicroGBuffer;
 
-    public RenderTarget CreateRenderTarget(int width, int height, uint GbufferNums)
+    public RenderTarget CreateRenderTarget(int width, int height, uint gbufferNums)
     {
-        return new RenderTarget(width, height, GbufferNums, World.Engine);
+        return new RenderTarget(width, height, gbufferNums, World.Engine);
     }
 
     public RenderTarget CreateRenderTarget(int width, int height)
@@ -77,109 +74,113 @@ public class DeferredSceneRenderer : IRenderer
         return new RenderTarget(width, height, World.Engine);
     }
 
-    public Shader CreateShader(string Path, List<string> Macros)
+    public Shader CreateShader(string path, List<string> macros)
     {
-        var frag = Resources.ResourceManager.GetString(Path + ".frag");
-        var vert = Resources.ResourceManager.GetString(Path + ".vert");
-        return new Shader(vert, frag, Macros, gl);
+        var frag = Resources.ResourceManager.GetString(path + ".frag");
+        var vert = Resources.ResourceManager.GetString(path + ".vert");
+        return new Shader(vert!, frag!, macros, gl);
     }
 
-    public GL gl => World.Engine.Gl;
+    public GL gl => World.Engine.Gl!;
     public DeferredSceneRenderer(World world)
     {
 
         World = world;
-        var s = gl.GetStringS(GLEnum.Version);
-        List<string> Macros = new List<string>();
+        List<string> macros = [];
         if (World.Engine.IsMobile)
         {
-            IsMobile = true;
-            IsMicroGBuffer = true;
+            _isMobile = true;
+            _isMicroGBuffer = true;
         }
-        if (IsMobile == true)
+        if (_isMobile)
         {
-            Macros.Add("_MOBILE_");
+            macros.Add("_MOBILE_");
         }
-        if (IsMicroGBuffer == true)
+        if (_isMicroGBuffer)
         {
-           Macros.Add("_MICRO_GBUFFER_");
+           macros.Add("_MICRO_GBUFFER_");
         }
         // Base Pass
-        StaticMeshBaseShader = CreateShader("/Shader/Deferred/Base/Base", Macros);
-        SkeletalMeshBaseShader = CreateShader("/Shader/Deferred/Base/BaseSkeletalMesh", Macros);
-        HISMShader = CreateShader("/Shader/Deferred/Base/BaseInstance", Macros);
+        _staticMeshBaseShader = CreateShader("/Shader/Deferred/Base/Base", macros);
+        _skeletalMeshBaseShader = CreateShader("/Shader/Deferred/Base/BaseSkeletalMesh", macros);
+        _hismShader = CreateShader("/Shader/Deferred/Base/BaseInstance", macros);
 
-        List<string> MacrosLightWithShadow = new List<string>(Macros) { "_ENABLE_SHADOWMAP_" };
-        DirectionalLightingShader = CreateShader("/Shader/Deferred/Light/DirectionalLighting", MacrosLightWithShadow);
-        SpotLightingShader = CreateShader("/Shader/Deferred/Light/SpotLighting", MacrosLightWithShadow);
-        PointLightingShader = CreateShader("/Shader/Deferred/Light/PointLighting", MacrosLightWithShadow);
-
-
-        DirectionalLightingShaderNoShadow = CreateShader("/Shader/Deferred/Light/DirectionalLighting", Macros);
-        SpotLightingShaderNoShadow = CreateShader("/Shader/Deferred/Light/SpotLighting", Macros);
-        PointLightingShaderNoShadow = CreateShader("/Shader/Deferred/Light/PointLighting", Macros);
+        List<string> macrosLightWithShadow = [..macros, "_ENABLE_SHADOWMAP_"];
+        _directionalLightingShader = CreateShader("/Shader/Deferred/Light/DirectionalLighting", macrosLightWithShadow);
+        _spotLightingShader = CreateShader("/Shader/Deferred/Light/SpotLighting", macrosLightWithShadow);
+        _pointLightingShader = CreateShader("/Shader/Deferred/Light/PointLighting", macrosLightWithShadow);
 
 
-        DLShadowMapShader = CreateShader("/Shader/ShadowMap/DirectionLightShadow", Macros);
-        SpotShadowMapShader = CreateShader("/Shader/ShadowMap/SpotLightShadow", Macros);
-        PointLightShadowShader = CreateShader("/Shader/ShadowMap/PointLightShadow", Macros);
-        BloomPreShader = CreateShader("/Shader/Deferred/BloomPre", Macros);
-        BloomShader = CreateShader("/Shader/Deferred/Bloom", Macros);
-        BloomPostShader = CreateShader("/Shader/Deferred/BloomPost", Macros);
-        SkyboxShader = CreateShader("/Shader/Skybox", Macros);
-        RenderToCamera = CreateShader("/Shader/Deferred/RenderToCamera", Macros);
-        ScreenSpaceReflectionShader = CreateShader("/Shader/Deferred/ssr", Macros);
-        BackFaceDepthShader = CreateShader("/Shader/Deferred/BackFaceDepth", Macros);
-        DecalShader = CreateShader("/Shader/Deferred/Decal", Macros);
-        DecalPostShader = CreateShader("/Shader/Deferred/DecalPost", Macros);
-        SSAOShader = CreateShader("/Shader/Deferred/SSAO", Macros);
-
-        InstancePointLightingShader = CreateShader("/Shader/ShadowMap/Instance/PointLightShadow", Macros);
-        InstanceDLShadowMapShader = CreateShader("/Shader/ShadowMap/Instance/DirectionLightShadow", Macros);
-        InstanceSpotShadowMapShader = CreateShader("/Shader/ShadowMap/Instance/SpotLightShadow", Macros);
-        SkeletakMeshDLShadowMapShader = CreateShader("/Shader/ShadowMap/SkeletalMesh/DirectionLightShadow", Macros);
-        SkeletakMeshSpotShadowMapShader = CreateShader("/Shader/ShadowMap/SkeletalMesh/SpotLightShadow", Macros);
-        SkeletakMeshPointLightingShader = CreateShader("/Shader/ShadowMap/SkeletalMesh/PointLightShadow", Macros);
-
-        IrradianceShader = CreateShader("/Shader/Irradiance", Macros);
-        PrefilterShader = CreateShader("/Shader/Prefilter", Macros);
-        IndirectLightShader = CreateShader("/Shader/Deferred/Light/IndirectLight", Macros);
+        _directionalLightingShaderNoShadow = CreateShader("/Shader/Deferred/Light/DirectionalLighting", macros);
+        _spotLightingShaderNoShadow = CreateShader("/Shader/Deferred/Light/SpotLighting", macros);
+        _pointLightingShaderNoShadow = CreateShader("/Shader/Deferred/Light/PointLighting", macros);
 
 
-        HDRI2CubeMapShader = CreateShader("/Shader/Deferred/RenderHDRI2CubeMap", Macros);
+        _dlShadowMapShader = CreateShader("/Shader/ShadowMap/DirectionLightShadow", macros);
+        _spotShadowMapShader = CreateShader("/Shader/ShadowMap/SpotLightShadow", macros);
+        _pointLightShadowShader = CreateShader("/Shader/ShadowMap/PointLightShadow", macros);
+        _bloomPreShader = CreateShader("/Shader/Deferred/BloomPre", macros);
+        _bloomShader = CreateShader("/Shader/Deferred/Bloom", macros);
+        _bloomPostShader = CreateShader("/Shader/Deferred/BloomPost", macros);
+        _skyboxShader = CreateShader("/Shader/Skybox", macros);
+        _renderToCamera = CreateShader("/Shader/Deferred/RenderToCamera", macros);
+        CreateShader("/Shader/Deferred/ssr", macros);
+        CreateShader("/Shader/Deferred/BackFaceDepth", macros);
+        _decalShader = CreateShader("/Shader/Deferred/Decal", macros);
+        _decalPostShader = CreateShader("/Shader/Deferred/DecalPost", macros);
+        _ssaoShader = CreateShader("/Shader/Deferred/SSAO", macros);
 
-        if (IsMicroGBuffer == true)
+        _instancePointLightingShader = CreateShader("/Shader/ShadowMap/Instance/PointLightShadow", macros);
+        _instanceDlShadowMapShader = CreateShader("/Shader/ShadowMap/Instance/DirectionLightShadow", macros);
+        _instanceSpotShadowMapShader = CreateShader("/Shader/ShadowMap/Instance/SpotLightShadow", macros);
+        _skeletalMeshDlShadowMapShader = CreateShader("/Shader/ShadowMap/SkeletalMesh/DirectionLightShadow", macros);
+        _skeletalMeshSpotShadowMapShader = CreateShader("/Shader/ShadowMap/SkeletalMesh/SpotLightShadow", macros);
+        _skeletalMeshPointLightingShader = CreateShader("/Shader/ShadowMap/SkeletalMesh/PointLightShadow", macros);
+
+        IrradianceShader = CreateShader("/Shader/Irradiance", macros);
+        PrefilterShader = CreateShader("/Shader/Prefilter", macros);
+        IndirectLightShader = CreateShader("/Shader/Deferred/Light/IndirectLight", macros);
+
+
+        Hdri2CubeMapShader = CreateShader("/Shader/Deferred/RenderHDRI2CubeMap", macros);
+
+        if (_isMicroGBuffer)
         {
-            GlobalBuffer = CreateRenderTarget(1, 1, 1);
+            _globalBuffer = CreateRenderTarget(1, 1, 1);
         }
         else
         {
-            GlobalBuffer = CreateRenderTarget(1, 1, 2);
+            _globalBuffer = CreateRenderTarget(1, 1, 2);
         }
-        PostProcessBuffer1 = new RenderTarget(1, 1, 1, World.Engine, new List<(GLEnum, GLEnum)>
+        _postProcessBuffer1 = new RenderTarget(1, 1, 1, World.Engine, new List<(GLEnum, GLEnum)>
         {
             (GLEnum.Rgba32f, GLEnum.Float),
             (GLEnum.DepthComponent32f, GLEnum.DepthComponent)
         });
-        if (IsMobile == false)
+        if (_isMobile == false)
         {
-            PostProcessBuffer2 = CreateRenderTarget(1, 1, 1);
-            PostProcessBuffer3 = CreateRenderTarget(1, 1, 1);
-            NoiseTexture = Texture.CreateNoiseTexture(64, 64);
-            NoiseTexture.InitRender(gl);
+            _postProcessBuffer2 = CreateRenderTarget(1, 1, 1);
+            _postProcessBuffer3 = CreateRenderTarget(1, 1, 1);
+            _noiseTexture = Texture.CreateNoiseTexture(64, 64);
+            _noiseTexture.InitRender(gl);
 
         }
-        BrdfTexture = Texture.LoadFromMemory(Resources.brdf, true, true);
-        BrdfTexture.InitRender(gl);
+
+        _postProcessEbo = 0;
+        _isMobile = false;
+        _isMicroGBuffer = false;
+        _cubeVbo = 0;
+        _brdfTexture = Texture.LoadFromMemory(Resources.brdf, true, true);
+        _brdfTexture.InitRender(gl);
         InitRender();
-        InitSSAORender();
+        InitSsaoRender();
     }
 
-    void InitSSAORender()
+    private void InitSsaoRender()
     {
         for(int i = 0; i < 64; i ++)
         {
-            HalfSpherical.Add(new Vector3
+            _halfSpherical.Add(new Vector3
             {
                 X = (float)Random.Shared.NextDouble() * 2 - 1,
                 Y = (float)Random.Shared.NextDouble() * 2 - 1,
@@ -189,41 +190,36 @@ public class DeferredSceneRenderer : IRenderer
 
         for (int i = 0; i < 64; i++)
         {
-            SSAOShader.SetVector3($"samples[{i}]", HalfSpherical[i]);
+            _ssaoShader.SetVector3($"samples[{i}]", _halfSpherical[i]);
         }
     }
 
-    ~DeferredSceneRenderer()
-    {
-
-
-    }
     public unsafe void InitRender()
     {
-        DeferredVertex[] Vertices = new DeferredVertex[4] {
+        DeferredVertex[] vertices = new DeferredVertex[4] {
             new () {Location = new Vector3(-1, 1, 0), TexCoord = new Vector2(0, 1) },
             new () {Location = new Vector3(-1, -1, 0), TexCoord = new Vector2(0, 0) },
             new () {Location = new Vector3(1, -1, 0), TexCoord = new Vector2(1, 0) },
             new () {Location = new Vector3(1, 1, 0), TexCoord = new Vector2(1, 1) },
         };
 
-        uint[] Indices = new uint[6]
-        {
+        uint[] indices =
+        [
             0, 1, 2, 2, 3,0
-        };
-        PostProcessVAO = gl.GenVertexArray();
-        PostProcessVBO = gl.GenBuffer();
-        PostProcessEBO = gl.GenBuffer();
-        gl.BindVertexArray(PostProcessVAO);
-        gl.BindBuffer(GLEnum.ArrayBuffer, PostProcessVBO);
-        fixed (DeferredVertex* p = Vertices)
+        ];
+        _postProcessVao = gl.GenVertexArray();
+        _postProcessVbo = gl.GenBuffer();
+        _postProcessEbo = gl.GenBuffer();
+        gl.BindVertexArray(_postProcessVao);
+        gl.BindBuffer(GLEnum.ArrayBuffer, _postProcessVbo);
+        fixed (DeferredVertex* p = vertices)
         {
-            gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Vertices.Length * sizeof(DeferredVertex)), p, GLEnum.StaticDraw);
+            gl.BufferData(GLEnum.ArrayBuffer, (nuint)(vertices.Length * sizeof(DeferredVertex)), p, GLEnum.StaticDraw);
         }
-        gl.BindBuffer(GLEnum.ElementArrayBuffer, PostProcessEBO);
-        fixed (uint* p = Indices)
+        gl.BindBuffer(GLEnum.ElementArrayBuffer, _postProcessEbo);
+        fixed (uint* p = indices)
         {
-            gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(Indices.Length * sizeof(uint)), p, GLEnum.StaticDraw);
+            gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(indices.Length * sizeof(uint)), p, GLEnum.StaticDraw);
         }
         // Location
         gl.EnableVertexAttribArray(0);
@@ -236,70 +232,63 @@ public class DeferredSceneRenderer : IRenderer
 
     }
 
-    public unsafe void DecalPass(double DeltaTime)
+    public unsafe void DecalPass(RenderTarget tempRenderTarget)
     {
         if (CurrentCameraComponent == null)
             return;
-        if (PostProcessBuffer2 == null)
-            return;
-        if (IsMobile == true)
-            return;
-        if (DecalComponents.Count == 0)
+        if (_decalComponents.Count == 0)
             return;
         gl.PushGroup("Decal Pass");
         gl.PushGroup("Decal PrePass");
-        using (PostProcessBuffer2.Begin())
+        using (tempRenderTarget.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
 
-            DecalShader.SetInt("BaseColorTexture", 0);
-            DecalShader.SetInt("NormalTexture", 1);
-            DecalShader.SetInt("CustomTexture", 2);
-            DecalShader.SetInt("DepthTexture", 3);
-            DecalShader.SetInt("GBuffer1", 4);
-            if (IsMicroGBuffer == false)
+            _decalShader.SetInt("BaseColorTexture", 0);
+            _decalShader.SetInt("NormalTexture", 1);
+            _decalShader.SetInt("CustomTexture", 2);
+            _decalShader.SetInt("DepthTexture", 3);
+            _decalShader.SetInt("GBuffer1", 4);
+            if (_isMicroGBuffer == false)
             {
-                DecalShader.SetInt("GBuffer2", 5);
+                _decalShader.SetInt("GBuffer2", 5);
             }
-            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-            DecalShader.SetMatrix("VPInvert", VPInvert);
+            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var vpInvert);
+            _decalShader.SetMatrix("VPInvert", vpInvert);
 
            // DecalShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
-            DecalShader.SetVector2("TexCoordScale",
+            _decalShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = PostProcessBuffer2.Width / (float)PostProcessBuffer2.BufferWidth,
-                    Y = PostProcessBuffer2.Height / (float)PostProcessBuffer2.BufferHeight
+                    X = tempRenderTarget.Width / (float)tempRenderTarget.BufferWidth,
+                    Y = tempRenderTarget.Height / (float)tempRenderTarget.BufferHeight
                 });
             gl.ActiveTexture(GLEnum.Texture3);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.DepthId);
             gl.ActiveTexture(GLEnum.Texture4);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
-            if (IsMicroGBuffer == false)
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[0]);
+            if (_isMicroGBuffer == false)
             {
                 gl.ActiveTexture(GLEnum.Texture5);
-                gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
+                gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[1]);
             }
 
-            foreach (var DecalComponent in DecalComponents)
+            foreach (var decalComponent in _decalComponents)
             {
-                if (DecalComponent.Material == null)
+                if (decalComponent.Material == null)
                     continue;
-                DecalShader.SetMatrix("ModelTransform", DecalComponent.WorldTransform);
+                _decalShader.SetMatrix("ModelTransform", decalComponent.WorldTransform);
                 // DecalComponent.Material.Use();
 
 
-                for (int i = 0; i < DecalComponent.Material.Textures.Count(); i++)
+                for (int i = 0; i < decalComponent.Material.Textures.Count(); i++)
                 {
-                    var texture = DecalComponent.Material.Textures[i];
-                    if (texture != null)
-                    {
-                        gl.ActiveTexture(GLEnum.Texture0 + i);
-                        gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
-                    }
-                    
+                    var texture = decalComponent.Material.Textures[i];
+                    gl.ActiveTexture(GLEnum.Texture0 + i);
+                    gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
+
                 }
-                gl.BindVertexArray(PostProcessVAO);
+                gl.BindVertexArray(_postProcessVao);
                 gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
 
             }
@@ -307,25 +296,25 @@ public class DeferredSceneRenderer : IRenderer
         gl.PopGroup();
 
         gl.PushGroup("Decal PostPass");
-        using (GlobalBuffer.Begin())
+        using (_globalBuffer.Begin())
         {
             gl.DepthMask(false);
-            DecalPostShader.Use();
-            DecalPostShader.SetVector2("TexCoordScale",
+            _decalPostShader.Use();
+            _decalPostShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
-                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                    X = tempRenderTarget.Width / (float)tempRenderTarget.BufferWidth,
+                    Y = tempRenderTarget.Height / (float)tempRenderTarget.BufferHeight
                 });
 
-            DecalPostShader.SetInt("DecalTexture", 0);
+            _decalPostShader.SetInt("DecalTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
-            DecalPostShader.SetInt("DecalDepthTexture", 1);
+            gl.BindTexture(GLEnum.Texture2D, tempRenderTarget.GBufferIds[0]);
+            _decalPostShader.SetInt("DecalDepthTexture", 1);
             gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.DepthId);
+            gl.BindTexture(GLEnum.Texture2D, tempRenderTarget.DepthId);
 
-            gl.BindVertexArray(PostProcessVAO);
+            gl.BindVertexArray(_postProcessVao);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
 
@@ -334,21 +323,20 @@ public class DeferredSceneRenderer : IRenderer
         gl.PopGroup();
         gl.PopGroup();
     }
-    public void Render(double DeltaTime)
+    public void Render(double deltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
         
         gl.PushGroup("Init Buffers");
-        GlobalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        PostProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-        if (IsMobile == false)
+        _globalBuffer.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        _postProcessBuffer1.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+        if (_isMobile == false)
         {
-            PostProcessBuffer2?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-            PostProcessBuffer3?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+            _postProcessBuffer2?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
+            _postProcessBuffer3?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
         }
-        //SceneBackFaceDepthBuffer?.Resize(CurrentCameraComponent.RenderTarget.Width, CurrentCameraComponent.RenderTarget.Height);
-
+        
         CameraCulling();
         gl.PopGroup();
         gl.PushGroup("Init Status");
@@ -358,41 +346,41 @@ public class DeferredSceneRenderer : IRenderer
         gl.PopGroup();
 
         // 生成ShadowMap
-        DepthPass(DeltaTime);
-        BasePass(DeltaTime);
-        DecalPass(DeltaTime);
-        if (IsMobile == false)
+        DepthPass(deltaTime);
+        BasePass(deltaTime);
+        if (_postProcessBuffer2 != null)
         {
-            AOPass(DeltaTime);
+            DecalPass(_postProcessBuffer2);
+            AoPass(_postProcessBuffer2);
         }
-        using (PostProcessBuffer1.Begin())
+
+        using (_postProcessBuffer1.Begin())
         {
-            gl.PushGroup("Lighting Pass");
             // 延迟光照
-            LightingPass(DeltaTime);
-            gl.PopGroup();
-            LastPostProcessBuffer = PostProcessBuffer1;
+            LightingPass(_postProcessBuffer2);
         }
 
+        // 泛光效果
+        if (_postProcessBuffer2 != null && _postProcessBuffer3 != null)
+            BloomPass(_postProcessBuffer2, _postProcessBuffer3, _postProcessBuffer1);
 
-        gl.PushGroup("PostProcess Pass");
         // 后处理
-        PostProcessPass(DeltaTime);
-        gl.PopGroup();
+        PostProcessPass();
 
         // 渲染到摄像机的RenderTarget上
-        RenderToCameraRenderTarget(DeltaTime);
+        RenderToCameraRenderTarget(deltaTime, _postProcessBuffer1);
     }
 
 
-    private uint cubeVAO = 0;
-    private uint cubeVBO = 0;
+    private uint _cubeVao;
+    private uint _cubeVbo;
 
     public void RenderCube()
     {
-        if (cubeVAO == 0)
+        if (_cubeVao == 0)
         {
-            float[] vertices = {
+            float[] vertices =
+            [
                 // back face
                 -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
                  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
@@ -435,11 +423,11 @@ public class DeferredSceneRenderer : IRenderer
                  1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
                 -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
                 -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
-            };
-            cubeVAO = gl.GenVertexArray();
-            cubeVBO = gl.GenBuffer();
+            ];
+            _cubeVao = gl.GenVertexArray();
+            _cubeVbo = gl.GenBuffer();
             // fill buffer
-            gl.BindBuffer(GLEnum.ArrayBuffer, cubeVBO);
+            gl.BindBuffer(GLEnum.ArrayBuffer, _cubeVbo);
             unsafe
             {
                 fixed(void* p = vertices)
@@ -447,7 +435,7 @@ public class DeferredSceneRenderer : IRenderer
                     gl.BufferData(GLEnum.ArrayBuffer, (nuint)vertices.Length * sizeof(float), p, GLEnum.StaticDraw);
                 }
                 // link vertex attributes
-                gl.BindVertexArray(cubeVAO);
+                gl.BindVertexArray(_cubeVao);
                 gl.EnableVertexAttribArray(0);
                 gl.VertexAttribPointer(0, 3, GLEnum.Float, false, 8 * sizeof(float), (void*)0);
                 gl.EnableVertexAttribArray(1);
@@ -459,92 +447,82 @@ public class DeferredSceneRenderer : IRenderer
             }
         }
         // render Cube
-        gl.BindVertexArray(cubeVAO);
+        gl.BindVertexArray(_cubeVao);
         gl.DrawArrays(GLEnum.Triangles, 0, 36);
         gl.BindVertexArray(0);
     }
 
    
-    private void PostProcessPass(double DeltaTime)
+    private void PostProcessPass()
     {
-        if (IsMobile == true)
-            return;
-        gl.PushGroup("Bloom Effect");
-        BloomPass(DeltaTime);
-        gl.PopGroup();
-        gl.PushGroup("ScreenSpaceReflection");
-        // ScreenSpaceReflection(DeltaTime);
+        gl.PushGroup("PostProcess Pass");
         gl.PopGroup();
     }
-    private void SkyboxPass(double DeltaTime)
+    private void SkyboxPass(double deltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
-        SkyboxShader.Use();
-        Matrix4x4 View = Matrix4x4.CreateLookAt(Vector3.Zero, Vector3.Zero + CurrentCameraComponent.ForwardVector, CurrentCameraComponent.UpVector);
-        Matrix4x4 Projection = Matrix4x4.CreatePerspectiveFieldOfView(CurrentCameraComponent.FieldOfView.DegreeToRadians(), World.WorldMainRenderTarget.Width / (float)World.WorldMainRenderTarget.Height, 0.1f, 100f);
-        SkyboxShader.SetMatrix("view", View);
-        SkyboxShader.SetMatrix("projection", Projection);
+        _skyboxShader.Use();
+        var view = Matrix4x4.CreateLookAt(Vector3.Zero, Vector3.Zero + CurrentCameraComponent.ForwardVector, CurrentCameraComponent.UpVector);
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(CurrentCameraComponent.FieldOfView.DegreeToRadians(), World.WorldMainRenderTarget!.Width / (float)World.WorldMainRenderTarget.Height, 0.1f, 100f);
+        _skyboxShader.SetMatrix("view", view);
+        _skyboxShader.SetMatrix("projection", projection);
 
-        SkyboxShader.SetInt("DepthTexture", 1);
+        _skyboxShader.SetInt("DepthTexture", 1);
         gl.ActiveTexture(GLEnum.Texture1);
-        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+        gl.BindTexture(GLEnum.Texture2D, _globalBuffer.DepthId);
 
-        SkyboxShader.SetVector2("BufferSize", new Vector2(GlobalBuffer.BufferWidth, GlobalBuffer.BufferHeight)); 
-        SkyboxShader.SetVector2("ScreenSize", new Vector2(GlobalBuffer.Width, GlobalBuffer.Height));
+        _skyboxShader.SetVector2("BufferSize", new Vector2(_globalBuffer.BufferWidth, _globalBuffer.BufferHeight)); 
+        _skyboxShader.SetVector2("ScreenSize", new Vector2(_globalBuffer.Width, _globalBuffer.Height));
 
-        SkyboxShader.SetInt("skybox", 0);
-        World.CurrentLevel.CurrentSkybox?.RenderSkybox(DeltaTime);
-        SkyboxShader.UnUse();
+        _skyboxShader.SetInt("skybox", 0);
+        World.CurrentLevel.CurrentSkybox?.RenderSkybox(deltaTime);
+        _skyboxShader.UnUse();
 
     }
-    private Plane[] Planes = new Plane[6];
-    private unsafe void AOPass(double deltaTime)
+    private Plane[] _planes = new Plane[6];
+    private unsafe void AoPass(RenderTarget renderTarget)
     {
-        if (PostProcessBuffer2 == null)
-            return;
         if (CurrentCameraComponent == null)
             return;
         gl.PushGroup("SSAO Pass");
-        using (PostProcessBuffer2.Begin())
+        using (renderTarget.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
            
-            SSAOShader.SetVector2("TexCoordScale",
+            _ssaoShader.SetVector2("TexCoordScale",
             new Vector2
             {
-                X = PostProcessBuffer2.Width / (float)PostProcessBuffer2.BufferWidth,
-                Y = PostProcessBuffer2.Height / (float)PostProcessBuffer2.BufferHeight
+                X = renderTarget.Width / (float)renderTarget.BufferWidth,
+                Y = renderTarget.Height / (float)renderTarget.BufferHeight
             });
 
-            SSAOShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-            SSAOShader.SetMatrix("InvertProjectionTransform", CurrentCameraComponent.Projection.Inverse());
+            _ssaoShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+            _ssaoShader.SetMatrix("InvertProjectionTransform", CurrentCameraComponent.Projection.Inverse());
 
-            if (IsMicroGBuffer == false)
+            if (_isMicroGBuffer == false)
             {
-                SSAOShader.SetInt("CustomBuffer", 1);
+                _ssaoShader.SetInt("CustomBuffer", 1);
                 gl.ActiveTexture(GLEnum.Texture1);
-                gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
+                gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[1]);
             }
             else
             {
-                SSAOShader.SetInt("CustomBuffer", 1);
+                _ssaoShader.SetInt("CustomBuffer", 1);
                 gl.ActiveTexture(GLEnum.Texture1);
-                gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+                gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[0]);
             }
 
-            SSAOShader.SetInt("DepthTexture", 1);
+            _ssaoShader.SetInt("DepthTexture", 1);
             gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.DepthId);
 
-            SSAOShader.SetInt("NoiseTexture", 2);
+            _ssaoShader.SetInt("NoiseTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, NoiseTexture.TextureId);
+            gl.BindTexture(GLEnum.Texture2D, _noiseTexture!.TextureId);
 
 
-
-
-            gl.BindVertexArray(PostProcessVAO);
+            gl.BindVertexArray(_postProcessVao);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
 
@@ -553,7 +531,7 @@ public class DeferredSceneRenderer : IRenderer
         gl.PopGroup();
     }
 
-    public unsafe void IndirectLight()
+    public unsafe void IndirectLight(RenderTarget? aoRenderTarget)
     {
         if (World.CurrentLevel.CurrentSkybox == null)
             return;
@@ -563,20 +541,20 @@ public class DeferredSceneRenderer : IRenderer
             return;
         IndirectLightShader.SetInt("ColorTexture", 0);
         gl.ActiveTexture(GLEnum.Texture0);
-        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+        gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[0]);
 
 
-        if (IsMicroGBuffer == false)
+        if (_isMicroGBuffer == false)
         {
 
             IndirectLightShader.SetInt("CustomBuffer", 1);
             gl.ActiveTexture(GLEnum.Texture1);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[1]);
         }
 
         IndirectLightShader.SetInt("DepthTexture", 2);
         gl.ActiveTexture(GLEnum.Texture2);
-        gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+        gl.BindTexture(GLEnum.Texture2D, _globalBuffer.DepthId);
 
 
         IndirectLightShader.SetInt("irradianceMap", 3);
@@ -591,35 +569,35 @@ public class DeferredSceneRenderer : IRenderer
 
         IndirectLightShader.SetInt("brdfLUT", 5);
         gl.ActiveTexture(GLEnum.Texture5);
-        gl.BindTexture(GLEnum.Texture2D, BrdfTexture.TextureId);
+        gl.BindTexture(GLEnum.Texture2D, _brdfTexture.TextureId);
 
 
-        if (IsMobile == false && PostProcessBuffer2 != null)
+        if (aoRenderTarget != null)
         {
             IndirectLightShader.SetInt("SSAOTexture", 6);
             gl.ActiveTexture(GLEnum.Texture6);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, aoRenderTarget.GBufferIds[0]);
         }
 
         IndirectLightShader.SetVector2("TexCoordScale",
             new Vector2
             {
-                X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
-                Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                X = _globalBuffer.Width / (float)_globalBuffer.BufferWidth,
+                Y = _globalBuffer.Height / (float)_globalBuffer.BufferHeight
             });
 
-        Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-        IndirectLightShader.SetMatrix("VPInvert", VPInvert);
+        Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var vpInvert);
+        IndirectLightShader.SetMatrix("VPInvert", vpInvert);
 
         IndirectLightShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
 
 
-        gl.BindVertexArray(PostProcessVAO);
+        gl.BindVertexArray(_postProcessVao);
         gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
         gl.ActiveTexture(GLEnum.Texture0);
 
     }
-    private void DepthPass(double DeltaTime)
+    private void DepthPass(double deltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
@@ -629,71 +607,65 @@ public class DeferredSceneRenderer : IRenderer
         gl.Enable(GLEnum.CullFace);
         gl.CullFace(GLEnum.Front);
 
-        SpotShadowMap(DeltaTime);
-        PointLightShadowMap(DeltaTime);
-        DirectionLightShadowMap(DeltaTime);
+        SpotShadowMap(deltaTime);
+        PointLightShadowMap(deltaTime);
+        DirectionLightShadowMap(deltaTime);
 
 
         gl.CullFace(GLEnum.Back);
         gl.PopGroup();
     }
 
-    private void SpotShadowMap(double DeltaTime)
+    private void SpotShadowMap(double deltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
 
         gl.PushGroup("SpotLight");
-        SpotShadowMapShader.Use();
-        foreach (var SpotLightComponent in World.CurrentLevel.SpotLightComponents)
+        _spotShadowMapShader.Use();
+        foreach (var spotLightComponent in World.CurrentLevel.SpotLightComponents)
         {
-            if (SpotLightComponent.IsCastShadowMap == false)
+            if (spotLightComponent.IsCastShadowMap == false)
             {
                 continue;
             }
-            gl.BindFramebuffer(GLEnum.Framebuffer, SpotLightComponent.ShadowMapFrameBufferID);
+            gl.BindFramebuffer(GLEnum.Framebuffer, spotLightComponent.ShadowMapFrameBufferID);
             gl.Clear(ClearBufferMask.DepthBufferBit);
-            var View = Matrix4x4.CreateLookAt(SpotLightComponent.WorldLocation, SpotLightComponent.WorldLocation + SpotLightComponent.ForwardVector, SpotLightComponent.UpVector);
-            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(SpotLightComponent.OuterAngle.DegreeToRadians(), 1, 1F, 100);
-            gl.Viewport(new Rectangle(0, 0, SpotLightComponent.ShadowMapSize.X, SpotLightComponent.ShadowMapSize.Y));
+            var view = Matrix4x4.CreateLookAt(spotLightComponent.WorldLocation, spotLightComponent.WorldLocation + spotLightComponent.ForwardVector, spotLightComponent.UpVector);
+            var projection = Matrix4x4.CreatePerspectiveFieldOfView(spotLightComponent.OuterAngle.DegreeToRadians(), 1, 1F, 100);
+            gl.Viewport(new Rectangle(0, 0, spotLightComponent.ShadowMapSize.X, spotLightComponent.ShadowMapSize.Y));
             
-            SpotShadowMapShader.SetMatrix("ViewTransform", View);
-            SpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            _spotShadowMapShader.SetMatrix("ViewTransform", view);
+            _spotShadowMapShader.SetMatrix("ProjectionTransform", projection);
 
             foreach (var component in World.CurrentLevel.StaticMeshComponents)
             {
-                if (component == null)
-                    continue;
                 if (component.IsDestoryed)
                     continue;
                 if (component.IsCastShadowMap == false)
                     continue;
-                SpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                component.Render(DeltaTime);
+                _spotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                component.Render(deltaTime);
             }
 
-            InstanceSpotShadowMapShader.SetMatrix("ViewTransform", View);
-            InstanceSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            _instanceSpotShadowMapShader.SetMatrix("ViewTransform", view);
+            _instanceSpotShadowMapShader.SetMatrix("ProjectionTransform", projection);
             foreach (var ism in World.CurrentLevel.ISMComponents)
             {
-                if (ism == null)
-                    continue;
                 if (ism.IsDestoryed)
                     continue;
                 if (ism.IsCastShadowMap == false)
                     continue;
-                GetPlanes(View * Projection, ref Planes);
+                GetPlanes(view * projection, ref _planes);
                 if (ism is HierarchicalInstancedStaticMeshComponent hism)
-                    hism.CameraCulling(Planes);
-                ism.RenderISM(CurrentCameraComponent, DeltaTime);
+                    hism.CameraCulling(_planes);
+                ism.RenderISM(CurrentCameraComponent, deltaTime);
             }
 
-            SkeletakMeshSpotShadowMapShader.SetMatrix("ViewTransform", View);
-            SkeletakMeshSpotShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            _skeletalMeshSpotShadowMapShader.SetMatrix("ViewTransform", view);
+            _skeletalMeshSpotShadowMapShader.SetMatrix("ProjectionTransform", projection);
             foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
             {
-                if (component == null)
-                    continue;
                 if (component.IsDestoryed)
                     continue;
                 if (component.IsCastShadowMap == false)
@@ -702,88 +674,83 @@ public class DeferredSceneRenderer : IRenderer
                 {
                     for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
                     {
-                        SkeletakMeshSpotShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
+                        _skeletalMeshSpotShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
                     }
                 }
-                SkeletakMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                component.Render(DeltaTime);
+                _skeletalMeshSpotShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                component.Render(deltaTime);
             }
 
         }
 
-        SpotLightingShader.UnUse();
+        _spotLightingShader.UnUse();
         gl.PopGroup();
     }
 
-    private void PointLightShadowMap(double DeltaTime)
+    private void PointLightShadowMap(double deltaTime)
     {
 
         if (CurrentCameraComponent == null)
             return;
         gl.PushGroup("PointLight");
-        PointLightShadowShader.Use();
-        foreach (var PointLightComponent in PointLightComponents)
+        _pointLightShadowShader.Use();
+        Span<Matrix4x4> views = stackalloc Matrix4x4[6];
+        foreach (var pointLightComponent in _pointLightComponents)
         {
-            tmpCullingStaticMesh.Clear();
-            World.CurrentLevel.RenderObjectOctree.SphereCulling<StaticMeshComponent>(tmpCullingStaticMesh, new Physics.Sphere() { Location = PointLightComponent.WorldLocation, Radius = PointLightComponent.AttenuationRadius * 4 });
+            _tmpCullingStaticMesh.Clear();
+            World.CurrentLevel.RenderObjectOctree.SphereCulling(_tmpCullingStaticMesh, new Physics.Sphere() { Location = pointLightComponent.WorldLocation, Radius = pointLightComponent.AttenuationRadius * 4 });
           
-            if (PointLightComponent.IsCastShadowMap == false)
+            if (pointLightComponent.IsCastShadowMap == false)
             {
                 continue;
             }
-            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(95f.DegreeToRadians(), 1, 1, 1000);
-            Matrix4x4[] Views = new Matrix4x4[6];
-            Views[0] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, -1), new Vector3(0, 1, 0));
-            Views[1] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, 1), new Vector3(0, 1, 0));
-            Views[2] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(-1, 0, 0), new Vector3(0, 1, 0));
-            Views[3] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(1, 0, 0), new Vector3(0, 1, 0));
-            Views[4] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 1, 0), new Vector3(0, 0, 1));
-            Views[5] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, -1, 0), new Vector3(0, 0, -1));
+            var projection = Matrix4x4.CreatePerspectiveFieldOfView(95f.DegreeToRadians(), 1, 1, 1000);
+
+            views[0] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(0, 0, -1), new Vector3(0, 1, 0));
+            views[1] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(0, 0, 1), new Vector3(0, 1, 0));
+            views[2] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(-1, 0, 0), new Vector3(0, 1, 0));
+            views[3] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(1, 0, 0), new Vector3(0, 1, 0));
+            views[4] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(0, 1, 0), new Vector3(0, 0, 1));
+            views[5] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(0, -1, 0), new Vector3(0, 0, -1));
 
 
-            gl.Viewport(new Rectangle(0, 0, PointLightComponent.ShadowMapSize.X, PointLightComponent.ShadowMapSize.Y));
+            gl.Viewport(new Rectangle(0, 0, pointLightComponent.ShadowMapSize.X, pointLightComponent.ShadowMapSize.Y));
             for (int i = 0; i < 6; i++)
             {
                 gl.PushGroup("face:" + i);
-                gl.BindFramebuffer(GLEnum.Framebuffer, PointLightComponent.ShadowMapFrameBufferIDs[i]);
+                gl.BindFramebuffer(GLEnum.Framebuffer, pointLightComponent.ShadowMapFrameBufferIDs[i]);
                 gl.Clear(ClearBufferMask.DepthBufferBit);
-                PointLightShadowShader.SetMatrix("ViewTransform", Views[i]);
-                PointLightShadowShader.SetMatrix("ProjectionTransform", Projection);
-                foreach (var component in CullingResult)
+                _pointLightShadowShader.SetMatrix("ViewTransform", views[i]);
+                _pointLightShadowShader.SetMatrix("ProjectionTransform", projection);
+                foreach (var component in _cullingResult)
                 {
-                    if (component == null)
-                        continue;
-                    if (component is not StaticMeshComponent staticMeshComponent)
+                    if (component is not StaticMeshComponent)
                         continue;
                     if (component.IsDestoryed)
                         continue;
                     if (component.IsCastShadowMap == false)
                         continue;
-                    PointLightShadowShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    component.Render(DeltaTime);
+                    _pointLightShadowShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    component.Render(deltaTime);
                 }
 
-                InstancePointLightingShader.SetMatrix("ViewTransform", Views[i]);
-                InstancePointLightingShader.SetMatrix("ProjectionTransform", Projection);
+                _instancePointLightingShader.SetMatrix("ViewTransform", views[i]);
+                _instancePointLightingShader.SetMatrix("ProjectionTransform", projection);
                 foreach (var hism in World.CurrentLevel.ISMComponents)
                 {
-                    if (hism == null)
-                        continue;
                     if (hism.IsDestoryed)
                         continue;
                     if (hism.IsCastShadowMap == false)
                         continue;
-                    hism.RenderISM(CurrentCameraComponent, DeltaTime);
+                    hism.RenderISM(CurrentCameraComponent, deltaTime);
                 }
 
 
-                SkeletakMeshPointLightingShader.SetMatrix("ViewTransform", Views[i]);
-                SkeletakMeshPointLightingShader.SetMatrix("ProjectionTransform", Projection);
-                SkeletakMeshPointLightingShader.Use();
+                _skeletalMeshPointLightingShader.SetMatrix("ViewTransform", views[i]);
+                _skeletalMeshPointLightingShader.SetMatrix("ProjectionTransform", projection);
+                _skeletalMeshPointLightingShader.Use();
                 foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
                 {
-                    if (component == null)
-                        continue;
                     if (component.IsDestoryed)
                         continue;
                     if (component.IsCastShadowMap == false)
@@ -792,75 +759,69 @@ public class DeferredSceneRenderer : IRenderer
                     {
                         for (int j = 0; j < component.SkeletalMesh.Skeleton.BoneList.Count; j++)
                         {
-                            SkeletakMeshPointLightingShader.SetMatrix($"AnimTransform[{j}]", component.SkeletalMesh.Skeleton.BoneList[j].WorldToLocalTransform * component.AnimBuffer[j]);
+                            _skeletalMeshPointLightingShader.SetMatrix($"AnimTransform[{j}]", component.SkeletalMesh.Skeleton.BoneList[j].WorldToLocalTransform * component.AnimBuffer[j]);
                         }
                     }
-                    SkeletakMeshPointLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
-                    component.Render(DeltaTime);
+                    _skeletalMeshPointLightingShader.SetMatrix("ModelTransform", component.WorldTransform);
+                    component.Render(deltaTime);
                 }
                 gl.PopGroup();
             }
 
         }
-        PointLightShadowShader.UnUse();
+        _pointLightShadowShader.UnUse();
         gl.PopGroup();
     }
-    private void DirectionLightShadowMap(double DeltaTime)
+    private void DirectionLightShadowMap(double deltaTime)
     {
         if (CurrentCameraComponent == null)
             return;
         gl.PushGroup("DirectionLight");
-        DLShadowMapShader.Use();
-        foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
+        _dlShadowMapShader.Use();
+        foreach (var directionalLight in World.CurrentLevel.DirectionLightComponents)
         {
-            if (DirectionalLight.IsCastShadowMap == false)
+            if (directionalLight.IsCastShadowMap == false)
             {
                 continue;
             }
-            gl.Viewport(new Rectangle(0, 0, DirectionalLight.ShadowMapSize.X, DirectionalLight.ShadowMapSize.Y));
-            gl.BindFramebuffer(GLEnum.Framebuffer, DirectionalLight.ShadowMapFrameBufferID);
+            gl.Viewport(new Rectangle(0, 0, directionalLight.ShadowMapSize.X, directionalLight.ShadowMapSize.Y));
+            gl.BindFramebuffer(GLEnum.Framebuffer, directionalLight.ShadowMapFrameBufferID);
 
-            var LightLocation = CurrentCameraComponent.WorldLocation - DirectionalLight.ForwardVector * 20;
-            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
-            var Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
+            var lightLocation = CurrentCameraComponent.WorldLocation - directionalLight.ForwardVector * 20;
+            var view = Matrix4x4.CreateLookAt(lightLocation, lightLocation + directionalLight.ForwardVector, directionalLight.UpVector);
+            var projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
             gl.Clear(ClearBufferMask.DepthBufferBit);
-            DLShadowMapShader.SetMatrix("ViewTransform", View);
-            DLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            _dlShadowMapShader.SetMatrix("ViewTransform", view);
+            _dlShadowMapShader.SetMatrix("ProjectionTransform", projection);
             foreach (var component in World.CurrentLevel.StaticMeshComponents)
             {
-                if (component == null)
-                    continue;
                 if (component.IsDestoryed)
                     continue;
                 if (component.IsCastShadowMap == false)
                     continue;
-                DLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                component.Render(DeltaTime);
+                _dlShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                component.Render(deltaTime);
             }
 
-            InstanceDLShadowMapShader.SetMatrix("ViewTransform", View);
-            InstanceDLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            _instanceDlShadowMapShader.SetMatrix("ViewTransform", view);
+            _instanceDlShadowMapShader.SetMatrix("ProjectionTransform", projection);
             foreach (var ism in World.CurrentLevel.ISMComponents)
             {
-                if (ism == null)
-                    continue;
                 if (ism.IsDestoryed)
                     continue;
                 if (ism.IsCastShadowMap == false)
                     continue;
-                GetPlanes(View * Projection, ref Planes);
+                GetPlanes(view * projection, ref _planes);
                 if (ism is HierarchicalInstancedStaticMeshComponent hism)
-                    hism.CameraCulling(Planes);
-                ism.RenderISM(CurrentCameraComponent, DeltaTime);
+                    hism.CameraCulling(_planes);
+                ism.RenderISM(CurrentCameraComponent, deltaTime);
             }
 
 
-            SkeletakMeshDLShadowMapShader.SetMatrix("ViewTransform", View);
-            SkeletakMeshDLShadowMapShader.SetMatrix("ProjectionTransform", Projection);
+            _skeletalMeshDlShadowMapShader.SetMatrix("ViewTransform", view);
+            _skeletalMeshDlShadowMapShader.SetMatrix("ProjectionTransform", projection);
             foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
             {
-                if (component == null)
-                    continue;
                 if (component.IsDestoryed)
                     continue;
                 if (component.IsCastShadowMap == false)
@@ -869,21 +830,21 @@ public class DeferredSceneRenderer : IRenderer
                 {
                     for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
                     {
-                        SkeletakMeshDLShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
+                        _skeletalMeshDlShadowMapShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
                     }
                 }
-                SkeletakMeshDLShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
-                component.Render(DeltaTime);
+                _skeletalMeshDlShadowMapShader.SetMatrix("ModelTransform", component.WorldTransform);
+                component.Render(deltaTime);
             }
         }
-        DLShadowMapShader.UnUse();
+        _dlShadowMapShader.UnUse();
         gl.PopGroup();
     }
-    private void BasePass(double DeltaTime)
+    private void BasePass(double deltaTime)
     {
         // 生成GBuffer
         gl.PushGroup("Base Pass");
-        using (GlobalBuffer.Begin())
+        using (_globalBuffer.Begin())
         {
 
             gl.Enable(EnableCap.DepthTest);
@@ -894,32 +855,32 @@ public class DeferredSceneRenderer : IRenderer
             gl.Disable(EnableCap.Blend);
             if (CurrentCameraComponent != null)
             {
-                StaticMeshBaseShader.SetInt("BaseColorTexture", 0);
-                StaticMeshBaseShader.SetInt("NormalTexture", 1);
-                StaticMeshBaseShader.SetInt("ARMTexture", 2);
-                StaticMeshBaseShader.SetInt("ParallaxTexture", 3);
-                StaticMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
-                StaticMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-                StaticMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+                _staticMeshBaseShader.SetInt("BaseColorTexture", 0);
+                _staticMeshBaseShader.SetInt("NormalTexture", 1);
+                _staticMeshBaseShader.SetInt("ARMTexture", 2);
+                _staticMeshBaseShader.SetInt("ParallaxTexture", 3);
+                _staticMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+                _staticMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+                _staticMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
 
 
-                foreach (var component in StaticMeshComponents)
+                foreach (var component in _staticMeshComponents)
                 {
                     if (component.IsDestoryed == false)
                     {
-                        StaticMeshBaseShader.SetMatrix("ModelTransform", component.WorldTransform);
-                        StaticMeshBaseShader.SetMatrix("NormalTransform", component.NormalTransform);
-                        component.Render(DeltaTime);
+                        _staticMeshBaseShader.SetMatrix("ModelTransform", component.WorldTransform);
+                        _staticMeshBaseShader.SetMatrix("NormalTransform", component.NormalTransform);
+                        component.Render(deltaTime);
                     }
                 }
 
-                SkeletalMeshBaseShader.SetInt("BaseColorTexture", 0);
-                SkeletalMeshBaseShader.SetInt("NormalTexture", 1);
-                SkeletalMeshBaseShader.SetInt("ARMTexture", 2);
-                SkeletalMeshBaseShader.SetInt("ParallaxTexture", 3);
-                SkeletalMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
-                SkeletalMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-                SkeletalMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+                _skeletalMeshBaseShader.SetInt("BaseColorTexture", 0);
+                _skeletalMeshBaseShader.SetInt("NormalTexture", 1);
+                _skeletalMeshBaseShader.SetInt("ARMTexture", 2);
+                _skeletalMeshBaseShader.SetInt("ParallaxTexture", 3);
+                _skeletalMeshBaseShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+                _skeletalMeshBaseShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+                _skeletalMeshBaseShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
 
                 foreach (var component in World.CurrentLevel.SkeletalMeshComponents)
                 {
@@ -932,37 +893,37 @@ public class DeferredSceneRenderer : IRenderer
 
                                 for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
                                 {
-                                    SkeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
+                                    _skeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", component.SkeletalMesh.Skeleton.BoneList[i].WorldToLocalTransform * component.AnimBuffer[i]);
                                 }
                             }
                             else
                             {
                                 for (int i = 0; i < component.SkeletalMesh.Skeleton.BoneList.Count; i++)
                                 {
-                                    SkeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", Matrix4x4.Identity);
+                                    _skeletalMeshBaseShader.SetMatrix($"AnimTransform[{i}]", Matrix4x4.Identity);
                                 }
                             }
                         }
-                        SkeletalMeshBaseShader.SetMatrix("ModelTransform", component.WorldTransform);
-                        SkeletalMeshBaseShader.SetMatrix("NormalTransform", component.NormalTransform);
-                        component.Render(DeltaTime);
+                        _skeletalMeshBaseShader.SetMatrix("ModelTransform", component.WorldTransform);
+                        _skeletalMeshBaseShader.SetMatrix("NormalTransform", component.NormalTransform);
+                        component.Render(deltaTime);
                     }
                 }
 
                 gl.Disable(GLEnum.CullFace);
                 gl.PushGroup("InstancedStaticMesh Render");
-                HISMShader.SetInt("BaseColorTexture", 0);
-                HISMShader.SetInt("NormalTexture", 1);
-                HISMShader.SetInt("ARMTexture", 2);
-                HISMShader.SetInt("ParallaxTexture", 3);
-                HISMShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
-                HISMShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
-                HISMShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
+                _hismShader.SetInt("BaseColorTexture", 0);
+                _hismShader.SetInt("NormalTexture", 1);
+                _hismShader.SetInt("ARMTexture", 2);
+                _hismShader.SetInt("ParallaxTexture", 3);
+                _hismShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
+                _hismShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
+                _hismShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
                 foreach (var ism in World.CurrentLevel.ISMComponents)
                 {
                     if (ism is HierarchicalInstancedStaticMeshComponent hism)
                         hism.CameraCulling(CurrentCameraComponent.GetPlanes());
-                    ism.RenderISM(CurrentCameraComponent, DeltaTime);
+                    ism.RenderISM(CurrentCameraComponent, deltaTime);
                 }
                 gl.PopGroup();
             }
@@ -970,10 +931,8 @@ public class DeferredSceneRenderer : IRenderer
         gl.PopGroup();
     }
 
-    private unsafe void RenderToCameraRenderTarget(double DeltaTime)
+    private unsafe void RenderToCameraRenderTarget(double deltaTime, RenderTarget colorBuffer)
     {
-        if (LastPostProcessBuffer == null)
-            return;
         if (CurrentCameraComponent == null)
             return;
         using (CurrentCameraComponent.RenderTarget.Begin())
@@ -985,36 +944,39 @@ public class DeferredSceneRenderer : IRenderer
             gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
 
             // 天空盒
-            SkyboxPass(DeltaTime);
+            SkyboxPass(deltaTime);
             gl.PopGroup();
 
+            gl.PushGroup("RenderToCamera Pass");
             gl.Clear(ClearBufferMask.DepthBufferBit);
-            RenderToCamera.Use();
-            RenderToCamera.SetVector2("TexCoordScale",
+            _renderToCamera.Use();
+            _renderToCamera.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
-                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                    X = colorBuffer.Width / (float)colorBuffer.BufferWidth,
+                    Y = colorBuffer.Height / (float)colorBuffer.BufferHeight
                 });
-            RenderToCamera.SetInt("ColorTexture", 0);
+            _renderToCamera.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, LastPostProcessBuffer.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, colorBuffer.GBufferIds[0]);
 
 
-            gl.BindVertexArray(PostProcessVAO);
+            gl.BindVertexArray(_postProcessVao);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
 
-            RenderToCamera.UnUse();
+            _renderToCamera.UnUse();
+            gl.PopGroup();
 
-        };
+        }
     }
 
-    private void LightingPass(double DeltaTime)
+    private void LightingPass(RenderTarget? aoRenderTarget)
     {
         if (CurrentCameraComponent == null)
             return;
 
+        gl.PushGroup("Lighting Pass");
         // 清除背景颜色
         gl.ClearColor(Color.FromArgb(0, 0, 0, 0));
         gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
@@ -1023,7 +985,7 @@ public class DeferredSceneRenderer : IRenderer
         gl.BlendFunc(GLEnum.One, GLEnum.One);
         gl.Enable(EnableCap.Blend);
 
-        IndirectLight();
+        IndirectLight(aoRenderTarget);
         // 定向光
         DirectionalLight();
         // 点光源
@@ -1032,6 +994,7 @@ public class DeferredSceneRenderer : IRenderer
         SpotLight();
         gl.Disable(EnableCap.Blend);
 
+        gl.PopGroup();
     }
 
 
@@ -1041,65 +1004,64 @@ public class DeferredSceneRenderer : IRenderer
             return;
         gl.PushGroup("DirectionalLight Pass");
 
-        foreach (var DirectionalLight in World.CurrentLevel.DirectionLightComponents)
+        foreach (var directionalLight in World.CurrentLevel.DirectionLightComponents)
         {
-            Shader shader = DirectionalLight.IsCastShadowMap ? DirectionalLightingShader : DirectionalLightingShaderNoShadow;
-            var LightInfo = DirectionalLight.LightInfo;
-            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-            shader.SetMatrix("VPInvert", VPInvert);
+            Shader shader = directionalLight.IsCastShadowMap ? _directionalLightingShader : _directionalLightingShaderNoShadow;
+            var lightInfo = directionalLight.LightInfo;
+            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var vpInvert);
+            shader.SetMatrix("VPInvert", vpInvert);
 
-            var LightLocation = CurrentCameraComponent.WorldLocation - DirectionalLight.ForwardVector * 20;
-            var View = Matrix4x4.CreateLookAt(LightLocation, LightLocation + DirectionalLight.ForwardVector, DirectionalLight.UpVector);
-            var Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
+            var lightLocation = CurrentCameraComponent.WorldLocation - directionalLight.ForwardVector * 20;
+            var view = Matrix4x4.CreateLookAt(lightLocation, lightLocation + directionalLight.ForwardVector, directionalLight.UpVector);
+            var projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
 
-            var WorldToLight = View * Projection;
-            shader.SetMatrix("WorldToLight", WorldToLight);
+            var worldToLight = view * projection;
+            shader.SetMatrix("WorldToLight", worldToLight);
             shader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
-                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                    X = _globalBuffer.Width / (float)_globalBuffer.BufferWidth,
+                    Y = _globalBuffer.Height / (float)_globalBuffer.BufferHeight
                 });
 
 
-            shader.SetFloat("LightStrength", DirectionalLight.LightStrength);
+            shader.SetFloat("LightStrength", directionalLight.LightStrength);
             shader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[0]);
 
-            if (IsMicroGBuffer == false)
+            if (_isMicroGBuffer == false)
             {
                 shader.SetInt("CustomBuffer", 1);
                 gl.ActiveTexture(GLEnum.Texture1);
-                gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
+                gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[1]);
             }
 
 
             shader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
-            if (DirectionalLight.IsCastShadowMap)
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.DepthId);
+            if (directionalLight.IsCastShadowMap)
             {
                 shader.SetInt("ShadowMapTexture", 3);
                 gl.ActiveTexture(GLEnum.Texture3);
-                gl.BindTexture(GLEnum.Texture2D, DirectionalLight.ShadowMapTextureID);
+                gl.BindTexture(GLEnum.Texture2D, directionalLight.ShadowMapTextureID);
             }
 
-            shader.SetVector3("LightDirection", LightInfo.Direction);
-            shader.SetVector3("LightColor", LightInfo.Color);
+            shader.SetVector3("LightDirection", lightInfo.Direction);
+            shader.SetVector3("LightColor", lightInfo.Color);
 
             shader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-            gl.BindVertexArray(PostProcessVAO);
+            gl.BindVertexArray(_postProcessVao);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
         }
         gl.PopGroup();
     }
 
-    private unsafe void BloomPass(double DeltaTime)
+    private unsafe void BloomPass(RenderTarget tmpBuffer1, RenderTarget tmpBuffer2, RenderTarget colorBuffer)
     {
-        if (PostProcessBuffer1 == null || PostProcessBuffer2 == null || PostProcessBuffer3 == null)
-            return;
+        gl.PushGroup("Bloom Effect");
         if (CurrentCameraComponent == null) return;
         gl.Disable(EnableCap.DepthTest);
 
@@ -1107,146 +1069,146 @@ public class DeferredSceneRenderer : IRenderer
         gl.BlendEquation(GLEnum.FuncAdd);
         gl.BlendFunc(GLEnum.SrcAlpha, GLEnum.OneMinusSrcAlpha);
 
-        using (PostProcessBuffer2.Begin())
+        using (tmpBuffer1.Begin())
         {
             gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-            BloomPreShader.Use();
-            BloomPreShader.SetVector2("TexCoordScale",
+            _bloomPreShader.Use();
+            _bloomPreShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
-                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                    X = colorBuffer.Width / (float)colorBuffer.BufferWidth,
+                    Y = colorBuffer.Height / (float)colorBuffer.BufferHeight
                 });
-            BloomPreShader.SetInt("ColorTexture", 0);
+            _bloomPreShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer1.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, colorBuffer.GBufferIds[0]);
 
-            gl.BindVertexArray(PostProcessVAO);
+            gl.BindVertexArray(_postProcessVao);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
-            BloomPreShader.UnUse();
+            _bloomPreShader.UnUse();
         }
 
-        RenderTarget[] buffer = new RenderTarget[2] {
-            PostProcessBuffer3,
-            PostProcessBuffer2,
-        };
+        Span<RenderTarget> buffer =
+        [
+            tmpBuffer2,
+            tmpBuffer1
+        ];
         for (int i = 0; i < 2; i++)
         {
             int next = i == 1 ? 0 : 1;
             using(buffer[i].Begin())
             {
                 gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-                BloomShader.Use();
-                BloomShader.SetVector2("TexCoordScale",
+                _bloomShader.Use();
+                _bloomShader.SetVector2("TexCoordScale",
                     new Vector2
                     {
-                        X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
-                        Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
+                        X = buffer[next].Width / (float)buffer[next].BufferWidth,
+                        Y = buffer[next].Height / (float)buffer[next].BufferHeight
                     });
-                BloomShader.SetInt("horizontal", i);
-                BloomShader.SetInt("ColorTexture", 0);
+                _bloomShader.SetInt("horizontal", i);
+                _bloomShader.SetInt("ColorTexture", 0);
                 gl.ActiveTexture(GLEnum.Texture0);
                 gl.BindTexture(GLEnum.Texture2D, buffer[next].GBufferIds[0]);
 
-                gl.BindVertexArray(PostProcessVAO);
+                gl.BindVertexArray(_postProcessVao);
                 gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
                 gl.ActiveTexture(GLEnum.Texture0);
-                BloomShader.UnUse();
+                _bloomShader.UnUse();
             }
         }
-        using (PostProcessBuffer1.Begin()) 
+        using (colorBuffer.Begin()) 
         {
             gl.Enable(EnableCap.Blend);
             gl.BlendEquation(GLEnum.FuncAdd);
-            BloomPostShader.Use();
-            BloomPostShader.SetVector2("TexCoordScale",
+            _bloomPostShader.Use();
+            _bloomPostShader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = PostProcessBuffer1.Width / (float)PostProcessBuffer1.BufferWidth,
-                    Y = PostProcessBuffer1.Height / (float)PostProcessBuffer1.BufferHeight
+                    X = tmpBuffer1.Width / (float)tmpBuffer1.BufferWidth,
+                    Y = tmpBuffer1.Height / (float)tmpBuffer1.BufferHeight
                 });
-            BloomPostShader.SetInt("ColorTexture", 0);
+            _bloomPostShader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, PostProcessBuffer2.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, tmpBuffer2.GBufferIds[0]);
 
-            gl.BindVertexArray(PostProcessVAO);
+            gl.BindVertexArray(_postProcessVao);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
-            BloomPostShader.UnUse();
+            _bloomPostShader.UnUse();
 
         }
-        LastPostProcessBuffer = PostProcessBuffer1;
-
+        gl.PopGroup();
     }
 
-    RenderTarget? LastPostProcessBuffer = null;
     public unsafe void PointLight()
     {
         if (CurrentCameraComponent == null)
             return;
+
+        Span<Matrix4x4> views = stackalloc Matrix4x4[6];
         gl.PushGroup("PointLight Pass");
-        PointLightingShader.Use();
-        foreach (var PointLightComponent in PointLightComponents)
+        _pointLightingShader.Use();
+        foreach (var pointLightComponent in _pointLightComponents)
         {
-            Shader shader = PointLightComponent.IsCastShadowMap ? PointLightingShader : PointLightingShaderNoShadow;
+            Shader shader = pointLightComponent.IsCastShadowMap ? _pointLightingShader : _pointLightingShaderNoShadow;
 
-            Matrix4x4[] Views = new Matrix4x4[6];
-            Views[0] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, -1), new Vector3(0, 1, 0));
-            Views[1] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 0, 1), new Vector3(0, 1, 0));
-            Views[2] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(-1, 0, 0), new Vector3(0, 1, 0));
-            Views[3] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(1, 0, 0), new Vector3(0, 1, 0));
-            Views[4] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, 1, 0), new Vector3(0, 0, 1));
-            Views[5] = Matrix4x4.CreateLookAt(PointLightComponent.WorldLocation, PointLightComponent.WorldLocation + new Vector3(0, -1, 0), new Vector3(0, 0, -1));
+            views[0] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(0, 0, -1), new Vector3(0, 1, 0));
+            views[1] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(0, 0, 1), new Vector3(0, 1, 0));
+            views[2] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(-1, 0, 0), new Vector3(0, 1, 0));
+            views[3] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(1, 0, 0), new Vector3(0, 1, 0));
+            views[4] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(0, 1, 0), new Vector3(0, 0, 1));
+            views[5] = Matrix4x4.CreateLookAt(pointLightComponent.WorldLocation, pointLightComponent.WorldLocation + new Vector3(0, -1, 0), new Vector3(0, 0, -1));
 
 
-            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-            shader.SetMatrix("VPInvert", VPInvert);
+            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var vpInvert);
+            shader.SetMatrix("VPInvert", vpInvert);
 
-            shader.SetFloat("LightStrength", PointLightComponent.LightStrength);
+            shader.SetFloat("LightStrength", pointLightComponent.LightStrength);
             shader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
-                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                    X = _globalBuffer.Width / (float)_globalBuffer.BufferWidth,
+                    Y = _globalBuffer.Height / (float)_globalBuffer.BufferHeight
                 });
 
             shader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[0]);
 
 
-            if (IsMicroGBuffer == false)
+            if (_isMicroGBuffer == false)
             {
 
                 shader.SetInt("CustomBuffer", 1);
                 gl.ActiveTexture(GLEnum.Texture1);
-                gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
+                gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[1]);
             }
 
             shader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId);
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.DepthId);
 
 
-            if (PointLightComponent.IsCastShadowMap)
+            if (pointLightComponent.IsCastShadowMap)
             {
                 for (int i = 0; i < 6; i++)
                 {
-                    var Projection = Matrix4x4.CreatePerspectiveFieldOfView(95F.DegreeToRadians(), 1, 1, 1000);
-                    shader.SetMatrix($"WorldToLights[{i}]", Views[i] * Projection);
+                    var projection = Matrix4x4.CreatePerspectiveFieldOfView(95F.DegreeToRadians(), 1, 1, 1000);
+                    shader.SetMatrix($"WorldToLights[{i}]", views[i] * projection);
                     shader.SetInt($"ShadowMapTextures{i}", 5 + i);
                     gl.ActiveTexture(GLEnum.Texture5 + i);
-                    gl.BindTexture(GLEnum.Texture2D, PointLightComponent.ShadowMapTextureIDs[i]);
+                    gl.BindTexture(GLEnum.Texture2D, pointLightComponent.ShadowMapTextureIDs[i]);
                 }
             }
 
-            shader.SetVector3("LightLocation", PointLightComponent.WorldLocation);
-            shader.SetVector3("LightColor", PointLightComponent._Color);
+            shader.SetVector3("LightLocation", pointLightComponent.WorldLocation);
+            shader.SetVector3("LightColor", pointLightComponent._Color);
             
-            shader.SetFloat("FalloffRadius", PointLightComponent.AttenuationRadius);
+            shader.SetFloat("FalloffRadius", pointLightComponent.AttenuationRadius);
             shader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-            gl.BindVertexArray(PostProcessVAO);
+            gl.BindVertexArray(_postProcessVao);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
 
@@ -1262,62 +1224,62 @@ public class DeferredSceneRenderer : IRenderer
         gl.PushGroup("SpotLight Pass");
         if (CurrentCameraComponent == null)
             return;
-        SpotLightingShader.Use();
-        foreach (var SpotLightComponent in World.CurrentLevel.SpotLightComponents)
+        _spotLightingShader.Use();
+        foreach (var spotLightComponent in World.CurrentLevel.SpotLightComponents)
         {
-            Shader shader = SpotLightComponent.IsCastShadowMap ? SpotLightingShader : SpotLightingShaderNoShadow;
-            shader.SetFloat("LightStrength", SpotLightComponent.LightStrength);
-            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var VPInvert);
-            shader.SetMatrix("VPInvert", VPInvert);
+            Shader shader = spotLightComponent.IsCastShadowMap ? _spotLightingShader : _spotLightingShaderNoShadow;
+            shader.SetFloat("LightStrength", spotLightComponent.LightStrength);
+            Matrix4x4.Invert(CurrentCameraComponent.View * CurrentCameraComponent.Projection, out var vpInvert);
+            shader.SetMatrix("VPInvert", vpInvert);
 
 
             shader.SetVector2("TexCoordScale",
                 new Vector2
                 {
-                    X = GlobalBuffer.Width / (float)GlobalBuffer.BufferWidth,
-                    Y = GlobalBuffer.Height / (float)GlobalBuffer.BufferHeight
+                    X = _globalBuffer.Width / (float)_globalBuffer.BufferWidth,
+                    Y = _globalBuffer.Height / (float)_globalBuffer.BufferHeight
                 });
 
 
 
-            var View = Matrix4x4.CreateLookAt(SpotLightComponent.WorldLocation, SpotLightComponent.WorldLocation + SpotLightComponent.ForwardVector, SpotLightComponent.UpVector);
-            var Projection = Matrix4x4.CreatePerspectiveFieldOfView(SpotLightComponent.OuterAngle.DegreeToRadians(), 1, 1F, 100);
-            var WorldToLight = View * Projection;
-            shader.SetMatrix("WorldToLight", WorldToLight);
+            var view = Matrix4x4.CreateLookAt(spotLightComponent.WorldLocation, spotLightComponent.WorldLocation + spotLightComponent.ForwardVector, spotLightComponent.UpVector);
+            var projection = Matrix4x4.CreatePerspectiveFieldOfView(spotLightComponent.OuterAngle.DegreeToRadians(), 1, 1F, 100);
+            var worldToLight = view * projection;
+            shader.SetMatrix("WorldToLight", worldToLight);
 
-            shader.SetFloat("InnerCosine", (float)Math.Cos(SpotLightComponent.InnerAngle.DegreeToRadians()));
+            shader.SetFloat("InnerCosine", (float)Math.Cos(spotLightComponent.InnerAngle.DegreeToRadians()));
 
-            shader.SetFloat("OuterCosine", (float)Math.Cos(SpotLightComponent.OuterAngle.DegreeToRadians()));
-            shader.SetVector3("ForwardVector", SpotLightComponent.ForwardVector);
+            shader.SetFloat("OuterCosine", (float)Math.Cos(spotLightComponent.OuterAngle.DegreeToRadians()));
+            shader.SetVector3("ForwardVector", spotLightComponent.ForwardVector);
 
             shader.SetInt("ColorTexture", 0);
             gl.ActiveTexture(GLEnum.Texture0);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[0]);
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[0]);
 
-            if (IsMicroGBuffer == false)
+            if (_isMicroGBuffer == false)
             {
                 shader.SetInt("CustomBuffer", 1);
                 gl.ActiveTexture(GLEnum.Texture1);
-                gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.GBufferIds[1]);
+                gl.BindTexture(GLEnum.Texture2D, _globalBuffer.GBufferIds[1]);
             }
 
 
             shader.SetInt("DepthTexture", 2);
             gl.ActiveTexture(GLEnum.Texture2);
-            gl.BindTexture(GLEnum.Texture2D, GlobalBuffer.DepthId); 
+            gl.BindTexture(GLEnum.Texture2D, _globalBuffer.DepthId); 
 
-            if (SpotLightComponent.IsCastShadowMap)
+            if (spotLightComponent.IsCastShadowMap)
             {
                 shader.SetInt("ShadowMapTexture", 3);
                 gl.ActiveTexture(GLEnum.Texture3);
-                gl.BindTexture(GLEnum.Texture2D, SpotLightComponent.ShadowMapTextureID);
+                gl.BindTexture(GLEnum.Texture2D, spotLightComponent.ShadowMapTextureID);
             }
 
-            shader.SetVector3("LightLocation", SpotLightComponent.WorldLocation);
-            shader.SetVector3("LightColor", SpotLightComponent._Color);
+            shader.SetVector3("LightLocation", spotLightComponent.WorldLocation);
+            shader.SetVector3("LightColor", spotLightComponent._Color);
 
             shader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-            gl.BindVertexArray(PostProcessVAO);
+            gl.BindVertexArray(_postProcessVao);
             gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
             gl.ActiveTexture(GLEnum.Texture0);
 
@@ -1331,38 +1293,80 @@ public class DeferredSceneRenderer : IRenderer
     {
         if (CurrentCameraComponent == null)
             return;
-        CullingResult.Clear();
-        PointLightComponents.Clear();
-        StaticMeshComponents.Clear();
-        DecalComponents.Clear();
+        _cullingResult.Clear();
+        _pointLightComponents.Clear();
+        _staticMeshComponents.Clear();
+        _decalComponents.Clear();
 
-        World.CurrentLevel.RenderObjectOctree.FrustumCulling(CullingResult, CurrentCameraComponent.GetPlanes());
+        World.CurrentLevel.RenderObjectOctree.FrustumCulling(_cullingResult, CurrentCameraComponent.GetPlanes());
 
-        foreach(var compoment in CullingResult)
+        foreach(var component in _cullingResult)
         {
-            if (compoment is StaticMeshComponent staticMeshComponent)
+            switch (component)
             {
-                StaticMeshComponents.Add(staticMeshComponent);
-            }
-            else if (compoment is PointLightComponent pointLightComponent)
-            {
-                PointLightComponents.Add(pointLightComponent);
-            }
-            else if (compoment is DecalComponent DecalComponent)
-            {
-                DecalComponents.Add(DecalComponent);
+                case StaticMeshComponent staticMeshComponent:
+                    _staticMeshComponents.Add(staticMeshComponent);
+                    break;
+                case PointLightComponent pointLightComponent:
+                    _pointLightComponents.Add(pointLightComponent);
+                    break;
+                case DecalComponent decalComponent:
+                    _decalComponents.Add(decalComponent);
+                    break;
             }
         }
     }
 
-    private List<PrimitiveComponent> CullingResult = new List<PrimitiveComponent>();
+    private readonly List<PrimitiveComponent> _cullingResult = [];
 
-    private List<StaticMeshComponent> tmpCullingStaticMesh = new List<StaticMeshComponent>();
+    private readonly List<StaticMeshComponent> _tmpCullingStaticMesh = [];
 
-    private List<StaticMeshComponent> StaticMeshComponents = new List<StaticMeshComponent>();
+    private readonly List<StaticMeshComponent> _staticMeshComponents = [];
 
-    private List<PointLightComponent> PointLightComponents = new List<PointLightComponent>();
-    private List<DecalComponent> DecalComponents = new List<DecalComponent>();
+    private readonly List<PointLightComponent> _pointLightComponents = [];
+    private readonly List<DecalComponent> _decalComponents = [];
+
+    public DeferredSceneRenderer(Shader instanceDlShadowMapShader, Shader renderToCamera, Shader hismShader, Shader decalPostShader, RenderTarget globalBuffer, Shader staticMeshBaseShader, Shader directionalLightingShader, Shader spotLightingShader, Shader pointLightingShader, Shader directionalLightingShaderNoShadow, Shader spotLightingShaderNoShadow, Shader pointLightingShaderNoShadow, Shader dlShadowMapShader, Shader spotShadowMapShader, Shader instanceSpotShadowMapShader, Shader instancePointLightingShader, Shader skyboxShader, Shader pointLightShadowShader, Shader bloomPreShader, Shader bloomShader, Shader decalShader, Shader ssaoShader, Shader skeletalMeshDlShadowMapShader, Shader skeletalMeshSpotShadowMapShader, Shader skeletalMeshPointLightingShader, Shader skeletalMeshBaseShader, Shader bloomPostShader, Shader irradianceShader, Shader prefilterShader, Shader indirectLightShader, Shader hdri2CubeMapShader, RenderTarget postProcessBuffer1, World world, Texture brdfTexture)
+    {
+        _instanceDlShadowMapShader = instanceDlShadowMapShader;
+        _renderToCamera = renderToCamera;
+        _hismShader = hismShader;
+        _postProcessEbo = 0;
+        _isMobile = false;
+        _isMicroGBuffer = false;
+        _cubeVbo = 0;
+        _decalPostShader = decalPostShader;
+        _globalBuffer = globalBuffer;
+        _staticMeshBaseShader = staticMeshBaseShader;
+        _directionalLightingShader = directionalLightingShader;
+        _spotLightingShader = spotLightingShader;
+        _pointLightingShader = pointLightingShader;
+        _directionalLightingShaderNoShadow = directionalLightingShaderNoShadow;
+        _spotLightingShaderNoShadow = spotLightingShaderNoShadow;
+        _pointLightingShaderNoShadow = pointLightingShaderNoShadow;
+        _dlShadowMapShader = dlShadowMapShader;
+        _spotShadowMapShader = spotShadowMapShader;
+        _instanceSpotShadowMapShader = instanceSpotShadowMapShader;
+        _instancePointLightingShader = instancePointLightingShader;
+        _skyboxShader = skyboxShader;
+        _pointLightShadowShader = pointLightShadowShader;
+        _bloomPreShader = bloomPreShader;
+        _bloomShader = bloomShader;
+        _decalShader = decalShader;
+        _ssaoShader = ssaoShader;
+        _skeletalMeshDlShadowMapShader = skeletalMeshDlShadowMapShader;
+        _skeletalMeshSpotShadowMapShader = skeletalMeshSpotShadowMapShader;
+        _skeletalMeshPointLightingShader = skeletalMeshPointLightingShader;
+        _skeletalMeshBaseShader = skeletalMeshBaseShader;
+        _bloomPostShader = bloomPostShader;
+        IrradianceShader = irradianceShader;
+        PrefilterShader = prefilterShader;
+        IndirectLightShader = indirectLightShader;
+        Hdri2CubeMapShader = hdri2CubeMapShader;
+        _postProcessBuffer1 = postProcessBuffer1;
+        World = world;
+        _brdfTexture = brdfTexture;
+    }
 }
 
 public struct DeferredVertex

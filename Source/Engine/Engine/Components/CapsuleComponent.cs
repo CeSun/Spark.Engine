@@ -50,20 +50,8 @@ public class CapsuleComponent : PrimitiveComponent
             base.RelativeRotation = value;
             if (RigidBody != null)
             {
-                var Matrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
-
-                RigidBody.Orientation = new JMatrix
-                {
-                    M11 = Matrix.M11,
-                    M12 = Matrix.M12,
-                    M13 = Matrix.M13,
-                    M21 = Matrix.M21,
-                    M22 = Matrix.M22,
-                    M23 = Matrix.M23,
-                    M31 = Matrix.M31,
-                    M32 = Matrix.M32,
-                    M33 = Matrix.M33,
-                };
+                RigidBody.Orientation =
+                    new JQuaternion(WorldRotation.X, WorldRotation.Y, WorldRotation.Z, WorldRotation.W);
             }
         }
     }
@@ -102,25 +90,8 @@ public class CapsuleComponent : PrimitiveComponent
         {
             unsafe
             {
-                var rotationM = new Matrix4x4
-                {
-                    M11 = RigidBody.Orientation.M11,
-                    M12 = RigidBody.Orientation.M12,
-                    M13 = RigidBody.Orientation.M13,
-                    M14 = 0,
-                    M21 = RigidBody.Orientation.M21,
-                    M22 = RigidBody.Orientation.M22,
-                    M23 = RigidBody.Orientation.M23,
-                    M24 = 0,
-                    M31 = RigidBody.Orientation.M31,
-                    M32 = RigidBody.Orientation.M32,
-                    M33 = RigidBody.Orientation.M33,
-                    M34 = 0,
-                    M41 = 0,
-                    M42 = 0,
-                    M43 = 0,
-                    M44 = 1,
-                };
+                var rotationM = Matrix4x4.CreateFromQuaternion(new Quaternion(RigidBody.Orientation.X,
+                    RigidBody.Orientation.Y, RigidBody.Orientation.Z, RigidBody.Orientation.W));
                 var tmpWorldTransform = MatrixHelper.CreateTransform(new Vector3(RigidBody.Position.X, RigidBody.Position.Y, RigidBody.Position.Z), rotationM.Rotation(), WorldScale);
                 Matrix4x4.Invert(ParentWorldTransform, out var ParentInverseWorldTransform);
                 var tmpRelativeTransform = tmpWorldTransform * ParentInverseWorldTransform;

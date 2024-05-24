@@ -10,6 +10,7 @@ using Spark.Engine.Assets;
 using Spark.Util;
 using IniParser.Model.Formatting;
 using System;
+using Jitter2.Dynamics;
 
 namespace Spark.Engine;
 
@@ -365,30 +366,8 @@ public partial class Level
                 Y = PhysicsWorld.RigidBodies[i].Position.Y,
                 Z = PhysicsWorld.RigidBodies[i].Position.Z,
 
-            }, new Matrix4x4
-            {
-                M11 = PhysicsWorld.RigidBodies[i].Orientation.M11,
-                M12 = PhysicsWorld.RigidBodies[i].Orientation.M12,
-                M13 = PhysicsWorld.RigidBodies[i].Orientation.M13,
-                M14 = 0,
-
-                M21 = PhysicsWorld.RigidBodies[i].Orientation.M21,
-                M22 = PhysicsWorld.RigidBodies[i].Orientation.M22,
-                M23 = PhysicsWorld.RigidBodies[i].Orientation.M23,
-                M24 = 0,
-
-
-                M31 = PhysicsWorld.RigidBodies[i].Orientation.M31,
-                M32 = PhysicsWorld.RigidBodies[i].Orientation.M32,
-                M33 = PhysicsWorld.RigidBodies[i].Orientation.M33,
-                M34 = 0,
-
-                M41 = 0,
-                M42 = 0,
-                M43 = 0,
-                M44 = 1,
-
-            });
+            }, Matrix4x4.CreateFromQuaternion(new Quaternion(PhysicsWorld.RigidBodies[i].Orientation.X,
+                PhysicsWorld.RigidBodies[i].Orientation.Y, PhysicsWorld.RigidBodies[i].Orientation.Z, PhysicsWorld.RigidBodies[i].Orientation.W)));
 
         }
     }
