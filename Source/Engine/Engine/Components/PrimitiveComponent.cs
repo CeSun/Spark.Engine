@@ -61,7 +61,7 @@ public partial class PrimitiveComponent
         }
         if (ReceieveUpdate)
         {
-            this.Owner.CurrentLevel.UpdateManager.RegistUpdate(Update);
+            this.Owner.CurrentLevel.UpdateManager.RegisterUpdate(Update);
         }
     }
 
@@ -132,7 +132,7 @@ public partial class PrimitiveComponent
         }
         if (ReceieveUpdate)
         {
-            this.Owner.CurrentLevel.UpdateManager.UnregistUpdate(Update);
+            this.Owner.CurrentLevel.UpdateManager.UnregisterUpdate(Update);
         }
         IsDestoryed = true;
     }

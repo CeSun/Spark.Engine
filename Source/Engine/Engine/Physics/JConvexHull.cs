@@ -17,15 +17,6 @@
 *  3. This notice may not be removed or altered from any source distribution. 
 */
 
-#region Using Statements
-using System;
-using System.Collections.Generic;
-
-using Jitter2.Dynamics;
-using Jitter2.LinearMath;
-using Jitter2.Collision.Shapes;
-#endregion
-
 namespace Jitter2.LinearMath
 {
 

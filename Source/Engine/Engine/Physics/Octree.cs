@@ -1,5 +1,4 @@
-﻿
-using Spark.Engine.Components;
+﻿using Spark.Engine.Components;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,200 +13,198 @@ public class Octree
     static readonly float SideLength = 1024;
     static readonly int MaxLayer = 8;
 
-    Box CurrentBox;
+    Box _currentBox;
 
     Vector3 MaxPoint
     {
-        get => CurrentBox.MaxPoint;
-        set => CurrentBox.MaxPoint = value;
+        get => _currentBox.MaxPoint;
+        set => _currentBox.MaxPoint = value;
     }
     Vector3 MinPoint
     {
-        get => CurrentBox.MinPoint;
-        set => CurrentBox.MinPoint = value;
+        get => _currentBox.MinPoint;
+        set => _currentBox.MinPoint = value;
     }
-    int Layer = 0;
 
-    Octree? ParentNode;
+    private int _layer;
 
-    List<BaseBounding> boundingBoxes = new List<BaseBounding>();
-    public Octree() : this(new Vector3(-SideLength / 2, -SideLength / 2, -SideLength / 2), new Vector3(SideLength / 2, SideLength / 2, SideLength / 2))
+    private Octree? _parentNode;
+
+    private readonly List<BaseBounding> _boundingBoxes = [];
+    public Octree(Octree? parentNode) : this(new Vector3(-SideLength / 2, -SideLength / 2, -SideLength / 2), new Vector3(SideLength / 2, SideLength / 2, SideLength / 2), parentNode)
     {
     }
-    private Octree(Vector3 leftTopPoint, Vector3 rightBottomPoint)
+    private Octree(Vector3 leftTopPoint, Vector3 rightBottomPoint, Octree? parentNode)
     {
         MinPoint = leftTopPoint;
         MaxPoint = rightBottomPoint;
+        _parentNode = parentNode;
 
-        Vector3 HalfVector = (MinPoint + MaxPoint) / 2;
-        ChildBox = new Box[]
-        {
-            new Box() {
+        var halfVector = (MinPoint + MaxPoint) / 2;
+        _childBox =
+        [
+            new Box
+            {
                 MinPoint = new Vector3(MinPoint.X, MinPoint.Y, MinPoint.Z),
-                MaxPoint = new Vector3(HalfVector.X, HalfVector.Y, HalfVector.Z)
+                MaxPoint = new Vector3(halfVector.X, halfVector.Y, halfVector.Z)
             },
-            new Box()
+            new Box
             {
-                MinPoint = new Vector3(HalfVector.X, MinPoint.Y, MinPoint.Z),
-                MaxPoint = new Vector3(MaxPoint.X, HalfVector.Y, HalfVector.Z)
+                MinPoint = new Vector3(halfVector.X, MinPoint.Y, MinPoint.Z),
+                MaxPoint = new Vector3(MaxPoint.X, halfVector.Y, halfVector.Z)
             },
-            new Box()
+            new Box
             {
-                MinPoint = new Vector3(MinPoint.X, MinPoint.Y, HalfVector.Z),
-                MaxPoint = new Vector3(HalfVector.X, HalfVector.Y, MaxPoint.Z)
+                MinPoint = new Vector3(MinPoint.X, MinPoint.Y, halfVector.Z),
+                MaxPoint = new Vector3(halfVector.X, halfVector.Y, MaxPoint.Z)
             },
-            new Box()
+            new Box
             {
-                MinPoint = new Vector3(HalfVector.X, MinPoint.Y, HalfVector.Z),
-                MaxPoint = new Vector3(MaxPoint.X, HalfVector.Y, MaxPoint.Z)
+                MinPoint = new Vector3(halfVector.X, MinPoint.Y, halfVector.Z),
+                MaxPoint = new Vector3(MaxPoint.X, halfVector.Y, MaxPoint.Z)
             },
 
-            new Box()
+            new Box
             {
-                MinPoint = new Vector3(MinPoint.X, HalfVector.Y, MinPoint.Z),
-                MaxPoint = new Vector3(HalfVector.X, MaxPoint.Y, HalfVector.Z)
+                MinPoint = new Vector3(MinPoint.X, halfVector.Y, MinPoint.Z),
+                MaxPoint = new Vector3(halfVector.X, MaxPoint.Y, halfVector.Z)
             },
-            new Box()
+            new Box
             {
-                MinPoint = new Vector3(HalfVector.X, HalfVector.Y, MinPoint.Z),
-                MaxPoint = new Vector3(MaxPoint.X, MaxPoint.Y, HalfVector.Z)
+                MinPoint = new Vector3(halfVector.X, halfVector.Y, MinPoint.Z),
+                MaxPoint = new Vector3(MaxPoint.X, MaxPoint.Y, halfVector.Z)
             },
-            new Box()
+            new Box
             {
-                MinPoint = new Vector3(MinPoint.X, HalfVector.Y, HalfVector.Z),
-                MaxPoint = new Vector3(HalfVector.X, MaxPoint.Y, MaxPoint.Z)
+                MinPoint = new Vector3(MinPoint.X, halfVector.Y, halfVector.Z),
+                MaxPoint = new Vector3(halfVector.X, MaxPoint.Y, MaxPoint.Z)
             },
-            new Box()
+            new Box
             {
-                MinPoint = new Vector3(HalfVector.X, HalfVector.Y, HalfVector.Z),
+                MinPoint = new Vector3(halfVector.X, halfVector.Y, halfVector.Z),
                 MaxPoint = new Vector3(MaxPoint.X, MaxPoint.Y, MaxPoint.Z)
             }
-        };
+        ];
     }
     public float XLength => MaxPoint.X - MinPoint.X;
     public float YLength => MaxPoint.Y - MinPoint.Y;
     public float ZLength => MaxPoint.Z - MinPoint.Z;
-    public IReadOnlyList<Octree>? Children => _Children;
+    public IReadOnlyList<Octree>? Children => _children;
 
-    Octree[]? _Children = null;
+    private Octree[]? _children;
 
-    readonly Box[] ChildBox;
+    private readonly Box[] _childBox;
 
     public int NodeCount
     {
         get
         {
-            if (_Children == null)
-                return boundingBoxes.Count;
-            int len = boundingBoxes.Count;
-            foreach (var child in _Children)
+            if (_children == null)
+                return _boundingBoxes.Count;
+            int len = _boundingBoxes.Count;
+            foreach (var child in _children)
             {
                 len += child.NodeCount;
             }
             return len;
         }
     }
-    public void InsertObject(BaseBounding Box)
+    public void InsertObject(BaseBounding box)
     {
-        if (Box.MinPoint.X < MinPoint.X || Box.MinPoint.Y < MinPoint.Y || Box.MinPoint.Z < MinPoint.Z)
+        if (box.MinPoint.X < MinPoint.X || box.MinPoint.Y < MinPoint.Y || box.MinPoint.Z < MinPoint.Z)
             return;
-        if (Box.MaxPoint.X > MaxPoint.X || Box.MaxPoint.Y > MaxPoint.Y || Box.MaxPoint.Z > MaxPoint.Z)
+        if (box.MaxPoint.X > MaxPoint.X || box.MaxPoint.Y > MaxPoint.Y || box.MaxPoint.Z > MaxPoint.Z)
             return;
-        if (Layer == MaxLayer)
+        if (_layer == MaxLayer)
         {
             goto InsertCurrentNode;
         }
-        if (Box.XLength > XLength / 2 || Box.YLength > YLength / 2 || Box.ZLength > ZLength / 2)
+        if (box.XLength > XLength / 2 || box.YLength > YLength / 2 || box.ZLength > ZLength / 2)
         {
             goto InsertCurrentNode;
         }
-        int TargetIndex = -1;
+        int targetIndex = -1;
         for (int i = 0; i < 8; i ++)
         {
-            var subBox = ChildBox[i];
-            if (subBox.Contains(new Box() { MaxPoint = Box.MaxPoint, MinPoint = Box.MinPoint}))
+            var subBox = _childBox[i];
+            if (subBox.Contains(new Box() { MaxPoint = box.MaxPoint, MinPoint = box.MinPoint}))
             {
-                TargetIndex = i;
+                targetIndex = i;
                 break;
             }
         }
 
-        if (TargetIndex < 0)
+        if (targetIndex < 0)
         {
             goto InsertCurrentNode;
         }
 
-        if (_Children == null)
-        {
-            _Children = new Octree[]
-            {
-            new Octree(ChildBox[0].MinPoint, ChildBox[0].MaxPoint) { Layer = Layer + 1, ParentNode = this},
-            new Octree(ChildBox[1].MinPoint, ChildBox[1].MaxPoint) { Layer = Layer + 1, ParentNode = this},
-            new Octree(ChildBox[2].MinPoint, ChildBox[2].MaxPoint) { Layer = Layer + 1, ParentNode = this},
-            new Octree(ChildBox[3].MinPoint, ChildBox[3].MaxPoint) { Layer = Layer + 1, ParentNode = this},
-            new Octree(ChildBox[4].MinPoint, ChildBox[4].MaxPoint) { Layer = Layer + 1, ParentNode = this},
-            new Octree(ChildBox[5].MinPoint, ChildBox[5].MaxPoint) { Layer = Layer + 1, ParentNode = this},
-            new Octree(ChildBox[6].MinPoint, ChildBox[6].MaxPoint) { Layer = Layer + 1, ParentNode = this},
-            new Octree(ChildBox[7].MinPoint, ChildBox[7].MaxPoint) { Layer = Layer + 1, ParentNode = this},
-            };
-
-        }
-        _Children[TargetIndex].InsertObject(Box);
+        _children ??=
+        [
+            new Octree(_childBox[0].MinPoint, _childBox[0].MaxPoint, this) { _layer = _layer + 1 },
+            new Octree(_childBox[1].MinPoint, _childBox[1].MaxPoint, this) { _layer = _layer + 1 },
+            new Octree(_childBox[2].MinPoint, _childBox[2].MaxPoint, this) { _layer = _layer + 1 },
+            new Octree(_childBox[3].MinPoint, _childBox[3].MaxPoint, this) { _layer = _layer + 1 },
+            new Octree(_childBox[4].MinPoint, _childBox[4].MaxPoint, this) { _layer = _layer + 1 },
+            new Octree(_childBox[5].MinPoint, _childBox[5].MaxPoint, this) { _layer = _layer + 1 },
+            new Octree(_childBox[6].MinPoint, _childBox[6].MaxPoint, this) { _layer = _layer + 1 },
+            new Octree(_childBox[7].MinPoint, _childBox[7].MaxPoint, this) { _layer = _layer + 1 }
+        ];
+        _children[targetIndex].InsertObject(box);
         return;
 
 
 InsertCurrentNode:
-        boundingBoxes.Add(Box);
-        Box.ParentNode = this;
-        return;
+        _boundingBoxes.Add(box);
+        box.ParentNode = this;
     }
     
-    public void RemoveObject(BaseBounding Box)
+    public void RemoveObject(BaseBounding box)
     {
-        if (Box.ParentNode == null)
+        if (box.ParentNode == null)
             return;
-        Box.ParentNode.boundingBoxes.Remove(Box);
-        if (Box.ParentNode.NodeCount == 0)
-            Box.ParentNode._Children = null;
+        box.ParentNode._boundingBoxes.Remove(box);
+        if (box.ParentNode.NodeCount == 0)
+            box.ParentNode._children = null;
 
-        Box.ParentNode = null;
+        box.ParentNode = null;
     }
 
-    public void FrustumCulling<T>(List<T> Components, Plane[] Planes)
+    public void FrustumCulling<T>(List<T> components, Plane[] planes)
     {
-        if (this.CurrentBox.TestPlanes(Planes) == false)
+        if (this._currentBox.TestPlanes(planes) == false)
             return;
-        foreach (var subox in boundingBoxes)
+        foreach (var subox in _boundingBoxes)
         {
-            if (subox.PrimitiveComponent is T t && subox.TestPlanes(Planes))
+            if (subox.PrimitiveComponent is T t && subox.TestPlanes(planes))
             {
-                Components.Add(t);
+                components.Add(t);
             }
         }
-        if (_Children != null)
+        if (_children != null)
         {
-            foreach (var child in _Children)
+            foreach (var child in _children)
             {
-                child.FrustumCulling(Components, Planes);
+                child.FrustumCulling(components, planes);
             }
         }
     }
-    public void SphereCulling<T>(List<T> Components, Sphere sphere) where T : PrimitiveComponent
+    public void SphereCulling<T>(List<T> components, Sphere sphere) where T : PrimitiveComponent
     {
-        if (sphere.TestBox(CurrentBox) == false)
+        if (sphere.TestBox(_currentBox) == false)
             return;
-        foreach (var subox in boundingBoxes)
+        foreach (var subox in _boundingBoxes)
         {
             if (subox.PrimitiveComponent is T t &&  sphere.TestBox(new Box() { MinPoint = subox.MinPoint, MaxPoint = subox.MaxPoint }))
             {
-                Components.Add(t);
+                components.Add(t);
             }
         }
-        if (_Children != null)
+        if (_children != null)
         {
-            foreach (var child in _Children)
+            foreach (var child in _children)
             {
-                child.SphereCulling<T>(Components, sphere);
+                child.SphereCulling(components, sphere);
             }
         }
     }
@@ -216,9 +213,9 @@ InsertCurrentNode:
 
 public abstract class BaseBounding
 {
-    public BaseBounding(PrimitiveComponent PrimitiveComponent)
+    public BaseBounding(PrimitiveComponent primitiveComponent)
     {
-        this.PrimitiveComponent = PrimitiveComponent;
+        this.PrimitiveComponent = primitiveComponent;
     }
     public Octree? ParentNode;
 
@@ -239,7 +236,7 @@ public class BoundingBox : BaseBounding
 {
 
     public Box Box;
-    public BoundingBox(PrimitiveComponent PrimitiveComponent) : base(PrimitiveComponent)
+    public BoundingBox(PrimitiveComponent primitiveComponent) : base(primitiveComponent)
     {
         Box.MinPoint = Vector3.Zero;
         Box.MaxPoint = Vector3.Zero;
@@ -260,13 +257,9 @@ public class BoundingBox : BaseBounding
     }
 }
 
-public class BoundingSphere : BaseBounding
+public class BoundingSphere(PrimitiveComponent primitiveComponent) : BaseBounding(primitiveComponent)
 {
     public Sphere Sphere;
-    public BoundingSphere(PrimitiveComponent PrimitiveComponent) : base(PrimitiveComponent)
-    {
-
-    }
 
     public float Radius
     {

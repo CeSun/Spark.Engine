@@ -1,42 +1,37 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Numerics;
 
 namespace Spark.Engine.Physics;
 public struct Box :
     IAdditionOperators<Box, Vector3, Box>, IAdditionOperators<Box, Box, Box>
 {
-    public int ComperaTo(Box box, int Axis)
+    public int CompareTo(Box box, int axis)
     {
-        var num = (MiddlePoint[Axis] - box.MiddlePoint[Axis]);  
+        var num = (MiddlePoint[axis] - box.MiddlePoint[axis]);  
         if (num == 0)
             return 0;
         return num > 0 ? 1: -1;
     }
     public Vector3 MinPoint 
     {
-        get => _MinPoint;
+        get => _minPoint;
         set 
         {
-            _MinPoint = value;
+            _minPoint = value;
             MiddlePoint = (MinPoint + MaxPoint) / 2;
         }
     }
     public Vector3 MaxPoint 
     {
-        get => _MaxPoint;
+        get => _maxPoint;
         set 
         {
-            _MaxPoint = value;
+            _maxPoint = value;
             MiddlePoint = (MaxPoint - MinPoint) / 2;
         }
     }
 
-    private Vector3 _MinPoint;
-    private Vector3 _MaxPoint;
+    private Vector3 _minPoint;
+    private Vector3 _maxPoint;
     public Vector3 MiddlePoint { get; private set; }
 
     public float GetDistance(Vector3 location)
@@ -72,28 +67,18 @@ public struct Box :
     {
         get
         {
-            switch (index)
+            return index switch
             {
-                case 0:
-                    return new Vector3() { X = MinPoint.X, Y = MinPoint.Y, Z = MinPoint.Z };
-                case 1:
-                    return new Vector3() { X = MaxPoint.X, Y = MinPoint.Y, Z = MinPoint.Z };
-                case 2:
-                    return new  Vector3() { X = MaxPoint.X, Y = MinPoint.Y, Z = MaxPoint.Z };
-                case 3:
-                    return new Vector3() { X = MinPoint.X, Y = MinPoint.Y, Z = MaxPoint.Z };
-                case 4:
-                    return new Vector3() { X = MinPoint.X, Y = MaxPoint.Y, Z = MinPoint.Z };
-                case 5:
-                    return new Vector3() { X = MaxPoint.X, Y = MaxPoint.Y, Z = MinPoint.Z };
-                case 6:
-                    return new Vector3() { X = MaxPoint.X, Y = MaxPoint.Y, Z = MaxPoint.Z };
-                case 7:
-                    return new Vector3() { X = MinPoint.X, Y = MaxPoint.Y, Z = MaxPoint.Z };
-                default:
-                    throw new IndexOutOfRangeException();
-            }
-
+                0 => new Vector3 { X = MinPoint.X, Y = MinPoint.Y, Z = MinPoint.Z },
+                1 => new Vector3 { X = MaxPoint.X, Y = MinPoint.Y, Z = MinPoint.Z },
+                2 => new Vector3 { X = MaxPoint.X, Y = MinPoint.Y, Z = MaxPoint.Z },
+                3 => new Vector3 { X = MinPoint.X, Y = MinPoint.Y, Z = MaxPoint.Z },
+                4 => new Vector3 { X = MinPoint.X, Y = MaxPoint.Y, Z = MinPoint.Z },
+                5 => new Vector3 { X = MaxPoint.X, Y = MaxPoint.Y, Z = MinPoint.Z },
+                6 => new Vector3 { X = MaxPoint.X, Y = MaxPoint.Y, Z = MaxPoint.Z },
+                7 => new Vector3 { X = MinPoint.X, Y = MaxPoint.Y, Z = MaxPoint.Z },
+                _ => throw new IndexOutOfRangeException()
+            };
         }
     }
     public static Box operator +(Box left, Vector3 right)
@@ -132,9 +117,9 @@ public struct Box :
     }
 
 
-    public bool TestPlanes(Plane[] Planes)
+    public bool TestPlanes(Plane[] planes)
     {
-        foreach(var plane in Planes)
+        foreach(var plane in planes)
         {
             var num = 0;
             for(var j = 0; j < 8; j ++)

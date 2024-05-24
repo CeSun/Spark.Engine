@@ -118,7 +118,7 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
                 MainAxis = i;
             }
         }
-        SortComponents.Sort((LeftComp, RightComp) =>  (StaticMesh.Box * LeftComp.WorldTransform).ComperaTo(StaticMesh.Box * RightComp.WorldTransform, MainAxis));
+        SortComponents.Sort((LeftComp, RightComp) =>  (StaticMesh.Box * LeftComp.WorldTransform).CompareTo(StaticMesh.Box * RightComp.WorldTransform, MainAxis));
         int middle = SortComponents.Length / 2;
         Split(left, left + middle);
         Split(left + middle + 1, right);
@@ -161,7 +161,7 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
                 MainAxis = i;
             }
         }
-        Nodes.Sort((left, right) => left.Box.ComperaTo(right.Box, MainAxis));
+        Nodes.Sort((left, right) => left.Box.CompareTo(right.Box, MainAxis));
         int middle = Nodes.Length / 2;
         return SplitNode(left, left + middle) + SplitNode(left + middle + 1, right); 
     }

@@ -650,7 +650,7 @@ public class DeferredSceneRenderer : IRenderer
 
             _instanceSpotShadowMapShader.SetMatrix("ViewTransform", view);
             _instanceSpotShadowMapShader.SetMatrix("ProjectionTransform", projection);
-            foreach (var ism in World.CurrentLevel.ISMComponents)
+            foreach (var ism in World.CurrentLevel.IsmComponents)
             {
                 if (ism.IsDestoryed)
                     continue;
@@ -736,7 +736,7 @@ public class DeferredSceneRenderer : IRenderer
 
                 _instancePointLightingShader.SetMatrix("ViewTransform", views[i]);
                 _instancePointLightingShader.SetMatrix("ProjectionTransform", projection);
-                foreach (var hism in World.CurrentLevel.ISMComponents)
+                foreach (var hism in World.CurrentLevel.IsmComponents)
                 {
                     if (hism.IsDestoryed)
                         continue;
@@ -805,7 +805,7 @@ public class DeferredSceneRenderer : IRenderer
 
             _instanceDlShadowMapShader.SetMatrix("ViewTransform", view);
             _instanceDlShadowMapShader.SetMatrix("ProjectionTransform", projection);
-            foreach (var ism in World.CurrentLevel.ISMComponents)
+            foreach (var ism in World.CurrentLevel.IsmComponents)
             {
                 if (ism.IsDestoryed)
                     continue;
@@ -919,7 +919,7 @@ public class DeferredSceneRenderer : IRenderer
                 _hismShader.SetMatrix("ViewTransform", CurrentCameraComponent.View);
                 _hismShader.SetMatrix("ProjectionTransform", CurrentCameraComponent.Projection);
                 _hismShader.SetVector3("CameraLocation", CurrentCameraComponent.WorldLocation);
-                foreach (var ism in World.CurrentLevel.ISMComponents)
+                foreach (var ism in World.CurrentLevel.IsmComponents)
                 {
                     if (ism is HierarchicalInstancedStaticMeshComponent hism)
                         hism.CameraCulling(CurrentCameraComponent.GetPlanes());

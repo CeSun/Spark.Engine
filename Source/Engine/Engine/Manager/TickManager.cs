@@ -8,28 +8,28 @@ namespace Spark.Engine.Manager;
 
 public class UpdateManager
 {
-    private List<Action<double>> UpdateFunctions = new List<Action<double>>();
-    private List<Action<double>> AddUpdateFunctions = new List<Action<double>>();
-    private List<Action<double>> RemoveUpdateFunctions = new List<Action<double>>();
-    public void RegistUpdate(Action<double> TickFunction)
+    private readonly List<Action<double>> _updateFunctions = [];
+    private readonly List<Action<double>> _addUpdateFunctions = [];
+    private readonly List<Action<double>> _removeUpdateFunctions = [];
+    public void RegisterUpdate(Action<double> tickFunction)
     {
-        AddUpdateFunctions.Add(TickFunction);
+        _addUpdateFunctions.Add(tickFunction);
     }
 
-    public void UnregistUpdate(Action<double> TickFunction)
+    public void UnregisterUpdate(Action<double> tickFunction)
     {
-        RemoveUpdateFunctions.Add(TickFunction);
+        _removeUpdateFunctions.Add(tickFunction);
     }
-    public void Update(double DeltaTime)
+    public void Update(double deltaTime)
     {
-        UpdateFunctions.AddRange(AddUpdateFunctions);
-        AddUpdateFunctions.Clear();
-        RemoveUpdateFunctions.ForEach(fun => UpdateFunctions.Remove(fun));
-        RemoveUpdateFunctions.Clear();
+        _updateFunctions.AddRange(_addUpdateFunctions);
+        _addUpdateFunctions.Clear();
+        _removeUpdateFunctions.ForEach(fun => _updateFunctions.Remove(fun));
+        _removeUpdateFunctions.Clear();
 
-        foreach (var fun in UpdateFunctions)
+        foreach (var fun in _updateFunctions)
         {
-            fun.Invoke(DeltaTime);
+            fun.Invoke(deltaTime);
         }
 
     }

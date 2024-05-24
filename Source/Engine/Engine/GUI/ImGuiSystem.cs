@@ -1,55 +1,28 @@
 ﻿using ImGuiNET;
-using Silk.NET.OpenGLES;
 using Silk.NET.OpenGLES.Extensions.ImGui;
-using Spark.Engine.Actors;
-using Spark.Engine.Assets;
-using Spark.Engine.Attributes;
-using Spark.Engine.Components;
 using Spark.Engine.Platform;
-using Spark.Util;
-using System.ComponentModel;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Spark.Engine.GUI;
 
-public class ImGuiSystem
+public class ImGuiSystem(Level level)
 {
+    private Level CurrentLevel { get; } = level;
 
-    List<ImGUIWindow> ImGUICanvasList = new List<ImGUIWindow>();
-    public void AddCanvas(ImGUIWindow imGUICanvas)
-    {
-        ImGUICanvasList.Add(imGUICanvas);
-       
-    }
-
-    public void RemoveCanvas(ImGUIWindow imGUICanvas)
-    {
-        ImGUICanvasList.Remove(imGUICanvas);
-        
-
-    }
-    Level CurrentLevel { get; set; }
-
-    public ImGuiSystem(Level level)
-    {
-        CurrentLevel = level;
-    }
-
-    private ImFontPtr LoadFont(string Path, int fontSize, char[] glyphRanges)
+    private static ImFontPtr LoadFont(string path, int fontSize, char[] glyphRanges)
     {
         unsafe
         {
             fixed(void* p = glyphRanges)
             {
-                return LoadFont(Path, fontSize, (nint)p);
+                return LoadFont(path, fontSize, (nint)p);
             }
         }
     }
-    private ImFontPtr LoadFont(string Path, int fontSize, nint glyphRanges)
+    private static ImFontPtr LoadFont(string path, int fontSize, nint glyphRanges)
     {
         List<byte> data = new List<byte>();
-        using (var sr = FileSystem.Instance.GetStreamReader(Path))
+        using (var sr = FileSystem.Instance.GetStreamReader(path))
         {
             var br = new BinaryReader(sr.BaseStream);
 
@@ -73,23 +46,23 @@ public class ImGuiSystem
         }
     }
 
-    Dictionary<string, ImFontPtr> _Fonts = new Dictionary<string, ImFontPtr>();
+    private readonly Dictionary<string, ImFontPtr> _fonts = [];
 
-    public IReadOnlyDictionary<string, ImFontPtr> Fonts => _Fonts;
+    public IReadOnlyDictionary<string, ImFontPtr> Fonts => _fonts;
 
-    ImGuiController? Controller;
+    ImGuiController? _controller;
     public void Init()
     {
         try
         {
-            Controller = new ImGuiController(CurrentLevel.Engine.Gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input,null, () =>
+            _controller = new ImGuiController(CurrentLevel.Engine.Gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input,null, () =>
             {
                 ref var flags = ref ImGui.GetIO().ConfigFlags;
                 flags |= ImGuiConfigFlags.DockingEnable;
                 ImGui.StyleColorsDark();
-                _Fonts.Add("msyh", LoadFont("Fonts/msyh.ttc", 14, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull()));
+                _fonts.Add("msyh", LoadFont("Fonts/msyh.ttc", 14, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull()));
 
-                _Fonts.Add("forkawesome", LoadFont("Fonts/forkawesome-webfont.ttf", 14,
+                _fonts.Add("forkawesome", LoadFont("Fonts/forkawesome-webfont.ttf", 14,
                 [
                     (char)0xf000,
                     (char)0xf372
@@ -97,8 +70,7 @@ public class ImGuiSystem
 
                 unsafe
                 {
-                    ImGui.GetIO().NativePtr->IniFilename = (byte*)0;//(byte*)Marshal.StringToHGlobalAnsi(CurrentLevel.Engine.GameName + "/ImguiLayout.ini");
-
+                    ImGui.GetIO().NativePtr->IniFilename = (byte*)0;
                     var io = ImGui.GetIO();
                     io.WantSaveIniSettings = false;
                 }
@@ -115,18 +87,18 @@ public class ImGuiSystem
         }
     }
 
-    public void Render(double DeltaTime)
+    public void Render(double deltaTime)
     {
-        if (Controller == null)
+        if (_controller == null)
             return;
         if (CurrentLevel.Engine.Gl == null)
             return;
-        CurrentLevel.CurrentWorld.Engine.Gl.Viewport(new System.Drawing.Size(CurrentLevel.CurrentWorld.Engine.WindowSize.X, CurrentLevel.CurrentWorld.Engine.WindowSize.Y));
+
+        CurrentLevel.Engine.Gl.Viewport(new System.Drawing.Size(CurrentLevel.CurrentWorld.Engine.WindowSize.X, CurrentLevel.CurrentWorld.Engine.WindowSize.Y));
         
-        Controller?.Update((float)DeltaTime);
-        ImGUICanvasList.ForEach(item => item.Render(DeltaTime));
+        _controller?.Update((float)deltaTime);
         CurrentLevel.Engine.Gl.PushGroup("GUI Pass");
-        Controller?.Render();
+        _controller?.Render();
         CurrentLevel.Engine.Gl.PopGroup();
 
     }
@@ -140,6 +112,6 @@ public class ImGuiSystem
         {
             sw.Write(ini);
         }
-        Controller?.Dispose();
+        _controller?.Dispose();
     }
 }

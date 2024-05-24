@@ -51,11 +51,11 @@ public partial class Actor
             this.Name = Name;
         }
         CurrentLevel = level;
-        level.RegistActor(this);
+        level.RegisterActor(this);
         CurrentLevel.Engine.NextFrame.Add(BeginPlay);
         if (ReceieveUpdate == true)
         {
-            CurrentLevel.UpdateManager.RegistUpdate(Update);
+            CurrentLevel.UpdateManager.RegisterUpdate(Update);
         }
     }
 
@@ -89,7 +89,7 @@ public partial class Actor
         }
         if (ReceieveUpdate)
         {
-            CurrentLevel.UpdateManager.UnregistUpdate(Update);
+            CurrentLevel.UpdateManager.UnregisterUpdate(Update);
         }
         CurrentLevel.UnregistActor(this);
     }
@@ -203,7 +203,7 @@ public partial class Actor : ISerializable
             return;
         }
         _PrimitiveComponents.Remove(Component);
-        CurrentLevel.UnregistComponent(Component);
+        CurrentLevel.UnregisterComponent(Component);
         foreach (var SubComponent in Component.ChildrenComponent)
         {
             if (!PrimitiveComponents.Contains(SubComponent))
@@ -211,7 +211,7 @@ public partial class Actor : ISerializable
                 continue;
             }
             _PrimitiveComponents.Remove(SubComponent);
-            CurrentLevel.UnregistComponent(SubComponent);
+            CurrentLevel.UnregisterComponent(SubComponent);
         }
     }
 

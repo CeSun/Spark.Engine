@@ -5,12 +5,8 @@ using Spark.Engine.Manager;
 using PhyWorld = Jitter2.World;
 using Spark.Engine.Physics;
 using Spark.Engine.GUI;
-using Spark.Engine.Attributes;
 using Spark.Engine.Assets;
 using Spark.Util;
-using IniParser.Model.Formatting;
-using System;
-using Jitter2.Dynamics;
 
 namespace Spark.Engine;
 
@@ -27,9 +23,9 @@ public partial class Level : ISerializable
     {
         CurrentWorld = world;
         UpdateManager = new UpdateManager();
-        RenderObjectOctree = new Octree();
+        RenderObjectOctree = new Octree(null);
         ImGuiWarp = new ImGuiSystem(this);
-        PhysicsWorld = new();
+        PhysicsWorld = new PhyWorld();
     }
 
 
@@ -42,62 +38,65 @@ public partial class Level : ISerializable
     {
         EndPlay();
     }
-    public void Update(double DeltaTime)
+    public void Update(double deltaTime)
     {
-        ActorUpdate(DeltaTime);
-        UpdateManager.Update(DeltaTime);
+        ActorUpdate(deltaTime);
+        UpdateManager.Update(deltaTime);
     }
 
 
-    public void Render(double DeltaTime)
+    public void Render(double deltaTime)
     {
         foreach (var camera in CameraComponents)
         {
-            camera.RenderScene(DeltaTime);
+            camera.RenderScene(deltaTime);
         }
-        ImGuiWarp.Render(DeltaTime);
+        ImGuiWarp.Render(deltaTime);
     }
 
-    public void Serialize(BinaryWriter Writer, Engine engine)
+    public void Serialize(BinaryWriter writer, Engine engine)
     {
-        Writer.WriteInt32(MagicCode.Asset);
-        Writer.WriteInt32(MagicCode.Level);
-        Writer.WriteString2(Name);
+        writer.WriteInt32(MagicCode.Asset);
+        writer.WriteInt32(MagicCode.Level);
+        writer.WriteString2(Name);
         var actors = new List<Actor>();
         foreach(var actor in Actors)
         {
-            if (_DelActors.Contains(actor))
+            if (_delActors.Contains(actor))
                 continue;
-            if (actor.IsEditorActor == true)
+            if (actor.IsEditorActor)
                 continue;
             actors.Add(actor);
         }
-        foreach (var actor in _AddActors)
+        foreach (var actor in _addActors)
         {
-            if (_DelActors.Contains(actor))
+            if (_delActors.Contains(actor))
                 continue;
             actors.Add(actor);
         }
 
-        Writer.WriteInt32(actors.Count);
-        actors.ForEach(actor => actor.Serialize(Writer, engine));
+        writer.WriteInt32(actors.Count);
+        actors.ForEach(actor => actor.Serialize(writer, engine));
         
     }
 
-    public void Deserialize(BinaryReader Reader, Engine engine)
+    public void Deserialize(BinaryReader reader, Engine engine)
     {
-        if (Reader.ReadInt32() != MagicCode.Asset)
+        if (reader.ReadInt32() != MagicCode.Asset)
             throw new Exception("");
-        if (Reader.ReadInt32() != MagicCode.Level)
+        if (reader.ReadInt32() != MagicCode.Level)
             throw new Exception("");
-        Name = Reader.ReadString2();
-        var actorNum = Reader.ReadInt32();
+        Name = reader.ReadString2();
+        var actorNum = reader.ReadInt32();
         for (int i = 0; i < actorNum; i++)
         {
-            var typename = Reader.ReadString2();
+            var typename = reader.ReadString2();
             var type = AssemblyHelper.GetType(typename);
-            var actor = (Actor)Activator.CreateInstance(type, new object[] { this, "" });
-            actor.Deserialize(Reader, Engine);
+            if (type != null)
+            {
+                var actor = (Actor)Activator.CreateInstance(type, new object[] { this, "" })!;
+                actor.Deserialize(reader, Engine);
+            }
         }
     }
 }
@@ -106,63 +105,63 @@ public partial class Level : ISerializable
 
 public partial class Level
 {
-    private List<Actor> _Actors = new List<Actor>();
-    private List<Actor> _DelActors = new List<Actor>();
-    private List<Actor> _AddActors = new List<Actor>();
-    public IReadOnlyList<Actor> Actors => _Actors;
-    public void RegistActor(Actor actor)
+    private readonly List<Actor> _actors = [];
+    private readonly List<Actor> _delActors = [];
+    private readonly List<Actor> _addActors = [];
+    public IReadOnlyList<Actor> Actors => _actors;
+    public void RegisterActor(Actor actor)
     {
-        if (_Actors.Contains(actor))
+        if (_actors.Contains(actor))
             return;
-        if (_AddActors.Contains(actor))
+        if (_addActors.Contains(actor))
             return;
-        if (_DelActors.Contains(actor))
+        if (_delActors.Contains(actor))
             return;
-        _AddActors.Add(actor);
+        _addActors.Add(actor);
     }
 
     public void UnregistActor(Actor actor)
     {
-        if (!_Actors.Contains(actor) && !_AddActors.Contains(actor))
+        if (!_actors.Contains(actor) && !_addActors.Contains(actor))
             return;
-        if (_DelActors.Contains(actor))
+        if (_delActors.Contains(actor))
             return;
-        _DelActors.Add(actor);
+        _delActors.Add(actor);
 
     }
 
-    public void ActorUpdate(double DeltaTime)
+    public void ActorUpdate(double deltaTime)
     {
-        PhysicsUpdate(DeltaTime);
-        _Actors.AddRange(_AddActors);
-        _AddActors.Clear();
-        _DelActors.ForEach(actor => _Actors.Remove(actor));
-        _DelActors.Clear();
+        PhysicsUpdate(deltaTime);
+        _actors.AddRange(_addActors);
+        _addActors.Clear();
+        _delActors.ForEach(actor => _actors.Remove(actor));
+        _delActors.Clear();
     }
 
 }
 
 public partial class Level
 {
-    private HashSet<PrimitiveComponent> _PrimitiveComponents = new HashSet<PrimitiveComponent>();
-    private HashSet<CameraComponent> _CameraComponents = new HashSet<CameraComponent>();
-    private HashSet<DirectionLightComponent> _DirectionLightComponents = new HashSet<DirectionLightComponent>();
-    private HashSet<PointLightComponent> _PointLightComponents = new HashSet<PointLightComponent>();
-    private HashSet<SpotLightComponent> _SpotLightComponents = new HashSet<SpotLightComponent>();
-    private HashSet<InstancedStaticMeshComponent> _ISMComponents = new HashSet<InstancedStaticMeshComponent>();
-    private HashSet<DecalComponent> _DecalComponents = new HashSet<DecalComponent>();
-    private HashSet<StaticMeshComponent> _StaticMeshComponents = new HashSet<StaticMeshComponent>();
-    private HashSet<SkeletalMeshComponent> _SkeletalMeshComponents = new HashSet<SkeletalMeshComponent>();
+    private readonly HashSet<PrimitiveComponent> _primitiveComponents = [];
+    private readonly HashSet<CameraComponent> _cameraComponents = [];
+    private readonly HashSet<DirectionLightComponent> _directionLightComponents = [];
+    private readonly HashSet<PointLightComponent> _pointLightComponents = [];
+    private readonly HashSet<SpotLightComponent> _spotLightComponents = [];
+    private readonly HashSet<InstancedStaticMeshComponent> _ismComponents = [];
+    private readonly HashSet<DecalComponent> _decalComponents = [];
+    private readonly HashSet<StaticMeshComponent> _staticMeshComponents = [];
+    private readonly HashSet<SkeletalMeshComponent> _skeletalMeshComponents = [];
 
-    public IReadOnlySet<CameraComponent> CameraComponents => _CameraComponents;
-    public IReadOnlySet<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
-    public IReadOnlySet<DirectionLightComponent> DirectionLightComponents => _DirectionLightComponents;
-    public IReadOnlySet<PointLightComponent> PointLightComponents => _PointLightComponents;
-    public IReadOnlySet<SpotLightComponent> SpotLightComponents => _SpotLightComponents;
-    public IReadOnlySet<InstancedStaticMeshComponent> ISMComponents => _ISMComponents;
-    public IReadOnlySet<DecalComponent> DecalComponents => _DecalComponents;
-    public IReadOnlySet<StaticMeshComponent> StaticMeshComponents => _StaticMeshComponents;
-    public IReadOnlySet<SkeletalMeshComponent> SkeletalMeshComponents => _SkeletalMeshComponents;
+    public IReadOnlySet<CameraComponent> CameraComponents => _cameraComponents;
+    public IReadOnlySet<PrimitiveComponent> PrimitiveComponents => _primitiveComponents;
+    public IReadOnlySet<DirectionLightComponent> DirectionLightComponents => _directionLightComponents;
+    public IReadOnlySet<PointLightComponent> PointLightComponents => _pointLightComponents;
+    public IReadOnlySet<SpotLightComponent> SpotLightComponents => _spotLightComponents;
+    public IReadOnlySet<InstancedStaticMeshComponent> IsmComponents => _ismComponents;
+    public IReadOnlySet<DecalComponent> DecalComponents => _decalComponents;
+    public IReadOnlySet<StaticMeshComponent> StaticMeshComponents => _staticMeshComponents;
+    public IReadOnlySet<SkeletalMeshComponent> SkeletalMeshComponents => _skeletalMeshComponents;
 
     public SkyboxComponent?  CurrentSkybox { get; private set; }
     public void RegistComponent(PrimitiveComponent component)
@@ -172,148 +171,162 @@ public partial class Level
             return;
         }
         if (component is SubInstancedStaticMeshComponent == false)
-            _PrimitiveComponents.Add(component);
-        if (component is CameraComponent cameraComponent)
+            _primitiveComponents.Add(component);
+        switch (component)
         {
-            if (!_CameraComponents.Contains(cameraComponent))
+            case CameraComponent cameraComponent:
             {
-                _CameraComponents.Add(cameraComponent);
-                _CameraComponents.Order();
-            }
-        }
-        else if (component is DirectionLightComponent directionLightComponent)
-        {
-            if (!_DirectionLightComponents.Contains(directionLightComponent))
-            {
-                _DirectionLightComponents.Add(directionLightComponent);
-            }
-        }
-        else if (component is PointLightComponent pointLightComponent)
-        {
-            if (!_PointLightComponents.Contains(pointLightComponent))
-            {
-                _PointLightComponents.Add(pointLightComponent);
-            }
-        }
-        else if (component is SpotLightComponent spotLightComponent)
-        {
-            if (!_SpotLightComponents.Contains(spotLightComponent))
-            {
-                _SpotLightComponents.Add(spotLightComponent);
-            }
-        }
-        else if (component is InstancedStaticMeshComponent InstancedStaticMeshComponent)
-        {
-            if (!_ISMComponents.Contains(InstancedStaticMeshComponent))
-            {
-                _ISMComponents.Add(InstancedStaticMeshComponent);  
-            }
-        }
-        else if (component is DecalComponent DecalComponent)
-        {
-            if (!_DecalComponents.Contains(DecalComponent))
-            {
-                _DecalComponents.Add(DecalComponent);
-            }
-        }
-        else if (component is SkeletalMeshComponent SkeletalMeshComponent)
-        {
-            if (!_SkeletalMeshComponents.Contains(SkeletalMeshComponent))
-            {
-                _SkeletalMeshComponents.Add(SkeletalMeshComponent);
-            }
-        }
-        else if (component is StaticMeshComponent StaticMeshComponent)
-        {
-            if (!_StaticMeshComponents.Contains(StaticMeshComponent))
-            {
-                _StaticMeshComponents.Add(StaticMeshComponent);
-            }
-        }
-
-        if (component is SkyboxComponent && CurrentSkybox == null)
-        {
-            foreach (var compon in _PrimitiveComponents)
-            {
-                if (compon is SkyboxComponent skyboxComponent)
+                if (_cameraComponents.Add(cameraComponent))
                 {
-                    CurrentSkybox = skyboxComponent;
+                    _cameraComponents.Order();
                 }
+
+                break;
+            }
+            case DirectionLightComponent directionLightComponent:
+            {
+                _directionLightComponents.Add(directionLightComponent);
+                break;
+            }
+            case PointLightComponent pointLightComponent:
+            {
+                _pointLightComponents.Add(pointLightComponent);
+                break;
+            }
+            case SpotLightComponent spotLightComponent:
+            {
+                _spotLightComponents.Add(spotLightComponent);
+                break;
+            }
+            case InstancedStaticMeshComponent instancedStaticMeshComponent:
+            {
+                _ismComponents.Add(instancedStaticMeshComponent);
+
+                break;
+            }
+            case DecalComponent decalComponent:
+            {
+                _decalComponents.Add(decalComponent);
+
+                break;
+            }
+            case SkeletalMeshComponent skeletalMeshComponent:
+            {
+                _skeletalMeshComponents.Add(skeletalMeshComponent);
+
+                break;
+            }
+            case StaticMeshComponent staticMeshComponent:
+            {
+                _staticMeshComponents.Add(staticMeshComponent);
+                break;
+            }
+            case SkyboxComponent when CurrentSkybox == null:
+            {
+                foreach (var tmpComponent in _primitiveComponents)
+                {
+                    if (tmpComponent is SkyboxComponent skyboxComponent)
+                    {
+                        CurrentSkybox = skyboxComponent;
+                    }
+                }
+
+                break;
             }
         }
     }
 
-    public void UnregistComponent(PrimitiveComponent component)
+    public void UnregisterComponent(PrimitiveComponent component)
     {
         if (!PrimitiveComponents.Contains(component))
         {
             return;
         }
         if (component is SubInstancedStaticMeshComponent == false)
-            _PrimitiveComponents.Remove(component);
-        if (component is CameraComponent cameraComponent)
+            _primitiveComponents.Remove(component);
+        switch (component)
         {
-            if (_CameraComponents.Contains(cameraComponent))
-                _CameraComponents.Remove(cameraComponent);
-        }
-        else if (component is DirectionLightComponent directionLightComponent)
-        {
-            if (_DirectionLightComponents.Contains(directionLightComponent))
+            case CameraComponent cameraComponent:
             {
-                _DirectionLightComponents.Remove(directionLightComponent);
+                if (_cameraComponents.Contains(cameraComponent))
+                    _cameraComponents.Remove(cameraComponent);
+                break;
             }
-        }
-        else if (component is PointLightComponent pointLightComponent)
-        {
-            if (_PointLightComponents.Contains(pointLightComponent))
+            case DirectionLightComponent directionLightComponent:
             {
-                _PointLightComponents.Remove(pointLightComponent);
-            }
-        }
-        else if (component is SpotLightComponent spotLightComponent)
-        {
-            if (_SpotLightComponents.Contains(spotLightComponent))
-            {
-                _SpotLightComponents.Remove(spotLightComponent);
-            }
-        }
-        else if (component is InstancedStaticMeshComponent InstancedStaticMeshComponent) 
-        {
-            if (_ISMComponents.Contains(InstancedStaticMeshComponent))
-            {
-                _ISMComponents.Remove(InstancedStaticMeshComponent);
-            }
-        }
-        else if (component is DecalComponent DecalComponent)
-        {
-            if (_DecalComponents.Contains(DecalComponent))
-            {
-                _DecalComponents.Remove(DecalComponent);
-            }
-        }
-        else if (component is SkeletalMeshComponent SkeletalMeshComponent)
-        {
-            if (_SkeletalMeshComponents.Contains(SkeletalMeshComponent))
-            {
-                _SkeletalMeshComponents.Remove(SkeletalMeshComponent);
-            }
-        }
-        else if (component is StaticMeshComponent StaticMeshComponent)
-        {
-            if (_StaticMeshComponents.Contains(StaticMeshComponent))
-            {
-                _StaticMeshComponents.Remove(StaticMeshComponent);
-            }
-        }
-        if (component is SkyboxComponent && CurrentSkybox == component)
-        {
-            CurrentSkybox = null;
-            foreach (var compon in _PrimitiveComponents)
-            {
-                if (compon is SkyboxComponent skyboxComponent)
+                if (_directionLightComponents.Contains(directionLightComponent))
                 {
-                    CurrentSkybox = skyboxComponent;
+                    _directionLightComponents.Remove(directionLightComponent);
                 }
+
+                break;
+            }
+            case PointLightComponent pointLightComponent:
+            {
+                if (_pointLightComponents.Contains(pointLightComponent))
+                {
+                    _pointLightComponents.Remove(pointLightComponent);
+                }
+
+                break;
+            }
+            case SpotLightComponent spotLightComponent:
+            {
+                if (_spotLightComponents.Contains(spotLightComponent))
+                {
+                    _spotLightComponents.Remove(spotLightComponent);
+                }
+
+                break;
+            }
+            case InstancedStaticMeshComponent instancedStaticMeshComponent:
+            {
+                if (_ismComponents.Contains(instancedStaticMeshComponent))
+                {
+                    _ismComponents.Remove(instancedStaticMeshComponent);
+                }
+
+                break;
+            }
+            case DecalComponent decalComponent:
+            {
+                if (_decalComponents.Contains(decalComponent))
+                {
+                    _decalComponents.Remove(decalComponent);
+                }
+
+                break;
+            }
+            case SkeletalMeshComponent skeletalMeshComponent:
+            {
+                if (_skeletalMeshComponents.Contains(skeletalMeshComponent))
+                {
+                    _skeletalMeshComponents.Remove(skeletalMeshComponent);
+                }
+
+                break;
+            }
+            case StaticMeshComponent staticMeshComponent:
+            {
+                if (_staticMeshComponents.Contains(staticMeshComponent))
+                {
+                    _staticMeshComponents.Remove(staticMeshComponent);
+                }
+
+                break;
+            }
+            case SkyboxComponent when CurrentSkybox == component:
+            {
+                CurrentSkybox = null;
+                foreach (var compon in _primitiveComponents)
+                {
+                    if (compon is SkyboxComponent skyboxComponent)
+                    {
+                        CurrentSkybox = skyboxComponent;
+                    }
+                }
+
+                break;
             }
         }
     }
@@ -341,16 +354,16 @@ public partial class Level
     }
     public ImGuiSystem ImGuiWarp { get; private set; }
 
-    private void PhysicsUpdate(double DeltaTime)
+    private void PhysicsUpdate(double deltaTime)
     {
-        while (DeltaTime > 0.03)
+        while (deltaTime > 0.03)
         {
             PhysicsWorld.Step(0.03f);
-            DeltaTime -= 0.03f;
+            deltaTime -= 0.03f;
         }
-        if (DeltaTime > 0)
+        if (deltaTime > 0)
         {
-            PhysicsWorld.Step((float)DeltaTime);
+            PhysicsWorld.Step((float)deltaTime);
         }
 
         for (int i = 0; i < PhysicsWorld.RigidBodies.Active; i++)
