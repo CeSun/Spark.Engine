@@ -8,7 +8,7 @@ namespace Spark.Engine.Components;
 
 public class PointLightComponent : LightComponent
 {
-    protected override bool ReceieveUpdate => true;
+    protected override bool ReceiveUpdate => true;
 
     private BoundingSphere BoundingSphere;
 

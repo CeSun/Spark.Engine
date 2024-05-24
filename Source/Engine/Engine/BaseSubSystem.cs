@@ -7,22 +7,18 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine
 {
-    public class BaseSubSystem
+    public class BaseSubSystem(Engine engine)
     {
         public virtual bool ReceiveUpdate => false;
 
-        public Engine CurrentEngine { get; set; }
-        public BaseSubSystem(Engine engine)
-        {
-            CurrentEngine = engine;
-           
-        }
+        public Engine CurrentEngine { get; set; } = engine;
+
         public virtual void BeginPlay()
         {
 
         }
 
-        public virtual void Update(double DeltaTime)
+        public virtual void Update(double deltaTime)
         {
 
         }

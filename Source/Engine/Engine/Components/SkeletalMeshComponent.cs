@@ -17,7 +17,7 @@ public class SkeletalMeshComponent : PrimitiveComponent
     }
 
     public List<Matrix4x4> AnimBuffer = new List<Matrix4x4>(100);
-    protected override bool ReceieveUpdate => true;
+    protected override bool ReceiveUpdate => true;
 
     [Property]
     public SkeletalMesh? SkeletalMesh 

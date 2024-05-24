@@ -13,13 +13,13 @@ public class CapsuleComponent : PrimitiveComponent
 {
     public CapsuleShape _CapsuleShape { get;private set; }
 
-    private RigidBody _RigidBody;
-    protected override bool ReceieveUpdate => true;
+    private readonly RigidBody _rigidBody;
+    protected override bool ReceiveUpdate => true;
     public CapsuleComponent(Actor actor) : base(actor)
     {
         _CapsuleShape = new CapsuleShape();
-        _RigidBody = PhysicsWorld.CreateRigidBody();
-        _RigidBody.AddShape( _CapsuleShape );
+        _rigidBody = PhysicsWorld.CreateRigidBody();
+        _rigidBody.AddShape( _CapsuleShape );
     }
 
 
@@ -27,7 +27,7 @@ public class CapsuleComponent : PrimitiveComponent
     public float Radius { get => _CapsuleShape.Radius; set => _CapsuleShape.Radius = value; }
     [Property]
     public float Length { get => _CapsuleShape.Length; set => _CapsuleShape.Length = value; }
-    public override  bool IsStatic { get => _RigidBody.IsStatic; set => _RigidBody.IsStatic = value; }
+    public override  bool IsStatic { get => _rigidBody.IsStatic; set => _rigidBody.IsStatic = value; }
 
 
     public override Vector3 RelativeLocation

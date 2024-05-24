@@ -16,7 +16,7 @@ public class DecalComponent : PrimitiveComponent
         MaxPoint = new Vector3(1, 1, 1)
     };
     public override BaseBounding? Bounding => BoundingBox;
-    protected override bool ReceieveUpdate => true;
+    protected override bool ReceiveUpdate => true;
     public DecalComponent(Actor actor) : base(actor)
     {
         BoundingBox = new BoundingBox(this);

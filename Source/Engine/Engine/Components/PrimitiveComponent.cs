@@ -30,7 +30,7 @@ public partial class PrimitiveComponent
 
     public Level CurrentLevel => Owner.CurrentLevel;
     public Jitter2.World PhysicsWorld => CurrentLevel.PhysicsWorld;
-    protected virtual bool ReceieveUpdate => false;
+    protected virtual bool ReceiveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
 
     public virtual BaseBounding? Bounding
@@ -59,7 +59,7 @@ public partial class PrimitiveComponent
         {
             Owner.RootComponent = this;
         }
-        if (ReceieveUpdate)
+        if (ReceiveUpdate)
         {
             this.Owner.CurrentLevel.UpdateManager.RegisterUpdate(Update);
         }
@@ -130,7 +130,7 @@ public partial class PrimitiveComponent
         {
             ParentComponent = null;
         }
-        if (ReceieveUpdate)
+        if (ReceiveUpdate)
         {
             this.Owner.CurrentLevel.UpdateManager.UnregisterUpdate(Update);
         }

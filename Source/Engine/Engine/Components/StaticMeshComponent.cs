@@ -9,7 +9,7 @@ namespace Spark.Engine.Components;
 
 public class StaticMeshComponent : PrimitiveComponent
 {
-    protected override bool ReceieveUpdate => true;
+    protected override bool ReceiveUpdate => true;
 
     private StaticMesh? _StaticMesh;
     public BoundingBox? BoundingBox;

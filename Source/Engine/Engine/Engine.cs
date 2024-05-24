@@ -1,20 +1,15 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Util;
-using System.Numerics;
 using System.Drawing;
 using Silk.NET.Input;
 using Spark.Engine.Platform;
-using Spark.Engine.Render;
 using Silk.NET.Windowing;
-using Silk.NET.OpenGLES.Extensions.EXT;
 using System.Reflection;
-using System.Runtime.Loader;
 using Spark.Engine.Assets;
 using IniParser.Parser;
 using Spark.Engine.Actors;
 using Spark.Engine.Assembly;
 using Spark.Engine.Attributes;
-using System.Linq;
 
 namespace Spark.Engine;
 
@@ -23,8 +18,8 @@ public partial class Engine
     public AssetMgr AssetMgr { get; private set; }
     public SingleThreadSyncContext? SyncContext { get; private set; }
     public List<Action> NextFrame { get; private set; }
-    private List<string> Args { get; set; } = new List<string>();
-    public bool IsMobile { private set; get; } = false;
+    private List<string> Args { get; } = [];
+    public bool IsMobile { private set; get; }
 
     public bool IsDS = false;
 
@@ -70,10 +65,7 @@ public partial class Engine
 
         if (_view is IWindow window)
         {
-            window.FileDrop += paths =>
-            {
-                OnFileDrog.Invoke(paths);
-            };
+            window.FileDrop += paths => OnFileDrog.Invoke(paths);
         }
         ProcessArgs();
         LoadGameDll();
@@ -111,7 +103,7 @@ public partial class Engine
         {
             if (type.IsSubclassOf(typeof(BaseSubSystem)) == false)
                 continue;
-            if (type.FullName == null || SubsystemConfigs.Keys.Contains(type.FullName) == true)
+            if (type.FullName == null || SubsystemConfigs.Keys.Contains(type.FullName))
                 continue;
             var att = type.GetCustomAttribute<SubsystemAttribute>();
             if (att == null || att.Enable == false)
@@ -135,7 +127,7 @@ public partial class Engine
             }
             if (v == false)
                 continue;
-            var obj = Activator.CreateInstance(type, new[] { this });
+            var obj = Activator.CreateInstance(type, [this]);
             if (obj != null && obj is BaseSubSystem subsystem)
             {
                 SubSystems.Add(subsystem);
@@ -203,16 +195,16 @@ public partial class Engine
 
         foreach(var subsystem in SubSystems)
         {
-            if (subsystem != null && subsystem.ReceiveUpdate == true)
+            if (subsystem.ReceiveUpdate == true)
             {
                 subsystem.Update(DeltaTime);
             }
         }
     }
 
-    public void Render(double DeltaTime)
+    public void Render(double deltaTime)
     {
-        Worlds.ForEach(world => world.Render(DeltaTime));
+        Worlds.ForEach(world => world.Render(deltaTime));
     }
 
     public void Start()
