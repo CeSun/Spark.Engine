@@ -62,7 +62,7 @@ public class ContentViewerPanel : ImGUIWindow
             }
             else if (Extension == ".glb")
             {
-                SkeletalMesh.ImportFromGLB(path).ForEach(asset =>
+                SkeletalMesh.ImportFromGlb(path).ForEach(asset =>
                 {
                     assets.Add((asset, path));
                 });

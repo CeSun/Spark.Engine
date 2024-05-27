@@ -36,7 +36,7 @@ public partial class Engine
             SynchronizationContext.SetSynchronizationContext(SyncContext);
         }
         NextFrame = new List<Action>();
-        AssetMgr = new AssetMgr() { engine = this };
+        AssetMgr = new AssetMgr() { Engine = this };
     }
     private IView? _view;
     public IView View

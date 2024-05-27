@@ -1,32 +1,22 @@
-﻿
-using Jitter2.Dynamics;
-using SharpGLTF.Schema2;
-using Silk.NET.Maths;
-using Spark.Engine.Attributes;
+﻿using Spark.Engine.Attributes;
 using Spark.Util;
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using System.Reflection;
-using System.Runtime.Loader;
 using System.Text;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Spark.Engine.Assets;
 
 public interface ISerializable
 {
-    public void Serialize(BinaryWriter Writer, Engine engine);
+    public void Serialize(BinaryWriter writer, Engine engine);
 
-    public void Deserialize(BinaryReader Reader, Engine engine);
+    public void Deserialize(BinaryReader reader, Engine engine);
 
 
-    public static void AssetSerialize<T>(T? asset, BinaryWriter Writer, Engine engine) where T : AssetBase
+    public static void AssetSerialize<T>(T? asset, BinaryWriter writer, Engine engine) where T : AssetBase
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
+        var bw = new BinaryWriter(writer.BaseStream);
         if (asset == null || string.IsNullOrEmpty(asset.Path))
         {
             bw.WriteInt32(0);
@@ -44,8 +34,8 @@ public interface ISerializable
         if (len == 0)
             return null;
         var str = br.ReadBytes(len);
-        var Path = Encoding.UTF8.GetString(str);
-        return engine.AssetMgr.Load<T>(Path);
+        var path = Encoding.UTF8.GetString(str);
+        return engine.AssetMgr.Load<T>(path);
     }
 
     public static AssetBase? AssetDeserialize(Type type,BinaryReader br, Engine engine)
@@ -54,18 +44,17 @@ public interface ISerializable
         if (len == 0)
             return null;
         var str = br.ReadBytes(len);
-        var Path = Encoding.UTF8.GetString(str);
-        return engine.AssetMgr.Load(type, Path);
+        var path = Encoding.UTF8.GetString(str);
+        return engine.AssetMgr.Load(type, path);
     }
 
 
     public static void ReflectionDeserialize(object obj, BinaryReader br, Engine engine)
     {
         var type = obj.GetType();
-        var properties = new List<PropertyInfo>();
         foreach (var property in type.GetProperties())
         {
-            if (property.CanWrite && property.CanRead == false)
+            if (property is { CanWrite: true, CanRead: false })
                 continue;
             var att = property.GetAttribute<PropertyAttribute>();
             if (att == null)
@@ -135,7 +124,7 @@ public interface ISerializable
         }
         else if (type == typeof(Matrix4x4))
         {
-            return br.ReadMatrix4x4();
+            return br.ReadMatrix4X4();
         }
         else if (type == typeof(Vector3))
         {
@@ -156,12 +145,12 @@ public interface ISerializable
         else if (type == typeof(List<>))
         {
             Type specificListType = typeof(List<>).MakeGenericType(type.GetGenericArguments());
-            var instance = (IList)Activator.CreateInstance(specificListType);
+            var instance = (IList)Activator.CreateInstance(specificListType)!;
             var count = br.ReadInt32();
             for(var i = 0; i < count; i ++)
             {
                 var typename = br.ReadString2();
-                var itemType = AssemblyHelper.GetType(typename);
+                var itemType = AssemblyHelper.GetType(typename)!;
                 instance.Add(ReflectionDeSerialize(itemType, br, engine));
             }
             return instance;
@@ -444,35 +433,36 @@ public static class StreamHelper
 
     public static Quaternion ReadQuaternion(this BinaryReader br)
     {
-        var q = new Quaternion();
-        q.X = br.ReadSingle();
-        q.Y = br.ReadSingle();
-        q.Z = br.ReadSingle();
-        q.W = br.ReadSingle();
+        var q = new Quaternion
+        {
+            X = br.ReadSingle(),
+            Y = br.ReadSingle(),
+            Z = br.ReadSingle(),
+            W = br.ReadSingle()
+        };
         return q;
     }
-    public static Matrix4x4 ReadMatrix4x4(this BinaryReader br)
+    public static Matrix4x4 ReadMatrix4X4(this BinaryReader br)
     {
-        var m = new Matrix4x4();
-        m.M11 = br.ReadSingle();
-        m.M12 = br.ReadSingle();
-        m.M13 = br.ReadSingle();
-        m.M14 = br.ReadSingle();
-
-        m.M21 = br.ReadSingle();
-        m.M22 = br.ReadSingle();
-        m.M23 = br.ReadSingle();
-        m.M24 = br.ReadSingle();
-
-        m.M31 = br.ReadSingle();
-        m.M32 = br.ReadSingle();
-        m.M33 = br.ReadSingle();
-        m.M34 = br.ReadSingle();
-
-        m.M41 = br.ReadSingle();
-        m.M42 = br.ReadSingle();
-        m.M43 = br.ReadSingle();
-        m.M44 = br.ReadSingle();
+        var m = new Matrix4x4
+        {
+            M11 = br.ReadSingle(),
+            M12 = br.ReadSingle(),
+            M13 = br.ReadSingle(),
+            M14 = br.ReadSingle(),
+            M21 = br.ReadSingle(),
+            M22 = br.ReadSingle(),
+            M23 = br.ReadSingle(),
+            M24 = br.ReadSingle(),
+            M31 = br.ReadSingle(),
+            M32 = br.ReadSingle(),
+            M33 = br.ReadSingle(),
+            M34 = br.ReadSingle(),
+            M41 = br.ReadSingle(),
+            M42 = br.ReadSingle(),
+            M43 = br.ReadSingle(),
+            M44 = br.ReadSingle()
+        };
 
         return m;
 
@@ -485,7 +475,7 @@ public static class MagicCode
     public const int Asset = 19980625;
     public const  int Texture = 1;
     public const int TextureCube = 2;
-    public const int TextureHDR = 3;
+    public const int TextureHdr = 3;
     public const int StaticMesh = 4;
     public const int SkeletalMesh = 5;
     public const int Material = 6;
@@ -494,13 +484,13 @@ public static class MagicCode
     public const int Actor = 9;
     public const int Level = 10;
 
-    public static string GetName(int AssetMagicCode)
+    public static string GetName(int assetMagicCode)
     {
-        return AssetMagicCode switch
+        return assetMagicCode switch
         {
             Texture => "Texture",
             TextureCube => "TextureCube",
-            TextureHDR => "TextureHDR",
+            TextureHdr => "TextureHDR",
             StaticMesh => "StaticMesh",
             SkeletalMesh => "SkeletalMesh",
             Material => "Material",

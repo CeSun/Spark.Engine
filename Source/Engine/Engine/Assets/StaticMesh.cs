@@ -4,17 +4,15 @@ using System.Runtime.InteropServices;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Physics;
 using Jitter2.LinearMath;
-using System.Collections.ObjectModel;
 using Jitter2.Collision.Shapes;
 using Spark.Engine.Platform;
-using Jitter2.Dynamics;
 
 namespace Spark.Engine.Assets;
 
 public class StaticMesh : AssetBase
 {
-    public List<Element<StaticMeshVertex>> Elements = new List<Element<StaticMeshVertex>>();
-    public List<Shape> Shapes = new List<Shape>();
+    public List<Element<StaticMeshVertex>> Elements = [];
+    public List<Shape> Shapes = [];
     public Box Box { get; private set; }
     public List<Box> Boxes { get; private set; } = new List<Box>();
     public StaticMesh()
@@ -22,19 +20,19 @@ public class StaticMesh : AssetBase
         Path = string.Empty;
     }
 
-    public StaticMesh(List<Element<StaticMeshVertex>> Elementes)
+    public StaticMesh(List<Element<StaticMeshVertex>> elements)
     {
         Path = string.Empty;
-        Elements.AddRange(Elementes);
+        Elements.AddRange(elements);
     }
 
-    public async static Task<StaticMesh> LoadFromGLBAsync(string Path)
+    public static async Task<StaticMesh> LoadFromGlbAsync(string path)
     {
 
-        using var sr = FileSystem.Instance.GetStreamReader("Content" + Path);
-        return await LoadFromGLBAsync(sr.BaseStream);
+        using var sr = FileSystem.Instance.GetStreamReader("Content" + path);
+        return await LoadFromGlbAsync(sr.BaseStream);
     }
-    public async static Task<StaticMesh> LoadFromGLBAsync(Stream stream)
+    public static async Task<StaticMesh> LoadFromGlbAsync(Stream stream)
     {
         StaticMesh? sm = null;
         await Task.Run(() =>
@@ -46,13 +44,13 @@ public class StaticMesh : AssetBase
     }
 
 
-    public static StaticMesh LoadFromGLB(string Path)
+    public static StaticMesh LoadFromGlb(string path)
     {
     
-        using var sr = FileSystem.Instance.GetStreamReader("Content" + Path);
-        return LoadFromGLB(sr.BaseStream);
+        using var sr = FileSystem.Instance.GetStreamReader("Content" + path);
+        return LoadFromGlb(sr.BaseStream);
     }
-    public static StaticMesh LoadFromGLB(Stream stream)
+    public static StaticMesh LoadFromGlb(Stream stream)
     {
         var model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 

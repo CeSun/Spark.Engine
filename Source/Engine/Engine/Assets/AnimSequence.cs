@@ -8,16 +8,16 @@ public class AnimSequence : AnimBase
     public Skeleton? Skeleton { get; set; }
     public AnimSequence()
     {
-        ChannelsTransform = new();
-        Channels = new();
+        ChannelsTransform = [];
+        Channels = [];
     }
-    public AnimSequence (string AnimName, float Duration, Skeleton Skeleton,Dictionary<int, BoneChannel> boneChannels)
+    public AnimSequence (string animName, float duration, Skeleton skeleton,Dictionary<int, BoneChannel> boneChannels)
     {
-        this.AnimName = AnimName;
-        this.Duration = Duration;
+        this.AnimName = animName;
+        this.Duration = duration;
         Channels = boneChannels;
         ChannelsTransform = new ();
-        this.Skeleton = Skeleton;
+        this.Skeleton = skeleton;
         InitTransform();
     }
 
@@ -25,17 +25,19 @@ public class AnimSequence : AnimBase
     {
         foreach(var (id, channel) in Channels)
         {
-            BoneTransform Transforms = new ();
-            Transforms.BoneId = channel.BoneId;
-            for (int i = 0; i < channel.Translation.Count; i++)
+            BoneTransform transforms = new ()
+            {
+                BoneId = channel.BoneId
+            };
+            for (var i = 0; i < channel.Translation.Count; i++)
             {
                 var translation = channel.Translation[i].Item2;
-                var Rotation = channel.Rotation[i].Item2;
-                var Scale = channel.Scale[i].Item2;
-                var Matrix = MatrixHelper.CreateTransform(translation, Rotation, Scale);
-                Transforms.Transforms.Add((channel.Translation[i].Item1, Matrix));
+                var rotation = channel.Rotation[i].Item2;
+                var scale = channel.Scale[i].Item2;
+                var matrix = MatrixHelper.CreateTransform(translation, rotation, scale);
+                transforms.Transforms.Add((channel.Translation[i].Item1, matrix));
             }
-            ChannelsTransform.Add(id, Transforms);
+            ChannelsTransform.Add(id, transforms);
         }
     }
 
@@ -57,11 +59,11 @@ public class AnimSequence : AnimBase
 
     public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var AssetMagicCode = br.ReadInt32();
-        if (AssetMagicCode != MagicCode.Asset)
+        var assetMagicCode = br.ReadInt32();
+        if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
-        var TextureMagicCode = br.ReadInt32();
-        if (TextureMagicCode != MagicCode.AnimSequence)
+        var textureMagicCode = br.ReadInt32();
+        if (textureMagicCode != MagicCode.AnimSequence)
             throw new Exception("");
         AnimName = br.ReadString2();
         Duration = br.ReadDouble();
@@ -127,9 +129,9 @@ public class BoneChannel : ISerializable
         }
     }
 
-    public void Serialize(BinaryWriter Writer, Engine engine)
+    public void Serialize(BinaryWriter writer, Engine engine)
     {
-        var bw = new BinaryWriter(Writer.BaseStream);
+        var bw = new BinaryWriter(writer.BaseStream);
         bw.WriteInt32(BoneId);
         bw.WriteInt32(Translation.Count);
         foreach(var (time, translation) in Translation)
@@ -162,26 +164,26 @@ public class AnimSampler
     public AnimSequence Sequence;
     public Skeleton Skeleton;
 
-    public List<Matrix4x4> TransfomrBuffer;
+    public List<Matrix4x4> TransformBuffer;
 
     public bool IsLoop = true;
 
-    private double SpeedTime;
+    private double _speedTime;
     public AnimSampler(AnimSequence sequence)
     {
         Sequence = sequence;
         Skeleton = sequence.Skeleton;
-        TransfomrBuffer = new List<Matrix4x4>(Skeleton.BoneList.Count);
+        TransformBuffer = new List<Matrix4x4>(Skeleton.BoneList.Count);
         foreach(var bone in Skeleton.BoneList)
         {
-            TransfomrBuffer.Add(Matrix4x4.Identity);
+            TransformBuffer.Add(Matrix4x4.Identity);
         }
         Clear();
     }
 
     public void Clear()
     {
-        SpeedTime = 0;
+        _speedTime = 0;
 
     }
 
@@ -189,9 +191,9 @@ public class AnimSampler
 
     public double Duration => DurationScale * Sequence.Duration;
 
-    public void Update(double DeltaTime)
+    public void Update(double deltaTime)
     {
-        if (SpeedTime >= Duration)
+        if (_speedTime >= Duration)
         {
             if (IsLoop == false)
                 return;
@@ -199,9 +201,9 @@ public class AnimSampler
         }
         foreach (var bone in Skeleton.BoneList)
         {
-            var BoneId = bone.BoneId;
+            var boneId = bone.BoneId;
             var transform = bone.RelativeTransform;
-            if (Sequence.Channels.TryGetValue(BoneId, out var channel))
+            if (Sequence.Channels.TryGetValue(boneId, out var channel))
             {
                 if (Duration == 0)
                 {
@@ -213,7 +215,7 @@ public class AnimSampler
                     var second = 0;
                     for (var i = 0; i < channel.Translation.Count - 1; i++)
                     {
-                        if (SpeedTime > channel.Translation[i].Item1 && SpeedTime < channel.Translation[i + 1].Item1)
+                        if (_speedTime > channel.Translation[i].Item1 && _speedTime < channel.Translation[i + 1].Item1)
                         {
                             first = i;
                             second = first + 1;
@@ -227,7 +229,7 @@ public class AnimSampler
                     var transform1 = MatrixHelper.CreateTransform(channel.Translation[first].Item2, channel.Rotation[first].Item2, channel.Scale[first].Item2);
                     var transform2 = MatrixHelper.CreateTransform(channel.Translation[second].Item2, channel.Rotation[second].Item2, channel.Scale[second].Item2);
                     var len = channel.Translation[second].Item1 - channel.Translation[first].Item1;
-                    var dt = (float)SpeedTime - channel.Translation[first].Item1;
+                    var dt = (float)_speedTime - channel.Translation[first].Item1;
                     var p = dt / len;
                     if (dt < 0)
                     {
@@ -237,9 +239,9 @@ public class AnimSampler
                 }
 
             }
-            TransfomrBuffer[BoneId] = transform;
+            TransformBuffer[boneId] = transform;
         }
-        SpeedTime += DeltaTime / DurationScale;
+        _speedTime += deltaTime / DurationScale;
     }
 
 

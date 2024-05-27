@@ -1,5 +1,4 @@
-﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Actors;
+﻿using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
 using Spark.Engine.Physics;
@@ -9,25 +8,26 @@ namespace Spark.Engine.Components;
 
 public class DecalComponent : PrimitiveComponent
 {
-    BoundingBox BoundingBox;
-    static readonly Box Box = new Box
+    private readonly BoundingBox _boundingBox;
+
+    private static readonly Box Box = new()
     {
         MinPoint = new Vector3(-1, -1, -1),
         MaxPoint = new Vector3(1, 1, 1)
     };
-    public override BaseBounding? Bounding => BoundingBox;
+    public override BaseBounding Bounding => _boundingBox;
     protected override bool ReceiveUpdate => true;
     public DecalComponent(Actor actor) : base(actor)
     {
-        BoundingBox = new BoundingBox(this);
-        RefreshBoudingBox();
+        _boundingBox = new BoundingBox(this);
+        RefreshBoundingBox();
     }
 
-    private void RefreshBoudingBox()
+    private void RefreshBoundingBox()
     {
         var worldTransform = WorldTransform;
         Box box = default;
-        for (int i = 0; i < 8; i++)
+        for (var i = 0; i < 8; i++)
         {
             if (i == 0)
             {
@@ -39,39 +39,19 @@ public class DecalComponent : PrimitiveComponent
                 box += Vector3.Transform(Box[i], worldTransform);
             }
         }
-        BoundingBox.Box.MaxPoint = box.MaxPoint;
-        BoundingBox.Box.MinPoint = box.MinPoint;
+        _boundingBox.Box.MaxPoint = box.MaxPoint;
+        _boundingBox.Box.MinPoint = box.MinPoint;
         UpdateOctree();
     }
 
 
-    private Material? _Material;
     [Property]
-    public Material? Material 
+    public Material? Material { get; set; }
+
+
+    public override void OnUpdate(double deltaTime)
     {
-        get => _Material;
-        set
-        {
-            _Material = value;
-            if (_Material != null)
-            {
-                Engine.NextFrame.Add(() =>
-                {
-                    foreach (var texture in _Material.Textures)
-                    {
-                        if (texture != null)
-                            texture.InitRender(gl);
-                    }
-                });
-
-            }
-        }
-    }
-
-
-    public override void OnUpdate(double DeltaTime)
-    {
-        base.OnUpdate(DeltaTime);
-        RefreshBoudingBox();
+        base.OnUpdate(deltaTime);
+        RefreshBoundingBox();
     }
 }

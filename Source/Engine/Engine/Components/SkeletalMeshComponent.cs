@@ -138,11 +138,11 @@ public class SkeletalMeshComponent : PrimitiveComponent
         Matrix4x4 ParentTransform = Matrix4x4.Identity;
         if (node.Parent != null)
         {
-            AnimBuffer[node.BoneId] = AnimSampler.TransfomrBuffer[node.BoneId] * AnimBuffer[node.Parent.BoneId];
+            AnimBuffer[node.BoneId] = AnimSampler.TransformBuffer[node.BoneId] * AnimBuffer[node.Parent.BoneId];
         }
         else
         {
-            AnimBuffer[node.BoneId] = AnimSampler.TransfomrBuffer[node.BoneId];
+            AnimBuffer[node.BoneId] = AnimSampler.TransformBuffer[node.BoneId];
         }
         foreach (var child in node.ChildrenBone)
         {

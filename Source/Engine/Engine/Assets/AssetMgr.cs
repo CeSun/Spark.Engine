@@ -1,52 +1,45 @@
-﻿using SharpGLTF.Schema2;
-using Spark.Engine.Platform;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Spark.Engine.Platform;
 
 namespace Spark.Engine.Assets;
 
 public class AssetMgr
 {       
-    public required Engine engine;
+    public required Engine Engine;
 
-    Dictionary<string, AssetBase> Assets = new Dictionary<string, AssetBase>();
-    public T? Load<T>(string path) where T : AssetBase, ISerializable, new()
+    private readonly Dictionary<string, AssetBase> _assets = [];
+    public T Load<T>(string path) where T : AssetBase, ISerializable, new()
     {
-        if (Assets.TryGetValue(path, out var Asset) == true)
+        if (_assets.TryGetValue(path, out var asset))
         {
-            if (Asset is T t)
+            if (asset is T t)
                 return t;
         }
         return Reload<T>(path);
     }
-    public AssetBase? Load(Type assetType, string path)
+    public AssetBase Load(Type assetType, string path)
     {
-        if (Assets.TryGetValue(path, out var Asset) == true)
+        if (_assets.TryGetValue(path, out var asset))
         {
-            return Asset;
+            return asset;
         }
         return Reload(assetType, path);
     }
 
-    public AssetBase? Reload(Type assetType, string path) 
+    public AssetBase Reload(Type assetType, string path) 
     {
         var stream = FileSystem.Instance.GetStreamReader(path);
-        var asset = (AssetBase)Activator.CreateInstance(assetType);
-        asset.Deserialize(new BinaryReader(stream.BaseStream), engine);
-        Assets[path] = asset;
+        var asset = (AssetBase)Activator.CreateInstance(assetType)!;
+        asset.Deserialize(new BinaryReader(stream.BaseStream), Engine);
+        _assets[path] = asset;
         asset.Path = path;
         return asset;
     }
-    public T? Reload<T>(string path) where T : AssetBase, ISerializable, new()
+    public T Reload<T>(string path) where T : AssetBase, ISerializable, new()
     {
         var stream = FileSystem.Instance.GetStreamReader(path);
         var asset = new T();
-        asset.Deserialize(new BinaryReader(stream.BaseStream), engine);
-        Assets[path] = asset;
+        asset.Deserialize(new BinaryReader(stream.BaseStream), Engine);
+        _assets[path] = asset;
         asset.Path = path;
         return asset;
     }

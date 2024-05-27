@@ -53,7 +53,7 @@ public class Skeleton : AssetBase
         var TextureMagicCode = br.ReadInt32();
         if (TextureMagicCode != MagicCode.Skeleton)
             throw new Exception("");
-        RootParentMatrix = br.ReadMatrix4x4();
+        RootParentMatrix = br.ReadMatrix4X4();
         var count = br.ReadInt32();
         BoneList.Clear();
         for(var i = 0; i < count; i++)
@@ -119,9 +119,9 @@ public class BoneNode: ISerializable
         RelativeLocation = br.ReadVector3();
         RelativeRotation = br.ReadQuaternion();
         RelativeScale = br.ReadVector3();
-        RelativeTransform = br.ReadMatrix4x4();
-        LocalToWorldTransform = br.ReadMatrix4x4();
-        WorldToLocalTransform = br.ReadMatrix4x4();
+        RelativeTransform = br.ReadMatrix4X4();
+        LocalToWorldTransform = br.ReadMatrix4X4();
+        WorldToLocalTransform = br.ReadMatrix4X4();
 
     }
 

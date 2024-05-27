@@ -121,7 +121,7 @@ public class TextureHDR : AssetBase
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(MagicCode.TextureHDR);
+        bw.WriteInt32(MagicCode.TextureHdr);
         bw.WriteUInt32(Width);
         bw.WriteUInt32(Height);
         bw.WriteInt32((int)Channel);
@@ -139,7 +139,7 @@ public class TextureHDR : AssetBase
         if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var TextureMagicCode = br.ReadInt32();
-        if (TextureMagicCode != MagicCode.TextureHDR)
+        if (TextureMagicCode != MagicCode.TextureHdr)
             throw new Exception("");
         Width = br.ReadUInt32();
         Height = br.ReadUInt32();

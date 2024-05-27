@@ -9,26 +9,21 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assembly
 {
-    public class GameAssemblyLoadContext : AssemblyLoadContext
+    public class GameAssemblyLoadContext(Engine engine) : AssemblyLoadContext
     {
-        Engine Engine;
-        public GameAssemblyLoadContext(Engine engine)
-        {
-            Engine = engine;
-        }
-        private static GameAssemblyLoadContext? _Instance;
+        private static GameAssemblyLoadContext? _instance;
         public static GameAssemblyLoadContext Instance
         {
             get 
             {
-                if (_Instance == null)
+                if (_instance == null)
                     throw new Exception();
-                return _Instance;
+                return _instance;
             }
         }
         public static void InitInstance(Engine engine)
         {
-            _Instance = new GameAssemblyLoadContext(engine);
+            _instance = new GameAssemblyLoadContext(engine);
         }
 
         protected override System.Reflection.Assembly? Load(AssemblyName assemblyName)
@@ -44,12 +39,10 @@ namespace Spark.Engine.Assembly
                     }
                 }
             }
-            if (FileSystem.Instance.FileExits($"{Engine.GameName}/{assemblyName.Name}.dll"))
+            if (FileSystem.Instance.FileExits($"{engine.GameName}/{assemblyName.Name}.dll"))
             {
-                using (var stream = FileSystem.Instance.GetStreamReader($"{Engine.GameName}/{assemblyName.Name}.dll"))
-                {
-                    return this.LoadFromStream(stream.BaseStream);
-                }
+                using var stream = FileSystem.Instance.GetStreamReader($"{engine.GameName}/{assemblyName.Name}.dll");
+                return this.LoadFromStream(stream.BaseStream);
             }
             else
             {
