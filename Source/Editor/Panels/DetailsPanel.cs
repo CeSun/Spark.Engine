@@ -113,26 +113,45 @@ namespace Editor.Panels
                 ImGui.NextColumn();
 
 
-
+                Modify = false;
                 float Yaw = 0, Pitch = 0, Roll = 0;
+                var Euler = Actor.WorldRotation.ToEuler();
+                Yaw = Euler.Y;
+                Pitch = Euler.X;
+                Roll = Euler.Z;
                 ImGui.Text("Yaw");
                 ImGui.SameLine(labelWidth);
                 ImGui.SetNextItemWidth(InputWidth);
                 ImGui.InputFloat("##Yaw", ref Yaw);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    Modify = true;
+                }
                 ImGui.SameLine();
 
                 ImGui.Text("Pitch");
                 ImGui.SameLine(labelWidth * 2 + InputWidth);
                 ImGui.SetNextItemWidth(InputWidth);
                 ImGui.InputFloat("##Pitch", ref Pitch);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    Modify = true;
+                }
                 ImGui.SameLine();
 
                 ImGui.Text("Roll");
                 ImGui.SameLine(labelWidth * 3 + InputWidth * 2);
                 ImGui.SetNextItemWidth(InputWidth);
                 ImGui.InputFloat("##Roll", ref Roll);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    Modify = true;
+                }
 
-
+                if (Modify == true)
+                {
+                    Actor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Yaw, Pitch, Roll);
+                }
                 ImGui.NextColumn();
                 ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize("Scale：").X);
                 ImGui.Text("Scale："); 

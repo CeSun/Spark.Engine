@@ -92,37 +92,27 @@ public static class MatrixHelper
     }
     public static Vector3 ToEuler(this Quaternion quaternion)
     {
-        float yaw, pitch, roll;
+        Vector3 angles = new();
 
-        // 计算欧拉角
-        double sqw = quaternion.W * quaternion.W;
-        double sqx = quaternion.X * quaternion.X;
-        double sqy = quaternion.Y * quaternion.Y;
-        double sqz = quaternion.Z * quaternion.Z;
-        double unit = sqx + sqy + sqz + sqw; // 单位化因子
+        float sinr_cosp = 2 * (quaternion.W * quaternion.Z + quaternion.X * quaternion.Y);
+        float cosr_cosp = 1 - 2 * (quaternion.Z * quaternion.Z + quaternion.X * quaternion.X);
+        angles.Z = MathF.Atan2(sinr_cosp, cosr_cosp);
 
-        double test = quaternion.X * quaternion.Y + quaternion.Z * quaternion.W;
-        if (test > 0.499 * unit) // 包含极限情况的优化
+        float sinp = 2 * (quaternion.W * quaternion.X - quaternion.Y * quaternion.Z);
+        if (Math.Abs(sinp) >= 1)
         {
-            yaw = (float)(2 * Math.Atan2(quaternion.X, quaternion.W));
-            pitch = (float)(Math.PI / 2);
-            roll = 0;
-        }
-        else if (test < -0.499 * unit)
-        {
-            yaw = (float)(-2 * Math.Atan2(quaternion.X, quaternion.W));
-            pitch = (float)(-Math.PI / 2);
-            roll = 0;
+            angles.X = MathF.CopySign(MathF.PI / 2, sinp);
         }
         else
         {
-            yaw = (float)Math.Atan2(2 * quaternion.Y * quaternion.W - 2 * quaternion.X * quaternion.Z, sqx - sqy - sqz + sqw);
-            pitch = (float)Math.Asin(2 * test / unit);
-            roll = (float)Math.Atan2(2 * quaternion.X * quaternion.W - 2 * quaternion.Y * quaternion.Z, -sqx + sqy - sqz + sqw);
+            angles.X = MathF.Asin(sinp);
         }
 
-        // 返回欧拉角
-        return new Vector3(pitch, yaw, roll);
+        float siny_cosp = 2 * (quaternion.W * quaternion.Y + quaternion.Z * quaternion.X);
+        float cosy_cosp = 1 - 2 * (quaternion.X * quaternion.X + quaternion.Y * quaternion.Y);
+        angles.Y = MathF.Atan2(siny_cosp, cosy_cosp);
+
+        return angles;
     }
 
 }
