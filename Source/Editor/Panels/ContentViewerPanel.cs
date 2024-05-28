@@ -58,7 +58,7 @@ public class ContentViewerPanel : ImGUIWindow
             }
             else if (Extension == ".hdr")
             {
-                assets.Add((TextureHDR.LoadFromFile(path), path));
+                assets.Add((TextureHdr.LoadFromFile(path), path));
             }
             else if (Extension == ".glb")
             {

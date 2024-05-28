@@ -1,27 +1,36 @@
-﻿using System.Numerics;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class Skeleton(BoneNode root) : AssetBase
+public class Skeleton : AssetBase
 {
+    public Skeleton()
+    {
+    }
     public List<BoneNode> BoneList
     {
         get => _BoneList;
         set
         {
             _BoneList = value;
-            _bonesMap.Clear();
+            _BonesMap.Clear();
             foreach (var bone in BoneList)
             {
-                _bonesMap.Add(bone.Name, bone);
+                _BonesMap.Add(bone.Name, bone);
             }
         }
     }
-    public List<BoneNode> _BoneList = [];
-    public BoneNode Root = root;
+    public List<BoneNode> _BoneList = new List<BoneNode>();
+    public BoneNode Root;
     public Matrix4x4 RootParentMatrix;
-    private readonly Dictionary<string, BoneNode> _bonesMap = [];
-    public IReadOnlyDictionary<string, BoneNode> BonesMap => _bonesMap;
+    private Dictionary<string, BoneNode> _BonesMap = new Dictionary<string, BoneNode>();
+    public IReadOnlyDictionary<string, BoneNode> BonesMap => _BonesMap;
 
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
@@ -38,11 +47,11 @@ public class Skeleton(BoneNode root) : AssetBase
 
     public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var assetMagicCode = br.ReadInt32();
-        if (assetMagicCode != MagicCode.Asset)
+        var AssetMagicCode = br.ReadInt32();
+        if (AssetMagicCode != MagicCode.Asset)
             throw new Exception("");
-        var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != MagicCode.Skeleton)
+        var TextureMagicCode = br.ReadInt32();
+        if (TextureMagicCode != MagicCode.Skeleton)
             throw new Exception("");
         RootParentMatrix = br.ReadMatrix4X4();
         var count = br.ReadInt32();
@@ -65,10 +74,10 @@ public class Skeleton(BoneNode root) : AssetBase
                 Root = bone;
             }
         }
-        _bonesMap.Clear();
+        _BonesMap.Clear();
         foreach (var bone in BoneList)
         {
-            _bonesMap.Add(bone.Name, bone);
+            _BonesMap.Add(bone.Name, bone);
         }
 
 
@@ -84,7 +93,7 @@ public class BoneNode: ISerializable
     public BoneNode? Parent;
     public string? Name;
 
-    public List<BoneNode> ChildrenBone = [];
+    public List<BoneNode> ChildrenBone = new List<BoneNode>();
 
     public int ParentId = -1;
 
