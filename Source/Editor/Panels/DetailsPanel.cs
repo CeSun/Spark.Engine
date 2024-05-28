@@ -14,6 +14,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using Spark.Util;
 using static Editor.Panels.ContentViewerPanel;
 
 namespace Editor.Panels
@@ -116,9 +117,9 @@ namespace Editor.Panels
                 Modify = false;
                 float Yaw = 0, Pitch = 0, Roll = 0;
                 var Euler = Actor.WorldRotation.ToEuler();
-                Yaw = Euler.Y;
-                Pitch = Euler.X;
-                Roll = Euler.Z;
+                Yaw = Euler.Y.RadiansToDegree();
+                Pitch = Euler.X.RadiansToDegree();
+                Roll = Euler.Z.RadiansToDegree();
                 ImGui.Text("Yaw");
                 ImGui.SameLine(labelWidth);
                 ImGui.SetNextItemWidth(InputWidth);
@@ -150,7 +151,7 @@ namespace Editor.Panels
 
                 if (Modify == true)
                 {
-                    Actor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Yaw, Pitch, Roll);
+                    Actor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Yaw.DegreeToRadians(), Pitch.DegreeToRadians(), Roll.DegreeToRadians());
                 }
                 ImGui.NextColumn();
                 ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize("Scale：").X);
