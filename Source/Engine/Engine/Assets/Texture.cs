@@ -3,14 +3,13 @@ using StbImageSharp;
 using System.Numerics;
 using Spark.Engine.Platform;
 using System.Runtime.InteropServices;
-using Jitter2.Dynamics;
 
 
 namespace Spark.Engine.Assets;
 public enum TexChannel
 {
-    RGB,
-    RGBA,
+    Rgb,
+    Rgba,
 }
 
 public enum TexFilter
@@ -24,24 +23,24 @@ public static class ChannelHelper
     {
         return colorComponents switch
         {
-            ColorComponents.RedGreenBlueAlpha => TexChannel.RGBA,
-            ColorComponents.RedGreenBlue => TexChannel.RGB,
+            ColorComponents.RedGreenBlueAlpha => TexChannel.Rgba,
+            ColorComponents.RedGreenBlue => TexChannel.Rgb,
             _ => throw new NotImplementedException()
         };
     }
 
 
-    public static GLEnum ToGLEnum(this TexChannel channel)
+    public static GLEnum ToGlEnum(this TexChannel channel)
     {
         return channel switch
         {
-            TexChannel.RGB => GLEnum.Rgb,
-            TexChannel.RGBA => GLEnum.Rgba,
+            TexChannel.Rgb => GLEnum.Rgb,
+            TexChannel.Rgba => GLEnum.Rgba,
             _ => throw new NotImplementedException()
         };
     }
 
-    public static GLEnum ToGLFilter (this TexFilter filter)
+    public static GLEnum ToGlFilter (this TexFilter filter)
     {
         return filter switch
         {
@@ -54,7 +53,7 @@ public static class ChannelHelper
 }
 public class Texture : AssetBase
 {
-    static int AssetVersion = 1;
+    private static int _assetVersion = 1;
     public uint TextureId { get; protected set; }
     public uint Width { get; set; }
     public uint Height { get; set; }
@@ -77,11 +76,11 @@ public class Texture : AssetBase
 
     public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var AssetMagicCode = br.ReadInt32();
-        if (AssetMagicCode != MagicCode.Asset)
+        var assetMagicCode = br.ReadInt32();
+        if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
-        var TextureMagicCode = br.ReadInt32();
-        if (TextureMagicCode != MagicCode.Texture)
+        var textureMagicCode = br.ReadInt32();
+        if (textureMagicCode != MagicCode.Texture)
             throw new Exception("");
         Width = br.ReadUInt32();
         Height = br.ReadUInt32();
@@ -99,11 +98,11 @@ public class Texture : AssetBase
         gl.BindTexture(GLEnum.Texture2D, TextureId);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.Repeat);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)Filter.ToGLFilter());
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)Filter.ToGLFilter());
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)Filter.ToGlFilter());
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)Filter.ToGlFilter());
         fixed (void* p = CollectionsMarshal.AsSpan(Pixels))
         {
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToGLEnum(), Width, Height, 0, Channel.ToGLEnum(), GLEnum.UnsignedByte, p);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToGlEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, p);
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
         ReleaseMemory();
@@ -114,9 +113,9 @@ public class Texture : AssetBase
     {
         Pixels = null;
     }
-    public static async Task<Texture> LoadFromFileAsync(string Path, bool GammaCorrection = false, bool FlipVertically = false)
+    public static async Task<Texture> LoadFromFileAsync(string path, bool gammaCorrection = false, bool flipVertically = false)
     {
-        return await Task.Run(() =>LoadFromFile(Path, GammaCorrection, FlipVertically));
+        return await Task.Run(() =>LoadFromFile(path, gammaCorrection, flipVertically));
     }
 
     public static Texture LoadFromMemory(byte[] data)
@@ -135,15 +134,15 @@ public class Texture : AssetBase
         throw new Exception("Load Texture error");
     }
 
-    public static Texture LoadFromFile(string Path, bool GammaCorrection = false, bool FlipVertically = false)
+    public static Texture LoadFromFile(string path, bool gammaCorrection = false, bool flipVertically = false)
     {
-        using var StreamReader = FileSystem.Instance.GetStreamReader(Path);
-        if (FlipVertically)
+        using var streamReader = FileSystem.Instance.GetStreamReader(path);
+        if (flipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(1);
         }
-        var imageResult = ImageResult.FromStream(StreamReader.BaseStream);
-        if (FlipVertically)
+        var imageResult = ImageResult.FromStream(streamReader.BaseStream);
+        if (flipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(0);
         }
@@ -153,22 +152,22 @@ public class Texture : AssetBase
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
-            if (GammaCorrection)
+            if (gammaCorrection)
                 Process(imageResult.Data);
             texture.Pixels.AddRange(imageResult.Data);
             return texture;
         }
         throw new Exception("Load Texture error");
     }
-    public unsafe static Texture CreateNoiseTexture(int Width, int Height)
+    public static Texture CreateNoiseTexture(int width, int height)
     {
         var texture = new Texture();
-        var data = new byte[Width * Height * 3];
-        for (int j = 0; j < Height; j++)
+        var data = new byte[width * height * 3];
+        for (int j = 0; j < height; j++)
         {
-            for (int i = 0; i < Width; i++)
+            for (int i = 0; i < width; i++)
             {
-                var index = (j * Width + i) * 3;
+                var index = (j * width + i) * 3;
                 Vector3 v = new Vector3
                 {
                     X = (float)Random.Shared.NextDouble(),
@@ -182,30 +181,32 @@ public class Texture : AssetBase
                 data[index + 2] = (byte)(255 * v.Z);
             }
         }
-        texture.Height = (uint)Height;
-        texture.Width = (uint)Width;
-        texture.Channel = TexChannel.RGB;
+        texture.Height = (uint)height;
+        texture.Width = (uint)width;
+        texture.Channel = TexChannel.Rgb;
         texture.Pixels.AddRange(data);
         return texture;
     }
-    internal static Texture LoadFromMemory(byte[] memory, bool GammaCorrection = false, bool FlipVertically = false)
+    internal static Texture LoadFromMemory(byte[] memory, bool gammaCorrection = false, bool flipVertically = false)
     {
-        if (FlipVertically)
+        if (flipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(1);
         }
         var imageResult = ImageResult.FromMemory(memory);
-        if (FlipVertically)
+        if (flipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(0);
         }
         if (imageResult != null)
         {
-            Texture texture = new Texture();
-            texture.Width = (uint)imageResult.Width;
-            texture.Height = (uint)imageResult.Height;
-            texture.Channel = imageResult.Comp.ToTexChannel();
-            if (GammaCorrection)
+            Texture texture = new Texture
+            {
+                Width = (uint)imageResult.Width,
+                Height = (uint)imageResult.Height,
+                Channel = imageResult.Comp.ToTexChannel()
+            };
+            if (gammaCorrection)
                 Process(imageResult.Data);
             texture.Pixels.AddRange(imageResult.Data);
             return texture;
@@ -213,13 +214,13 @@ public class Texture : AssetBase
         throw new Exception("Load Texture error");
     }
 
-    public unsafe static Texture LoadPBRTexture(byte[]? MetallicRoughness, byte[]? AO)
+    public static Texture LoadPbrTexture(byte[]? metallicRoughness, byte[]? AO)
     {
         ImageResult? mr = default;
         ImageResult? ao = default;
-        if (MetallicRoughness != null)
+        if (metallicRoughness != null)
         {
-            mr = ImageResult.FromMemory(MetallicRoughness);
+            mr = ImageResult.FromMemory(metallicRoughness);
         }
         if (AO != null)
         {
@@ -228,22 +229,22 @@ public class Texture : AssetBase
         var main = mr;
         if (main == null)
             main = ao;
-        var Height = 1;
-        var Width = 1;
+        var height = 1;
+        var width = 1;
         if (main != null)
         {
-            Height = main.Height;
-            Width = main.Width;
+            height = main.Height;
+            width = main.Width;
         }
 
-        var Data = new byte[Height * Width * 3];
-        for(int i = 0; i < Height * Width; i ++)
+        var data = new byte[height * width * 3];
+        for(int i = 0; i < height * width; i ++)
         {
             if (mr == null)
             {
 
-                Data[i * 3 + 2] = 0;
-                Data[i * 3 + 1] = 128;
+                data[i * 3 + 2] = 0;
+                data[i * 3 + 1] = 128;
             }
             else
             {
@@ -256,12 +257,12 @@ public class Texture : AssetBase
                     _ => 3
                 };
 
-                Data[i * 3 + 2] = mr.Data[i * step + 2];
-                Data[i * 3 + 1] = mr.Data[i * step + 1];
+                data[i * 3 + 2] = mr.Data[i * step + 2];
+                data[i * 3 + 1] = mr.Data[i * step + 1];
             }
             if (ao == null)
             {
-                Data[i * 3] = 255;
+                data[i * 3] = 255;
             }
             else
             {
@@ -274,14 +275,14 @@ public class Texture : AssetBase
                     _ => 3
                 };
 
-                Data[i * 3] = ao.Data[i * step];
+                data[i * 3] = ao.Data[i * step];
             }
         }
         Texture texture = new Texture();
-        texture.Width = (uint)Width;
-        texture.Height = (uint)Height;
-        texture.Channel = TexChannel.RGB;
-        texture.Pixels.AddRange(Data);
+        texture.Width = (uint)width;
+        texture.Height = (uint)height;
+        texture.Channel = TexChannel.Rgb;
+        texture.Pixels.AddRange(data);
         return texture;
 
     }

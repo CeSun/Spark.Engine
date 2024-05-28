@@ -224,10 +224,10 @@ public class SkyboxComponent : PrimitiveComponent
         }
     }
 
-    private TextureHDR? _SkyboxHDR;
+    private TextureHdr? _SkyboxHDR;
 
     [Property]
-    public TextureHDR? SkyboxHDR
+    public TextureHdr? SkyboxHDR
     {
         get => _SkyboxHDR;
         set

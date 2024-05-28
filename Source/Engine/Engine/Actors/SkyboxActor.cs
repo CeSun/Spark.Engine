@@ -1,10 +1,5 @@
 ﻿using Spark.Engine.Assets;
 using Spark.Engine.Components;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
@@ -16,5 +11,5 @@ public class SkyboxActor : Actor
         SkyboxComponent = new SkyboxComponent(this);
     }
 
-    public TextureHDR? SkyboxHDR { get => SkyboxComponent.SkyboxHDR; set => SkyboxComponent.SkyboxHDR = value; }
+    public TextureHdr? SkyboxHDR { get => SkyboxComponent.SkyboxHDR; set => SkyboxComponent.SkyboxHDR = value; }
 }

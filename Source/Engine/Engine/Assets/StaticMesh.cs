@@ -178,7 +178,7 @@ public class StaticMesh : AssetBase
                         }
 
                     }
-                    Texture Arm = Texture.LoadPBRTexture(MetallicRoughness, AmbientOcclusion);
+                    Texture Arm = Texture.LoadPbrTexture(MetallicRoughness, AmbientOcclusion);
                     Material.Arm = Arm;
                     sm.Elements.Add(new Element<StaticMeshVertex>
                     {

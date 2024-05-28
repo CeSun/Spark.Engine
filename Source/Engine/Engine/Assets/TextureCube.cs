@@ -39,8 +39,8 @@ public class SubTexture : AssetBase
 }
 public class TextureCube : ISerializable
 {
-    static GLEnum[] TexTargets = new[]
-    {
+    private static readonly GLEnum[] TexTargets =
+    [
         GLEnum.TextureCubeMapPositiveX,
         GLEnum.TextureCubeMapNegativeX,
 
@@ -49,46 +49,45 @@ public class TextureCube : ISerializable
 
         GLEnum.TextureCubeMapPositiveZ,
         GLEnum.TextureCubeMapNegativeZ
-    };
-    static string[] Attributes = new[]{
-            "Right",
+    ];
+
+    private static readonly string[] Attributes =
+    [
+        "Right",
             "Left",
             "Up",
             "Down",
             "Back",
-            "Front",
-        };
-
-    public TextureCube()
-    {
-
-    }
+            "Front"
+    ];
 
     public uint TextureId;
 
-    List<SubTexture> Textures = new List<SubTexture>();
+    List<SubTexture> _textures = [];
 
-    private static SubTexture LoadSubTexture(string Path)
+    private static SubTexture LoadSubTexture(string path)
     {
-        using var StreamReader = FileSystem.Instance.GetStreamReader("Content" + Path);
-        var imageResult = ImageResult.FromStream(StreamReader.BaseStream);
+        using var streamReader = FileSystem.Instance.GetStreamReader("Content" + path);
+        var imageResult = ImageResult.FromStream(streamReader.BaseStream);
         if (imageResult != null)
         {
-            SubTexture texture = new SubTexture();
-            texture.Width = (uint)imageResult.Width;
-            texture.Height = (uint)imageResult.Height;
-            texture.Channel = imageResult.Comp.ToTexChannel();
+            var texture = new SubTexture
+            {
+                Width = (uint)imageResult.Width,
+                Height = (uint)imageResult.Height,
+                Channel = imageResult.Comp.ToTexChannel()
+            };
             texture.Pixels.AddRange(imageResult.Data);
             return texture;
         }
         throw new Exception("Load Texture error");
     }
-    public async static Task<TextureCube> LoadAsync(string Path)
+    public static async Task<TextureCube> LoadAsync(string path)
     {
-        return await Task.Run(() => Load(Path));
+        return await Task.Run(() => Load(path));
     }
 
-    public unsafe static TextureCube Load(string Path)
+    public static unsafe TextureCube Load(string Path)
     {
         TextureCube textureCube = new TextureCube();
         using var sr = FileSystem.Instance.GetStreamReader("Content" + Path + ".TextureCube");
@@ -109,8 +108,8 @@ public class TextureCube : ISerializable
             if (path == null)
                 throw new Exception($"{Attributes[i]} attribute is null");
 
-            using var StreamReader = FileSystem.Instance.GetStreamReader("Content" + jpgpath + "/" + path.ToString());
-            var imageResult = ImageResult.FromStream(StreamReader.BaseStream);
+            using var streamReader = FileSystem.Instance.GetStreamReader("Content" + jpgpath + "/" + path.ToString());
+            var imageResult = ImageResult.FromStream(streamReader.BaseStream);
             if (imageResult == null)
                 throw new Exception("Load Texture error");
 
@@ -120,7 +119,7 @@ public class TextureCube : ISerializable
             texture.Channel = imageResult.Comp.ToTexChannel();
             texture.Pixels.AddRange(imageResult.Data);
             texture.Target = TexTargets[i];
-            textureCube.Textures.Add(texture);
+            textureCube._textures.Add(texture);
 
 
         }
@@ -136,12 +135,12 @@ public class TextureCube : ISerializable
         TextureId = gl.GenTexture();
         gl.BindTexture(GLEnum.TextureCubeMap, TextureId);
         
-        foreach(var tex in Textures)
+        foreach(var tex in _textures)
         {
 
             fixed (void* data = CollectionsMarshal.AsSpan(tex.Pixels))
             {
-                gl.TexImage2D(tex.Target, 0, (int)tex.Channel.ToGLEnum(), tex.Width, tex.Height, 0, tex.Channel.ToGLEnum(), GLEnum.UnsignedByte, data);
+                gl.TexImage2D(tex.Target, 0, (int)tex.Channel.ToGlEnum(), tex.Width, tex.Height, 0, tex.Channel.ToGlEnum(), GLEnum.UnsignedByte, data);
             }
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
@@ -155,15 +154,15 @@ public class TextureCube : ISerializable
 
     public void ReleaseMemory()
     {
-        Textures = null;
+        _textures = null;
     }
 
     public void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
         bw.WriteInt32(MagicCode.TextureCube);
-        bw.WriteInt32(Textures.Count);
-        foreach(var texture in Textures)
+        bw.WriteInt32(_textures.Count);
+        foreach(var texture in _textures)
         {
             texture.Serialize(bw, engine);
         }
@@ -171,18 +170,18 @@ public class TextureCube : ISerializable
 
     public void Deserialize(BinaryReader br, Engine engine)
     {
-        var AssetMagicCode = br.ReadInt32();
-        if (AssetMagicCode != MagicCode.Asset)
+        var assetMagicCode = br.ReadInt32();
+        if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
-        var TextureMagicCode = br.ReadInt32();
-        if (TextureMagicCode != MagicCode.TextureCube)
+        var textureMagicCode = br.ReadInt32();
+        if (textureMagicCode != MagicCode.TextureCube)
             throw new Exception("");
         var count = br.ReadInt32();
         for(int i = 0; i < count; i++)
         {
             var texture = new SubTexture();
             texture.Deserialize(br, engine);
-            Textures.Add(texture);
+            _textures.Add(texture);
         }
     }
 }
