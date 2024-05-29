@@ -25,21 +25,10 @@ public class MainActivity : SilkActivity
             args = str.Split(" ");
         }
     }
-    protected override void OnResume()
-    {
-        base.OnResume();
 
-        using (var sw = new StreamWriter(ApplicationContext.GetExternalFilesDir("") + "/123.txt"))
-        {
-            sw.WriteLine("2134");
-        }
-
-        var b = File.Exists(ApplicationContext.GetExternalFilesDir("") + "/123.txt");
-        
-    }
     protected override void OnRun()
     {
-        if (Assets == null)
+        if (Assets == null || ApplicationContext== null)
             throw new Exception("Asset²»Ö§³Ö");
        
         SdlWindowing.RegisterPlatform();
@@ -47,33 +36,26 @@ public class MainActivity : SilkActivity
         
         var options = ViewOptions.Default;
         options.API = new GraphicsAPI(ContextAPI.OpenGLES, ContextProfile.Core, ContextFlags.Default, new APIVersion(3, 2));
-        Engine Engine = new Engine();
-        FileSystem.Init(new AndroidFileSystem(ApplicationContext));
-        using (var view = Silk.NET.Windowing.Window.GetView(options))
+
+        using var view = Silk.NET.Windowing.Window.GetView(options);
+        view.Load += () =>
         {
-            var InitFun = () =>
+            Engine engine = new Engine(args, new AndroidPlatform
             {
-                Engine.InitEngine(args, new Dictionary<string, object>
-                {
-                { "OpenGL", GL.GetApi(view) },
-                { "WindowSize", new System.Drawing.Point(view.Size.X , view.Size.Y) },
-                { "InputContext", view.CreateInput()},
-                { "FileSystem", FileSystem.Instance},
-                { "View", view },
-                { "IsMobile", true },
-                { "DefaultFBOID", 0 }
-                });
-            };
+                FileSystem = new AndroidFileSystem(ApplicationContext),
+                GraphicsApi = GL.GetApi(view),
+                InputContext = view.CreateInput(),
+                View = view
+            });
 
-            view.Render += Engine.Render;
-            view.Update += Engine.Update;
-            view.Load += (InitFun + Engine.Start);
-            view.Closing += Engine.Stop;
-            view.Resize += size => Engine.Resize(size.X, size.Y);
+            view.Render += engine.Render;
+            view.Update += engine.Update;
+            view.Closing += engine.Stop;
+            view.Resize += size => engine.Resize(size.X, size.Y);
+        };
 
-            view.Run();
-        }
 
+        view.Run();
     }
 
 }

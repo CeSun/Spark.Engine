@@ -4,6 +4,7 @@ using Silk.NET.OpenGLES;
 using Spark.Engine;
 using Silk.NET.Maths;
 using System.Drawing;
+using Desktop;
 using Silk.NET.Input;
 using Silk.NET.Windowing.Glfw;
 using Silk.NET.Input.Glfw;
@@ -20,7 +21,7 @@ option.Size = new Vector2D<int>(800, 600);
 
 
 
-Engine? engine = null;
+Engine? engine;
 var window = Window.Create(option);
 GL? gl = null;
 
@@ -28,18 +29,13 @@ window.Load += () =>
 {
     gl = GL.GetApi(window);
 
-    FileSystem.Init(new Desktop.DesktopFileSystem());
-    engine = new Engine(args, new Dictionary<string, object>
+    engine = new Engine(args, new DesktopPlatform()
     {
-        { "OpenGL", gl },
-        { "WindowSize", new Point(option.Size.X , option.Size.Y) },
-        { "InputContext", window.CreateInput()},
-        { "FileSystem", FileSystem.Instance},
-        { "View", window },
-        { "IsMobile", false },
-        { "DefaultFBOID", 0 }
+        FileSystem = new DesktopFileSystem(),
+        GraphicsApi = gl,
+        InputContext = window.CreateInput(),
+        View = window,
     });
-
 
     window.Render += engine.Render;
     window.Update += engine.Update;

@@ -17,37 +17,27 @@ public partial class Engine
 {
     public AssetMgr AssetMgr { get; private set; }
     public SingleThreadSyncContext? SyncContext { get; private set; }
-    public List<Action> NextFrame { get; private set; }
+    public List<Action> NextFrame { get; private set; } = [];
     private List<string> Args { get; } = [];
-    public bool IsMobile { private set; get; }
-
-    public bool IsDs = false;
 
     public World? MainWorld;
-
-    public uint DefaultFboId ;
 
     public List<BaseSubSystem> SubSystems = [];
 
     public Dictionary<string, bool> SubsystemConfigs= [];
-    public Engine(string[] args, Dictionary<string, object> objects)
+    public Engine(string[] args, IPlatform platform)
     {
-        if (SynchronizationContext.Current == null)
-        {
-            SyncContext = new SingleThreadSyncContext();
-            SynchronizationContext.SetSynchronizationContext(SyncContext);
-        }
-        NextFrame = [];
+        SyncContext = new SingleThreadSyncContext();
+        SynchronizationContext.SetSynchronizationContext(SyncContext);
+
         AssetMgr = new AssetMgr{ Engine = this };
 
         Args.AddRange(args);
-        GraphicsApi = (GL)objects["OpenGL"];
-        WindowSize = (Point)objects["WindowSize"];
-        Input = (IInputContext)objects["InputContext"];
-        IsMobile = (bool)objects["IsMobile"];
-        DefaultFboId = (uint)(int)objects["DefaultFBOID"];
-        View = (IView)objects["View"];
-        FileSystem = (FileSystem)objects["FileSystem"];
+        Platform = platform;
+
+        IFileSystem.Init(platform.FileSystem);
+
+        WindowSize = new Point(View.Size.X, View.Size.Y);
         MainWorld = new World(this);
         MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTarget(this.WindowSize.X, this.WindowSize.Y);
         Worlds.Add(MainWorld);
@@ -63,7 +53,7 @@ public partial class Engine
         LoadSubsystem();
 
     }
-    public IView View { get; }
+
 
     public List<World> Worlds = [];
   
@@ -123,7 +113,7 @@ public partial class Engine
             if (v == false)
                 continue;
             var obj = Activator.CreateInstance(type, [this]);
-            if (obj != null && obj is BaseSubSystem subsystem)
+            if (obj is BaseSubSystem subsystem)
             {
                 SubSystems.Add(subsystem);
             }
@@ -226,12 +216,14 @@ public partial class Engine
 
 public partial class Engine
 {
-    public GL GraphicsApi { get; set; }
-    public IInputContext Input { get; set; }
 
+    public IPlatform Platform { get; private set; }
+    public GL GraphicsApi => Platform.GraphicsApi;
+    public IInputContext Input => Platform.InputContext;
+    public IFileSystem FileSystem => Platform.FileSystem;
+    public bool IsMobile => Platform.IsMobile;
 
-    public FileSystem FileSystem { get; set; }
-
+    public IView View => Platform.View;
 
 
     public IKeyboard MainKeyBoard

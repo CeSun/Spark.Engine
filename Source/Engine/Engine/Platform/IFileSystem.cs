@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Platform;
 
-public interface FileSystem
+public interface IFileSystem
 {
-    public static FileSystem Instance 
+    public static IFileSystem Instance 
     {
         get
         {
@@ -18,15 +18,15 @@ public interface FileSystem
         }
     }
 
-    private static FileSystem? _Intance;
+    private static IFileSystem? _Intance;
 
-    public static void Init(FileSystem fileSystem)
+    public static void Init(IFileSystem fileSystem)
     {
         _Intance = fileSystem;
     }
     string LoadText(string path);
 
-    bool FileExits(string Path);
+    bool FileExits(string path);
     StreamReader GetStreamReader(string path);
 
     StreamWriter GetStreamWriter(string path);

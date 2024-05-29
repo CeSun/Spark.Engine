@@ -84,14 +84,14 @@ public partial class SkeletalMesh
 {
     public static List<AssetBase> ImportFromGlb(string path)
     {
-        using var sr = FileSystem.Instance.GetStreamReader( path);
+        using var sr = IFileSystem.Instance.GetStreamReader( path);
         return ImportFromGlb(sr.BaseStream);
     }
 
 
     public static async Task<List<AssetBase>> ImportFromGlbAsync(string path)
     {
-        using var sr = FileSystem.Instance.GetStreamReader( path);
+        using var sr = IFileSystem.Instance.GetStreamReader( path);
         return await ImportFromGlbAsync(sr.BaseStream);
     }
 

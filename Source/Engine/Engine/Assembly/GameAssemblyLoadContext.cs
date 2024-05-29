@@ -49,10 +49,5 @@ namespace Spark.Engine.Assembly
                 return base.Load(assemblyName);
             }
         }
-
-        protected override nint LoadUnmanagedDll(string unmanagedDllName)
-        {
-            return base.LoadUnmanagedDll(unmanagedDllName);
-        }
     }
 }

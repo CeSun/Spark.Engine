@@ -66,7 +66,7 @@ public class EditorSubsystem : BaseSubSystem
         var SkyboxComponent = new SkyboxComponent(SkyboxActor);
 
         /*
-        using (var sw = FileSystem.Instance.GetStreamWriter("SkyboxHDR.asset"))
+        using (var sw = IFileSystem.Instance.GetStreamWriter("SkyboxHDR.asset"))
         {
             TextureHDR.LoadFromFile("kloofendal_43d_clear_puresky_2k.hdr").Serialize(new BinaryWriter(sw.BaseStream), CurrentEngine);
         }

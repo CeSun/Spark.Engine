@@ -67,7 +67,7 @@ public class TextureCube : ISerializable
 
     private static SubTexture LoadSubTexture(string path)
     {
-        using var streamReader = FileSystem.Instance.GetStreamReader("Content" + path);
+        using var streamReader = IFileSystem.Instance.GetStreamReader("Content" + path);
         var imageResult = ImageResult.FromStream(streamReader.BaseStream);
         if (imageResult != null)
         {
@@ -90,7 +90,7 @@ public class TextureCube : ISerializable
     public static unsafe TextureCube Load(string Path)
     {
         TextureCube textureCube = new TextureCube();
-        using var sr = FileSystem.Instance.GetStreamReader("Content" + Path + ".TextureCube");
+        using var sr = IFileSystem.Instance.GetStreamReader("Content" + Path + ".TextureCube");
 
         var jstext = sr.ReadToEnd();
         var Object = JsonNode.Parse(jstext);
@@ -108,7 +108,7 @@ public class TextureCube : ISerializable
             if (path == null)
                 throw new Exception($"{Attributes[i]} attribute is null");
 
-            using var streamReader = FileSystem.Instance.GetStreamReader("Content" + jpgpath + "/" + path.ToString());
+            using var streamReader = IFileSystem.Instance.GetStreamReader("Content" + jpgpath + "/" + path.ToString());
             var imageResult = ImageResult.FromStream(streamReader.BaseStream);
             if (imageResult == null)
                 throw new Exception("Load Texture error");

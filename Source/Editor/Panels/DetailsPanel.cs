@@ -409,7 +409,7 @@ namespace Editor.Panels
                     IsModifyInput = true;
                     
                 }
-                if (IsModifyInput && FileSystem.Instance.FileExits(path))
+                if (IsModifyInput && IFileSystem.Instance.FileExits(path))
                 {
                     if (path == "")
                     {

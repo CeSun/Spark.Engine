@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Desktop;
 
-public class DesktopFileSystem : FileSystem
+public class DesktopFileSystem : IFileSystem
 {
     public Stream GetStream(string path)
     {

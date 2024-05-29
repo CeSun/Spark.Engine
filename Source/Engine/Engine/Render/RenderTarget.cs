@@ -72,7 +72,7 @@ public class RenderTarget : IDisposable
         Height = height;
         if (IsViewport == true)
         {
-            BufferId = Engine.DefaultFboId;
+            BufferId = 0;
             BufferWidth = width;
             BufferHeight = height;
             return;

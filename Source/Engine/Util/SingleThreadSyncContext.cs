@@ -1,57 +1,30 @@
-﻿using System.Diagnostics;
-using System.Threading;
-
-namespace Spark.Util;
+﻿namespace Spark.Util;
 
 public class SingleThreadSyncContext : SynchronizationContext
 {
+    readonly List<TaskInfo> _taskList = [];
 
-    public SingleThreadSyncContext()
-    {
-        ThreadId = Thread.CurrentThread.ManagedThreadId;
-    }
+    readonly List<TaskInfo> _tempList = [];
 
-    public T ExecuteOnGameThread<T>(Func<T> fun)
-    {
-        Stopwatch sw = Stopwatch.StartNew();
-        T? res = default;
-        Send(d => res = fun(), null);
-        sw.Stop();
-        Console.WriteLine("===============================");
-        Console.WriteLine($"Time:  {sw.ElapsedMilliseconds}ms");
-
-        StackTrace st = new StackTrace(true);
-        Console.WriteLine(st.ToString());
-        Console.WriteLine("===============================");
-        return res;
-    }
-
-    public void ExecuteOnGameThread(Action fun)
-    {
-        Send(d=> fun(), null);
-    }
-
-    List<TaskInfo> TaskList = new List<TaskInfo>();
-    List<TaskInfo> TempList = new List<TaskInfo>();
-    private int ThreadId;
+    private readonly int _threadId = Thread.CurrentThread.ManagedThreadId;
     public void Tick()
     {
-        lock (TaskList)
+        lock (_taskList)
         {
-            TempList.AddRange(TaskList);
-            TaskList.Clear();
+            _tempList.AddRange(_taskList);
+            _taskList.Clear();
         }
-        foreach (var task in TempList)
+        foreach (var task in _tempList)
         {
             task.Invoke();
         }
-        TempList.Clear();
+        _tempList.Clear();
     }
     public override void Post(SendOrPostCallback d, object? state)
     {
-        lock (TaskList)
+        lock (_taskList)
         {
-            TaskList.Add(new TaskInfo
+            _taskList.Add(new TaskInfo
             {
                 CallBack = d,
                 State = state
@@ -61,24 +34,22 @@ public class SingleThreadSyncContext : SynchronizationContext
 
     public override void Send(SendOrPostCallback d, object? state)
     {
-        if (Thread.CurrentThread.ManagedThreadId == ThreadId)
+        if (Thread.CurrentThread.ManagedThreadId == _threadId)
         {
             d(state);
             return;
         }
-        using (var waitHandle = new ManualResetEvent(false))
+        using var waitHandle = new ManualResetEvent(false);
+        lock (_taskList)
         {
-            lock (TaskList)
+            _taskList.Add(new TaskInfo
             {
-                TaskList.Add(new TaskInfo
-                {
-                    CallBack = d,
-                    State = state,
-                    WaitHandle = waitHandle
-                });
-            }
-            waitHandle.WaitOne();
+                CallBack = d,
+                State = state,
+                WaitHandle = waitHandle
+            });
         }
+        waitHandle.WaitOne();
     }
 
 }

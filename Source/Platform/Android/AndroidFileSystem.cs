@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Android;
 
-public class AndroidFileSystem : FileSystem
+public class AndroidFileSystem : IFileSystem
 {
     public AndroidFileSystem(Context ApplicationContext)
     {
