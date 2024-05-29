@@ -43,7 +43,6 @@ public class StaticMeshComponent : PrimitiveComponent
                 BoundingBox.Box.MaxPoint = box.MaxPoint;
                 BoundingBox.Box.MinPoint = box.MinPoint;
             }
-            Engine.NextFrame.Add(InitRender);
         }
     }
     public StaticMeshComponent(Actor actor) : base(actor)
@@ -115,19 +114,5 @@ public class StaticMeshComponent : PrimitiveComponent
         }
     }
 
-    public void InitRender()
-    {
-        if (StaticMesh == null)
-            return;
-        StaticMesh.InitRender(gl);
-        foreach (var element in StaticMesh.Elements)
-        {
-            foreach (var texture in
-            element.Material.Textures)
-            {
-                if (texture != null)
-                    texture.InitRender(gl);
-            }
-        }
-    }
+
 }

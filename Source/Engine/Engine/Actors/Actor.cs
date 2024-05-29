@@ -52,7 +52,7 @@ public partial class Actor
         }
         CurrentLevel = level;
         level.RegisterActor(this);
-        CurrentLevel.Engine.NextFrame.Add(BeginPlay);
+        CurrentLevel.Engine.NextFrame.Add(_ => BeginPlay());
         if (ReceieveUpdate == true)
         {
             CurrentLevel.UpdateManager.RegisterUpdate(Update);

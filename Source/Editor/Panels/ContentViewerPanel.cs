@@ -3,6 +3,7 @@ using Editor.Subsystem;
 using ImGuiNET;
 using Spark.Engine;
 using Spark.Engine.Assets;
+using Spark.Engine.Editor;
 using Spark.Engine.GUI;
 using System;
 using System.Collections.Generic;
@@ -54,7 +55,7 @@ public class ContentViewerPanel : ImGUIWindow
             var Extension = Path.GetExtension(path);
             if (Extension == ".bmp" || Extension == ".png" || Extension == ".tga")
             {
-                assets.Add((Spark.Engine.Assets.Texture.LoadFromFile(path), path));
+                assets.Add((EditorSubsystem.CurrentEngine.ImportTextureFromFile(path, new ImportTextureSetting { }), path));
             }
             else if (Extension == ".hdr")
             {

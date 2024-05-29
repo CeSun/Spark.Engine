@@ -105,19 +105,10 @@ public class Texture : AssetBase
             gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToGlEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, p);
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
-        ReleaseMemory();
+        Pixels = [];
     }
 
-
-    public void ReleaseMemory()
-    {
-        Pixels = null;
-    }
-    public static async Task<Texture> LoadFromFileAsync(string path, bool gammaCorrection = false, bool flipVertically = false)
-    {
-        return await Task.Run(() =>LoadFromFile(path, gammaCorrection, flipVertically));
-    }
-
+  
     public static Texture LoadFromMemory(byte[] data)
     {
 
@@ -134,31 +125,6 @@ public class Texture : AssetBase
         throw new Exception("Load Texture error");
     }
 
-    public static Texture LoadFromFile(string path, bool gammaCorrection = false, bool flipVertically = false)
-    {
-        using var streamReader = IFileSystem.Instance.GetStreamReader(path);
-        if (flipVertically)
-        {
-            StbImage.stbi_set_flip_vertically_on_load(1);
-        }
-        var imageResult = ImageResult.FromStream(streamReader.BaseStream);
-        if (flipVertically)
-        {
-            StbImage.stbi_set_flip_vertically_on_load(0);
-        }
-        if (imageResult != null)
-        {
-            Texture texture = new Texture();
-            texture.Width = (uint)imageResult.Width;
-            texture.Height = (uint)imageResult.Height;
-            texture.Channel = imageResult.Comp.ToTexChannel();
-            if (gammaCorrection)
-                Process(imageResult.Data);
-            texture.Pixels.AddRange(imageResult.Data);
-            return texture;
-        }
-        throw new Exception("Load Texture error");
-    }
     public static Texture CreateNoiseTexture(int width, int height)
     {
         var texture = new Texture();

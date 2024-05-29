@@ -17,7 +17,9 @@ public partial class Engine
 {
     public AssetMgr AssetMgr { get; private set; }
     public SingleThreadSyncContext? SyncContext { get; private set; }
-    public List<Action> NextFrame { get; private set; } = [];
+    public List<Action<GL>> NextRenderFrame { get; private set; } = [];
+
+    public List<Action<double>> NextFrame { get; private set; } = [];
     private List<string> Args { get; } = [];
 
     public World? MainWorld;
@@ -168,9 +170,9 @@ public partial class Engine
     public void Update(double deltaTime)
     {
         var count = NextFrame.Count;
-        for(int i = 0; i < count; i++)
+        for (int i = 0; i < count; i++)
         {
-            NextFrame[i]();
+            NextFrame[i](deltaTime);
         }
         NextFrame.Clear();
         SyncContext?.Tick();
@@ -187,6 +189,12 @@ public partial class Engine
 
     public void Render(double deltaTime)
     {
+        var count = NextRenderFrame.Count;
+        for (int i = 0; i < count; i++)
+        {
+            NextRenderFrame[i](GraphicsApi);
+        }
+        NextRenderFrame.Clear();
         Worlds.ForEach(world => world.Render(deltaTime));
     }
 
