@@ -49,7 +49,7 @@ public class LevelPanel : ImGUIWindow
 
             if(ImGui.IsItemHovered())
             {
-                if (ImGui.IsMouseDown(ImGuiMouseButton.Left) && IsPressed == false)
+                if (ImGui.IsMouseDown(ImGuiMouseButton.Right) && IsPressed == false)
                 {
                     if (ImGui.IsMouseHoveringRect(min, max))
                     {
@@ -95,11 +95,12 @@ public class LevelPanel : ImGUIWindow
             {
                 var currentPos = ImGui.GetMousePos();
                 var deltaPos = currentPos - PressedPosition;
-                EditorSubsystem.EditorCameraActor.WorldRotation *= Quaternion.CreateFromYawPitchRoll(-1 * deltaPos.X.DegreeToRadians(), -1 *  deltaPos.Y.DegreeToRadians(), 0);
-                PressedPosition = currentPos;
+                var euler = EditorSubsystem.EditorCameraActor.WorldRotation.ToEuler();
+                EditorSubsystem.EditorCameraActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(euler.Y - deltaPos.X.DegreeToRadians(), euler.X - deltaPos.Y.DegreeToRadians(), 0);
+               PressedPosition = currentPos;
             }
         }
-        if (IsPressed == true && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+        if (IsPressed == true && ImGui.IsMouseReleased(ImGuiMouseButton.Right))
         {
             IsPressed = false;
         }

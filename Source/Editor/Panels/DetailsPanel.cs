@@ -216,7 +216,7 @@ namespace Editor.Panels
             foreach (PropertyInfo property in type.GetProperties())
             {
                 var att = property.GetCustomAttribute<PropertyAttribute>();
-                if (att != null && att.IsDispaly == true)
+                if (att != null && att.IsDisplay == true)
                 {
                     properties.Add((att, property));
                 }

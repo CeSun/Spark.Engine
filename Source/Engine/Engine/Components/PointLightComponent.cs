@@ -42,7 +42,7 @@ public class PointLightComponent : LightComponent
 
 
     private float _AttenuationRadius;
-    [Property(DisplayName = "FalloffRadius", IsDispaly = true, IsReadOnly = false)]
+    [Property(DisplayName = "FalloffRadius", IsDisplay = true, IsReadOnly = false)]
     public float AttenuationRadius
     {
         get => _AttenuationRadius;

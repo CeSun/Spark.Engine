@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Spark.Engine.Attributes
 {
     [AttributeUsage(AttributeTargets.Class)]
-    public class ActorInfo : Attribute
+    public class ActorInfoAttribute : Attribute
     {
         public string Group { get; set; } = "NoGroup";
 

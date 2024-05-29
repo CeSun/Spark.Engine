@@ -104,7 +104,8 @@ public class ImGuiSystem
                 }
                 if (FileSystem.Instance.FileExits(CurrentLevel.Engine.GameName + "/ImguiLayout.ini"))
                 {
-                    ImGui.LoadIniSettingsFromMemory(FileSystem.Instance.GetStreamReader(CurrentLevel.Engine.GameName + "/ImguiLayout.ini").ReadToEnd());
+                    using var sr = FileSystem.Instance.GetStreamReader(CurrentLevel.Engine.GameName + "/ImguiLayout.ini");
+                    ImGui.LoadIniSettingsFromMemory(sr.ReadToEnd());
                 }
             });
         

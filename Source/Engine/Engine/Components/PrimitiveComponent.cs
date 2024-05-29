@@ -273,7 +273,7 @@ public partial class PrimitiveComponent
         }
     }
 
-    [Property(IsDispaly = false)]
+    [Property(IsDisplay = false)]
     public Matrix4x4 RelativeTransform
     {
         get => MatrixHelper.CreateTransform(RelativeLocation, RelativeRotation, RelativeScale);

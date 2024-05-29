@@ -9,14 +9,14 @@ public class LightComponent : PrimitiveComponent
 {
     private float _LightStrength = 1f;
 
-    [Property (DisplayName = "LightStrength", IsDispaly = true, IsReadOnly = false)]
+    [Property (DisplayName = "LightStrength", IsDisplay = true, IsReadOnly = false)]
     public float LightStrength
     {
         get => _LightStrength;
         set => _LightStrength = value;
     }
 
-    [Property(DisplayName = "Color", IsDispaly = true, IsReadOnly = false)]
+    [Property(DisplayName = "Color", IsDisplay = true, IsReadOnly = false)]
     public Color Color
     {
         get

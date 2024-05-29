@@ -36,7 +36,7 @@ public class PlaceActorsPanel : ImGUIWindow
         {
             if (type.IsSubclassOf(typeof(Actor)))
             {
-                var att = type.GetCustomAttribute<ActorInfo>();
+                var att = type.GetCustomAttribute<ActorInfoAttribute>();
                 if (att != null)
                 {
                     if (att.DisplayOnEditor == false)
