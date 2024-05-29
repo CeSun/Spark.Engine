@@ -49,7 +49,7 @@ public class ImGuiSystem
     private ImFontPtr LoadFont(string Path, int fontSize, nint glyphRanges)
     {
         List<byte> data = new List<byte>();
-        using (var sr = FileSystem.Instance.GetStreamReader(Path))
+        using (var sr = CurrentLevel.Engine.FileSystem.GetStreamReader(Path))
         {
             var br = new BinaryReader(sr.BaseStream);
 
@@ -102,9 +102,9 @@ public class ImGuiSystem
                     var io = ImGui.GetIO();
                     io.WantSaveIniSettings = false;
                 }
-                if (FileSystem.Instance.FileExits(CurrentLevel.Engine.GameName + "/ImguiLayout.ini"))
+                if (CurrentLevel.Engine.FileSystem.FileExits(CurrentLevel.Engine.GameName + "/ImguiLayout.ini"))
                 {
-                    using var sr = FileSystem.Instance.GetStreamReader(CurrentLevel.Engine.GameName + "/ImguiLayout.ini");
+                    using var sr = CurrentLevel.Engine.FileSystem.GetStreamReader(CurrentLevel.Engine.GameName + "/ImguiLayout.ini");
                     ImGui.LoadIniSettingsFromMemory(sr.ReadToEnd());
                 }
             });
@@ -137,7 +137,7 @@ public class ImGuiSystem
         if (CurrentLevel.CurrentWorld.Engine.IsMobile)
             return;
         var ini = ImGui.SaveIniSettingsToMemory();
-        using(var sw = FileSystem.Instance.GetStreamWriter(CurrentLevel.Engine.GameName + "/ImguiLayout.ini"))
+        using(var sw = CurrentLevel.Engine.FileSystem.GetStreamWriter(CurrentLevel.Engine.GameName + "/ImguiLayout.ini"))
         {
             sw.Write(ini);
         }

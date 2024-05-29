@@ -39,9 +39,9 @@ namespace Spark.Engine.Assembly
                     }
                 }
             }
-            if (FileSystem.Instance.FileExits($"{engine.GameName}/{assemblyName.Name}.dll"))
+            if (engine.FileSystem.FileExits($"{engine.GameName}/{assemblyName.Name}.dll"))
             {
-                using var stream = FileSystem.Instance.GetStreamReader($"{engine.GameName}/{assemblyName.Name}.dll");
+                using var stream = engine.FileSystem.GetStreamReader($"{engine.GameName}/{assemblyName.Name}.dll");
                 return this.LoadFromStream(stream.BaseStream);
             }
             else

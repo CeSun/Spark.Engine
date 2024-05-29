@@ -49,7 +49,7 @@ public class World
     public void BeginPlay()
     {
         OnBeginPlay();
-        if (Engine.MainWorld == this && Engine.GameConfig.DefaultLevel != null && FileSystem.Instance.FileExits(Engine.GameConfig.DefaultLevel) == true)
+        if (Engine.MainWorld == this && Engine.FileSystem.FileExits(Engine.GameConfig.DefaultLevel))
         {
             OpenLevel(Engine.GameConfig.DefaultLevel);
         }
@@ -58,7 +58,7 @@ public class World
             CurrentLevel = new Level(this); ;
             new GameMode(CurrentLevel);
 
-            using(var sw = FileSystem.Instance.GetStreamWriter("level"))
+            using(var sw = Engine.FileSystem.GetStreamWriter("level"))
             {
                 CurrentLevel.Serialize(new BinaryWriter(sw.BaseStream), Engine);
             }
@@ -92,12 +92,11 @@ public class World
         {
             CurrentLevel.Destory();
         }
-        using (var stream = FileSystem.Instance.GetStreamReader(path))
-        {
-            CurrentLevel = new Level(this);
-            CurrentLevel.Deserialize(new BinaryReader(stream.BaseStream), Engine);
-            CurrentLevel.BeginPlay();
-        }
+
+        using var stream = Engine.FileSystem.GetStreamReader(path);
+        CurrentLevel = new Level(this);
+        CurrentLevel.Deserialize(new BinaryReader(stream.BaseStream), Engine);
+        CurrentLevel.BeginPlay();
     }
 
     public void CreateLevel(string path)

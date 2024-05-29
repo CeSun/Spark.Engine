@@ -27,7 +27,7 @@ public class AssetMgr
 
     public AssetBase Reload(Type assetType, string path) 
     {
-        var stream = FileSystem.Instance.GetStreamReader(path);
+        var stream = Engine.FileSystem.GetStreamReader(path);
         var asset = (AssetBase)Activator.CreateInstance(assetType)!;
         asset.Deserialize(new BinaryReader(stream.BaseStream), Engine);
         _assets[path] = asset;
@@ -36,7 +36,7 @@ public class AssetMgr
     }
     public T Reload<T>(string path) where T : AssetBase, ISerializable, new()
     {
-        var stream = FileSystem.Instance.GetStreamReader(path);
+        var stream = Engine.FileSystem.GetStreamReader(path);
         var asset = new T();
         asset.Deserialize(new BinaryReader(stream.BaseStream), Engine);
         _assets[path] = asset;

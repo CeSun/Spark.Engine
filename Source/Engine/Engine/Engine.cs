@@ -133,12 +133,12 @@ public partial class Engine
     }
     public void LoadGameDll()
     {
-        using var stream =  FileSystem.Instance.GetStreamReader($"{GameName}/{GameName}.dll");
+        using var stream =  FileSystem.GetStreamReader($"{GameName}/{GameName}.dll");
         GameAssemblyLoadContext.Instance.LoadFromStream(stream.BaseStream);
     }
     public void LoadSetting()
     {
-        var text = FileSystem.Instance.LoadText($"{GameName}/DefaultGame.ini");
+        var text = FileSystem.LoadText($"{GameName}/DefaultGame.ini");
         var parser =new IniDataParser();
         var ini = parser.Parse(text);
         var defaultGameMode = ini["Game"]["DefaultGameMode"];
