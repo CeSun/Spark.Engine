@@ -20,15 +20,16 @@ option.Size = new Vector2D<int>(800, 600);
 
 
 
-var Engine = new Engine();
+Engine? engine = null;
 var window = Window.Create(option);
 GL? gl = null;
-var InitFun = () =>
+
+window.Load += () =>
 {
     gl = GL.GetApi(window);
 
     FileSystem.Init(new Desktop.DesktopFileSystem());
-    Engine.InitEngine(args, new Dictionary<string, object>
+    engine = new Engine(args, new Dictionary<string, object>
     {
         { "OpenGL", gl },
         { "WindowSize", new Point(option.Size.X , option.Size.Y) },
@@ -38,12 +39,16 @@ var InitFun = () =>
         { "IsMobile", false },
         { "DefaultFBOID", 0 }
     });
+
+
+    window.Render += engine.Render;
+    window.Update += engine.Update;
+    window.Closing += engine.Stop;
+    window.Resize += size => engine.Resize(size.X, size.Y);
+
+    engine.Start();
 };
-window.Render += Engine.Render;
-window.Update += Engine.Update;
-window.Load += (InitFun + Engine.Start);
-window.Closing += Engine.Stop;
-window.Resize += size => Engine.Resize(size.X, size.Y);
+
 window.FramebufferResize += size =>
 {
     gl?.Viewport(size);

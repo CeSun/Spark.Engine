@@ -82,7 +82,7 @@ public class ImGuiSystem
     {
         try
         {
-            Controller = new ImGuiController(CurrentLevel.Engine.Gl, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input,null, () =>
+            Controller = new ImGuiController(CurrentLevel.Engine.GraphicsApi, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input,null, () =>
             {
                 ref var flags = ref ImGui.GetIO().ConfigFlags;
                 flags |= ImGuiConfigFlags.DockingEnable;
@@ -120,15 +120,15 @@ public class ImGuiSystem
     {
         if (Controller == null)
             return;
-        if (CurrentLevel.Engine.Gl == null)
+        if (CurrentLevel.Engine.GraphicsApi == null)
             return;
-        CurrentLevel.CurrentWorld.Engine.Gl.Viewport(new System.Drawing.Size(CurrentLevel.CurrentWorld.Engine.WindowSize.X, CurrentLevel.CurrentWorld.Engine.WindowSize.Y));
+        CurrentLevel.CurrentWorld.Engine.GraphicsApi.Viewport(new System.Drawing.Size(CurrentLevel.CurrentWorld.Engine.WindowSize.X, CurrentLevel.CurrentWorld.Engine.WindowSize.Y));
         
         Controller?.Update((float)DeltaTime);
         ImGUICanvasList.ForEach(item => item.Render(DeltaTime));
-        CurrentLevel.Engine.Gl.PushGroup("GUI Pass");
+        CurrentLevel.Engine.GraphicsApi.PushGroup("GUI Pass");
         Controller?.Render();
-        CurrentLevel.Engine.Gl.PopGroup();
+        CurrentLevel.Engine.GraphicsApi.PopGroup();
 
     }
 

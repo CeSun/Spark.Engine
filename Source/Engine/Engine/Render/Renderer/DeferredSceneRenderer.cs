@@ -81,7 +81,7 @@ public class DeferredSceneRenderer : IRenderer
         return new Shader(vert!, frag!, macros, gl);
     }
 
-    public GL gl => World.Engine.Gl!;
+    public GL gl => World.Engine.GraphicsApi!;
     public DeferredSceneRenderer(World world)
     {
 

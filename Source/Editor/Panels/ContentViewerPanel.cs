@@ -35,13 +35,13 @@ public class ContentViewerPanel : ImGUIWindow
 
         };
         FolderTextureId = Texture.LoadFromMemory(Resources.Asset_Folder);
-        FolderTextureId.InitRender(level.Engine.Gl);
+        FolderTextureId.InitRender(level.Engine.GraphicsApi);
 
-        level.Engine.OnFileDrog += OnFileDrog;
+        level.Engine.OnFileDrop += OnFileDrop;
     }
 
 
-    public void OnFileDrog(string[] paths)
+    public void OnFileDrop(string[] paths)
     {
         var currentPath = EditorSubsystem.CurrentPath;
         if (CurrentViewFolder != null)

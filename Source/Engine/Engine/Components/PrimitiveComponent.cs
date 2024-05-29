@@ -25,7 +25,7 @@ public partial class PrimitiveComponent
 {
     public Engine Engine => Owner.CurrentWorld.Engine;
 
-    public GL gl => Engine.Gl;
+    public GL gl => Engine.GraphicsApi;
     public World World => Owner.CurrentWorld;
 
     public Level CurrentLevel => Owner.CurrentLevel;

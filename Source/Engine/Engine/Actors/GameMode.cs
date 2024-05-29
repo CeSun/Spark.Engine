@@ -30,7 +30,7 @@ public class GameMode : Actor
     {
         base.OnBeginPlay();
 
-        if (CurrentLevel.Engine.IsDS == false)
+        if (CurrentLevel.Engine.IsDs == false)
         {
             var pc = (PlayerController)Activator.CreateInstance(DefaultPlayerControllerClass, [this.CurrentLevel, ""]);
             PlayerConnect(pc);

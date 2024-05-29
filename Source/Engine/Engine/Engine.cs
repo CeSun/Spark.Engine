@@ -21,59 +21,54 @@ public partial class Engine
     private List<string> Args { get; } = [];
     public bool IsMobile { private set; get; }
 
-    public bool IsDS = false;
+    public bool IsDs = false;
 
     public World? MainWorld;
-    public uint DefaultFBOID ;
-    public List<BaseSubSystem> SubSystems = new List<BaseSubSystem>();
 
-    public Dictionary<string, bool> SubsystemConfigs= new();
-    public Engine()
+    public uint DefaultFboId ;
+
+    public List<BaseSubSystem> SubSystems = [];
+
+    public Dictionary<string, bool> SubsystemConfigs= [];
+    public Engine(string[] args, Dictionary<string, object> objects)
     {
         if (SynchronizationContext.Current == null)
         {
             SyncContext = new SingleThreadSyncContext();
             SynchronizationContext.SetSynchronizationContext(SyncContext);
         }
-        NextFrame = new List<Action>();
-        AssetMgr = new AssetMgr() { Engine = this };
-    }
-    private IView? _view;
-    public IView View
-    {
-        get
-        {
-            if (_view == null)
-                throw new Exception();
-            return _view;
-        }
-    }
-    public List<World> Worlds = new List<World>();
-    public void InitEngine(string[] args, Dictionary<string, object> objects)
-    {
+        NextFrame = [];
+        AssetMgr = new AssetMgr{ Engine = this };
+
         Args.AddRange(args);
-        Gl = (GL)objects["OpenGL"];
+        GraphicsApi = (GL)objects["OpenGL"];
         WindowSize = (Point)objects["WindowSize"];
         Input = (IInputContext)objects["InputContext"];
         IsMobile = (bool)objects["IsMobile"];
-        DefaultFBOID = (uint)(int)objects["DefaultFBOID"];
-        _view = (IView)objects["View"];
+        DefaultFboId = (uint)(int)objects["DefaultFBOID"];
+        View = (IView)objects["View"];
+        FileSystem = (FileSystem)objects["FileSystem"];
         MainWorld = new World(this);
         MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTarget(this.WindowSize.X, this.WindowSize.Y);
         Worlds.Add(MainWorld);
         GameAssemblyLoadContext.InitInstance(this);
 
-        if (_view is IWindow window)
+        if (View is IWindow window)
         {
-            window.FileDrop += paths => OnFileDrog.Invoke(paths);
+            window.FileDrop += paths => OnFileDrop.Invoke(paths);
         }
         ProcessArgs();
         LoadGameDll();
         LoadSetting();
         LoadSubsystem();
-    }
 
-    public event Action<string[]> OnFileDrog = paths => { };
+    }
+    public IView View { get; }
+
+    public List<World> Worlds = [];
+  
+
+    public event Action<string[]> OnFileDrop = _ => { };
    
     public void ProcessArgs()
     {
@@ -138,25 +133,23 @@ public partial class Engine
     }
     public void LoadGameDll()
     {
-        using(var stream =  FileSystem.Instance.GetStreamReader($"{GameName}/{GameName}.dll"))
-        {
-            GameAssemblyLoadContext.Instance.LoadFromStream(stream.BaseStream);
-        }
+        using var stream =  FileSystem.Instance.GetStreamReader($"{GameName}/{GameName}.dll");
+        GameAssemblyLoadContext.Instance.LoadFromStream(stream.BaseStream);
     }
     public void LoadSetting()
     {
         var text = FileSystem.Instance.LoadText($"{GameName}/DefaultGame.ini");
         var parser =new IniDataParser();
         var ini = parser.Parse(text);
-        var DefaultGameMode = ini["Game"]["DefaultGameMode"];
-        GameConfig gameConfig = new GameConfig
+        var defaultGameMode = ini["Game"]["DefaultGameMode"];
+        var gameConfig = new GameConfig
         {
             DefaultGameModeClass = typeof(GameMode),
         };
 
-        if (string.IsNullOrEmpty(DefaultGameMode) == false)
+        if (string.IsNullOrEmpty(defaultGameMode) == false)
         {
-            gameConfig.DefaultGameModeClass = AssemblyHelper.GetType(DefaultGameMode);
+            gameConfig.DefaultGameModeClass = AssemblyHelper.GetType(defaultGameMode);
         }
         gameConfig.DefaultLevel = ini["Game"]["DefaultLevel"];
         GameConfig = gameConfig;
@@ -182,22 +175,22 @@ public partial class Engine
     public Action<Level>? OnBeginPlay;
     public Action<Level>? OnEndPlay;
 
-    public void Update(double DeltaTime)
+    public void Update(double deltaTime)
     {
         var count = NextFrame.Count;
         for(int i = 0; i < count; i++)
         {
-            NextFrame[i]?.Invoke();
+            NextFrame[i]();
         }
         NextFrame.Clear();
         SyncContext?.Tick();
-        Worlds.ForEach(world => world.Update(DeltaTime));
+        Worlds.ForEach(world => world.Update(deltaTime));
 
         foreach(var subsystem in SubSystems)
         {
-            if (subsystem.ReceiveUpdate == true)
+            if (subsystem.ReceiveUpdate)
             {
-                subsystem.Update(DeltaTime);
+                subsystem.Update(deltaTime);
             }
         }
     }
@@ -219,10 +212,10 @@ public partial class Engine
         Worlds.ForEach(world => world.Destory());
     }
 
-    public void Resize(int Width, int Height)
+    public void Resize(int width, int height)
     {
-        WindowSize = new(Width, Height);
-        OnWindowResize?.Invoke(Width, Height);
+        WindowSize = new(width, height);
+        OnWindowResize?.Invoke(width, height);
     }
 
     public Action<int, int>? OnWindowResize;
@@ -233,12 +226,12 @@ public partial class Engine
 
 public partial class Engine
 {
-    public GL? Gl { get; set; }
-    public IInputContext? Input { get; set; }
+    public GL GraphicsApi { get; set; }
+    public IInputContext Input { get; set; }
 
 
+    public FileSystem FileSystem { get; set; }
 
-    
 
 
     public IKeyboard MainKeyBoard

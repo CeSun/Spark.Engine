@@ -12,7 +12,7 @@ namespace Spark.Engine.Render;
 
 public class RenderTarget : IDisposable
 {
-    private GL gl => Engine.Gl;
+    private GL gl => Engine.GraphicsApi;
     public Engine Engine;
     public int BufferWidth { private set; get; }
     public int BufferHeight { private set; get; }
@@ -72,7 +72,7 @@ public class RenderTarget : IDisposable
         Height = height;
         if (IsViewport == true)
         {
-            BufferId = Engine.DefaultFBOID;
+            BufferId = Engine.DefaultFboId;
             BufferWidth = width;
             BufferHeight = height;
             return;
