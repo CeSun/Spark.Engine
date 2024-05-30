@@ -25,6 +25,7 @@ public class SubTexture : AssetBase
         bw.WriteInt32((int)Target);
         bw.WriteInt32(Pixels.Count);
         bw.Write(Pixels.ToArray());
+
     }
 
     public override void Deserialize(BinaryReader br, Engine engine)
@@ -65,68 +66,6 @@ public class TextureCube : ISerializable
 
     List<SubTexture> _textures = [];
 
-    private static SubTexture LoadSubTexture(string path)
-    {
-        using var streamReader = IFileSystem.Instance.GetStreamReader("Content" + path);
-        var imageResult = ImageResult.FromStream(streamReader.BaseStream);
-        if (imageResult != null)
-        {
-            var texture = new SubTexture
-            {
-                Width = (uint)imageResult.Width,
-                Height = (uint)imageResult.Height,
-                Channel = imageResult.Comp.ToTexChannel()
-            };
-            texture.Pixels.AddRange(imageResult.Data);
-            return texture;
-        }
-        throw new Exception("Load Texture error");
-    }
-    public static async Task<TextureCube> LoadAsync(string path)
-    {
-        return await Task.Run(() => Load(path));
-    }
-
-    public static unsafe TextureCube Load(string Path)
-    {
-        TextureCube textureCube = new TextureCube();
-        using var sr = IFileSystem.Instance.GetStreamReader("Content" + Path + ".TextureCube");
-
-        var jstext = sr.ReadToEnd();
-        var Object = JsonNode.Parse(jstext);
-        string jpgpath = "";
-        var strs = Path.Split("/");
-        if (strs.Length > 1)
-            jpgpath = string.Join("/", strs.Take(strs.Length - 1));
-        else
-            jpgpath = "/";
-        if (Object == null)
-            throw new Exception("Object is null");
-        for (int i = 0; i < Attributes.Length; i++)
-        {
-            var path = Object[Attributes[i]];
-            if (path == null)
-                throw new Exception($"{Attributes[i]} attribute is null");
-
-            using var streamReader = IFileSystem.Instance.GetStreamReader("Content" + jpgpath + "/" + path.ToString());
-            var imageResult = ImageResult.FromStream(streamReader.BaseStream);
-            if (imageResult == null)
-                throw new Exception("Load Texture error");
-
-            SubTexture texture = new SubTexture();
-            texture.Width = (uint)imageResult.Width;
-            texture.Height = (uint)imageResult.Height;
-            texture.Channel = imageResult.Comp.ToTexChannel();
-            texture.Pixels.AddRange(imageResult.Data);
-            texture.Target = TexTargets[i];
-            textureCube._textures.Add(texture);
-
-
-        }
-        return textureCube;
-    }
-    
-
     public unsafe void InitRender(GL gl)
     {
 
@@ -166,6 +105,7 @@ public class TextureCube : ISerializable
         {
             texture.Serialize(bw, engine);
         }
+        engine.NextRenderFrame.Add(InitRender);
     }
 
     public void Deserialize(BinaryReader br, Engine engine)

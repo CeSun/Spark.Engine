@@ -72,6 +72,7 @@ public class Texture : AssetBase
         bw.WriteInt32((int)Filter);
         bw.WriteInt32(Pixels.Count);
         bw.Write(Pixels.ToArray());
+        engine.NextRenderFrame.Add(InitRender);
     }
 
     public override void Deserialize(BinaryReader br, Engine engine)
@@ -119,61 +120,6 @@ public class Texture : AssetBase
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
-            texture.Pixels.AddRange(imageResult.Data);
-            return texture;
-        }
-        throw new Exception("Load Texture error");
-    }
-
-    public static Texture CreateNoiseTexture(int width, int height)
-    {
-        var texture = new Texture();
-        var data = new byte[width * height * 3];
-        for (int j = 0; j < height; j++)
-        {
-            for (int i = 0; i < width; i++)
-            {
-                var index = (j * width + i) * 3;
-                Vector3 v = new Vector3
-                {
-                    X = (float)Random.Shared.NextDouble(),
-                    Y = (float)Random.Shared.NextDouble(),
-                    Z = 0
-                };
-                v = Vector3.Normalize(v);
-
-                data[index] = (byte)(255 * v.X);
-                data[index + 1] = (byte)(255 * v.Y);
-                data[index + 2] = (byte)(255 * v.Z);
-            }
-        }
-        texture.Height = (uint)height;
-        texture.Width = (uint)width;
-        texture.Channel = TexChannel.Rgb;
-        texture.Pixels.AddRange(data);
-        return texture;
-    }
-    internal static Texture LoadFromMemory(byte[] memory, bool gammaCorrection = false, bool flipVertically = false)
-    {
-        if (flipVertically)
-        {
-            StbImage.stbi_set_flip_vertically_on_load(1);
-        }
-        var imageResult = ImageResult.FromMemory(memory);
-        if (flipVertically)
-        {
-            StbImage.stbi_set_flip_vertically_on_load(0);
-        }
-        if (imageResult != null)
-        {
-            Texture texture = new Texture
-            {
-                Width = (uint)imageResult.Width,
-                Height = (uint)imageResult.Height,
-                Channel = imageResult.Comp.ToTexChannel()
-            };
-            if (gammaCorrection)
-                Process(imageResult.Data);
             texture.Pixels.AddRange(imageResult.Data);
             return texture;
         }
@@ -260,6 +206,4 @@ public class Texture : AssetBase
             data[i] = (byte)(Math.Pow(data[i] / 255.0f, 1.0f / 2.2f) * 255);
         }
     }
-
-
 }

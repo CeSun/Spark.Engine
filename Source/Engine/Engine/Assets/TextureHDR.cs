@@ -35,79 +35,11 @@ public class TextureHdr : AssetBase
         ReleaseMemory();
     }
 
-
     public void ReleaseMemory()
     {
         Pixels.Clear();
     }
-
-
-    public static async Task<TextureHdr> LoadFromFileAsync(string path, bool gammaCorrection = false, bool flipVertically = false)
-    {
-        return await Task.Run(() => LoadFromFile(path, gammaCorrection, flipVertically));
-    }
-
-    public static TextureHdr LoadFromFile(string path, bool gammaCorrection = false, bool flipVertically = false)
-    {
-        using var streamReader = IFileSystem.Instance.GetStreamReader(path);
-        if (flipVertically)
-        {
-            StbImage.stbi_set_flip_vertically_on_load(1);
-        }
-        var imageResult = ImageResultFloat.FromStream(streamReader.BaseStream);
-
-        if (flipVertically)
-        {
-            StbImage.stbi_set_flip_vertically_on_load(0);
-        }
-        if (imageResult != null)
-        {
-            TextureHdr texture = new TextureHdr();
-            texture.Width = (uint)imageResult.Width;
-            texture.Height = (uint)imageResult.Height;
-            texture.Channel = imageResult.Comp.ToTexChannel();
-            if (gammaCorrection)
-                Process(imageResult.Data);
-            texture.Pixels.AddRange(imageResult.Data);
-            return texture;
-        }
-        throw new Exception("Load Texture error");
-    }
-
-    internal static TextureHdr LoadFromMemory(byte[] memory, bool gammaCorrection = false, bool flipVertically = false)
-    {
-        if (flipVertically)
-        {
-            StbImage.stbi_set_flip_vertically_on_load(1);
-        }
-        var imageResult = ImageResultFloat.FromMemory(memory);
-        if (flipVertically)
-        {
-            StbImage.stbi_set_flip_vertically_on_load(0);
-        }
-        if (imageResult != null)
-        {
-            TextureHdr texture = new TextureHdr();
-            texture.Width = (uint)imageResult.Width;
-            texture.Height = (uint)imageResult.Height;
-            texture.Channel = imageResult.Comp.ToTexChannel();
-            if (gammaCorrection)
-                Process(imageResult.Data);
-            texture.Pixels.AddRange(imageResult.Data);
-            return texture;
-        }
-        throw new Exception("Load Texture error");
-    }
-
-    private static void Process(float[] data)
-    {
-        for(int i = 0; i < data.Length; i++)
-        {
-            data[i] = MathF.Pow(data[i], 1.0f/2.2f);
-        }
-    }
-
-
+    
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
@@ -121,6 +53,7 @@ public class TextureHdr : AssetBase
         {
             bw.WriteSingle(num);
         }
+        engine.NextRenderFrame.Add(InitRender);
     }
 
     public override void Deserialize(BinaryReader br, Engine engine)

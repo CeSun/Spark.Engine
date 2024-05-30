@@ -35,7 +35,7 @@ public class ContentViewerPanel : ImGUIWindow
          
 
         };
-        FolderTextureId = Texture.LoadFromMemory(Resources.Asset_Folder);
+        FolderTextureId = EditorSubsystem.CurrentEngine.ImportTextureFromMemory(Resources.Asset_Folder, new TextureImportSetting());
         FolderTextureId.InitRender(level.Engine.GraphicsApi);
 
         level.Engine.OnFileDrop += OnFileDrop;
@@ -55,11 +55,11 @@ public class ContentViewerPanel : ImGUIWindow
             var Extension = Path.GetExtension(path);
             if (Extension == ".bmp" || Extension == ".png" || Extension == ".tga")
             {
-                assets.Add((EditorSubsystem.CurrentEngine.ImportTextureFromFile(path, new ImportTextureSetting { }), path));
+                assets.Add((EditorSubsystem.CurrentEngine.ImportTextureFromFile(path, new TextureImportSetting { }), path));
             }
             else if (Extension == ".hdr")
             {
-                assets.Add((TextureHdr.LoadFromFile(path), path));
+                assets.Add((EditorSubsystem.CurrentEngine.ImportTextureHdrFromFile(path, new TextureImportSetting { }), path));
             }
             else if (Extension == ".glb")
             {

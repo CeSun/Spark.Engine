@@ -3,6 +3,7 @@ using System.Drawing;
 using Silk.NET.OpenGLES;
 using static Spark.Engine.Components.CameraComponent;
 using System.Numerics;
+using Spark.Engine.Editor;
 using Spark.Util;
 using Texture = Spark.Engine.Assets.Texture;
 using Spark.Engine.Properties;
@@ -161,7 +162,7 @@ public class DeferredSceneRenderer : IRenderer
         {
             _postProcessBuffer2 = CreateRenderTarget(1, 1, 1);
             _postProcessBuffer3 = CreateRenderTarget(1, 1, 1);
-            _noiseTexture = Texture.CreateNoiseTexture(64, 64);
+            _noiseTexture = World.Engine.CreateNoiseTexture(64, 64);
             _noiseTexture.InitRender(gl);
 
         }
@@ -170,7 +171,8 @@ public class DeferredSceneRenderer : IRenderer
         _isMobile = false;
         _isMicroGBuffer = false;
         _cubeVbo = 0;
-        _brdfTexture = Texture.LoadFromMemory(Resources.brdf, true, true);
+        _brdfTexture = World.Engine.ImportTextureFromMemory(Resources.brdf,
+            new TextureImportSetting() { FlipVertically = true, GammaCorrection = true });
         _brdfTexture.InitRender(gl);
         InitRender();
         InitSsaoRender();

@@ -271,6 +271,14 @@ public class StaticMesh : AssetBase
         }
         Shapes.Add(new PointCloudShape(vertices));
 
+        if (Boxes.Count > 0)
+        {
+            Box = Boxes[0];
+            foreach (var box in Boxes)
+            {
+                Box += box;
+            }
+        }
     }
     private void InitMeshTBN(int index)
     {
