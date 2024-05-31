@@ -10,15 +10,9 @@ using System.Threading.Tasks;
 namespace Editor.Panels;
 
 
-public class MainPanel : ImGUIWindow
+public class MainPanel(Level level) : ImGUIWindow(level)
 {
-    public MainPanel(Level level) : base(level)
-    {
-
-    }
-
-
-    public override void Render(double DeltaTime)
+    public override void Render(double deltaTime)
     {
         var viewport = ImGui.GetMainViewport();
         ImGui.SetNextWindowViewport(viewport.ID);

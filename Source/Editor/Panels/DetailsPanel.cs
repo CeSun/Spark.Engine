@@ -1,19 +1,13 @@
 ﻿using Editor.Subsystem;
 using ImGuiNET;
 using Spark.Engine;
-using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
-using Spark.Engine.Components;
 using Spark.Engine.GUI;
 using Spark.Engine.Platform;
 using System.Drawing;
-using System.Linq;
 using System.Numerics;
 using System.Reflection;
-using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
 using Spark.Util;
 using static Editor.Panels.ContentViewerPanel;
 
@@ -39,18 +33,16 @@ namespace Editor.Panels
             ImGui.Begin("Details##details");
             if (EditorSubsystem.SelectedActor != null)
             {
-                var Actor = EditorSubsystem.SelectedActor;
+                var actor = EditorSubsystem.SelectedActor;
                
-               
-
-                var ContentWidth = ImGui.GetContentRegionAvail().X;
-                bool Modify = false;
+                var contentWidth = ImGui.GetContentRegionAvail().X;
+                bool modify = false;
                 ImGui.Columns(2);
-                var leftWidth = ContentWidth * 0.3;
+                var leftWidth = contentWidth * 0.3;
                 if (leftWidth < 100)
                     leftWidth = 100;
                 
-                if (IsFirst == true)
+                if (IsFirst)
                 {
                     ImGui.SetColumnWidth(0, (float)leftWidth);
                 }
@@ -60,13 +52,13 @@ namespace Editor.Panels
                 ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize("Name: ").X);
                 ImGui.Text("Name: ");
                 ImGui.NextColumn();
-                var Name = Actor.Name;
+                var name = actor.Name;
                 var width = ImGui.GetContentRegionAvail().X;
                 var labelWidth = width / 3 * 0.3f;
-                var InputWidth = width / 3 * 0.7f;
-                var location = Actor.WorldLocation;
+                var inputWidth = width / 3 * 0.7f;
+                var location = actor.WorldLocation;
                 ImGui.SetNextItemWidth(width);
-                ImGui.InputText("##Name", ref Name, 32);
+                ImGui.InputText("##Name", ref name, 32);
 
 
                 ImGui.NextColumn();
@@ -75,35 +67,35 @@ namespace Editor.Panels
                 ImGui.NextColumn();
                 ImGui.Text("X");
                 ImGui.SameLine(labelWidth);
-                ImGui.SetNextItemWidth(InputWidth);
+                ImGui.SetNextItemWidth(inputWidth);
                 ImGui.InputFloat("##locationX", ref location.X);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
-                    Modify = true;
+                    modify = true;
                 }
-                ImGui.SameLine(); ;
+                ImGui.SameLine();
                 ImGui.Text("Y");
-                ImGui.SameLine(labelWidth * 2 + InputWidth);
-                ImGui.SetNextItemWidth(InputWidth);
+                ImGui.SameLine(labelWidth * 2 + inputWidth);
+                ImGui.SetNextItemWidth(inputWidth);
                 ImGui.InputFloat("##locationY", ref location.Y);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
-                    Modify = true;
+                    modify = true;
                 }
 
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(labelWidth);
                 ImGui.Text("Z");
-                ImGui.SameLine(labelWidth * 3 + InputWidth * 2);
-                ImGui.SetNextItemWidth(InputWidth);
+                ImGui.SameLine(labelWidth * 3 + inputWidth * 2);
+                ImGui.SetNextItemWidth(inputWidth);
                 ImGui.InputFloat("##locationZ", ref location.Z);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
-                    Modify = true;
+                    modify = true;
                 }
-                if (Modify == true)
+                if (modify)
                 {
-                    Actor.WorldLocation = location;
+                    actor.WorldLocation = location;
                 }
 
 
@@ -114,44 +106,43 @@ namespace Editor.Panels
                 ImGui.NextColumn();
 
 
-                Modify = false;
-                float Yaw = 0, Pitch = 0, Roll = 0;
-                var Euler = Actor.WorldRotation.ToEuler();
-                Yaw = Euler.Y.RadiansToDegree();
-                Pitch = Euler.X.RadiansToDegree();
-                Roll = Euler.Z.RadiansToDegree();
+                modify = false;
+                var euler = actor.WorldRotation.ToEuler();
+                var yaw = euler.Y.RadiansToDegree();
+                var pitch = euler.X.RadiansToDegree();
+                var roll = euler.Z.RadiansToDegree();
                 ImGui.Text("Yaw");
                 ImGui.SameLine(labelWidth);
-                ImGui.SetNextItemWidth(InputWidth);
-                ImGui.InputFloat("##Yaw", ref Yaw);
+                ImGui.SetNextItemWidth(inputWidth);
+                ImGui.InputFloat("##Yaw", ref yaw);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
-                    Modify = true;
+                    modify = true;
                 }
                 ImGui.SameLine();
 
                 ImGui.Text("Pitch");
-                ImGui.SameLine(labelWidth * 2 + InputWidth);
-                ImGui.SetNextItemWidth(InputWidth);
-                ImGui.InputFloat("##Pitch", ref Pitch);
+                ImGui.SameLine(labelWidth * 2 + inputWidth);
+                ImGui.SetNextItemWidth(inputWidth);
+                ImGui.InputFloat("##Pitch", ref pitch);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
-                    Modify = true;
+                    modify = true;
                 }
                 ImGui.SameLine();
 
                 ImGui.Text("Roll");
-                ImGui.SameLine(labelWidth * 3 + InputWidth * 2);
-                ImGui.SetNextItemWidth(InputWidth);
-                ImGui.InputFloat("##Roll", ref Roll);
+                ImGui.SameLine(labelWidth * 3 + inputWidth * 2);
+                ImGui.SetNextItemWidth(inputWidth);
+                ImGui.InputFloat("##Roll", ref roll);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
-                    Modify = true;
+                    modify = true;
                 }
 
-                if (Modify == true)
+                if (modify)
                 {
-                    Actor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Yaw.DegreeToRadians(), Pitch.DegreeToRadians(), Roll.DegreeToRadians());
+                    actor.WorldRotation = Quaternion.CreateFromYawPitchRoll(yaw.DegreeToRadians(), pitch.DegreeToRadians(), roll.DegreeToRadians());
                 }
                 ImGui.NextColumn();
                 ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize("Scale：").X);
@@ -162,38 +153,38 @@ namespace Editor.Panels
                 
                
 
-                Modify = false;
-                var scale = Actor.WorldScale;
+                modify = false;
+                var scale = actor.WorldScale;
                 
                 ImGui.Text("X");
                 ImGui.SameLine(labelWidth);
-                ImGui.SetNextItemWidth(InputWidth);
+                ImGui.SetNextItemWidth(inputWidth);
                 ImGui.InputFloat("##scaleX", ref scale.X); 
                 if (ImGui.IsItemDeactivatedAfterEdit())
-                    Modify = true;
+                    modify = true;
                 ImGui.SameLine();
                 
                 ImGui.Text("Y");
-                ImGui.SameLine(labelWidth * 2 + InputWidth);
-                ImGui.SetNextItemWidth(InputWidth);
+                ImGui.SameLine(labelWidth * 2 + inputWidth);
+                ImGui.SetNextItemWidth(inputWidth);
                 ImGui.InputFloat("##scaleY", ref scale.Y);
                 if (ImGui.IsItemDeactivatedAfterEdit())
-                    Modify = true;
+                    modify = true;
                 ImGui.SameLine();
                 
                 ImGui.Text("Z");
-                ImGui.SameLine(labelWidth * 3 + InputWidth * 2);
-                ImGui.SetNextItemWidth(InputWidth);
+                ImGui.SameLine(labelWidth * 3 + inputWidth * 2);
+                ImGui.SetNextItemWidth(inputWidth);
                 ImGui.InputFloat("##scaleZ", ref scale.Z);
                 if (ImGui.IsItemDeactivatedAfterEdit())
-                    Modify = true;
-                if (Modify)
-                    Actor.WorldScale = scale;
+                    modify = true;
+                if (modify)
+                    actor.WorldScale = scale;
 
-                RenderObject(Actor);
+                RenderObject(actor);
 
 
-                foreach(var comp in Actor.PrimitiveComponents)
+                foreach(var comp in actor.PrimitiveComponents)
                 {
                     RenderObject(comp);
                 }
@@ -204,7 +195,7 @@ namespace Editor.Panels
             ImGui.End();
 
 
-            if (IsFirst == true)
+            if (IsFirst)
                 IsFirst = false;
 
         }
@@ -216,7 +207,7 @@ namespace Editor.Panels
             foreach (PropertyInfo property in type.GetProperties())
             {
                 var att = property.GetCustomAttribute<PropertyAttribute>();
-                if (att != null && att.IsDisplay == true)
+                if (att != null && att.IsDisplay)
                 {
                     properties.Add((att, property));
                 }
@@ -239,15 +230,15 @@ namespace Editor.Panels
                 }
             }
         }
-        private Vector3 tempColor;
+        private Vector3 _tempColor;
         public void RenderProperty(PropertyAttribute attr, PropertyInfo property, Object obj)
         {
-            var leftwidth = ImGui.GetColumnWidth() - ImGui.GetStyle().FramePadding.X * 2;
-            var Name = attr.DisplayName;
-            if (string.IsNullOrEmpty(Name))
-                Name = property.Name;
-            ImGui.SetCursorPosX(leftwidth - ImGui.CalcTextSize(Name + "：").X);
-            ImGui.Text(Name + "：");
+            var leftWidth = ImGui.GetColumnWidth() - ImGui.GetStyle().FramePadding.X * 2;
+            var name = attr.DisplayName;
+            if (string.IsNullOrEmpty(name))
+                name = property.Name;
+            ImGui.SetCursorPosX(leftWidth - ImGui.CalcTextSize(name + "：").X);
+            ImGui.Text(name + "：");
             ImGui.NextColumn();
 
             bool isReadOnly = attr.IsReadOnly;
@@ -263,8 +254,8 @@ namespace Editor.Panels
             
             if (property.PropertyType == typeof(int))
             {
-                var data = (int)property.GetValue(obj);
-                ImGui.InputInt("##" + obj.GetHashCode() + Name, ref data, 0, 0, flag);
+                var data = (int)(property.GetValue(obj) ?? 0);
+                ImGui.InputInt("##" + obj.GetHashCode() + name, ref data, 0, 0, flag);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
                     property.SetValue(obj, data);
@@ -273,10 +264,10 @@ namespace Editor.Panels
             }
             else if (property.PropertyType == typeof(uint))
             {
-                var data = (uint)property.GetValue(obj);
+                var data = (uint)(property.GetValue(obj) ?? 0);
                 unsafe
                 {
-                    ImGui.InputScalar("##" + obj.GetHashCode() + Name, ImGuiDataType.U32, (nint)(&data), 0, 0, "", flag);
+                    ImGui.InputScalar("##" + obj.GetHashCode() + name, ImGuiDataType.U32, (nint)(&data), 0, 0, "", flag);
                 }
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
@@ -285,10 +276,10 @@ namespace Editor.Panels
             }
             if (property.PropertyType == typeof(long))
             {
-                var data = (long)property.GetValue(obj);
+                var data = (long)(property.GetValue(obj) ?? 0);
                 unsafe
                 {
-                    ImGui.InputScalar("##" + obj.GetHashCode() + Name, ImGuiDataType.S64, (nint)(&data), 0, 0, "", flag);
+                    ImGui.InputScalar("##" + obj.GetHashCode() + name, ImGuiDataType.S64, (nint)(&data), 0, 0, "", flag);
                 }
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
@@ -298,10 +289,10 @@ namespace Editor.Panels
             }
             else if (property.PropertyType == typeof(ulong))
             {
-                var data = (ulong)property.GetValue(obj);
+                var data = (ulong)(property.GetValue(obj) ?? 0);
                 unsafe
                 {
-                    ImGui.InputScalar("##" + obj.GetHashCode() + Name, ImGuiDataType.U64, (nint)(&data), 0, 0, "", flag);
+                    ImGui.InputScalar("##" + obj.GetHashCode() + name, ImGuiDataType.U64, (nint)(&data), 0, 0, "", flag);
                 }
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
@@ -310,8 +301,8 @@ namespace Editor.Panels
             }
             else if (property.PropertyType == typeof(float))
             {
-                var data = (float)property.GetValue(obj);
-                ImGui.InputFloat("##" + obj.GetHashCode() + Name, ref data, 0,0, null, flag);
+                var data = (float)(property.GetValue(obj) ?? 0f);
+                ImGui.InputFloat("##" + obj.GetHashCode() + name, ref data, 0,0, null, flag);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
                     property.SetValue(obj, data);
@@ -319,8 +310,8 @@ namespace Editor.Panels
             }
             else if (property.PropertyType == typeof(double))
             {
-                var data = (double)property.GetValue(obj);
-                ImGui.InputDouble("##" + obj.GetHashCode() + Name, ref data, 0, 0, null, flag);
+                var data = (double)(property.GetValue(obj) ?? 0.0);
+                ImGui.InputDouble("##" + obj.GetHashCode() + name, ref data, 0, 0, null, flag);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
                     property.SetValue(obj, data);
@@ -337,14 +328,14 @@ namespace Editor.Panels
             }
             else if (property.PropertyType == typeof(Color))
             {
-                var data = (Color)property.GetValue(obj);
-                tempColor = new Vector3(data.R / 255f, data.G / 255f, data.B / 255f);
-                ImGui.ColorEdit3("##" + obj.GetHashCode() + Name,  ref tempColor);
+                var data = (Color)(property.GetValue(obj) ?? Color.White);
+                _tempColor = new Vector3(data.R / 255f, data.G / 255f, data.B / 255f);
+                ImGui.ColorEdit3("##" + obj.GetHashCode() + name,  ref _tempColor);
                 if (ImGui.IsItemEdited() && isReadOnly == false)
                 {
-                    property.SetValue(obj, Color.FromArgb(255, (int)(tempColor.X * 255), (int)(tempColor.Y * 255), (int)(tempColor.Z * 255)));
-                    data = (Color)property.GetValue(obj);
-                    tempColor = new Vector3(data.R / 255f, data.G / 255f, data.B / 255f);
+                    property.SetValue(obj, Color.FromArgb(255, (int)(_tempColor.X * 255), (int)(_tempColor.Y * 255), (int)(_tempColor.Z * 255)));
+                    data = (Color)(property.GetValue(obj) ?? Color.White);
+                    _tempColor = new Vector3(data.R / 255f, data.G / 255f, data.B / 255f);
                 }
             }
             else if (property.PropertyType == typeof(string))
@@ -353,7 +344,7 @@ namespace Editor.Panels
                 string str = "";
                 if (data != null)
                     str = (string)data;
-                ImGui.InputText("##" + obj.GetHashCode() + Name, ref str, 256, flag);
+                ImGui.InputText("##" + obj.GetHashCode() + name, ref str, 256, flag);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
                     property.SetValue(obj, str);
@@ -375,25 +366,25 @@ namespace Editor.Panels
                     path = asset.Path;
                 }
 
-                bool IsModifyInput = false;
+                bool isModifyInput = false;
                 ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
-                var ButtonWidth = ImGui.CalcTextSize([(char)0x00f060, (char)0x00f002]).X + ImGui.GetStyle().ItemSpacing.X * 3 + ImGui.GetStyle().FramePadding.X * 4;
+                var buttonWidth = ImGui.CalcTextSize([(char)0x00f060, (char)0x00f002]).X + ImGui.GetStyle().ItemSpacing.X * 3 + ImGui.GetStyle().FramePadding.X * 4;
                 ImGui.PopFont();
-                ImGui.SetNextItemWidth(width - ButtonWidth);
-                ImGui.InputText("##"  + obj.GetHashCode() + Name, ref path, 256, flag);
+                ImGui.SetNextItemWidth(width - buttonWidth);
+                ImGui.InputText("##"  + obj.GetHashCode() + name, ref path, 256, flag);
                 ImGui.SameLine();
                
 
                 ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
-                if(ImGui.Button(new string([(char)0x00f060]) + "##set_" + property.DeclaringType.FullName + "_"+property.Name))
+                if(ImGui.Button(new string([(char)0x00f060]) + "##set_" + property.DeclaringType!.FullName + "_"+property.Name))
                 {
                     var file = EditorSubsystem.GetValue<AssetFile>("CurrentSelectFile");
                     if (file != null)
                     {
-                        var MyPath = file.Path.Replace("\\", "/");
-                        MyPath = MyPath.Substring(EditorSubsystem.CurrentPath.Length + 1, MyPath.Length - EditorSubsystem.CurrentPath.Length - 1);
-                        path = MyPath;
-                        IsModifyInput = true;
+                        var myPath = file.Path.Replace("\\", "/");
+                        myPath = myPath.Substring(EditorSubsystem.CurrentPath.Length + 1, myPath.Length - EditorSubsystem.CurrentPath.Length - 1);
+                        path = myPath;
+                        isModifyInput = true;
                     }
                     // todo： 当前选中的资源设置到输入框中
                 }
@@ -406,10 +397,10 @@ namespace Editor.Panels
                
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
-                    IsModifyInput = true;
+                    isModifyInput = true;
                     
                 }
-                if (IsModifyInput && IFileSystem.Instance.FileExits(path))
+                if (isModifyInput && IFileSystem.Instance.FileExits(path))
                 {
                     if (path == "")
                     {
@@ -438,13 +429,13 @@ namespace Editor.Panels
                 int current = 0;
                 for(int i = 0; i < values.Length; i++)
                 {
-                    if (values.GetValue(i).Equals(data))
+                    if (values.GetValue(i)!.Equals(data))
                     {
                         current = i;
                         break;
                     }
                 }
-                if(ImGui.Combo("##" + obj.GetHashCode() + Name, ref current, names, names.Length))
+                if(ImGui.Combo("##" + obj.GetHashCode() + name, ref current, names, names.Length))
                 {
                     if (isReadOnly == false)
                     {

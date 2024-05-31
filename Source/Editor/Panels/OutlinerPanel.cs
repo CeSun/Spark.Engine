@@ -17,12 +17,12 @@ namespace Editor.Panels;
 
 public class OutlinerPanel : ImGUIWindow
 {
-    EditorSubsystem EditorSubsystem;
+    private readonly EditorSubsystem _editorSubsystem;
     public OutlinerPanel(Level level) : base(level)
     {
         var system = level.Engine.GetSubSystem<EditorSubsystem>();
         if (system != null)
-            EditorSubsystem = system;
+            _editorSubsystem = system;
         else
             throw new Exception("no editor subsystem");
     }
@@ -34,11 +34,11 @@ public class OutlinerPanel : ImGUIWindow
     
         if(ImGui.TreeNodeEx("All Actors", ImGuiTreeNodeFlags.DefaultOpen))
         {
-            foreach (var actor in EditorSubsystem.LevelWorld.CurrentLevel.Actors)
+            foreach (var actor in _editorSubsystem.LevelWorld.CurrentLevel.Actors)
             {
                 if (actor.IsEditorActor == true)
                     continue;
-                var cond = EditorSubsystem.SelectedActor != actor;
+                var cond = _editorSubsystem.SelectedActor != actor;
                 if (cond)
                 {
                     ImGui.PushStyleColor(ImGuiCol.Button, Vector4.Zero);
@@ -56,14 +56,14 @@ public class OutlinerPanel : ImGUIWindow
                 {
                     if (cond == false)
                     {
-                        EditorSubsystem.EditorCameraActor.WorldLocation = actor.WorldLocation + actor.ForwardVector * 10 + actor.UpVector * 5;
-                        EditorSubsystem.EditorCameraActor.WorldRotation = actor.WorldRotation;
+                        _editorSubsystem.EditorCameraActor.WorldLocation = actor.WorldLocation + actor.ForwardVector * 10 + actor.UpVector * 5;
+                        _editorSubsystem.EditorCameraActor.WorldRotation = actor.WorldRotation;
 
-                        EditorSubsystem.EditorCameraActor.WorldRotation *= Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
+                        _editorSubsystem.EditorCameraActor.WorldRotation *= Quaternion.CreateFromYawPitchRoll(180F.DegreeToRadians(), 0, 0);
                     }
                     else
                     {
-                        EditorSubsystem.SelectedActor = actor;
+                        _editorSubsystem.SelectedActor = actor;
                     }
                 }
                 ImGui.PopStyleColor();
@@ -74,7 +74,7 @@ public class OutlinerPanel : ImGUIWindow
 
         if (ImGui.IsWindowHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
         {
-            EditorSubsystem.SelectedActor = null;
+            _editorSubsystem.SelectedActor = null;
 
         }
         ImGui.End();

@@ -1,32 +1,24 @@
 ﻿using Editor.Subsystem;
 using ImGuiNET;
-using Silk.NET.Windowing;
 using Spark.Engine;
 using Spark.Engine.Actors;
 using Spark.Engine.Attributes;
 using Spark.Engine.GUI;
 using Spark.Util;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Editor.Panels;
 
 public class PlaceActorsPanel : ImGUIWindow
 {
+    readonly List<Type> _actorTypes = [];
 
-    List<Type> ActorTypes = new List<Type>();
-
-    EditorSubsystem EditorSubsystem;
+    readonly EditorSubsystem _editorSubsystem;
     public PlaceActorsPanel(Level level) : base(level)
     {
         RefreshActors();
-        EditorSubsystem = level.Engine.GetSubSystem<EditorSubsystem>();
+        _editorSubsystem = level.Engine.GetSubSystem<EditorSubsystem>();
     }
 
 
@@ -52,11 +44,11 @@ public class PlaceActorsPanel : ImGUIWindow
 
                 }
 
-                ActorTypes.Add(type);
+                _actorTypes.Add(type);
             }
         }
         Groups.Add("All Classes");
-        ActorsTypeMap.Add("All Classes", ActorTypes);
+        ActorsTypeMap.Add("All Classes", _actorTypes);
 
     }
 
@@ -123,9 +115,9 @@ public class PlaceActorsPanel : ImGUIWindow
                     {
                         
                     }
-                    if (ImGui.IsItemHovered() && ImGui.IsMouseDown(ImGuiMouseButton.Left) && EditorSubsystem.ClickType == null)
+                    if (ImGui.IsItemHovered() && ImGui.IsMouseDown(ImGuiMouseButton.Left) && _editorSubsystem.ClickType == null)
                     {
-                        EditorSubsystem.ClickType = item;
+                        _editorSubsystem.ClickType = item;
                     }
                 }
                 ImGui.PopStyleVar();

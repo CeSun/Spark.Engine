@@ -15,12 +15,12 @@ namespace Editor.Panels;
 
 public class LevelPanel : ImGUIWindow
 {
-    EditorSubsystem EditorSubsystem;
+    private readonly EditorSubsystem _editorSubsystem;
     public LevelPanel(Level level) : base(level)
     {
         var system = level.Engine.GetSubSystem<EditorSubsystem>();
         if (system != null)
-            EditorSubsystem = system;
+            _editorSubsystem = system;
         else
             throw new Exception("no editor subsystem");
     }
@@ -32,16 +32,16 @@ public class LevelPanel : ImGUIWindow
     {
         var viewport = ImGui.GetMainViewport();
         ImGui.SetNextWindowViewport(viewport.ID);
-        ImGui.Begin("New Level##levelpanel");
+        ImGui.Begin("New Level##levelPanel");
 
         var windowSize = ImGui.GetContentRegionAvail();
-        if (EditorSubsystem.LevelWorld != null && EditorSubsystem.LevelWorld.WorldMainRenderTarget!=null)
+        if (_editorSubsystem.LevelWorld is { WorldMainRenderTarget: not null })
         {
-            var rt = EditorSubsystem.LevelWorld.WorldMainRenderTarget;
+            var rt = _editorSubsystem.LevelWorld.WorldMainRenderTarget;
             rt.Resize((int)windowSize.X, (int)windowSize.Y);
             var uv1 = new Vector2(0, (rt.Height / (float)rt.BufferHeight));
             var uv2 = new Vector2(rt.Width / (float)rt.BufferWidth, 0);
-            ImGui.Image((nint)EditorSubsystem.LevelWorld.WorldMainRenderTarget.GBufferIds[0], windowSize, uv1, uv2);
+            ImGui.Image((nint)_editorSubsystem.LevelWorld.WorldMainRenderTarget.GBufferIds[0], windowSize, uv1, uv2);
 
 
             var min = ImGui.GetItemRectMin();
@@ -82,37 +82,47 @@ public class LevelPanel : ImGUIWindow
                 {
                     movement = Vector2.Normalize(movement);
 
-                    EditorSubsystem.EditorCameraActor.WorldLocation += (EditorSubsystem.EditorCameraActor.ForwardVector * movement.Y + EditorSubsystem.EditorCameraActor.RightVector * movement.X) * (float)deltaTime;
+                    _editorSubsystem.EditorCameraActor.WorldLocation += (_editorSubsystem.EditorCameraActor.ForwardVector * movement.Y + _editorSubsystem.EditorCameraActor.RightVector * movement.X) * (float)deltaTime;
 
                 }
             }
 
         }
 
-        if (EditorSubsystem.EditorCameraActor != null)
+        if (_editorSubsystem.EditorCameraActor != null)
         {
             if (IsPressed == true)
             {
                 var currentPos = ImGui.GetMousePos();
                 var deltaPos = currentPos - PressedPosition;
-                var euler = EditorSubsystem.EditorCameraActor.WorldRotation.ToEuler();
-                EditorSubsystem.EditorCameraActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(euler.Y - deltaPos.X.DegreeToRadians(), euler.X - deltaPos.Y.DegreeToRadians(), 0);
+                var euler = _editorSubsystem.EditorCameraActor.WorldRotation.ToEuler();
+
+                var pitch = euler.X.RadiansToDegree() - deltaPos.Y;
+                if (pitch > 89)
+                {
+                    pitch = 89;
+                }
+                if (pitch < -89)
+                {
+                    pitch = -89;
+                }
+                _editorSubsystem.EditorCameraActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(euler.Y - deltaPos.X.DegreeToRadians(), pitch.DegreeToRadians(), 0);
                PressedPosition = currentPos;
             }
         }
-        if (IsPressed == true && ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+        if (IsPressed && ImGui.IsMouseReleased(ImGuiMouseButton.Right))
         {
             IsPressed = false;
         }
 
-        if (ImGui.IsMouseHoveringRect(ImGui.GetWindowPos(), ImGui.GetWindowPos() + ImGui.GetWindowSize()) && EditorSubsystem.ClickType != null && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+        if (ImGui.IsMouseHoveringRect(ImGui.GetWindowPos(), ImGui.GetWindowPos() + ImGui.GetWindowSize()) && _editorSubsystem.ClickType != null && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
         {
-            if (EditorSubsystem.LevelWorld != null)
+            if (_editorSubsystem.LevelWorld != null)
             {
-                var level = EditorSubsystem.LevelWorld.CurrentLevel;
-                var actor = Activator.CreateInstance(EditorSubsystem.ClickType, [level, ""]);
+                var level = _editorSubsystem.LevelWorld.CurrentLevel;
+                var actor = Activator.CreateInstance(_editorSubsystem.ClickType, [level, ""]);
             }
-            EditorSubsystem.ClickType = null;
+            _editorSubsystem.ClickType = null;
         }
 
         ImGui.End();
