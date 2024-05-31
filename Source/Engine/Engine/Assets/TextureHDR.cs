@@ -32,14 +32,8 @@ public class TextureHdr : AssetBase
             gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgb16f, Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, p);
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
-        ReleaseMemory();
     }
 
-    public void ReleaseMemory()
-    {
-        Pixels.Clear();
-    }
-    
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
@@ -53,7 +47,6 @@ public class TextureHdr : AssetBase
         {
             bw.WriteSingle(num);
         }
-        engine.NextRenderFrame.Add(InitRender);
     }
 
     public override void Deserialize(BinaryReader br, Engine engine)
@@ -73,6 +66,7 @@ public class TextureHdr : AssetBase
         {
             Pixels.Add(br.ReadSingle());
         }
+        engine.NextRenderFrame.Add(InitRender);
     }
 
 }

@@ -72,7 +72,6 @@ public class Texture : AssetBase
         bw.WriteInt32((int)Filter);
         bw.WriteInt32(Pixels.Count);
         bw.Write(Pixels.ToArray());
-        engine.NextRenderFrame.Add(InitRender);
     }
 
     public override void Deserialize(BinaryReader br, Engine engine)
@@ -89,7 +88,7 @@ public class Texture : AssetBase
         Filter = (TexFilter)br.ReadInt32();
         var pixelsLen = br.ReadInt32();
         Pixels.AddRange(br.ReadBytes(pixelsLen));
-
+        engine.NextRenderFrame.Add(InitRender);
     }
     public unsafe void InitRender(GL gl)
     {
@@ -106,7 +105,6 @@ public class Texture : AssetBase
             gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToGlEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, p);
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
-        Pixels = [];
     }
 
   
@@ -116,10 +114,12 @@ public class Texture : AssetBase
         var imageResult = ImageResult.FromMemory(data);
         if (imageResult != null)
         {
-            Texture texture = new Texture();
-            texture.Width = (uint)imageResult.Width;
-            texture.Height = (uint)imageResult.Height;
-            texture.Channel = imageResult.Comp.ToTexChannel();
+            Texture texture = new ()
+            {
+                Width = (uint)imageResult.Width,
+                Height = (uint)imageResult.Height,
+                Channel = imageResult.Comp.ToTexChannel()
+            };
             texture.Pixels.AddRange(imageResult.Data);
             return texture;
         }
@@ -199,11 +199,4 @@ public class Texture : AssetBase
 
     }
 
-    private static void Process(byte[] data)
-    {
-        for (int i = 0; i < data.Length; i++)
-        {
-            data[i] = (byte)(Math.Pow(data[i] / 255.0f, 1.0f / 2.2f) * 255);
-        }
-    }
 }

@@ -1,11 +1,9 @@
-﻿using SharpGLTF.Schema2;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Physics;
 using Jitter2.LinearMath;
 using Jitter2.Collision.Shapes;
-using Spark.Engine.Platform;
 
 namespace Spark.Engine.Assets;
 
@@ -14,7 +12,7 @@ public class StaticMesh : AssetBase
     public List<Element<StaticMeshVertex>> Elements = [];
     public List<Shape> Shapes = [];
     public Box Box { get; private set; }
-    public List<Box> Boxes { get; private set; } = new List<Box>();
+    public List<Box> Boxes { get; } = [];
     public StaticMesh()
     {
         Path = string.Empty;
@@ -26,226 +24,12 @@ public class StaticMesh : AssetBase
         Elements.AddRange(elements);
     }
 
-    public static async Task<StaticMesh> LoadFromGlbAsync(string path)
-    {
-
-        using var sr = IFileSystem.Instance.GetStreamReader("Content" + path);
-        return await LoadFromGlbAsync(sr.BaseStream);
-    }
-    public static async Task<StaticMesh> LoadFromGlbAsync(Stream stream)
-    {
-        StaticMesh? sm = null;
-        await Task.Run(() =>
-        {
-            ModelRoot model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix});
-            sm = LoadFromGLBInternal(model);
-        });
-        return sm;
-    }
-
-
-    public static StaticMesh LoadFromGlb(string path)
-    {
-    
-        using var sr = IFileSystem.Instance.GetStreamReader("Content" + path);
-        return LoadFromGlb(sr.BaseStream);
-    }
-    public static StaticMesh LoadFromGlb(Stream stream)
-    {
-        var model = ModelRoot.ReadGLB(stream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
-
-        return LoadFromGLBInternal(model);
-    }
-
-    public static StaticMesh LoadFromGLBInternal(ModelRoot model)
-    {
-        StaticMesh sm = new StaticMesh();
-        foreach (var glMesh in model.LogicalMeshes)
-        {
-            if (glMesh.Name.IndexOf("Physics_") < 0)
-            {
-                foreach (var glPrimitive in glMesh.Primitives)
-                {
-                    List<StaticMeshVertex> staticMeshVertices = new List<StaticMeshVertex>();
-                    foreach (var kv in glPrimitive.VertexAccessors)
-                    {
-                        int index = 0;
-                        if (kv.Key == "POSITION")
-                        {
-                            foreach (var v in kv.Value.AsVector3Array())
-                            {
-                                var Vertex = new StaticMeshVertex();
-                                if (staticMeshVertices.Count > index)
-                                {
-                                    Vertex = staticMeshVertices[index];
-                                }
-                                else
-                                {
-                                    staticMeshVertices.Add(Vertex);
-                                }
-                                Vertex.Location = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
-                                if (staticMeshVertices.Count > index)
-                                {
-                                }
-                                staticMeshVertices[index] = Vertex;
-                                index++;
-                            }
-                        }
-                        if (kv.Key == "NORMAL")
-                        {
-                            foreach (var v in kv.Value.AsVector3Array())
-                            {
-                                var Vertex = new StaticMeshVertex();
-                                if (staticMeshVertices.Count > index)
-                                {
-                                    Vertex = staticMeshVertices[index];
-                                }
-                                else
-                                {
-                                    staticMeshVertices.Add(Vertex);
-                                }
-                                Vertex.Normal = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
-                                staticMeshVertices[index] = Vertex;
-                                index++;
-                            }
-                        }
-                        if (kv.Key == "TEXCOORD_0")
-                        {
-                            foreach (var v in kv.Value.AsVector2Array())
-                            {
-
-                                var Vertex = new StaticMeshVertex();
-                                if (staticMeshVertices.Count > index)
-                                {
-                                    Vertex = staticMeshVertices[index];
-                                }
-                                else
-                                {
-                                    staticMeshVertices.Add(Vertex);
-                                }
-                                Vertex.TexCoord = new Vector2 { X = v.X, Y = v.Y };
-                                staticMeshVertices[index] = Vertex;
-                                index++;
-                            }
-                        }
-                    }
-                    Box box = new Box();
-                    if (staticMeshVertices.Count > 0)
-                    {
-                        box.MaxPoint = box.MinPoint = staticMeshVertices[0].Location;
-                    }
-                    foreach (var Vertex in staticMeshVertices)
-                    {
-                        box += Vertex.Location;
-                    }
-                    sm.Boxes.Add(box);
-                    List<uint> Indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
-                    var Material = new Material();
-                    byte[]? MetallicRoughness = null;
-                    byte[]? AmbientOcclusion = null;
-                    byte[]? Parallax = null;
-
-                    foreach (var glChannel in glPrimitive.Material.Channels)
-                    {
-                        if (glChannel.Texture == null)
-                            continue;
-
-                        if (glChannel.Key == "MetallicRoughness")
-                        {
-                            MetallicRoughness = glChannel.Texture.PrimaryImage.Content.Content.ToArray();
-                            continue;
-                        }
-                        if (glChannel.Key == "AmbientOcclusion")
-                        {
-                            AmbientOcclusion = glChannel.Texture.PrimaryImage.Content.Content.ToArray();
-                            continue;
-                        }
-                        if (glChannel.Key == "Parallax")
-                        {
-
-                            Parallax = glChannel.Texture.PrimaryImage.Content.Content.ToArray();
-                            continue;
-                        }
-
-                        var texture = Texture.LoadFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray());
-                        if (glChannel.Key == "BaseColor" || glChannel.Key == "Diffuse")
-                        {
-                            Material.BaseColor = texture;
-                        }
-                        if (glChannel.Key == "Normal")
-                        {
-                            Material.Normal = texture;
-                        }
-
-                    }
-                    Texture Arm = Texture.LoadPbrTexture(MetallicRoughness, AmbientOcclusion);
-                    Material.Arm = Arm;
-                    sm.Elements.Add(new Element<StaticMeshVertex>
-                    {
-                        Vertices = staticMeshVertices,
-                        Material = Material,
-                        Indices = Indices,
-                        IndicesLen = (uint)Indices.Count
-                    });
-                }
-            }
-            else
-            {
-                foreach (var glPrimitive in glMesh.Primitives)
-                {
-                    List<JTriangle> ShapeSource = new List<JTriangle>();
-                    var locations = glPrimitive.GetVertices("POSITION").AsVector3Array();
-                    for (int i = 0; i < glPrimitive.GetIndices().Count; i += 3)
-                    {
-                        int index1 = (int)glPrimitive.GetIndices()[i];
-                        int index2 = (int)glPrimitive.GetIndices()[i + 1];
-                        int index3 = (int)glPrimitive.GetIndices()[i + 2];
-
-                        JTriangle tri = new JTriangle
-                        {
-                            V0 = new JVector
-                            {
-                                X = locations[index1].X,
-                                Y = locations[index1].Y,
-                                Z = locations[index1].Z
-                            },
-                            V1 = new JVector
-                            {
-                                X = locations[index2].X,
-                                Y = locations[index2].Y,
-                                Z = locations[index2].Z
-                            },
-                            V2 = new JVector
-                            {
-                                X = locations[index3].X,
-                                Y = locations[index3].Y,
-                                Z = locations[index3].Z
-                            },
-                        };
-                        ShapeSource.Add(tri);
-                    }
-                    sm.Shapes.Add(new ConvexHullShape(ShapeSource));
-                }
-            }
-        }
-        sm.InitTBN();
-        sm.InitPhysics();
-        if (sm.Boxes.Count > 0)
-        {
-            sm.Box = sm.Boxes[0];
-            foreach (var box in sm.Boxes)
-            {
-                sm.Box += box;
-            }
-        }
-        return sm;
-    }
   
-    public void InitTBN()
+    public void InitTbn()
     {
         for (int i = 0; i < Elements.Count; i ++)
         {
-            InitMeshTBN(i);
+            InitMeshTbn(i);
         }
     }
 
@@ -280,36 +64,36 @@ public class StaticMesh : AssetBase
             }
         }
     }
-    private void InitMeshTBN(int index)
+    private void InitMeshTbn(int index)
     {
-        var vertics = Elements[index].Vertices;
+        var vertices = Elements[index].Vertices;
         var indices = Elements[index].Indices;
 
         for(int i = 0; i < indices.Count - 2; i += 3)
         {
 
-            var p1 = vertics[(int)indices[i]];
-            var p2 = vertics[(int)indices[i + 1]];
-            var p3 = vertics[(int)indices[i + 2]];
+            var p1 = vertices[(int)indices[i]];
+            var p2 = vertices[(int)indices[i + 1]];
+            var p3 = vertices[(int)indices[i + 2]];
 
-            Vector3 Edge1 = p2.Location - p1.Location;
-            Vector3 Edge2 = p3.Location - p1.Location;
-            Vector2 DeltaUV1 = p2.TexCoord - p1.TexCoord;
-            Vector2 DeltaUV2 = p3.TexCoord - p1.TexCoord;
+            Vector3 edge1 = p2.Location - p1.Location;
+            Vector3 edge2 = p3.Location - p1.Location;
+            Vector2 deltaUv1 = p2.TexCoord - p1.TexCoord;
+            Vector2 deltaUv2 = p3.TexCoord - p1.TexCoord;
 
-            float f = 1.0f / (DeltaUV1.X * DeltaUV2.Y - DeltaUV2.X * DeltaUV1.Y);
+            float f = 1.0f / (deltaUv1.X * deltaUv2.Y - deltaUv2.X * deltaUv1.Y);
 
             Vector3 tangent1;
             Vector3 bitangent1;
 
-            tangent1.X = f * (DeltaUV2.Y * Edge1.X - DeltaUV1.Y * Edge2.X);
-            tangent1.Y = f * (DeltaUV2.Y * Edge1.Y - DeltaUV1.Y * Edge2.Y);
-            tangent1.Z = f * (DeltaUV2.Y * Edge1.Z - DeltaUV1.Y * Edge2.Z);
+            tangent1.X = f * (deltaUv2.Y * edge1.X - deltaUv1.Y * edge2.X);
+            tangent1.Y = f * (deltaUv2.Y * edge1.Y - deltaUv1.Y * edge2.Y);
+            tangent1.Z = f * (deltaUv2.Y * edge1.Z - deltaUv1.Y * edge2.Z);
             tangent1 = Vector3.Normalize(tangent1);
 
-            bitangent1.X = f * (-DeltaUV2.X * Edge1.X + DeltaUV1.X * Edge2.X);
-            bitangent1.Y = f * (-DeltaUV2.X * Edge1.Y + DeltaUV1.X * Edge2.Y);
-            bitangent1.Z = f * (-DeltaUV2.X * Edge1.Z + DeltaUV1.X * Edge2.Z);
+            bitangent1.X = f * (-deltaUv2.X * edge1.X + deltaUv1.X * edge2.X);
+            bitangent1.Y = f * (-deltaUv2.X * edge1.Y + deltaUv1.X * edge2.Y);
+            bitangent1.Z = f * (-deltaUv2.X * edge1.Z + deltaUv1.X * edge2.Z);
             bitangent1 = Vector3.Normalize(bitangent1);
 
             p1.Tangent = tangent1;
@@ -321,9 +105,9 @@ public class StaticMesh : AssetBase
             p2.BitTangent = bitangent1;
             p3.BitTangent = bitangent1;
 
-            vertics[(int)indices[i]] = p1;
-            vertics[(int)indices[i + 1]] = p2;
-            vertics[(int)indices[i + 2]] = p3;
+            vertices[(int)indices[i]] = p1;
+            vertices[(int)indices[i + 1]] = p2;
+            vertices[(int)indices[i + 2]] = p3;
 
         }
 
@@ -375,17 +159,8 @@ public class StaticMesh : AssetBase
             Elements[index].VertexBufferObjectIndex = vbo;
             Elements[index].ElementBufferObjectIndex = ebo;
         }
-        ReleaseMemory();
     }
 
-    public void ReleaseMemory()
-    {
-        foreach(var element in Elements)
-        {
-            element.Vertices = null;
-            element.Indices = null;
-        }
-    }
 
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
@@ -400,11 +175,11 @@ public class StaticMesh : AssetBase
 
     public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var AssetMagicCode = br.ReadInt32();
-        if (AssetMagicCode != MagicCode.Asset)
+        var assetMagicCode = br.ReadInt32();
+        if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
-        var TextureMagicCode = br.ReadInt32();
-        if (TextureMagicCode != MagicCode.StaticMesh)
+        var textureMagicCode = br.ReadInt32();
+        if (textureMagicCode != MagicCode.StaticMesh)
             throw new Exception("");
         var count = br.ReadInt32();
         for(var i = 0; i < count; i++)
@@ -417,7 +192,7 @@ public class StaticMesh : AssetBase
             element.Deserialize(br, engine);
             Elements.Add(element);
         }
-
+        engine.NextRenderFrame.Add(InitRender);
     }
 }
 
@@ -447,7 +222,7 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
         {
             Indices.Add(br.ReadUInt32());
         }
-        Material = ISerializable.AssetDeserialize<Material>(br, engine);
+        Material = ISerializable.AssetDeserialize<Material>(br, engine)!;
 
         IndicesLen = (uint)Indices.Count;
     }

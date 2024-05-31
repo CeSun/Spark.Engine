@@ -1,7 +1,4 @@
 ﻿using Silk.NET.OpenGLES;
-using StbImageSharp;
-using System.Text.Json.Nodes;
-using Spark.Engine.Platform;
 using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
@@ -64,7 +61,7 @@ public class TextureCube : ISerializable
 
     public uint TextureId;
 
-    List<SubTexture> _textures = [];
+    private readonly List<SubTexture> _textures = [];
 
     public unsafe void InitRender(GL gl)
     {
@@ -88,12 +85,6 @@ public class TextureCube : ISerializable
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
 
         }
-        ReleaseMemory();
-    }
-
-    public void ReleaseMemory()
-    {
-        _textures = null;
     }
 
     public void Serialize(BinaryWriter bw, Engine engine)
@@ -105,7 +96,6 @@ public class TextureCube : ISerializable
         {
             texture.Serialize(bw, engine);
         }
-        engine.NextRenderFrame.Add(InitRender);
     }
 
     public void Deserialize(BinaryReader br, Engine engine)
@@ -123,5 +113,6 @@ public class TextureCube : ISerializable
             texture.Deserialize(br, engine);
             _textures.Add(texture);
         }
+        engine.NextRenderFrame.Add(InitRender);
     }
 }

@@ -52,21 +52,26 @@ public class ContentViewerPanel : ImGUIWindow
         List<(AssetBase, string)> assets = new List<(AssetBase, string)>();
         foreach (var path in paths)
         {
-            var Extension = Path.GetExtension(path);
-            if (Extension == ".bmp" || Extension == ".png" || Extension == ".tga")
+            var extension = Path.GetExtension(path);
+            if (extension == ".bmp" || extension == ".png" || extension == ".tga")
             {
                 assets.Add((EditorSubsystem.CurrentEngine.ImportTextureFromFile(path, new TextureImportSetting { }), path));
             }
-            else if (Extension == ".hdr")
+            else if (extension == ".hdr")
             {
                 assets.Add((EditorSubsystem.CurrentEngine.ImportTextureHdrFromFile(path, new TextureImportSetting { }), path));
             }
-            else if (Extension == ".glb")
+            else if (extension == ".glb")
             {
-                SkeletalMesh.ImportFromGlb(path).ForEach(asset =>
-                {
-                    assets.Add((asset, path));
-                });
+                List<Texture> textures = [];
+                List<Material> materials = [];
+                List<AnimSequence> animSequences = [];
+                EditorSubsystem.CurrentEngine.ImporterSkeletalMeshFromGlbFile(path, new SkeletalMeshImportSetting(), textures, materials, animSequences, out var skeleton, out var skeletalMesh);
+                textures.ForEach(texture => assets.Add((texture, path)));
+                materials.ForEach(material => assets.Add((material, path)));
+                assets.Add((skeleton, path));
+                animSequences.ForEach(animSequence => assets.Add((animSequence, path)));
+                assets.Add((skeletalMesh, path));
             }
         }
 
