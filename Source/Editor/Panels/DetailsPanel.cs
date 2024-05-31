@@ -10,6 +10,7 @@ using System.Numerics;
 using System.Reflection;
 using Spark.Util;
 using static Editor.Panels.ContentViewerPanel;
+using System.Runtime.InteropServices;
 
 namespace Editor.Panels
 {
@@ -367,15 +368,46 @@ namespace Editor.Panels
                 }
 
                 bool isModifyInput = false;
-                ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
+                ImGui.PushFont(Level.ImGuiWarp.Fonts["forkawesome"]);
                 var buttonWidth = ImGui.CalcTextSize([(char)0x00f060, (char)0x00f002]).X + ImGui.GetStyle().ItemSpacing.X * 3 + ImGui.GetStyle().FramePadding.X * 4;
                 ImGui.PopFont();
                 ImGui.SetNextItemWidth(width - buttonWidth);
                 ImGui.InputText("##"  + obj.GetHashCode() + name, ref path, 256, flag);
+                var assetMagicCodeProperty = property.PropertyType.GetProperty("AssetMagicCode");
+                if (assetMagicCodeProperty != null && assetMagicCodeProperty.GetMethod != null)
+                {
+                    var magicCode = (int)(assetMagicCodeProperty.GetMethod.Invoke(null, null) ?? 0);
+                    if (magicCode != 0)
+                    {
+                        if (ImGui.BeginDragDropTarget())
+                        {
+                            var payLoad = ImGui.AcceptDragDropPayload("FILE_" + MagicCode.GetName(magicCode).ToUpper());
+                            unsafe
+                            {
+                                if (payLoad.NativePtr != null)
+                                {
+                                    var gcHandle = Marshal.PtrToStructure<GCHandle>(payLoad.Data);
+
+                                    if (gcHandle.Target != null)
+                                    {
+                                        var filePath = (string)gcHandle.Target;
+                                        var myPath = filePath.Replace("\\", "/");
+                                        myPath = myPath.Substring(EditorSubsystem.CurrentPath.Length + 1, myPath.Length - EditorSubsystem.CurrentPath.Length - 1);
+                                        path = myPath;
+                                        isModifyInput = true;
+                                    }
+                                }
+                            }
+                            ImGui.EndDragDropTarget();
+                        }
+                    }
+                }
+                
+
                 ImGui.SameLine();
                
 
-                ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
+                ImGui.PushFont(Level.ImGuiWarp.Fonts["forkawesome"]);
                 if(ImGui.Button(new string([(char)0x00f060]) + "##set_" + property.DeclaringType!.FullName + "_"+property.Name))
                 {
                     var file = EditorSubsystem.GetValue<AssetFile>("CurrentSelectFile");
@@ -410,7 +442,7 @@ namespace Editor.Panels
                     {
                         try
                         {
-                            asset = this.level.Engine.AssetMgr.Load(property.PropertyType, path);
+                            asset = this.Level.Engine.AssetMgr.Load(property.PropertyType, path);
                             property.SetValue(obj, asset);
                         }
                         catch (Exception e)

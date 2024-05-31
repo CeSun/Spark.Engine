@@ -3,8 +3,9 @@ using System.Numerics;
 
 namespace Spark.Engine.Assets;
 
-public class AnimSequence : AnimBase
+public class AnimSequence : AnimBase, IAssetBaseInterface
 {
+    public static int AssetMagicCode => MagicCode.AnimSequence;
     public Skeleton? Skeleton { get; set; }
     public AnimSequence()
     {
@@ -44,7 +45,7 @@ public class AnimSequence : AnimBase
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(MagicCode.AnimSequence);
+        bw.WriteInt32(AssetMagicCode);
         bw.WriteString2(AnimName);
         bw.WriteDouble(Duration);
         ISerializable.AssetSerialize(Skeleton, bw, engine);
@@ -63,7 +64,7 @@ public class AnimSequence : AnimBase
         if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != MagicCode.AnimSequence)
+        if (textureMagicCode != AssetMagicCode)
             throw new Exception("");
         AnimName = br.ReadString2();
         Duration = br.ReadDouble();

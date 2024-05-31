@@ -8,3 +8,9 @@ public abstract class AssetBase: ISerializable
 
     public abstract void Serialize(BinaryWriter writer, Engine engine);
 }
+
+
+public interface IAssetBaseInterface
+{
+    public static abstract int AssetMagicCode { get; }
+}

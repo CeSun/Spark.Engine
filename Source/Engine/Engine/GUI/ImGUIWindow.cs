@@ -8,21 +8,21 @@ namespace Spark.Engine.GUI;
 
 public class ImGUIWindow
 {
-    protected Level level;
+    protected Level Level;
     public ImGUIWindow(Level level)
     {
-        this.level = level;
+        this.Level = level;
     }
 
     public void AddToViewPort()
     {
-        level.ImGuiWarp.AddCanvas(this);
+        Level.ImGuiWarp.AddCanvas(this);
     }
 
 
     public void RemoveFromViewPort()
     {
-        level.ImGuiWarp.RemoveCanvas(this);
+        Level.ImGuiWarp.RemoveCanvas(this);
     }
     public virtual void Render(double deltaTime)
     {

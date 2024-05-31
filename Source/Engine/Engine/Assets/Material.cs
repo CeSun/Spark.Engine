@@ -1,7 +1,9 @@
 ﻿namespace Spark.Engine.Assets;
 
-public class Material : AssetBase
+public class Material : AssetBase, IAssetBaseInterface
 {
+    public static int AssetMagicCode => MagicCode.Material;
+
     public Texture?[] Textures = new Texture?[4];
 
     public Texture? BaseColor { get => Textures[0]; set => Textures[0] = value; }
@@ -13,7 +15,7 @@ public class Material : AssetBase
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(MagicCode.Material);
+        bw.WriteInt32(AssetMagicCode);
         ISerializable.AssetSerialize(BaseColor, bw, engine);
         ISerializable.AssetSerialize(Normal, bw, engine);
         ISerializable.AssetSerialize(Arm, bw, engine);
@@ -26,7 +28,7 @@ public class Material : AssetBase
         if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != MagicCode.Material)
+        if (textureMagicCode != AssetMagicCode)
             throw new Exception("");
         BaseColor = ISerializable.AssetDeserialize<Texture>(br, engine);
         Normal = ISerializable.AssetDeserialize<Texture>(br, engine);

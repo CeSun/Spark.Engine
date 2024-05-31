@@ -5,8 +5,10 @@ using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
 
-public partial class SkeletalMesh : AssetBase
+public partial class SkeletalMesh : AssetBase, IAssetBaseInterface
 {
+    public static int AssetMagicCode => MagicCode.SkeletalMesh;
+
     public List<Element<SkeletalMeshVertex>> Elements = [];
 
     public Skeleton? Skeleton { get; set; }
@@ -136,7 +138,7 @@ public partial class SkeletalMesh
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(MagicCode.SkeletalMesh);
+        bw.WriteInt32(AssetMagicCode);
         bw.WriteInt32(Elements.Count);
         foreach (var element in Elements)
         {
@@ -151,7 +153,7 @@ public partial class SkeletalMesh
         if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != MagicCode.SkeletalMesh)
+        if (textureMagicCode != AssetMagicCode)
             throw new Exception("");
         var count = br.ReadInt32();
         for (var i = 0; i < count; i++)

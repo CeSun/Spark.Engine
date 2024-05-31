@@ -51,7 +51,7 @@ public class MainPanel(Level level) : ImGUIWindow(level)
         }
 
 
-        ImGui.PushFont(level.ImGuiWarp.Fonts["forkawesome"]);
+        ImGui.PushFont(Level.ImGuiWarp.Fonts["forkawesome"]);
         ImGui.Button(new string([(char)0x000f0c7])+ "##editorsave");
         ImGui.SameLine();
         ImGui.Button(new string([(char)0x000f04b]) + "##editorrun");

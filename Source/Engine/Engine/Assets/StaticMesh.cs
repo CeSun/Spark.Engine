@@ -7,8 +7,10 @@ using Jitter2.Collision.Shapes;
 
 namespace Spark.Engine.Assets;
 
-public class StaticMesh : AssetBase
+public class StaticMesh : AssetBase, IAssetBaseInterface
 {
+    public static int AssetMagicCode => MagicCode.StaticMesh;
+
     public List<Element<StaticMeshVertex>> Elements = [];
     public List<Shape> Shapes = [];
     public Box Box { get; private set; }
@@ -165,7 +167,7 @@ public class StaticMesh : AssetBase
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(MagicCode.StaticMesh);
+        bw.WriteInt32(AssetMagicCode);
         bw.WriteInt32(Elements.Count);
         foreach(var element in Elements)
         {
@@ -179,7 +181,7 @@ public class StaticMesh : AssetBase
         if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != MagicCode.StaticMesh)
+        if (textureMagicCode != AssetMagicCode)
             throw new Exception("");
         var count = br.ReadInt32();
         for(var i = 0; i < count; i++)

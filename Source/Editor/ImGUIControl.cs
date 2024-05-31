@@ -62,6 +62,19 @@ namespace Editor
                 }
                 last_click_time = ImGui.GetTime();
             }
+
+            if (ImGui.BeginDragDropSource(ImGuiDragDropFlags.None))
+            {
+                var gcHandle = GCHandle.Alloc(id, GCHandleType.Weak);
+                IntPtr ptr = 0;
+                unsafe
+                {
+                    ptr = (IntPtr)(&gcHandle);
+                    ImGui.SetDragDropPayload("FILE_" + label.ToUpper(), ptr, (uint)sizeof(GCHandle));
+                }
+                ImGui.Text(title);
+                ImGui.EndDragDropSource();
+            }
             ImGui.PopStyleColor();
             ImGui.PopStyleColor();
             if (IsSelect == false)

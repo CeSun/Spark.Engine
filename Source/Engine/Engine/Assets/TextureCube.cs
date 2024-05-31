@@ -35,8 +35,10 @@ public class SubTexture : AssetBase
         Pixels.AddRange(br.ReadBytes(pixelsLen));
     }
 }
-public class TextureCube : ISerializable
+public class TextureCube : ISerializable, IAssetBaseInterface
 {
+    public static int AssetMagicCode => MagicCode.TextureCube;
+
     private static readonly GLEnum[] TexTargets =
     [
         GLEnum.TextureCubeMapPositiveX,
@@ -90,7 +92,7 @@ public class TextureCube : ISerializable
     public void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(MagicCode.TextureCube);
+        bw.WriteInt32(AssetMagicCode);
         bw.WriteInt32(_textures.Count);
         foreach(var texture in _textures)
         {
@@ -104,7 +106,7 @@ public class TextureCube : ISerializable
         if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != MagicCode.TextureCube)
+        if (textureMagicCode != AssetMagicCode)
             throw new Exception("");
         var count = br.ReadInt32();
         for(int i = 0; i < count; i++)

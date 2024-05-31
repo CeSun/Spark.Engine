@@ -5,13 +5,10 @@ using Spark.Engine;
 using Spark.Engine.Assets;
 using Spark.Engine.Editor;
 using Spark.Engine.GUI;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net.Http.Headers;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using static Editor.Panels.ContentViewerPanel;
+using static System.Net.WebRequestMethods;
+using File = System.IO.File;
 
 namespace Editor.Panels;
 
@@ -95,7 +92,7 @@ public class ContentViewerPanel : ImGUIWindow
                 asset.Path = FullFileName.Substring(EditorSubsystem.CurrentPath.Length + 1, FullFileName.Length - EditorSubsystem.CurrentPath.Length - 1);
                 using (var sw = new StreamWriter(FullFileName))
                 {
-                    asset.Serialize(new BinaryWriter(sw.BaseStream), level.Engine);
+                    asset.Serialize(new BinaryWriter(sw.BaseStream), Level.Engine);
                 }
             }
         }
@@ -162,29 +159,27 @@ public class ContentViewerPanel : ImGUIWindow
             Path = File.FullName,
             Name = File.Name,
         };
-        using (var sr = new StreamReader(File.FullName))
+        using var sr = new StreamReader(File.FullName);
+        var br = new BinaryReader(sr.BaseStream);
+
+        var magicCode  = br.ReadInt32();
+
+        var assetType = br.ReadInt32();
+
+        if (magicCode != MagicCode.Asset)
         {
-            var br = new BinaryReader(sr.BaseStream);
-
-            var magicCode  = br.ReadInt32();
-
-            var AssetType = br.ReadInt32();
-
-            if (magicCode != MagicCode.Asset)
-            {
-                file.AssetType = -1;
-            }
-            else
-            {
-                file.AssetType = AssetType;
-            }
-
+            file.AssetType = -1;
         }
+        else
+        {
+            file.AssetType = assetType;
+        }
+
         return file;
 
 
     }
-    public override void Render(double DeltaTime)
+    public override void Render(double deltaTime)
     {
         ImGui.Begin("Content Viewer");
         if (ImGui.Button("添加"))

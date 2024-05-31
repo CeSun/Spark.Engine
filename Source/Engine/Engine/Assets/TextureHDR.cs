@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
 
-public class TextureHdr : AssetBase
+public class TextureHdr : AssetBase, IAssetBaseInterface
 {
-
+    public static int AssetMagicCode => MagicCode.TextureHdr;
     public uint TextureId { get; protected set; }
     public uint Width { get; set; }
     public uint Height { get; set; }
@@ -37,7 +37,7 @@ public class TextureHdr : AssetBase
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(MagicCode.TextureHdr);
+        bw.WriteInt32(AssetMagicCode);
         bw.WriteUInt32(Width);
         bw.WriteUInt32(Height);
         bw.WriteInt32((int)Channel);
@@ -55,7 +55,7 @@ public class TextureHdr : AssetBase
         if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != MagicCode.TextureHdr)
+        if (textureMagicCode != AssetMagicCode)
             throw new Exception("");
         Width = br.ReadUInt32();
         Height = br.ReadUInt32();

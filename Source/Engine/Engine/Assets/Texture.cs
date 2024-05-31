@@ -51,9 +51,10 @@ public static class ChannelHelper
     }
 
 }
-public class Texture : AssetBase
+public class Texture : AssetBase, IAssetBaseInterface
 {
-    private static int _assetVersion = 1;
+    public static int AssetMagicCode => MagicCode.Texture;
+
     public uint TextureId { get; protected set; }
     public uint Width { get; set; }
     public uint Height { get; set; }
@@ -65,7 +66,7 @@ public class Texture : AssetBase
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(MagicCode.Texture);
+        bw.WriteInt32(AssetMagicCode);
         bw.WriteUInt32(Width);
         bw.WriteUInt32(Height);
         bw.WriteInt32((int)Channel);
@@ -80,7 +81,7 @@ public class Texture : AssetBase
         if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != MagicCode.Texture)
+        if (textureMagicCode != AssetMagicCode)
             throw new Exception("");
         Width = br.ReadUInt32();
         Height = br.ReadUInt32();

@@ -7,6 +7,7 @@ using Spark.Engine.GUI;
 using Spark.Util;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace Editor.Panels;
 
@@ -105,29 +106,34 @@ public class PlaceActorsPanel : ImGUIWindow
         for (int i = 0; i <= Groups.Count; i++) { 
             if (SelectGroup == i)
             {
-
                 ImGui.BeginChild("##Group" + i);
                 ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
                 buttonWidth = ImGui.GetContentRegionAvail().X;
                 foreach (var item in ActorsTypeMap[Groups[i]])
                 {
-                    if (ImGui.Button(item.Name, new Vector2(buttonWidth, 0)))
+                    ImGui.PushID(item.Name);
+                    ImGui.Button(item.Name, new Vector2(buttonWidth, 0));
+                    if (ImGui.BeginDragDropSource(ImGuiDragDropFlags.None))
                     {
-                        
+                        var gcHandle = GCHandle.Alloc(item, GCHandleType.Weak);
+                        IntPtr ptr = 0;
+                        unsafe
+                        {
+                            ptr  = (IntPtr)(&gcHandle);
+                            ImGui.SetDragDropPayload("PLACE_ACTOR_TYPE", ptr, (uint)sizeof(GCHandle));
+                        }
+                        ImGui.Text(item.Name);
+                        ImGui.EndDragDropSource();
                     }
-                    if (ImGui.IsItemHovered() && ImGui.IsMouseDown(ImGuiMouseButton.Left) && _editorSubsystem.ClickType == null)
-                    {
-                        _editorSubsystem.ClickType = item;
-                    }
+                    ImGui.PopID();
                 }
                 ImGui.PopStyleVar();
                 ImGui.EndChild();
+
             }
         }
 
         ImGui.End();
-
-
 
         if (IsFirst == true)
             IsFirst = false;

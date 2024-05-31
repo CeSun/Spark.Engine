@@ -8,8 +8,9 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
-public class Skeleton : AssetBase
+public class Skeleton : AssetBase, IAssetBaseInterface
 {
+    public static int AssetMagicCode => MagicCode.Skeleton;
     public Skeleton()
     {
     }
@@ -35,7 +36,7 @@ public class Skeleton : AssetBase
     public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(MagicCode.Skeleton);
+        bw.WriteInt32(AssetMagicCode);
         bw.Write(RootParentMatrix);
         bw.WriteInt32(_BoneList.Count);
         foreach(var bone in _BoneList)
@@ -47,11 +48,11 @@ public class Skeleton : AssetBase
 
     public override void Deserialize(BinaryReader br, Engine engine)
     {
-        var AssetMagicCode = br.ReadInt32();
-        if (AssetMagicCode != MagicCode.Asset)
+        var assetMagicCode = br.ReadInt32();
+        if (assetMagicCode != MagicCode.Asset)
             throw new Exception("");
         var TextureMagicCode = br.ReadInt32();
-        if (TextureMagicCode != MagicCode.Skeleton)
+        if (TextureMagicCode != AssetMagicCode)
             throw new Exception("");
         RootParentMatrix = br.ReadMatrix4X4();
         var count = br.ReadInt32();

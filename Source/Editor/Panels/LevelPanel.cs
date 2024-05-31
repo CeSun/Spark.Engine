@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -42,7 +43,25 @@ public class LevelPanel : ImGUIWindow
             var uv1 = new Vector2(0, (rt.Height / (float)rt.BufferHeight));
             var uv2 = new Vector2(rt.Width / (float)rt.BufferWidth, 0);
             ImGui.Image((nint)_editorSubsystem.LevelWorld.WorldMainRenderTarget.GBufferIds[0], windowSize, uv1, uv2);
+            if (ImGui.BeginDragDropTarget())
+            {
+                var payLoad = ImGui.AcceptDragDropPayload("PLACE_ACTOR_TYPE");
+                unsafe
+                {
+                    if (payLoad.NativePtr != null)
+                    {
+                        var gcHandle = Marshal.PtrToStructure<GCHandle>(payLoad.Data);
 
+                        if (gcHandle.Target != null)
+                        {
+                            var type = (Type)gcHandle.Target;
+                            var level = _editorSubsystem.LevelWorld.CurrentLevel;
+                            var actor = Activator.CreateInstance(type, [level, ""]);
+                        }
+                    }
+                }
+                ImGui.EndDragDropTarget();
+            }
 
             var min = ImGui.GetItemRectMin();
             var max = ImGui.GetItemRectMax();
@@ -62,19 +81,19 @@ public class LevelPanel : ImGUIWindow
             if (ImGui.IsMouseHoveringRect(min, max))
             {
                 Vector2 movement = Vector2.Zero;
-                if(level.Engine.MainKeyBoard.IsKeyPressed(Key.W))
+                if(Level.Engine.MainKeyBoard.IsKeyPressed(Key.W))
                 {
                     movement.Y = 1;
                 }
-                else if (level.Engine.MainKeyBoard.IsKeyPressed(Key.S))
+                else if (Level.Engine.MainKeyBoard.IsKeyPressed(Key.S))
                 {
                     movement.Y = -1;
                 }
-                else if (level.Engine.MainKeyBoard.IsKeyPressed(Key.A))
+                else if (Level.Engine.MainKeyBoard.IsKeyPressed(Key.A))
                 {
                     movement.X = -1;
                 }
-                else if (level.Engine.MainKeyBoard.IsKeyPressed(Key.D))
+                else if (Level.Engine.MainKeyBoard.IsKeyPressed(Key.D))
                 {
                     movement.X = 1;
                 }
