@@ -353,6 +353,14 @@ namespace Editor.Panels
             }
             else if (property.PropertyType.IsSubclassOf(typeof(AssetBase)))
             {
+                var assetMagicCodeProperty = property.PropertyType.GetProperty("AssetMagicCode");
+                if (assetMagicCodeProperty == null || assetMagicCodeProperty.GetMethod == null)
+                    return;
+
+                var magicCode = (int)(assetMagicCodeProperty.GetMethod.Invoke(null, null) ?? 0);
+                if (magicCode == 0)
+                    return;
+
                 AssetBase? asset = null;
 
                 var data = property.GetValue(obj);
@@ -373,34 +381,27 @@ namespace Editor.Panels
                 ImGui.PopFont();
                 ImGui.SetNextItemWidth(width - buttonWidth);
                 ImGui.InputText("##"  + obj.GetHashCode() + name, ref path, 256, flag);
-                var assetMagicCodeProperty = property.PropertyType.GetProperty("AssetMagicCode");
-                if (assetMagicCodeProperty != null && assetMagicCodeProperty.GetMethod != null)
+                
+                if (ImGui.BeginDragDropTarget())
                 {
-                    var magicCode = (int)(assetMagicCodeProperty.GetMethod.Invoke(null, null) ?? 0);
-                    if (magicCode != 0)
+                    var payLoad = ImGui.AcceptDragDropPayload("FILE_" + MagicCode.GetName(magicCode).ToUpper());
+                    unsafe
                     {
-                        if (ImGui.BeginDragDropTarget())
+                        if (payLoad.NativePtr != null)
                         {
-                            var payLoad = ImGui.AcceptDragDropPayload("FILE_" + MagicCode.GetName(magicCode).ToUpper());
-                            unsafe
-                            {
-                                if (payLoad.NativePtr != null)
-                                {
-                                    var gcHandle = Marshal.PtrToStructure<GCHandle>(payLoad.Data);
+                            var gcHandle = Marshal.PtrToStructure<GCHandle>(payLoad.Data);
 
-                                    if (gcHandle.Target != null)
-                                    {
-                                        var filePath = (string)gcHandle.Target;
-                                        var myPath = filePath.Replace("\\", "/");
-                                        myPath = myPath.Substring(EditorSubsystem.CurrentPath.Length + 1, myPath.Length - EditorSubsystem.CurrentPath.Length - 1);
-                                        path = myPath;
-                                        isModifyInput = true;
-                                    }
-                                }
+                            if (gcHandle.Target != null)
+                            {
+                                var filePath = (string)gcHandle.Target;
+                                var myPath = filePath.Replace("\\", "/");
+                                myPath = myPath.Substring(EditorSubsystem.CurrentPath.Length + 1, myPath.Length - EditorSubsystem.CurrentPath.Length - 1);
+                                path = myPath;
+                                isModifyInput = true;
                             }
-                            ImGui.EndDragDropTarget();
                         }
                     }
+                    ImGui.EndDragDropTarget();
                 }
                 
 
@@ -411,14 +412,14 @@ namespace Editor.Panels
                 if(ImGui.Button(new string([(char)0x00f060]) + "##set_" + property.DeclaringType!.FullName + "_"+property.Name))
                 {
                     var file = EditorSubsystem.GetValue<AssetFile>("CurrentSelectFile");
-                    if (file != null)
+                    
+                    if (file != null && file.AssetType == magicCode)
                     {
                         var myPath = file.Path.Replace("\\", "/");
                         myPath = myPath.Substring(EditorSubsystem.CurrentPath.Length + 1, myPath.Length - EditorSubsystem.CurrentPath.Length - 1);
                         path = myPath;
                         isModifyInput = true;
                     }
-                    // todo： 当前选中的资源设置到输入框中
                 }
                 ImGui.SameLine();
                 if(ImGui.Button(new string([(char)0x00f002]) + "##set_" + property.DeclaringType.FullName + "_" + property.Name))
