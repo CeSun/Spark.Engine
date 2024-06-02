@@ -51,9 +51,6 @@ void main()
     vec3 Normal = (Normal2DTo3D(vec2(Buffer1[4], Buffer1[5])* 2.0 - 1.0));
 #endif
 
-    Color = pow(Color, vec3(2.2));
-
-
     vec3 V = normalize(CameraLocation - WorldLocation);
     Normal = normalize(Normal);
     vec3 R = reflect(-V, Normal); 

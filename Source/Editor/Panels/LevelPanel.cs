@@ -116,7 +116,8 @@ public class LevelPanel : ImGUIWindow
                 var deltaPos = currentPos - PressedPosition;
                 var euler = _editorSubsystem.EditorCameraActor.WorldRotation.ToEuler();
 
-                var pitch = euler.X.RadiansToDegree() - deltaPos.Y;
+                var pitch = euler.X.RadiansToDegree() - deltaPos.Y * 0.5f;
+                var yaw = euler.Y - deltaPos.X.DegreeToRadians() * 0.5f;
                 if (pitch > 89)
                 {
                     pitch = 89;

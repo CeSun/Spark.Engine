@@ -9,7 +9,7 @@ using Spark.Engine.Assets;
 using Spark.Engine.Physics;
 using Spark.Engine.Platform;
 using Material = Spark.Engine.Assets.Material;
-using Texture = Spark.Engine.Assets.Texture;
+using TextureLdr = Spark.Engine.Assets.TextureLdr;
 
 namespace Spark.Engine.Editor;
 
@@ -25,7 +25,7 @@ public class SkeletalMeshImportSetting
 }
 public static class MeshImporter
 {
-    public static void ImporterStaticMeshFromGlbFile(this Engine engine, string filePath, StaticMeshImportSetting staticMeshImportSetting, List<Texture> textures, List<Material> materials, out StaticMesh staticMesh)
+    public static void ImporterStaticMeshFromGlbFile(this Engine engine, string filePath, StaticMeshImportSetting staticMeshImportSetting, List<TextureLdr> textures, List<Material> materials, out StaticMesh staticMesh)
     {
         using var sr = IFileSystem.Instance.GetStreamReader(filePath);
         ModelRoot model = ModelRoot.ReadGLB(sr.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
@@ -114,39 +114,27 @@ public static class MeshImporter
                     sm.Boxes.Add(box);
                     List<uint> indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
                     var material = new Material();
-                    Texture? metallicRoughness = null;
-                    Texture? ambientOcclusion = null;
+                    TextureLdr? metallicRoughness = null;
+                    TextureLdr? ambientOcclusion = null;
 
                     foreach (var glChannel in glPrimitive.Material.Channels)
                     {
                         if (glChannel.Texture == null)
                             continue;
-
-                        if (glChannel.Key == "MetallicRoughness")
-                        {
-                            metallicRoughness = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
-                            continue;
-                        }
-                        if (glChannel.Key == "AmbientOcclusion")
-                        {
-                            ambientOcclusion = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
-                            continue;
-                        }
-                        if (glChannel.Key == "Parallax")
-                        {
-                            engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
-                            continue;
-                        }
-
-                        var texture = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                         switch (glChannel.Key)
                         {
                             case "BaseColor":
                             case "Diffuse":
-                                material.BaseColor = texture;
+                                material.BaseColor = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new() { IsGammaSpace = true});
                                 break;
                             case "Normal":
-                                material.Normal = texture;
+                                material.Normal = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                                break;
+                            case "MetallicRoughness":
+                                metallicRoughness = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                                break;
+                            case "AmbientOcclusion":
+                                ambientOcclusion = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                                 break;
                         }
                     }
@@ -207,13 +195,13 @@ public static class MeshImporter
         foreach (var element in staticMesh.Elements)
         {
             materials.Add(element.Material);
-            textures.AddRange(element.Material.Textures.OfType<Texture>());
+            textures.AddRange(element.Material.Textures.OfType<TextureLdr>());
         }
     }
 
 
     public static void ImporterSkeletalMeshFromGlbFile(this Engine engine, string filePath,
-        SkeletalMeshImportSetting skeletalMeshImportSetting, List<Texture> textures, List<Material> materials,List<AnimSequence> animSequences,out Skeleton skeleton, out SkeletalMesh skeletalMesh)
+        SkeletalMeshImportSetting skeletalMeshImportSetting, List<TextureLdr> textures, List<Material> materials,List<AnimSequence> animSequences,out Skeleton skeleton, out SkeletalMesh skeletalMesh)
 
     {
         Skeleton? tmpSkeleton = null;
@@ -235,7 +223,7 @@ public static class MeshImporter
         foreach (var element in skeletalMesh.Elements)
         {
             materials.Add(element.Material);
-            textures.AddRange(element.Material.Textures.OfType<Texture>());
+            textures.AddRange(element.Material.Textures.OfType<TextureLdr>());
         }
         animSequences.AddRange(anims);
     }
@@ -412,48 +400,31 @@ public static class MeshImporter
                 {
                     box += vertex.Location;
                 }
-                //Boxes.Add(box);
-                //SkeletalMesh.Meshes.Add(staticMeshVertices);
-
                 var indices = glPrimitive.IndexAccessor.AsIndicesArray().ToList();
-                // SkeletalMesh._IndicesList.Add(Indices);
                 var material = new Material();
-                Texture? metallicRoughness = null;
-                Texture? ambientOcclusion = null;
-                Texture? parallax = null;
+                TextureLdr? metallicRoughness = null;
+                TextureLdr? ambientOcclusion = null;
 
                 foreach (var glChannel in glPrimitive.Material.Channels)
                 {
                     if (glChannel.Texture == null)
                         continue;
-
-                    if (glChannel.Key == "MetallicRoughness")
-                    {
-                        metallicRoughness = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new TextureImportSetting());
-                        continue;
-                    }
-                    if (glChannel.Key == "AmbientOcclusion")
-                    {
-                        ambientOcclusion = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new TextureImportSetting());
-                        continue;
-                    }
-                    if (glChannel.Key == "Parallax")
-                    {
-                        parallax = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new TextureImportSetting());
-                        continue;
-                    }
-                    var texture = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                     switch (glChannel.Key)
                     {
                         case "BaseColor":
                         case "Diffuse":
-                            material.BaseColor = texture;
+                            material.BaseColor = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new() { IsGammaSpace = true });
                             break;
                         case "Normal":
-                            material.Normal = texture;
+                            material.Normal = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                            break;
+                        case "MetallicRoughness":
+                            metallicRoughness = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                            break;
+                        case "AmbientOcclusion":
+                            ambientOcclusion = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                             break;
                     }
-
                 }
                 var custom = engine.MergePbrTexture(metallicRoughness, ambientOcclusion);
                 material.Arm = custom;

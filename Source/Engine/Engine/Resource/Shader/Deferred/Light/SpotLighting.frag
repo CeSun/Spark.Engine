@@ -203,8 +203,6 @@ void main()
     float Shadow = 0.0;
 #endif
 
-    Color = pow(Color, vec3(2.2));
-
     float Theta = dot(ForwardVector, LightDirection);
     float Epsilon = (InnerCosine - OuterCosine);
     

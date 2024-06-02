@@ -192,7 +192,6 @@ public class HierarchicalInstancedStaticMeshComponent : InstancedStaticMeshCompo
     {
         if (StaticMesh == null)
             return;
-        InitRender();
         List<Matrix4x4> WorldTransforms = new List<Matrix4x4>();
         await Task.Run(() =>
         {

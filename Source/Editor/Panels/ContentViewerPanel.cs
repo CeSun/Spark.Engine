@@ -5,6 +5,7 @@ using Spark.Engine;
 using Spark.Engine.Assets;
 using Spark.Engine.Editor;
 using Spark.Engine.GUI;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using static Editor.Panels.ContentViewerPanel;
 using static System.Net.WebRequestMethods;
@@ -15,7 +16,7 @@ namespace Editor.Panels;
 public class ContentViewerPanel : ImGUIWindow
 {
 
-    Texture FolderTextureId;
+    TextureLdr FolderTextureId;
 
     EditorSubsystem EditorSubsystem;
     public ContentViewerPanel(Level level) : base(level)
@@ -56,11 +57,22 @@ public class ContentViewerPanel : ImGUIWindow
             }
             else if (extension == ".hdr")
             {
-                assets.Add((EditorSubsystem.CurrentEngine.ImportTextureHdrFromFile(path, new TextureImportSetting { }), path));
+                var hdr = EditorSubsystem.CurrentEngine.ImportTextureHdrFromFile(path, new TextureImportSetting { });
+                assets.Add((hdr, path));
+                var textureCube = EditorSubsystem.CurrentEngine.GenerateTextureCubeFromTextureHDR(hdr);
+                assets.Add((textureCube.RightFace, path));
+                assets.Add((textureCube.LeftFace, path));
+                assets.Add((textureCube.UpFace, path));
+                assets.Add((textureCube.DownFace, path));
+                assets.Add((textureCube.FrontFace, path));
+                assets.Add((textureCube.BackFace, path));
+                assets.Add((textureCube, path));
+
+
             }
             else if (extension == ".glb")
             {
-                List<Texture> textures = [];
+                List<TextureLdr> textures = [];
                 List<Material> materials = [];
                 List<AnimSequence> animSequences = [];
                 EditorSubsystem.CurrentEngine.ImporterSkeletalMeshFromGlbFile(path, new SkeletalMeshImportSetting(), textures, materials, animSequences, out var skeleton, out var skeletalMesh);
@@ -251,6 +263,19 @@ public class ContentViewerPanel : ImGUIWindow
                         }
                     default:
                         break;
+                }
+
+                if (ImGui.BeginDragDropSource(ImGuiDragDropFlags.None))
+                {
+                    var gcHandle = GCHandle.Alloc(file.Path, GCHandleType.Weak);
+                    IntPtr ptr = 0;
+                    unsafe
+                    {
+                        ptr = (IntPtr)(&gcHandle);
+                        ImGui.SetDragDropPayload("FILE_ASSET", ptr, (uint)sizeof(GCHandle));
+                    }
+                    ImGui.Text(file.Name);
+                    ImGui.EndDragDropSource();
                 }
                 ImGui.NextColumn();
                 i++;

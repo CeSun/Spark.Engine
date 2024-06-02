@@ -86,23 +86,6 @@ public class SkeletalMeshComponent : PrimitiveComponent
         }
     }
 
-    public void InitRender()
-    {
-        if (SkeletalMesh == null)
-            return;
-        SkeletalMesh.InitRender(gl);
-        foreach(var element in SkeletalMesh.Elements)
-        {
-            if (element.Material == null)
-                continue;
-            foreach(var texture in element.Material.Textures)
-            {
-                if (texture == null)
-                    continue;
-                texture.InitRender(gl);
-            }
-        }
-    }
     public override void OnUpdate(double DeltaTime)
     {
         if (AnimSampler != null && SkeletalMesh != null && SkeletalMesh.Skeleton != null)

@@ -5,17 +5,10 @@ using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
 
-public class TextureHdr : AssetBase, IAssetBaseInterface
+public class TextureHdr : Texture, IAssetBaseInterface
 {
     public static int AssetMagicCode => MagicCode.TextureHdr;
-    public uint TextureId { get; protected set; }
-    public uint Width { get; set; }
-    public uint Height { get; set; }
     public List<float> Pixels { get; set; } = new List<float>();
-    public TexChannel Channel;
-
-    public TexFilter Filter { get; set; } = TexFilter.Liner;
-
 
     public unsafe void InitRender(GL gl)
     {

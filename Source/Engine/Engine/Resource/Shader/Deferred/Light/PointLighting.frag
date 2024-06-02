@@ -182,8 +182,6 @@ void main()
     AO += texture(SSAOTexture, OutTexCoord).r;
 #endif
     Normal = normalize(Normal);
-    Color = pow(Color, vec3(2.2));
-
 
     float Shadow = ShadowCalculation(WorldLocation); 
 	vec3 PBRColor = CalcLightPoint(Color, AO, metallic,roughness, Normal, WorldLocation);

@@ -30,9 +30,9 @@ public class Material : AssetBase, IAssetBaseInterface
         var textureMagicCode = br.ReadInt32();
         if (textureMagicCode != AssetMagicCode)
             throw new Exception("");
-        BaseColor = ISerializable.AssetDeserialize<Texture>(br, engine);
-        Normal = ISerializable.AssetDeserialize<Texture>(br, engine);
-        Arm = ISerializable.AssetDeserialize<Texture>(br, engine);
-        Parallax = ISerializable.AssetDeserialize<Texture>(br, engine);
+        BaseColor = (Texture?)ISerializable.AssetDeserialize2(br, engine);
+        Normal = (Texture?)ISerializable.AssetDeserialize2(br, engine);
+        Arm = (Texture?)ISerializable.AssetDeserialize2(br, engine);
+        Parallax = (Texture?)ISerializable.AssetDeserialize2(br, engine);
     }
 }

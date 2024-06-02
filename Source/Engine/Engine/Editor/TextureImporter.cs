@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -15,12 +16,12 @@ namespace Spark.Engine.Editor;
 
 public class TextureImportSetting 
 {
-    public bool GammaCorrection { get; set; } = false;
+    public bool IsGammaSpace { get; set; } = false;
     public bool FlipVertically { get; set; } = false;
 }
 public static class TextureImporter
 {
-    public static Texture ImportTextureFromFile(this Engine engine, string path, TextureImportSetting setting)
+    public static TextureLdr ImportTextureFromFile(this Engine engine, string path, TextureImportSetting setting)
     {
         using var streamReader = engine.FileSystem.GetStreamReader(path);
         if (setting.FlipVertically)
@@ -34,11 +35,11 @@ public static class TextureImporter
         }
         if (imageResult != null)
         {
-            var texture = new Texture();
+            var texture = new TextureLdr();
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
-            if (setting.GammaCorrection)
+            if (setting.IsGammaSpace)
             {
                 Process(imageResult.Data);
             }
@@ -48,7 +49,7 @@ public static class TextureImporter
         }
         throw new Exception("Load Texture error");
     }
-    public static Texture ImportTextureFromMemory(this Engine engine, byte[] data, TextureImportSetting setting)
+    public static TextureLdr ImportTextureFromMemory(this Engine engine, byte[] data, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -61,11 +62,11 @@ public static class TextureImporter
         }
         if (imageResult != null)
         {
-            var texture = new Texture();
+            var texture = new TextureLdr();
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
-            if (setting.GammaCorrection)
+            if (setting.IsGammaSpace)
             {
                 Process(imageResult.Data);
             }
@@ -96,7 +97,7 @@ public static class TextureImporter
                 Height = (uint)imageResult.Height,
                 Channel = imageResult.Comp.ToTexChannel()
             };
-            if (setting.GammaCorrection)
+            if (setting.IsGammaSpace)
             {
                 Process(imageResult.Data);
             }
@@ -108,9 +109,9 @@ public static class TextureImporter
     }
 
 
-    public static Texture CreateNoiseTexture(this Engine engine, int width, int height)
+    public static TextureLdr CreateNoiseTexture(this Engine engine, int width, int height)
     {
-        var texture = new Texture();
+        var texture = new TextureLdr();
         var data = new byte[width * height * 3];
         for (int j = 0; j < height; j++)
         {
@@ -139,7 +140,7 @@ public static class TextureImporter
     }
 
 
-    public static Texture MergePbrTexture(this Engine engine, Texture? metallicRoughness,Texture? ao)
+    public static TextureLdr MergePbrTexture(this Engine engine, TextureLdr? metallicRoughness,TextureLdr? ao)
     {
         
         var main = metallicRoughness ?? ao;
@@ -188,7 +189,7 @@ public static class TextureImporter
                 data[i * 3] = ao.Pixels[i * step];
             }
         }
-        Texture texture = new()
+        TextureLdr texture = new()
         {
             Width = width,
             Height = height,
@@ -215,4 +216,84 @@ public static class TextureImporter
             data[i] = MathF.Pow(data[i], 1.0f / 2.2f);
         }
     }
+
+    static Vector3 Pos(Vector2 Pos, int i)
+    {
+        return i switch
+        {
+            0 => new Vector3(1, -1 * Pos.Y, -1 * Pos.X),
+            1 => new Vector3(-1, -1 * Pos.Y,  Pos.X),
+            2 => new Vector3( Pos.X, 1, Pos.Y),
+            3 => new Vector3( Pos.X, -1, -1 * Pos.Y),
+            4 => new Vector3(Pos.X, -1 * Pos.Y, 1),
+            5 => new Vector3(-1 * Pos.X, -1 * Pos.Y, -1),
+            _ => throw new Exception("")
+        };
+    }
+
+    public static TextureCube GenerateTextureCubeFromTextureHDR(this Engine engine, TextureHdr texture, uint width = 1024)
+    {
+        uint maxWidth = width;
+        TextureCube textureCube = new TextureCube();
+
+        for (int i = 0; i < 6; i ++)
+        {
+            TextureHdr texture1 = new()
+            {
+                Channel = TexChannel.Rgb,
+                Width = maxWidth,
+                Height = maxWidth,
+                Filter = TexFilter.Liner
+            };
+            texture1.Pixels = new();
+            for (int y = 0; y < maxWidth;  y ++)
+            {
+                for (int x = 0; x < maxWidth; x++)
+                {
+                    var xf = (x / (float)maxWidth) * 2 - 1.0f;
+                    var yf = (y / (float)maxWidth) * 2 - 1.0f;
+                    var location = Pos(new Vector2(xf, yf), i);
+
+                    var uv = SampleSphericalMap(Vector3.Normalize(location));
+                    var color = Sample(texture, uv);
+                    texture1.Pixels.Add(color.X );
+                    texture1.Pixels.Add(color.Y);
+                    texture1.Pixels.Add(color.Z);
+                }
+            }
+
+            textureCube.Textures[i] = texture1;
+        }
+        engine.NextRenderFrame.Add(textureCube.InitRender);
+        return textureCube;
+    }
+
+    public static Vector3 Sample(TextureHdr texture, Vector2 uv)
+    {
+        var pixelLocation = new Vector2(uv.X * texture.Width, uv.Y * texture.Height);
+
+        int step = 3;
+        if (texture.Channel == TexChannel.Rgba)
+            step = 4;
+
+        var index = ((int)pixelLocation.Y * (int)texture.Width + (int)pixelLocation.X) * step;
+
+
+        var r = texture.Pixels[index];
+        var g = texture.Pixels[index + 1];
+        var b = texture.Pixels[index + 2];
+
+
+        return new Vector3(r, g, b);
+    }
+
+    static Vector2 invAtan = new Vector2(0.1591f, 0.3183f);
+    static Vector2 SampleSphericalMap(Vector3 v)
+    {
+        Vector2 uv = new Vector2(MathF.Atan2(v.Z, v.X), MathF.Asin(v.Y));
+        uv *= invAtan;
+        uv += new Vector2(0.5f);
+        return uv;
+    }
+
 }

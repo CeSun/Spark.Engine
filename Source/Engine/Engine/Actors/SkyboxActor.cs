@@ -11,5 +11,5 @@ public class SkyboxActor : Actor
         SkyboxComponent = new SkyboxComponent(this);
     }
 
-    public TextureHdr? SkyboxHDR { get => SkyboxComponent.SkyboxHDR; set => SkyboxComponent.SkyboxHDR = value; }
+    public TextureCube? SkyboxCube { get => SkyboxComponent.SkyboxCube; set => SkyboxComponent.SkyboxCube = value; }
 }

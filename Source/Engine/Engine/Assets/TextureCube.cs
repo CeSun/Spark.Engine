@@ -1,41 +1,10 @@
-﻿using Silk.NET.OpenGLES;
+﻿using SharpGLTF.Schema2;
+using Silk.NET.OpenGLES;
 using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
 
-
-public class SubTexture : AssetBase
-{
-    public uint Width { get;  set; }
-    public uint Height { get;  set; }
-    public List<byte> Pixels { get; set; } = new List<byte>();
-
-    public TexChannel Channel;
-
-    public GLEnum Target;
-
-    public override void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.WriteUInt32(Width);
-        bw.WriteUInt32(Height);
-        bw.WriteInt32((int)Channel);
-        bw.WriteInt32((int)Target);
-        bw.WriteInt32(Pixels.Count);
-        bw.Write(Pixels.ToArray());
-
-    }
-
-    public override void Deserialize(BinaryReader br, Engine engine)
-    {
-        Width = br.ReadUInt32();
-        Height = br.ReadUInt32();
-        Channel = (TexChannel)br.ReadInt32();
-        Target = (GLEnum)br.ReadInt32();
-        var pixelsLen = br.ReadInt32();
-        Pixels.AddRange(br.ReadBytes(pixelsLen));
-    }
-}
-public class TextureCube : ISerializable, IAssetBaseInterface
+public class TextureCube : AssetBase, ISerializable, IAssetBaseInterface
 {
     public static int AssetMagicCode => MagicCode.TextureCube;
 
@@ -54,53 +23,37 @@ public class TextureCube : ISerializable, IAssetBaseInterface
     private static readonly string[] Attributes =
     [
         "Right",
-            "Left",
-            "Up",
-            "Down",
-            "Back",
-            "Front"
+        "Left",
+        "Up",
+        "Down",
+        "Front",
+        "Back"
     ];
 
     public uint TextureId;
 
-    private readonly List<SubTexture> _textures = [];
+    public readonly Texture?[] Textures = new Texture?[6];
 
-    public unsafe void InitRender(GL gl)
-    {
+    public Texture? RightFace { get => Textures[0]; set => Textures[0] = value; }
+    public Texture? LeftFace { get => Textures[1]; set => Textures[1] = value; }
+    public Texture? UpFace { get => Textures[2]; set => Textures[2] = value; }
+    public Texture? DownFace { get => Textures[3]; set => Textures[3] = value; }
+    public Texture? FrontFace { get => Textures[4]; set => Textures[4] = value; }
+    public Texture? BackFace { get => Textures[5]; set => Textures[5] = value; }
 
-        if (TextureId > 0)
-            return;
-        TextureId = gl.GenTexture();
-        gl.BindTexture(GLEnum.TextureCubeMap, TextureId);
-        
-        foreach(var tex in _textures)
-        {
 
-            fixed (void* data = CollectionsMarshal.AsSpan(tex.Pixels))
-            {
-                gl.TexImage2D(tex.Target, 0, (int)tex.Channel.ToGlEnum(), tex.Width, tex.Height, 0, tex.Channel.ToGlEnum(), GLEnum.UnsignedByte, data);
-            }
-            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
-            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
-            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
-            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
-            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
-
-        }
-    }
-
-    public void Serialize(BinaryWriter bw, Engine engine)
+    public override void Serialize(BinaryWriter bw, Engine engine)
     {
         bw.WriteInt32(MagicCode.Asset);
         bw.WriteInt32(AssetMagicCode);
-        bw.WriteInt32(_textures.Count);
-        foreach(var texture in _textures)
+
+        foreach (var texture in Textures)
         {
-            texture.Serialize(bw, engine);
+            ISerializable.AssetSerialize(texture, bw, engine);
         }
     }
 
-    public void Deserialize(BinaryReader br, Engine engine)
+    public override void Deserialize(BinaryReader br, Engine engine)
     {
         var assetMagicCode = br.ReadInt32();
         if (assetMagicCode != MagicCode.Asset)
@@ -108,13 +61,46 @@ public class TextureCube : ISerializable, IAssetBaseInterface
         var textureMagicCode = br.ReadInt32();
         if (textureMagicCode != AssetMagicCode)
             throw new Exception("");
-        var count = br.ReadInt32();
-        for(int i = 0; i < count; i++)
+        for (int i = 0; i < 6; i++)
         {
-            var texture = new SubTexture();
-            texture.Deserialize(br, engine);
-            _textures.Add(texture);
+            Textures[i] = (Texture?)ISerializable.AssetDeserialize2(br, engine);
         }
         engine.NextRenderFrame.Add(InitRender);
     }
+
+    public unsafe void InitRender(GL gl)
+    {
+        if (TextureId > 0)
+            return;
+        TextureId = gl.GenTexture();
+        gl.BindTexture(GLEnum.TextureCubeMap, TextureId);
+
+        for(int i = 0;i < 6; i++)
+        {
+            var tex = Textures[i];
+            if (tex == null)
+                continue;
+            if (tex is TextureHdr textureHdr)
+            {
+                fixed (void* data = CollectionsMarshal.AsSpan(textureHdr.Pixels))
+                {
+                    gl.TexImage2D(TexTargets[i], 0, (int)tex.Channel.ToGlHdrEnum(), tex.Width, tex.Height, 0, tex.Channel.ToGlEnum(), GLEnum.Float , data);
+                }
+
+            }
+            else if(tex is TextureLdr textureLdr)
+            {
+                fixed (void* data = CollectionsMarshal.AsSpan(textureLdr.Pixels))
+                {
+                    gl.TexImage2D(TexTargets[i], 0, (int)tex.Channel.ToGlEnum(), tex.Width, tex.Height, 0, tex.Channel.ToGlEnum(), GLEnum.UnsignedByte, data);
+                }
+            }
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
+            gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+        }
+    }
+
 }

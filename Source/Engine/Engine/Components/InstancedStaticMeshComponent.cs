@@ -46,7 +46,6 @@ public class InstancedStaticMeshComponent : PrimitiveComponent
     {
         if (StaticMesh == null)
             return;
-        InitRender();
         List<Matrix4x4> WorldTransforms = new List<Matrix4x4>();
         foreach (var component in PrimitiveComponents)
         {
@@ -107,7 +106,7 @@ public class InstancedStaticMeshComponent : PrimitiveComponent
             return;
         if (CanRender == false)
             return;
-        for(int i = 0; i < StaticMesh.Elements[0].Material.Textures.Count(); i ++)
+        for (int i = 0; i < StaticMesh.Elements[0].Material.Textures.Count(); i++)
         {
             var texture = StaticMesh.Elements[0].Material.Textures[i];
             gl.ActiveTexture(GLEnum.Texture0 + i);
@@ -122,21 +121,6 @@ public class InstancedStaticMeshComponent : PrimitiveComponent
         }
         gl.BindVertexArray(StaticMesh.Elements[0].VertexArrayObjectIndex);
         gl.DrawElementsInstanced(GLEnum.Triangles, (uint)StaticMesh.Elements[0].IndicesLen, GLEnum.UnsignedInt, (void*)0, (uint)PrimitiveComponents.Count);
-    }
-    public void InitRender()
-    {
-        if (StaticMesh == null)
-            return;
-        StaticMesh.InitRender(gl);
-        foreach (var element in StaticMesh.Elements)
-        {
-            foreach (var texture in
-            element.Material.Textures)
-            {
-                if (texture != null)
-                    texture.InitRender(gl);
-            }
-        }
     }
 }
 public class SubInstancedStaticMeshComponent : PrimitiveComponent

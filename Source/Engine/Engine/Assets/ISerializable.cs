@@ -1,4 +1,5 @@
-﻿using Spark.Engine.Attributes;
+﻿using Spark.Engine.Actors;
+using Spark.Engine.Attributes;
 using Spark.Util;
 using System.Collections;
 using System.Numerics;
@@ -46,6 +47,17 @@ public interface ISerializable
         var str = br.ReadBytes(len);
         var path = Encoding.UTF8.GetString(str);
         return engine.AssetMgr.Load(type, path);
+    }
+
+    public static AssetBase? AssetDeserialize2(BinaryReader br, Engine engine)
+    {
+        var len = br.ReadInt32();
+        if (len == 0)
+            return null;
+        var str = br.ReadBytes(len);
+        var path = Encoding.UTF8.GetString(str);
+
+        return engine.AssetMgr.Load(path);
     }
 
 
@@ -473,7 +485,7 @@ public static class StreamHelper
 public static class MagicCode
 {
     public const int Asset = 19980625;
-    public const  int Texture = 1;
+    public const  int TextureLdr = 1;
     public const int TextureCube = 2;
     public const int TextureHdr = 3;
     public const int StaticMesh = 4;
@@ -488,7 +500,7 @@ public static class MagicCode
     {
         return assetMagicCode switch
         {
-            Texture => "Texture",
+            TextureLdr => "TextureLdr",
             TextureCube => "TextureCube",
             TextureHdr => "TextureHDR",
             StaticMesh => "StaticMesh",
@@ -499,6 +511,41 @@ public static class MagicCode
             Actor => "Actor",
             Level => "Level",
             _ => "Unknow"
+        };
+    }
+
+    public static string GetDropName(int assetMagicCode)
+    {
+        return assetMagicCode switch
+        {
+            TextureLdr => "Texture",
+            TextureHdr => "Texture",
+            TextureCube => "TextureCube",
+            StaticMesh => "StaticMesh",
+            SkeletalMesh => "SkeletalMesh",
+            Material => "Material",
+            Skeleton => "Skeleton",
+            AnimSequence => "AnimSequence",
+            Actor => "Actor",
+            Level => "Level",
+            _ => "Unknow"
+        };
+    }
+    public static Type GetType(int assetMagicCode)
+    {
+        return assetMagicCode switch
+        {
+            TextureLdr => typeof(TextureLdr),
+            TextureCube => typeof(TextureCube),
+            TextureHdr => typeof(TextureHdr),
+            StaticMesh => typeof(StaticMesh),
+            SkeletalMesh => typeof(SkeletalMesh),
+            Material => typeof(Material),
+            Skeleton => typeof(Skeleton),
+            AnimSequence => typeof(AnimSequence),
+            Actor => typeof(Actor),
+            Level => typeof(Level),
+            _ => throw new Exception(),
         };
     }
 }

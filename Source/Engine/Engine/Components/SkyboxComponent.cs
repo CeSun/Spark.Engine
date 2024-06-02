@@ -6,6 +6,7 @@ using System.Numerics;
 using Spark.Engine.Render.Renderer;
 using System.Drawing;
 using Spark.Engine.Attributes;
+using Spark.Engine.Editor;
 
 namespace Spark.Engine.Components;
 
@@ -138,79 +139,12 @@ public class SkyboxComponent : PrimitiveComponent
 
     }
 
-    public void InitTextureHDR2CubeMap()
-    {
-        if (SkyboxHDR == null)
-            return;
-
-
-        uint captureFBO = gl.GenFramebuffer();
-        uint captureRBO = gl.GenRenderbuffer();
-
-        gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
-        gl.BindRenderbuffer(GLEnum.Renderbuffer, captureRBO);
-        gl.RenderbufferStorage(GLEnum.Renderbuffer, GLEnum.DepthComponent24, 512, 512);
-        gl.FramebufferRenderbuffer(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Renderbuffer, captureRBO);
-
-        uint envCubemap = gl.GenTexture();
-        gl.BindTexture(GLEnum.TextureCubeMap, envCubemap);
-        unsafe
-        {
-            for (int i = 0; i < 6; ++i)
-            {
-                gl.TexImage2D(GLEnum.TextureCubeMapPositiveX + i, 0, (int)GLEnum.Rgb16f, 512, 512, 0, GLEnum.Rgb, GLEnum.Float, (void*)0);
-            }
-        }
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear); // enable pre-filter mipmap sampling (combatting visible dots artifact)
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
-
-        Matrix4x4 captureProjection = Matrix4x4.CreatePerspectiveFieldOfView(90.0f.DegreeToRadians(), 1.0f, 0.1f, 10.0f);
-        Matrix4x4[] captureViews = new Matrix4x4[]
-        {
-
-            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
-            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(-1.0f,  0.0f,  0.0f), new Vector3(0.0f, -1.0f,  0.0f)),
-            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  1.0f,  0.0f), new Vector3(0.0f,  0.0f,  1.0f)),
-            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f, -1.0f,  0.0f), new Vector3(0.0f,  0.0f, -1.0f)),
-            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f,  1.0f), new Vector3(0.0f, -1.0f,  0.0f)),
-            Matrix4x4.CreateLookAt(new Vector3(0.0f, 0.0f, 0.0f), new Vector3(0.0f,  0.0f, -1.0f), new Vector3(0.0f, -1.0f,  0.0f))
-        };
-
-        _deferredSceneRenderer.Hdri2CubeMapShader.Use();
-        _deferredSceneRenderer.Hdri2CubeMapShader.SetInt("equirectangularMap", 0);
-        _deferredSceneRenderer.Hdri2CubeMapShader.SetMatrix("projection", captureProjection);
-        gl.ActiveTexture(GLEnum.Texture0);
-        gl.BindTexture(GLEnum.Texture2D, SkyboxHDR.TextureId);
-
-        gl.BindFramebuffer(GLEnum.Framebuffer, captureFBO);
-        gl.Viewport(0, 0, 512, 512);
-        for (int i = 0; i < 6; ++i)
-        {
-            _deferredSceneRenderer.Hdri2CubeMapShader.SetMatrix("view", captureViews[i]);
-            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0, GLEnum.TextureCubeMapPositiveX + i, envCubemap, 0);
-            gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-
-            _deferredSceneRenderer.RenderCube();
-        }
-        gl.BindFramebuffer(GLEnum.Framebuffer, 0);
-
-        gl.BindTexture(GLEnum.TextureCubeMap, envCubemap);
-        gl.GenerateMipmap(GLEnum.TextureCubeMap);
-
-        gl.DeleteFramebuffer(captureFBO);
-        gl.DeleteRenderbuffer(captureRBO);
-
-        SkyboxCube = new TextureCube() { TextureId = envCubemap };
-    }
-
     private TextureCube? _SkyboxCube;
+    [Property]
     public TextureCube? SkyboxCube
     {
         get => _SkyboxCube;
-        private set
+        set
         {
             _SkyboxCube = value;
             if (_SkyboxCube != null)
@@ -220,26 +154,7 @@ public class SkyboxComponent : PrimitiveComponent
         }
     }
 
-    private TextureHdr? _SkyboxHDR;
 
-    [Property]
-    public TextureHdr? SkyboxHDR
-    {
-        get => _SkyboxHDR;
-        set
-        {
-            _SkyboxHDR = value;
-            if (SkyboxHDR != null)
-            {
-                SkyboxHDR.InitRender(gl);
-                InitTextureHDR2CubeMap();
-            }
-            else
-            {
-                SkyboxCube = null;
-            }
-        }
-    }
     public override void Render(double DeltaTime)
     {
         base.Render(DeltaTime);
