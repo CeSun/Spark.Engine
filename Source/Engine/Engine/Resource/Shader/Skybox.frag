@@ -23,6 +23,7 @@ void main()
     vec3 v = TexCoords;
     v.y = v.y * -1.0f;
     vec3 Color = texture(skybox, v).rgb;
+    Color = Color / (Color + vec3(1.0));
     Color = pow(Color, vec3(1.0 / 2.2));
     FragColor = vec4(Color, 1.0f);
 }
