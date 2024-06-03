@@ -1,46 +1,37 @@
-﻿using ImGuiNET;
-using Silk.NET.OpenGLES;
+﻿using System.Runtime.InteropServices;
+using Editor.GUI;
+using ImGuiNET;
 using Silk.NET.OpenGLES.Extensions.ImGui;
-using Spark.Engine.Actors;
-using Spark.Engine.Assets;
+using Spark.Engine;
 using Spark.Engine.Attributes;
-using Spark.Engine.Components;
-using Spark.Engine.Platform;
-using Spark.Util;
-using System.ComponentModel;
-using System.Numerics;
-using System.Runtime.InteropServices;
-using static System.Net.Mime.MediaTypeNames;
 
-namespace Spark.Engine.GUI;
+namespace Editor.Subsystem;
 
-public class ImGuiSystem
+[Subsystem(Enable = true)]
+public class ImGuiSubSystem(Engine engine) : BaseSubSystem(engine)
 {
-    readonly List<ImGUIWindow> _imGuiCanvasList = [];
-    public void AddCanvas(ImGUIWindow imGuiCanvas)
+    public override bool ReceiveRender => true;
+    public override bool ReceiveUpdate => true;
+
+    private readonly List<BasePanel> _imGuiCanvasList = [];
+    public void AddCanvas(BasePanel imGuiCanvas)
     {
         _imGuiCanvasList.Add(imGuiCanvas);
-       
+
     }
 
-    public void RemoveCanvas(ImGUIWindow imGuiCanvas)
+    public void RemoveCanvas(BasePanel imGuiCanvas)
     {
         _imGuiCanvasList.Remove(imGuiCanvas);
-        
-
     }
-    Level CurrentLevel { get; set; }
 
-    public ImGuiSystem(Level level)
-    {
-        CurrentLevel = level;
-    }
+    public Engine Engine { get; } = engine;
 
     private ImFontPtr LoadFont(string path, int fontSize, char[] glyphRanges)
     {
         unsafe
         {
-            fixed(void* p = glyphRanges)
+            fixed (void* p = glyphRanges)
             {
                 return LoadFont(path, fontSize, (nint)p);
             }
@@ -49,7 +40,7 @@ public class ImGuiSystem
     private ImFontPtr LoadFont(string path, int fontSize, nint glyphRanges)
     {
         List<byte> data = [];
-        using (var sr = CurrentLevel.Engine.FileSystem.GetStreamReader(path))
+        using (var sr = Engine.FileSystem.GetStreamReader(path))
         {
             var br = new BinaryReader(sr.BaseStream);
 
@@ -78,11 +69,11 @@ public class ImGuiSystem
     public IReadOnlyDictionary<string, ImFontPtr> Fonts => _fonts;
 
     private ImGuiController? _controller;
-    public void Init()
+    public override void BeginPlay()
     {
         try
         {
-            _controller = new ImGuiController(CurrentLevel.Engine.GraphicsApi, CurrentLevel.CurrentWorld.Engine.View, CurrentLevel.CurrentWorld.Engine.Input,null, () =>
+            _controller = new ImGuiController(Engine.GraphicsApi, Engine.View, Engine.Input, null, () =>
             {
                 ref var flags = ref ImGui.GetIO().ConfigFlags;
                 flags |= ImGuiConfigFlags.DockingEnable;
@@ -96,32 +87,29 @@ public class ImGuiSystem
                     (char)0xf372
                 ]));
             });
-        
-        } 
+
+        }
         catch (Exception e)
-        { 
+        {
             Console.WriteLine(e.ToString());
         }
     }
 
-    public void Render(double deltaTime)
+    public override void Render(double deltaTime)
     {
         if (_controller == null)
             return;
-        CurrentLevel.CurrentWorld.Engine.GraphicsApi.Viewport(new System.Drawing.Size(CurrentLevel.CurrentWorld.Engine.WindowSize.X, CurrentLevel.CurrentWorld.Engine.WindowSize.Y));
-        
+        Engine.GraphicsApi.Viewport(new System.Drawing.Size(Engine.WindowSize.X, Engine.WindowSize.Y));
         _controller?.Update((float)deltaTime);
         _imGuiCanvasList.ForEach(item => item.Render(deltaTime));
-        CurrentLevel.Engine.GraphicsApi.PushGroup("GUI Pass");
+        Engine.GraphicsApi.PushGroup("GUI Pass");
         _controller?.Render();
-        CurrentLevel.Engine.GraphicsApi.PopGroup();
+        Engine.GraphicsApi.PopGroup();
 
     }
 
-    public void Fini()
+    public override void EndPlay()
     {
-        if (CurrentLevel.CurrentWorld.Engine.IsMobile)
-            return;
         _controller?.Dispose();
     }
 }

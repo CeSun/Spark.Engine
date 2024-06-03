@@ -15,7 +15,6 @@
 	    <PackageReference Include="Silk.NET.Input.Common" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES.Extensions.EXT" Version="$(SilkVersion)" />
-	    <PackageReference Include="Silk.NET.OpenGLES.Extensions.ImGui" Version="$(SilkVersion)" />
         <PackageReference Include="StbImageSharp" Version="2.27.13" />
         <PackageReference Include="StbImageWriteSharp" Version="1.16.7" />
       </ItemGroup>
@@ -38,5 +37,8 @@
         <Generator>ResXFileCodeGenerator</Generator>
         <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       </EmbeddedResource>
+    </ItemGroup>
+    <ItemGroup>
+      <Folder Include="GUI\" />
     </ItemGroup>
 </Project>

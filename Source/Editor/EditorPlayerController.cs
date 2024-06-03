@@ -1,8 +1,9 @@
-﻿using Editor.Panels;
+﻿using Editor.GUI;
+using Editor.Panels;
+using Editor.Subsystem;
 using ImGuiNET;
 using Spark.Engine;
 using Spark.Engine.Actors;
-using Spark.Engine.GUI;
 
 namespace Editor;
 
@@ -11,16 +12,19 @@ public class EditorPlayerController : PlayerController
     public EditorPlayerController(Level level, string Name = "") : base(level, Name)
     {
 
+        var imGuiSubSystem = CurrentLevel.Engine.GetSubSystem<ImGuiSubSystem>();
+        if (imGuiSubSystem == null)
+            return;
         var style = ImGui.GetStyle();
         style.WindowMenuButtonPosition = ImGuiDir.None;
-        List<ImGUIWindow> list =
+        List<BasePanel> list =
         [
-            new MainPanel(this.CurrentLevel),
-            new LevelPanel(this.CurrentLevel),
-            new PlaceActorsPanel(this.CurrentLevel),
-            new ContentViewerPanel(this.CurrentLevel),
-            new OutlinerPanel(this.CurrentLevel),
-            new DetailsPanel(this.CurrentLevel),
+            new MainPanel(imGuiSubSystem),
+            new LevelPanel(imGuiSubSystem),
+            new PlaceActorsPanel(imGuiSubSystem),
+            new ContentViewerPanel(imGuiSubSystem),
+            new OutlinerPanel(imGuiSubSystem),
+            new DetailsPanel(imGuiSubSystem),
         ];
 
         list.ForEach(panel => panel.AddToViewPort());

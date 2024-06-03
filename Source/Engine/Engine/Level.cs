@@ -4,7 +4,6 @@ using Spark.Engine.Components;
 using Spark.Engine.Manager;
 using PhyWorld = Jitter2.World;
 using Spark.Engine.Physics;
-using Spark.Engine.GUI;
 using Spark.Engine.Assets;
 using Spark.Util;
 
@@ -24,7 +23,6 @@ public partial class Level : ISerializable
         CurrentWorld = world;
         UpdateManager = new UpdateManager();
         RenderObjectOctree = new Octree(null);
-        ImGuiWarp = new ImGuiSystem(this);
         PhysicsWorld = new PhyWorld();
     }
 
@@ -51,7 +49,6 @@ public partial class Level : ISerializable
         {
             camera.RenderScene(deltaTime);
         }
-        ImGuiWarp.Render(deltaTime);
     }
 
     public void Serialize(BinaryWriter writer, Engine engine)
@@ -338,12 +335,10 @@ public partial class Level
     public void EndPlay()
     {
         Engine.OnEndPlay?.Invoke(this);
-        ImGuiWarp.Fini();
     }
     public void BeginPlay()
     {
         Engine.OnBeginPlay?.Invoke(this);
-        ImGuiWarp.Init();
     }
 
 
@@ -352,7 +347,6 @@ public partial class Level
        
 
     }
-    public ImGuiSystem ImGuiWarp { get; private set; }
 
     private void PhysicsUpdate(double deltaTime)
     {

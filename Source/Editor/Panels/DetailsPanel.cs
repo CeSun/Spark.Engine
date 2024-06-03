@@ -1,9 +1,7 @@
 ﻿using Editor.Subsystem;
 using ImGuiNET;
-using Spark.Engine;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
-using Spark.Engine.GUI;
 using Spark.Engine.Platform;
 using System.Drawing;
 using System.Numerics;
@@ -11,30 +9,26 @@ using System.Reflection;
 using Spark.Util;
 using static Editor.Panels.ContentViewerPanel;
 using System.Runtime.InteropServices;
+using Editor.GUI;
 
 namespace Editor.Panels
 {
-    public class DetailsPanel : ImGUIWindow
+    public class DetailsPanel : BasePanel
     {
-        EditorSubsystem EditorSubsystem;
+        private readonly EditorSubsystem _editorSubsystem;
 
         public bool IsFirst = true;
-        public DetailsPanel(Level level) : base(level)
+        public DetailsPanel(ImGuiSubSystem imGuiSubSystem) : base(imGuiSubSystem)
         {
-            var system = level.Engine.GetSubSystem<EditorSubsystem>();
-            if (system != null)
-                EditorSubsystem = system;
-            else
-                throw new Exception("no editor subsystem");
-           
+            _editorSubsystem = Engine.GetSubSystem<EditorSubsystem>()!;
         }
         public override void Render(double deltaTime)
         {
 
             ImGui.Begin("Details##details");
-            if (EditorSubsystem.SelectedActor != null)
+            if (_editorSubsystem.SelectedActor != null)
             {
-                var actor = EditorSubsystem.SelectedActor;
+                var actor = _editorSubsystem.SelectedActor;
                
                 var contentWidth = ImGui.GetContentRegionAvail().X;
                 bool modify = false;
@@ -368,7 +362,7 @@ namespace Editor.Panels
                 }
 
                 bool isModifyInput = false;
-                ImGui.PushFont(Level.ImGuiWarp.Fonts["forkawesome"]);
+                ImGui.PushFont(ImGuiSubSystem.Fonts["forkawesome"]);
                 var buttonWidth = ImGui.CalcTextSize([(char)0x00f060, (char)0x00f002]).X + ImGui.GetStyle().ItemSpacing.X * 3 + ImGui.GetStyle().FramePadding.X * 4;
                 ImGui.PopFont();
                 ImGui.SetNextItemWidth(width - buttonWidth);
@@ -387,7 +381,7 @@ namespace Editor.Panels
                             {
                                 var filePath = (string)gcHandle.Target;
                                 var myPath = filePath.Replace("\\", "/");
-                                myPath = myPath.Substring(EditorSubsystem.CurrentPath.Length + 1, myPath.Length - EditorSubsystem.CurrentPath.Length - 1);
+                                myPath = myPath.Substring(_editorSubsystem.CurrentPath.Length + 1, myPath.Length - _editorSubsystem.CurrentPath.Length - 1);
                                 path = myPath;
                                 isModifyInput = true;
                             }
@@ -400,12 +394,12 @@ namespace Editor.Panels
                 ImGui.SameLine();
                
 
-                ImGui.PushFont(Level.ImGuiWarp.Fonts["forkawesome"]);
+                ImGui.PushFont(ImGuiSubSystem.Fonts["forkawesome"]);
                 if(ImGui.Button(new string([(char)0x00f060]) + "##set_" + property.DeclaringType!.FullName + "_"+property.Name))
                 {
-                    var file = EditorSubsystem.GetValue<AssetFile>("CurrentSelectFile");
+                    var file = _editorSubsystem.GetValue<AssetFile>("CurrentSelectFile");
                     var myPath = file.Path.Replace("\\", "/");
-                    myPath = myPath.Substring(EditorSubsystem.CurrentPath.Length + 1, myPath.Length - EditorSubsystem.CurrentPath.Length - 1);
+                    myPath = myPath.Substring(_editorSubsystem.CurrentPath.Length + 1, myPath.Length - _editorSubsystem.CurrentPath.Length - 1);
                     path = myPath;
                     isModifyInput = true;
                 }
@@ -431,7 +425,7 @@ namespace Editor.Panels
                     {
                         try
                         {
-                            asset = this.Level.Engine.AssetMgr.Load(property.PropertyType, path);
+                            asset = Engine.AssetMgr.Load(property.PropertyType, path);
                             property.SetValue(obj, asset);
                         }
                         catch (Exception e)

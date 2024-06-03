@@ -77,9 +77,9 @@ public partial class Engine
 
     public T? GetSubSystem<T>() where T : BaseSubSystem
     {
-        foreach(var subsytem in SubSystems)
+        foreach(var subsystem in SubSystems)
         {
-            if (subsytem is T t)
+            if (subsystem is T t)
                 return t;
         }
         return null;
@@ -178,24 +178,22 @@ public partial class Engine
         SyncContext?.Tick();
         Worlds.ForEach(world => world.Update(deltaTime));
 
-        foreach(var subsystem in SubSystems)
+        foreach (var subsystem in SubSystems.Where(subsystem => subsystem.ReceiveUpdate))
         {
-            if (subsystem.ReceiveUpdate)
-            {
-                subsystem.Update(deltaTime);
-            }
+            subsystem.Update(deltaTime);
         }
     }
 
     public void Render(double deltaTime)
     {
         var count = NextRenderFrame.Count;
-        for (int i = 0; i < count; i++)
-        {
-            NextRenderFrame[i](GraphicsApi);
-        }
+        NextRenderFrame.ForEach(render => render(GraphicsApi));
         NextRenderFrame.Clear();
         Worlds.ForEach(world => world.Render(deltaTime));
+        foreach (var subsystem in SubSystems.Where(subsystem => subsystem.ReceiveRender))
+        {
+            subsystem.Render(deltaTime);
+        }
     }
 
     public void Start()

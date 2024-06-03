@@ -1,9 +1,8 @@
 ﻿using Editor.Subsystem;
 using ImGuiNET;
-using Spark.Engine;
 using Spark.Engine.Actors;
 using Spark.Engine.Attributes;
-using Spark.Engine.GUI;
+using Editor.GUI;
 using Spark.Util;
 using System.Numerics;
 using System.Reflection;
@@ -11,15 +10,13 @@ using System.Runtime.InteropServices;
 
 namespace Editor.Panels;
 
-public class PlaceActorsPanel : ImGUIWindow
+public class PlaceActorsPanel : BasePanel
 {
     readonly List<Type> _actorTypes = [];
 
-    readonly EditorSubsystem _editorSubsystem;
-    public PlaceActorsPanel(Level level) : base(level)
+    public PlaceActorsPanel(ImGuiSubSystem imGuiSubSystem) : base(imGuiSubSystem)
     {
         RefreshActors();
-        _editorSubsystem = level.Engine.GetSubSystem<EditorSubsystem>();
     }
 
 
@@ -53,47 +50,47 @@ public class PlaceActorsPanel : ImGUIWindow
 
     }
 
-    private int SelectGroup = 0;
+    private int _selectGroup;
 
-    public List<string> Groups = new List<string>();
+    public List<string> Groups = [];
 
     public Dictionary<string, List<Type>> ActorsTypeMap = new Dictionary<string, List<Type>>();
 
     public bool IsFirst = true;
-    public override void Render(double DeltaTime)
+    public override void Render(double deltaTime)
     {
         ImGui.Begin("Place Actors##placeactors");
 
 
         ImGui.Columns(2);
-        if (IsFirst == true)
+        if (IsFirst)
         {
             ImGui.SetColumnWidth(0, 100);
         }
         ImGui.BeginChild("123"); 
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
         float buttonWidth = ImGui.GetContentRegionAvail().X;
-        Vector4 HoveredColor = default;
+        Vector4 hoveredColor;
 
         unsafe
         {
             Vector4* color = ImGui.GetStyleColorVec4(ImGuiCol.ButtonHovered);
 
-            HoveredColor = *color;
+            hoveredColor = *color;
         }
 
         for (int i = 0; i < Groups.Count; i++)
         {
-            if (SelectGroup == i)
+            if (_selectGroup == i)
             {
-                ImGui.PushStyleColor(ImGuiCol.Button, HoveredColor);
+                ImGui.PushStyleColor(ImGuiCol.Button, hoveredColor);
             }
             if(ImGui.Button(Groups[i], new Vector2(buttonWidth, 0)))
             {
-                SelectGroup = i;
+                _selectGroup = i;
             }
 
-            if (SelectGroup == i)
+            if (_selectGroup == i)
             {
                 ImGui.PopStyleColor();
             }
@@ -104,7 +101,7 @@ public class PlaceActorsPanel : ImGUIWindow
         ImGui.NextColumn();
 
         for (int i = 0; i <= Groups.Count; i++) { 
-            if (SelectGroup == i)
+            if (_selectGroup == i)
             {
                 ImGui.BeginChild("##Group" + i);
                 ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
@@ -116,10 +113,9 @@ public class PlaceActorsPanel : ImGUIWindow
                     if (ImGui.BeginDragDropSource(ImGuiDragDropFlags.None))
                     {
                         var gcHandle = GCHandle.Alloc(item, GCHandleType.Weak);
-                        IntPtr ptr = 0;
                         unsafe
                         {
-                            ptr  = (IntPtr)(&gcHandle);
+                            var ptr = (IntPtr)(&gcHandle);
                             ImGui.SetDragDropPayload("PLACE_ACTOR_TYPE", ptr, (uint)sizeof(GCHandle));
                         }
                         ImGui.Text(item.Name);
@@ -135,7 +131,7 @@ public class PlaceActorsPanel : ImGUIWindow
 
         ImGui.End();
 
-        if (IsFirst == true)
+        if (IsFirst)
             IsFirst = false;
     }
 }

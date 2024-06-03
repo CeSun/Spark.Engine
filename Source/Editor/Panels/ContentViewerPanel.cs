@@ -1,48 +1,39 @@
 ﻿using Editor.Properties;
 using Editor.Subsystem;
 using ImGuiNET;
-using Spark.Engine;
 using Spark.Engine.Assets;
 using Spark.Engine.Editor;
-using Spark.Engine.GUI;
-using System.Reflection.Emit;
 using System.Runtime.InteropServices;
-using static Editor.Panels.ContentViewerPanel;
-using static System.Net.WebRequestMethods;
+using Editor.GUI;
 using File = System.IO.File;
+
+
 
 namespace Editor.Panels;
 
-public class ContentViewerPanel : ImGUIWindow
+public class ContentViewerPanel : BasePanel
 {
+    private readonly TextureLdr _folderTextureId;
 
-    TextureLdr FolderTextureId;
-
-    EditorSubsystem EditorSubsystem;
-    public ContentViewerPanel(Level level) : base(level)
+    private readonly EditorSubsystem _editorSubsystem;
+    public ContentViewerPanel(ImGuiSubSystem imGuiSubSystem) : base(imGuiSubSystem)
     {
-        EditorSubsystem = level.Engine.GetSubSystem<EditorSubsystem>();
+        _editorSubsystem = Engine.GetSubSystem<EditorSubsystem>()!;
 
         BuildFolderTree();
 
-        OnChangeDir += dir =>
-        {
-            Folders.Clear();
-            if (dir == null)
-                return;
-         
+        OnChangeDir += _ => Folders.Clear();
 
-        };
-        FolderTextureId = EditorSubsystem.CurrentEngine.ImportTextureFromMemory(Resources.Asset_Folder, new TextureImportSetting());
-        FolderTextureId.InitRender(level.Engine.GraphicsApi);
+        _folderTextureId = Engine.ImportTextureFromMemory(Resources.Asset_Folder, new TextureImportSetting());
+        _folderTextureId.InitRender(Engine.GraphicsApi);
 
-        level.Engine.OnFileDrop += OnFileDrop;
+        Engine.OnFileDrop += OnFileDrop;
     }
 
 
     public void OnFileDrop(string[] paths)
     {
-        var currentPath = EditorSubsystem.CurrentPath;
+        var currentPath = _editorSubsystem.CurrentPath;
         if (CurrentViewFolder != null)
         {
             currentPath = CurrentViewFolder.Path;
@@ -53,19 +44,27 @@ public class ContentViewerPanel : ImGUIWindow
             var extension = Path.GetExtension(path);
             if (extension == ".bmp" || extension == ".png" || extension == ".tga")
             {
-                assets.Add((EditorSubsystem.CurrentEngine.ImportTextureFromFile(path, new TextureImportSetting { }), path));
+                assets.Add((Engine.ImportTextureFromFile(path, new TextureImportSetting
+                {
+                    IsGammaSpace = false,
+                    FlipVertically = false
+                }), path));
             }
             else if (extension == ".hdr")
             {
-                var hdr = EditorSubsystem.CurrentEngine.ImportTextureHdrFromFile(path, new TextureImportSetting { });
+                var hdr = Engine.ImportTextureHdrFromFile(path, new TextureImportSetting
+                {
+                    IsGammaSpace = false,
+                    FlipVertically = false
+                });
                 assets.Add((hdr, path));
-                var textureCube = EditorSubsystem.CurrentEngine.GenerateTextureCubeFromTextureHDR(hdr);
-                assets.Add((textureCube.RightFace, path));
-                assets.Add((textureCube.LeftFace, path));
-                assets.Add((textureCube.UpFace, path));
-                assets.Add((textureCube.DownFace, path));
-                assets.Add((textureCube.FrontFace, path));
-                assets.Add((textureCube.BackFace, path));
+                var textureCube = Engine.GenerateTextureCubeFromTextureHDR(hdr);
+                assets.Add((textureCube.RightFace, path)!);
+                assets.Add((textureCube.LeftFace, path)!);
+                assets.Add((textureCube.UpFace, path)!);
+                assets.Add((textureCube.DownFace, path)!);
+                assets.Add((textureCube.FrontFace, path)!);
+                assets.Add((textureCube.BackFace, path)!);
                 assets.Add((textureCube, path));
 
 
@@ -75,7 +74,7 @@ public class ContentViewerPanel : ImGUIWindow
                 List<TextureLdr> textures = [];
                 List<Material> materials = [];
                 List<AnimSequence> animSequences = [];
-                EditorSubsystem.CurrentEngine.ImporterSkeletalMeshFromGlbFile(path, new SkeletalMeshImportSetting(), textures, materials, animSequences, out var skeleton, out var skeletalMesh);
+                Engine.ImporterSkeletalMeshFromGlbFile(path, new SkeletalMeshImportSetting(), textures, materials, animSequences, out var skeleton, out var skeletalMesh);
                 textures.ForEach(texture => assets.Add((texture, path)));
                 materials.ForEach(material => assets.Add((material, path)));
                 assets.Add((skeleton, path));
@@ -85,28 +84,23 @@ public class ContentViewerPanel : ImGUIWindow
         }
 
         foreach(var (asset, path) in assets)
-        {
-            if (asset != null)
+        { 
+            var fileName = Path.GetFileName(path).Split(".")[0];
+            var fullFileName = currentPath + "/" + fileName + ".asset";
+            if (File.Exists(fullFileName))
             {
-                var fileName = Path.GetFileName(path).Split(".")[0];
-                string FullFileName = currentPath + "/" + fileName + ".asset";
-                if (File.Exists(FullFileName))
+                for (var i = 1;; i++)
                 {
-                    for (int i = 1; true; i++)
+                    if (File.Exists(currentPath + "/" + fileName + i + ".asset") == false)
                     {
-                        if (File.Exists(currentPath + "/" + fileName + i + ".asset") == false)
-                        {
-                            FullFileName = currentPath + "/" + fileName + i + ".asset";
-                            break;
-                        }
+                        fullFileName = currentPath + "/" + fileName + i + ".asset";
+                        break;
                     }
                 }
-                asset.Path = FullFileName.Substring(EditorSubsystem.CurrentPath.Length + 1, FullFileName.Length - EditorSubsystem.CurrentPath.Length - 1);
-                using (var sw = new StreamWriter(FullFileName))
-                {
-                    asset.Serialize(new BinaryWriter(sw.BaseStream), Level.Engine);
-                }
             }
+            asset.Path = fullFileName.Substring(_editorSubsystem.CurrentPath.Length + 1, fullFileName.Length - _editorSubsystem.CurrentPath.Length - 1);
+            using var sw = new StreamWriter(fullFileName);
+            asset.Serialize(new BinaryWriter(sw.BaseStream), Engine);
         }
         BuildFolderTree();
     }
@@ -114,35 +108,34 @@ public class ContentViewerPanel : ImGUIWindow
     {
         get
         {
-            var folder = EditorSubsystem.GetValue<Folder>("CurrentViewFolder");
-            CurrentViewFolderCache = folder;
+            var folder = _editorSubsystem.GetValue<Folder>("CurrentViewFolder");
             return folder;
         }
-        set => EditorSubsystem.SetValue("CurrentViewFolder", value);
+        set => _editorSubsystem.SetValue("CurrentViewFolder", value);
     }
-    Folder? CurrentViewFolderCache;
 
     BaseFile? CurrentSelectFile 
     { 
-        get => EditorSubsystem.GetValue<BaseFile>("CurrentSelectFile");
-        set => EditorSubsystem.SetValue("CurrentSelectFile", value);
+        get => _editorSubsystem.GetValue<BaseFile>("CurrentSelectFile");
+        set => _editorSubsystem.SetValue("CurrentSelectFile", value);
     }
-    Folder Root;
+
+    private Folder? _root;
 
     public List<Folder> Folders { get; set; } = new List<Folder>();
     private void BuildFolderTree()
     {
-        Root = CreateFolder(new DirectoryInfo(Directory.GetCurrentDirectory()));
+        _root = CreateFolder(new DirectoryInfo(Directory.GetCurrentDirectory()));
     }
 
-    private Folder CreateFolder(DirectoryInfo dir, bool IgnoreSubDir = false)
+    private Folder CreateFolder(DirectoryInfo dir, bool ignoreSubDir = false)
     {
         var folder = new Folder
         {
             Path = dir.FullName,
             Name = dir.Name,
         };
-        if (IgnoreSubDir == false)
+        if (ignoreSubDir == false)
         {
             foreach (var subdir in dir.GetDirectories())
             {
@@ -164,14 +157,14 @@ public class ContentViewerPanel : ImGUIWindow
         return folder;
     }
 
-    private AssetFile CreateAssetFile(FileInfo File)
+    private AssetFile CreateAssetFile(FileInfo file)
     {
-        var file = new AssetFile
+        var assetFile = new AssetFile
         {
-            Path = File.FullName,
-            Name = File.Name,
+            Path = file.FullName,
+            Name = file.Name,
         };
-        using var sr = new StreamReader(File.FullName);
+        using var sr = new StreamReader(file.FullName);
         var br = new BinaryReader(sr.BaseStream);
 
         var magicCode  = br.ReadInt32();
@@ -180,14 +173,14 @@ public class ContentViewerPanel : ImGUIWindow
 
         if (magicCode != MagicCode.Asset)
         {
-            file.AssetType = -1;
+            assetFile.AssetType = -1;
         }
         else
         {
-            file.AssetType = assetType;
+            assetFile.AssetType = assetType;
         }
 
-        return file;
+        return assetFile;
 
 
     }
@@ -222,11 +215,10 @@ public class ContentViewerPanel : ImGUIWindow
             if (columnNum == 0)
                 columnNum = 1;
             ImGui.Columns(columnNum, "##", false);
-            int i = 0;
             foreach (var file in CurrentViewFolder.ChildFolders)
             {
                 var w = ImGui.GetColumnWidth();
-                switch (ImGUICtl.FolderButton(file.Path, file.Name, "", FolderTextureId.TextureId, (int)w - 2* (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectFile == file))
+                switch (ImGUICtl.FolderButton(file.Path, file.Name, "", _folderTextureId.TextureId, (int)w - 2* (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectFile == file))
                 {
                     case FileButtonAction.DoubleClick:
                         {
@@ -240,16 +232,13 @@ public class ContentViewerPanel : ImGUIWindow
                             CurrentSelectFile = file;
                             break;
                         }
-                    default:
-                        break;
                 }
                 ImGui.NextColumn();
-                i++;
             }
             foreach (var file in CurrentViewFolder.ChildAssetFiles)
             {
                 var w = ImGui.GetColumnWidth();
-                switch (ImGUICtl.FolderButton(file.Path, file.Name, MagicCode.GetName(file.AssetType), FolderTextureId.TextureId, (int)w - 2 * (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectFile == file))
+                switch (ImGUICtl.FolderButton(file.Path, file.Name, MagicCode.GetName(file.AssetType), _folderTextureId.TextureId, (int)w - 2 * (ImGui.GetStyle().FramePadding * 2).X, CurrentSelectFile == file))
                 {
                     case FileButtonAction.DoubleClick:
                         {
@@ -261,14 +250,12 @@ public class ContentViewerPanel : ImGUIWindow
                             CurrentSelectFile = file;
                             break;
                         }
-                    default:
-                        break;
                 }
 
                 if (ImGui.BeginDragDropSource(ImGuiDragDropFlags.None))
                 {
                     var gcHandle = GCHandle.Alloc(file.Path, GCHandleType.Weak);
-                    IntPtr ptr = 0;
+                    IntPtr ptr;
                     unsafe
                     {
                         ptr = (IntPtr)(&gcHandle);
@@ -278,7 +265,6 @@ public class ContentViewerPanel : ImGUIWindow
                     ImGui.EndDragDropSource();
                 }
                 ImGui.NextColumn();
-                i++;
             }
 
         }
@@ -290,23 +276,23 @@ public class ContentViewerPanel : ImGUIWindow
 
     public void RenderDirTree()
     {
+        if (_root == null)
+            return;
         if (ImGui.BeginChild("#left"))
         {
-            FirstChange = false;
+            _firstChange = false;
             if (ImGui.CollapsingHeader($"All##all", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                foreach (var dir in Root.ChildFolders)
+                foreach (var dir in _root.ChildFolders)
                 {
-                    if (dir is Folder foler)
-                    {
-                        RenderSubDir(foler);
-                    }
+                    RenderSubDir(dir);
                 }
             }
             ImGui.EndChild();
         }
     }
-    bool FirstChange = false;
+
+    private bool _firstChange;
     public void RenderSubDir(Folder folder)
     {
         bool rtl = false;
@@ -323,14 +309,14 @@ public class ContentViewerPanel : ImGUIWindow
         {
             flag |= ImGuiTreeNodeFlags.Leaf;
         }
-        bool IsClick = false;
+
         if (ImGui.TreeNodeEx($"{folder.Name}##{folder.Path}", flag))
         {
             if (ImGui.IsItemClicked())
             {
-                if (FirstChange == false)
+                if (_firstChange == false)
                 {
-                    FirstChange = true;
+                    _firstChange = true;
                     if (CurrentViewFolder != folder)
                     {
                         CurrentViewFolder = folder;
@@ -341,12 +327,9 @@ public class ContentViewerPanel : ImGUIWindow
                 }
             }
 
-            foreach (var directory in folder.ChildFolders)
+            foreach (var subFolder in folder.ChildFolders)
             {
-                if (directory is Folder foler)
-                {
-                    RenderSubDir(foler);
-                }
+                RenderSubDir(subFolder);
             }
             ImGui.TreePop();
         }
@@ -354,9 +337,9 @@ public class ContentViewerPanel : ImGUIWindow
         {
             if (ImGui.IsItemClicked())
             {
-                if (FirstChange == false)
+                if (_firstChange == false)
                 {
-                    FirstChange = true;
+                    _firstChange = true;
                     if (CurrentViewFolder != folder)
                     {
                         CurrentViewFolder = folder;
@@ -439,11 +422,9 @@ public class ContentViewerPanel : ImGUIWindow
         public List<AssetFile> ChildAssetFiles = new List<AssetFile>(); 
         public override bool IsDirectory => true;
 
-        public bool IsSubDirOf(BaseFile Other)
+        public bool IsSubDirOf(BaseFile other)
         {
-            if (this.Path.IndexOf(Other.Path) == 0 && Other.Path != this.Path)
-                return true;
-            return false;
+            return Path.IndexOf(other.Path, StringComparison.Ordinal) == 0 && other.Path != Path;
         }
     }
 }

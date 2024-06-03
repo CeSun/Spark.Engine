@@ -1,16 +1,11 @@
 ﻿using ImGuiNET;
-using Spark.Engine;
-using Spark.Engine.GUI;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Editor.GUI;
+using Editor.Subsystem;
 
 namespace Editor.Panels;
 
 
-public class MainPanel(Level level) : ImGUIWindow(level)
+public class MainPanel(ImGuiSubSystem imGuiSubSystem) : BasePanel(imGuiSubSystem)
 {
     public override void Render(double deltaTime)
     {
@@ -51,7 +46,7 @@ public class MainPanel(Level level) : ImGUIWindow(level)
         }
 
 
-        ImGui.PushFont(Level.ImGuiWarp.Fonts["forkawesome"]);
+        ImGui.PushFont(ImGuiSubSystem.Fonts["forkawesome"]);
         ImGui.Button(new string([(char)0x000f0c7])+ "##editorsave");
         ImGui.SameLine();
         ImGui.Button(new string([(char)0x000f04b]) + "##editorrun");
