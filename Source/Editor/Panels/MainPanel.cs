@@ -1,5 +1,4 @@
 ﻿using ImGuiNET;
-using Editor.GUI;
 using Editor.Subsystem;
 
 namespace Editor.Panels;

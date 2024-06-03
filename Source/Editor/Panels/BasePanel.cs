@@ -1,13 +1,13 @@
 ﻿using Editor.Subsystem;
 using Spark.Engine;
 
-namespace Editor.GUI;
+namespace Editor.Panels;
 
 public class BasePanel(ImGuiSubSystem imGuiSubSystem)
 {
     protected ImGuiSubSystem ImGuiSubSystem { get; } = imGuiSubSystem;
 
-    protected Engine Engine { get; } = imGuiSubSystem.Engine;
+    protected Engine Engine { get; } = imGuiSubSystem.CurrentEngine;
     public void AddToViewPort()
     {
         ImGuiSubSystem.AddCanvas(this);

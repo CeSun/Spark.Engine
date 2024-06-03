@@ -2,7 +2,6 @@
 using ImGuiNET;
 using Spark.Engine.Actors;
 using Spark.Engine.Attributes;
-using Editor.GUI;
 using Spark.Util;
 using System.Numerics;
 using System.Reflection;

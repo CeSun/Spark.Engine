@@ -1,6 +1,5 @@
 ﻿using Editor.Subsystem;
 using ImGuiNET;
-using Editor.GUI;
 using Spark.Util;
 using System.Numerics;
 

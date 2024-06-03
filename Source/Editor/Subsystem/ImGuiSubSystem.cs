@@ -1,5 +1,5 @@
 ﻿using System.Runtime.InteropServices;
-using Editor.GUI;
+using Editor.Panels;
 using ImGuiNET;
 using Silk.NET.OpenGLES.Extensions.ImGui;
 using Spark.Engine;
@@ -8,8 +8,12 @@ using Spark.Engine.Attributes;
 namespace Editor.Subsystem;
 
 [Subsystem(Enable = true)]
-public class ImGuiSubSystem(Engine engine) : BaseSubSystem(engine)
+public class ImGuiSubSystem : BaseSubSystem
 {
+    public ImGuiSubSystem(Engine engine) : base(engine)
+    {
+
+    }
     public override bool ReceiveRender => true;
     public override bool ReceiveUpdate => true;
 
@@ -25,7 +29,6 @@ public class ImGuiSubSystem(Engine engine) : BaseSubSystem(engine)
         _imGuiCanvasList.Remove(imGuiCanvas);
     }
 
-    public Engine Engine { get; } = engine;
 
     private ImFontPtr LoadFont(string path, int fontSize, char[] glyphRanges)
     {
@@ -40,7 +43,7 @@ public class ImGuiSubSystem(Engine engine) : BaseSubSystem(engine)
     private ImFontPtr LoadFont(string path, int fontSize, nint glyphRanges)
     {
         List<byte> data = [];
-        using (var sr = Engine.FileSystem.GetStreamReader(path))
+        using (var sr = CurrentEngine.FileSystem.GetStreamReader(path))
         {
             var br = new BinaryReader(sr.BaseStream);
 
@@ -73,19 +76,23 @@ public class ImGuiSubSystem(Engine engine) : BaseSubSystem(engine)
     {
         try
         {
-            _controller = new ImGuiController(Engine.GraphicsApi, Engine.View, Engine.Input, null, () =>
+            _controller = new ImGuiController(CurrentEngine.GraphicsApi, CurrentEngine.View, CurrentEngine.Input, null, () =>
             {
                 ref var flags = ref ImGui.GetIO().ConfigFlags;
                 flags |= ImGuiConfigFlags.DockingEnable;
                 ImGui.StyleColorsDark();
 
-                _fonts.Add("msyh", LoadFont("../Fonts/msyh.ttc", 14, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull()));
+                _fonts.Add("msyh", LoadFont("../Fonts/msyh.ttc", 18, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull()));
 
                 _fonts.Add("forkawesome", LoadFont("../Fonts/forkawesome-webfont.ttf", 14,
                 [
                     (char)0xf000,
                     (char)0xf372
                 ]));
+
+
+                var style = ImGui.GetStyle();
+                style.WindowMenuButtonPosition = ImGuiDir.None;
             });
 
         }
@@ -99,12 +106,12 @@ public class ImGuiSubSystem(Engine engine) : BaseSubSystem(engine)
     {
         if (_controller == null)
             return;
-        Engine.GraphicsApi.Viewport(new System.Drawing.Size(Engine.WindowSize.X, Engine.WindowSize.Y));
+        CurrentEngine.GraphicsApi.Viewport(new System.Drawing.Size(CurrentEngine.WindowSize.X, CurrentEngine.WindowSize.Y));
         _controller?.Update((float)deltaTime);
         _imGuiCanvasList.ForEach(item => item.Render(deltaTime));
-        Engine.GraphicsApi.PushGroup("GUI Pass");
+        CurrentEngine.GraphicsApi.PushGroup("GUI Pass");
         _controller?.Render();
-        Engine.GraphicsApi.PopGroup();
+        CurrentEngine.GraphicsApi.PopGroup();
 
     }
 

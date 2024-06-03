@@ -4,7 +4,6 @@ using Silk.NET.Input;
 using Spark.Util;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using Editor.GUI;
 
 namespace Editor.Panels;
 

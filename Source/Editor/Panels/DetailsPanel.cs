@@ -9,7 +9,6 @@ using System.Reflection;
 using Spark.Util;
 using static Editor.Panels.ContentViewerPanel;
 using System.Runtime.InteropServices;
-using Editor.GUI;
 
 namespace Editor.Panels
 {
