@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /Resource/Editor/*.dll
 /Resource/Editor/*.deps.json
+/Binaries
