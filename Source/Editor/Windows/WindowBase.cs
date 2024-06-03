@@ -11,7 +11,7 @@ namespace Editor.Windows;
 public class WindowBase(Engine engine)
 {
 
-    private Engine _engine = engine;
+    protected Engine _engine = engine;
 
     protected readonly List<BasePanel> _panels = [];
     public void Open()

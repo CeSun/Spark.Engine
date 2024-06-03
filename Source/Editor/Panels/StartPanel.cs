@@ -12,6 +12,10 @@ public class StartPanel(ImGuiSubSystem imGuiSubSystem) : BasePanel(imGuiSubSyste
 {
     private string _projectName = string.Empty;
     private string _projectDir = string.Empty;
+
+    public Action<string, string>? OnCreateProject;
+
+    public Action<string>? OnOpenProject;
     public override void Render(double deltaTime)
     {
         var viewport = ImGui.GetMainViewport();
@@ -24,6 +28,7 @@ public class StartPanel(ImGuiSubSystem imGuiSubSystem) : BasePanel(imGuiSubSyste
         if (ImGui.Button("新建"))
         {
             ImGui.OpenPopup("创建项目##CreateProjectModal");
+            _projectName = "NewProject";
         }
 
         bool t = true;
@@ -35,9 +40,21 @@ public class StartPanel(ImGuiSubSystem imGuiSubSystem) : BasePanel(imGuiSubSyste
             ImGui.InputText("##projectDir", ref _projectDir, 128);
             ImGui.SameLine();
             ImGui.Button("浏览");
-            ImGui.Button("创建");
+            if (ImGui.Button("创建"))
+            {
+                OnCreateProject?.Invoke(_projectName, _projectDir);
+                OnOpenProject?.Invoke(_projectDir + "/" + _projectName);
+            }
             ImGui.EndPopup();
         }
+
+        bool showTips = true;
+        if (ImGui.BeginPopupModal("提示##Tips", ref showTips, ImGuiWindowFlags.None))
+        {
+            ImGui.Text("项目名称不能空");
+            ImGui.EndPopup();
+        }
+
 
         ImGui.SameLine();
         ImGui.Button("导入");

@@ -18,15 +18,19 @@ public class ImGuiSubSystem : BaseSubSystem
     public override bool ReceiveUpdate => true;
 
     private readonly List<BasePanel> _imGuiCanvasList = [];
+
+    private readonly List<BasePanel> _addCanvas = [];
+    private readonly List<BasePanel> _delCanvas = [];
+
     public void AddCanvas(BasePanel imGuiCanvas)
     {
-        _imGuiCanvasList.Add(imGuiCanvas);
+        _addCanvas.Add(imGuiCanvas);
 
     }
 
     public void RemoveCanvas(BasePanel imGuiCanvas)
     {
-        _imGuiCanvasList.Remove(imGuiCanvas);
+        _delCanvas.Add(imGuiCanvas);
     }
 
 
@@ -108,7 +112,12 @@ public class ImGuiSubSystem : BaseSubSystem
             return;
         CurrentEngine.GraphicsApi.Viewport(new System.Drawing.Size(CurrentEngine.WindowSize.X, CurrentEngine.WindowSize.Y));
         _controller?.Update((float)deltaTime);
+
+        _addCanvas.ForEach(_imGuiCanvasList.Add);
+        _addCanvas.Clear();
         _imGuiCanvasList.ForEach(item => item.Render(deltaTime));
+        _delCanvas.ForEach(canvas => _imGuiCanvasList.Remove(canvas));
+        _delCanvas.Clear();
         CurrentEngine.GraphicsApi.PushGroup("GUI Pass");
         _controller?.Render();
         CurrentEngine.GraphicsApi.PopGroup();
