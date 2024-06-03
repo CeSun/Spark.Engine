@@ -1,15 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using Spark.Engine;
-using Spark.Engine.Actors;
-using Spark.Engine.Components;
-using Spark.Engine.Platform;
+﻿using Spark.Engine.Actors;
 using Spark.Engine.Render;
 using Spark.Engine.Render.Renderer;
 using Spark.Util;
@@ -26,69 +15,68 @@ public class World
         Engine = engine;
         SceneRenderer = new DeferredSceneRenderer(this);
     }
-    public Level? _Level;
+    public Level? Level;
 
 
     public Level CurrentLevel
     {
         get
         {
-            if (_Level == null)
+            if (Level == null)
             {
                 throw new Exception("");
             }
-            return _Level;
+            return Level;
         }
-        private set
-        {
-            _Level = value;
-        }
+        private set => Level = value;
     }
 
     public IRenderer SceneRenderer;
     public void BeginPlay()
     {
         OnBeginPlay();
-        if (Engine.MainWorld == this && Engine.FileSystem.FileExits(Engine.GameConfig.DefaultLevel))
+
+        if (Engine.GameConfig.DefaultLevel != null && Engine.MainWorld == this)
         {
             OpenLevel(Engine.GameConfig.DefaultLevel);
         }
+        else if (Engine.GameConfig.DefaultGameModeClass != null && Engine.MainWorld == this)
+        {
+            CurrentLevel = new Level(this);
+            Activator.CreateInstance(Engine.GameConfig.DefaultGameModeClass, [CurrentLevel, "GameMode"]);
+            CurrentLevel.BeginPlay();
+        }
         else
         {
-            CurrentLevel = new Level(this); ;
-            new GameMode(CurrentLevel);
-
-            using(var sw = Engine.FileSystem.GetStreamWriter("level"))
-            {
-                CurrentLevel.Serialize(new BinaryWriter(sw.BaseStream), Engine);
-            }
+            CurrentLevel = new Level(this);
+            _ = new GameMode(CurrentLevel, "GameMode");
+            CurrentLevel.BeginPlay();
         }
-
     }
 
     protected virtual void OnBeginPlay()
     {
     }
-    public void Update(double DeltaTime)
+    public void Update(double deltaTime)
     {
-        OnUpdate(DeltaTime);
+        OnUpdate(deltaTime);
     }
-    protected virtual void OnUpdate(double DeltaTime)
+    protected virtual void OnUpdate(double deltaTime)
     {
-        CurrentLevel.Update(DeltaTime);
+        CurrentLevel.Update(deltaTime);
     }
 
 
 
 
-    public void Render(double DeltaTime)
+    public void Render(double deltaTime)
     {
-        CurrentLevel.Render(DeltaTime);
+        CurrentLevel.Render(deltaTime);
     }
 
     public void OpenLevel(string path)
     {
-        if (_Level != null)
+        if (Level != null)
         {
             CurrentLevel.Destory();
         }

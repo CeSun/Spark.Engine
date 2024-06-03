@@ -26,7 +26,6 @@ public class EditorPlayerController : PlayerController
             new OutlinerPanel(imGuiSubSystem),
             new DetailsPanel(imGuiSubSystem),
         ];
-
         list.ForEach(panel => panel.AddToViewPort());
     }
 }

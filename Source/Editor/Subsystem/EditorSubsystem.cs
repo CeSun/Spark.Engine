@@ -43,18 +43,12 @@ public class EditorSubsystem(Engine engine) : BaseSubSystem(engine)
         CurrentEngine.Worlds.Add(world);
         world.BeginPlay();
         World = world;
-        var cameraActor = new CameraActor(world.CurrentLevel);
-        cameraActor.NearPlaneDistance = 1;
-        //cameraActor.IsEditorActor = true;
+        var cameraActor = new CameraActor(world.CurrentLevel)
+        {
+            NearPlaneDistance = 1
+        };
         EditorCameraActor = cameraActor;
         var skyboxActor = new Actor(world.CurrentLevel, "SkyboxActor");
-        var skyboxComponent = new SkyboxComponent(skyboxActor);
-
-        /*
-        using (var sw = IFileSystem.Instance.GetStreamWriter("SkyboxHDR.asset"))
-        {
-            TextureHDR.LoadFromFile("kloofendal_43d_clear_puresky_2k.hdr").Serialize(new BinaryWriter(sw.BaseStream), CurrentEngine);
-        }
-        */
+        _ = new SkyboxComponent(skyboxActor);
     }
 }

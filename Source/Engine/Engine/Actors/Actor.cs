@@ -20,40 +20,37 @@ public partial class Actor
     /// <summary>
     /// Actor所在关卡
     /// </summary>
-    public Level CurrentLevel { get; private set; }
-    static Dictionary<string, int> NameMap = new Dictionary<string, int>();
+    public Level CurrentLevel { get; }
 
-    protected virtual bool ReceieveUpdate => false;
+    private static readonly Dictionary<string, int> NameMap = [];
+
+    protected virtual bool ReceiveUpdate => false;
 
     public string Name { get ;  set; }
  
     /// <summary>
     /// Actor所在世界
     /// </summary>
-    public World CurrentWorld { get => CurrentLevel.CurrentWorld; }
+    public World CurrentWorld  => CurrentLevel.CurrentWorld;
 
-    public Actor(Level level, string Name = "")
+    public Actor(Level level, string name = "")
     {
-        if (string.IsNullOrEmpty(Name))
+        if (string.IsNullOrEmpty(name))
         {
             var typeName = GetType().Name;
-
-            if (NameMap.ContainsKey(typeName) == false)
-            {
-                NameMap[typeName] = 0;
-            }
+            NameMap.TryAdd(typeName, 0);
             var index = ++NameMap[typeName] ;
 
             this.Name = typeName + index;
         }
         else
         {
-            this.Name = Name;
+            this.Name = name;
         }
         CurrentLevel = level;
         level.RegisterActor(this);
         CurrentLevel.Engine.NextFrame.Add(_ => BeginPlay());
-        if (ReceieveUpdate == true)
+        if (ReceiveUpdate)
         {
             CurrentLevel.UpdateManager.RegisterUpdate(Update);
         }
@@ -61,18 +58,18 @@ public partial class Actor
 
     public void BeginPlay()
     {
-        IsBegined = true;
+        _isBegan = true;
         OnBeginPlay();
     }
-    private bool IsBegined = false;
-    public void Update(double DeltaTime)
+    private bool _isBegan = false;
+    public void Update(double deltaTime)
     {
-        if (IsBegined == false)
+        if (_isBegan == false)
             return;
-        OnUpdate(DeltaTime);
+        OnUpdate(deltaTime);
     }
 
-    protected virtual void OnUpdate(double DeltaTime)
+    protected virtual void OnUpdate(double deltaTime)
     {
 
     }
@@ -87,7 +84,7 @@ public partial class Actor
         {
             UnregistComponent(component);
         }
-        if (ReceieveUpdate)
+        if (ReceiveUpdate)
         {
             CurrentLevel.UpdateManager.UnregisterUpdate(Update);
         }

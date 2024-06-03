@@ -85,15 +85,13 @@ public partial class Level : ISerializable
             throw new Exception("");
         Name = reader.ReadString2();
         var actorNum = reader.ReadInt32();
-        for (int i = 0; i < actorNum; i++)
+        for (var i = 0; i < actorNum; i++)
         {
             var typename = reader.ReadString2();
             var type = AssemblyHelper.GetType(typename);
-            if (type != null)
-            {
-                var actor = (Actor)Activator.CreateInstance(type, new object[] { this, "" })!;
-                actor.Deserialize(reader, Engine);
-            }
+            if (type == null) continue;
+            var actor = (Actor)Activator.CreateInstance(type, [ this, "" ])!;
+            actor.Deserialize(reader, Engine);
         }
     }
 }

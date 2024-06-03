@@ -11,13 +11,8 @@ namespace Editor;
 
 public class EditorGameMode : GameMode
 {
-    public EditorGameMode(Level level, string Name = "") : base(level, Name)
+    public EditorGameMode(Level level, string name = "") : base(level, name)
     {
-        DefaultPlayerControllerClass = typeof(PlayerController);
-    }
-
-    protected override void OnBeginPlay()
-    {
-        base.OnBeginPlay();
+        DefaultPlayerControllerClass = typeof(EditorPlayerController);
     }
 }

@@ -9,6 +9,12 @@
       </PropertyGroup>
 
       <ItemGroup>
+        <Compile Remove="GUI\**" />
+        <EmbeddedResource Remove="GUI\**" />
+        <None Remove="GUI\**" />
+      </ItemGroup>
+
+      <ItemGroup>
         <PackageReference Include="ini-parser-netstandard" Version="2.5.2" />
         <PackageReference Include="Jitter2" Version="2.3.0" />
         <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0030" />
@@ -37,8 +43,5 @@
         <Generator>ResXFileCodeGenerator</Generator>
         <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       </EmbeddedResource>
-    </ItemGroup>
-    <ItemGroup>
-      <Folder Include="GUI\" />
     </ItemGroup>
 </Project>

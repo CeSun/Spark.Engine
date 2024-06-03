@@ -1,8 +1,8 @@
 {
   "profiles": {
-    "SparkDemo": {
+    "Editor": {
       "commandName": "Project",
-      "remoteDebugEnabled": false
+      "workingDirectory": "../../Binaries"
     }
   }
 }

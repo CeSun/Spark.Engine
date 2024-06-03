@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -15,16 +15,9 @@
     <PackageReference Include="Silk.NET.Windowing" Version="$(SilkVersion)" />
   </ItemGroup>
 
-  <ItemGroup>
-	  <Content Include="..\Resource\**\*">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Editor\Editor.csproj" />
     <ProjectReference Include="..\..\Engine\Engine\Engine.csproj" />
-    <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
   </ItemGroup>
 
 </Project>

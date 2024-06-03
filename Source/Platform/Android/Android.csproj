@@ -50,7 +50,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
 		<PackageReference Include="Silk.NET.Input.Extensions" Version="$(SilkVersion)" />
 		<PackageReference Include="Silk.NET.Input.Sdl" Version="$(SilkVersion)" />
 		<PackageReference Include="Silk.NET.OpenGLES" Version="$(SilkVersion)" />

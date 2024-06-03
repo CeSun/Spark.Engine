@@ -3,12 +3,10 @@ using Silk.NET.Windowing;
 using Silk.NET.OpenGLES;
 using Spark.Engine;
 using Silk.NET.Maths;
-using System.Drawing;
 using Desktop;
 using Silk.NET.Input;
 using Silk.NET.Windowing.Glfw;
 using Silk.NET.Input.Glfw;
-using Spark.Engine.Platform;
 
 var option = WindowOptions.Default;
 option.FramesPerSecond = 0;
@@ -29,7 +27,7 @@ window.Load += () =>
 {
     gl = GL.GetApi(window);
 
-    engine = new Engine(args, new DesktopPlatform()
+    engine = new Engine(args, new DesktopPlatform
     {
         FileSystem = new DesktopFileSystem(),
         GraphicsApi = gl,

@@ -7,8 +7,4 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\Game\SparkDemo\SparkDemo.csproj" />
-  </ItemGroup>
-
 </Project>

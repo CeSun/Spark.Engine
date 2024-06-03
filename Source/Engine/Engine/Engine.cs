@@ -8,7 +8,6 @@ using System.Reflection;
 using Spark.Engine.Assets;
 using IniParser.Parser;
 using Spark.Engine.Actors;
-using Spark.Engine.Assembly;
 using Spark.Engine.Attributes;
 
 namespace Spark.Engine;
@@ -43,14 +42,11 @@ public partial class Engine
         MainWorld = new World(this);
         MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTarget(this.WindowSize.X, this.WindowSize.Y);
         Worlds.Add(MainWorld);
-        GameAssemblyLoadContext.InitInstance(this);
-
         if (View is IWindow window)
         {
             window.FileDrop += paths => OnFileDrop.Invoke(paths);
         }
         ProcessArgs();
-        LoadGameDll();
         LoadSetting();
         LoadSubsystem();
 
@@ -123,14 +119,9 @@ public partial class Engine
 
 
     }
-    public void LoadGameDll()
-    {
-        using var stream =  FileSystem.GetStreamReader($"{GameName}/{GameName}.dll");
-        GameAssemblyLoadContext.Instance.LoadFromStream(stream.BaseStream);
-    }
     public void LoadSetting()
     {
-        var text = FileSystem.LoadText($"{GameName}/DefaultGame.ini");
+        var text = FileSystem.LoadText($"../Config/DefaultGame.ini");
         var parser =new IniDataParser();
         var ini = parser.Parse(text);
         var defaultGameMode = ini["Game"]["DefaultGameMode"];
@@ -265,21 +256,21 @@ public partial class Engine
 }
 
 
-public static class GLExternFunctions
+public static class GlExternFunctions
 {
-    static bool SupportDebugGroup = true;
-    public static void PushGroup(this GL gl, string DebugInfo)
+    static bool _supportDebugGroup = true;
+    public static void PushGroup(this GL gl, string debugInfo)
     {
 #if DEBUG
-        if (SupportDebugGroup == false)
+        if (_supportDebugGroup == false)
             return;
         try
         {
-            gl.PushDebugGroup(DebugSource.DebugSourceApplication, 1, (uint)DebugInfo.Length, DebugInfo);
+            gl.PushDebugGroup(DebugSource.DebugSourceApplication, 1, (uint)debugInfo.Length, debugInfo);
         }
         catch
         {
-            SupportDebugGroup = false;
+            _supportDebugGroup = false;
         }
 #endif
     }
@@ -287,7 +278,7 @@ public static class GLExternFunctions
     public static void PopGroup(this GL gl)
     {
 #if DEBUG
-        if (SupportDebugGroup == false)
+        if (_supportDebugGroup == false)
             return;
         try
         {
@@ -295,49 +286,51 @@ public static class GLExternFunctions
         }
         catch
         {
-            SupportDebugGroup = false;
+            _supportDebugGroup = false;
         }
 #endif
     }
 
-    static OpenGLStates? States = null;
+    private static OpenGlStates? _states = null;
     public static void PushAttribute(this GL gl)
     {
-        if (States == null)
-            States = new OpenGLStates();
+        if (_states == null)
+            _states = new OpenGlStates();
         else
         {
-            var newStates = new OpenGLStates();
-            newStates.Next = States;
-            States = newStates;
+            var newStates = new OpenGlStates
+            {
+                Next = _states
+            };
+            _states = newStates;
         }
-        States.Blend = gl.GetInteger(GLEnum.Blend);
-        States.BlendDstAlpha = gl.GetInteger(GLEnum.BlendDstAlpha);
-        States.BlendDstRGB = gl.GetInteger(GLEnum.BlendDstRgb);
-        States.BlendEquationAlpha = gl.GetInteger(GLEnum.BlendEquationAlpha);
-        States.BlendEquationRgb = gl.GetInteger(GLEnum.BlendEquationRgb);
-        States.BlendSrcAlpha = gl.GetInteger(GLEnum.BlendSrcAlpha);
-        States.BlendSrcRGB = gl.GetInteger(GLEnum.BlendSrcRgb);
+        _states.Blend = gl.GetInteger(GLEnum.Blend);
+        _states.BlendDstAlpha = gl.GetInteger(GLEnum.BlendDstAlpha);
+        _states.BlendDstRgb = gl.GetInteger(GLEnum.BlendDstRgb);
+        _states.BlendEquationAlpha = gl.GetInteger(GLEnum.BlendEquationAlpha);
+        _states.BlendEquationRgb = gl.GetInteger(GLEnum.BlendEquationRgb);
+        _states.BlendSrcAlpha = gl.GetInteger(GLEnum.BlendSrcAlpha);
+        _states.BlendSrcRgb = gl.GetInteger(GLEnum.BlendSrcRgb);
 
-        States.DepthTest = gl.GetInteger(GLEnum.DepthTest);
-        States.DepthFunc = gl.GetInteger(GLEnum.DepthFunc);
-        States.DepthWriteMask = gl.GetInteger(GLEnum.DepthWritemask);
-        States.CullFace = gl.GetInteger(GLEnum.CullFace);
+        _states.DepthTest = gl.GetInteger(GLEnum.DepthTest);
+        _states.DepthFunc = gl.GetInteger(GLEnum.DepthFunc);
+        _states.DepthWriteMask = gl.GetInteger(GLEnum.DepthWritemask);
+        _states.CullFace = gl.GetInteger(GLEnum.CullFace);
     }
 
     public static void PopAttribute(this GL gl)
     {
-        if (States == null)
+        if (_states == null)
             return;
-        gl.BlendEquationSeparate((GLEnum)States.BlendEquationRgb, (GLEnum)States.BlendEquationAlpha);
-        gl.BlendFuncSeparate((GLEnum)States.BlendSrcRGB, (GLEnum)States.BlendDstRGB, (GLEnum)States.BlendSrcAlpha, (GLEnum)States.BlendDstAlpha);
-        gl.Enable(GLEnum.Blend, (uint)States.Blend);
-        gl.Enable(GLEnum.DepthTest, (uint)States.DepthTest);
-        gl.DepthFunc((GLEnum)States.DepthFunc);
-        gl.DepthMask(States.DepthWriteMask == 1);
-        gl.Enable(GLEnum.CullFace, (uint)States.CullFace);
+        gl.BlendEquationSeparate((GLEnum)_states.BlendEquationRgb, (GLEnum)_states.BlendEquationAlpha);
+        gl.BlendFuncSeparate((GLEnum)_states.BlendSrcRgb, (GLEnum)_states.BlendDstRgb, (GLEnum)_states.BlendSrcAlpha, (GLEnum)_states.BlendDstAlpha);
+        gl.Enable(GLEnum.Blend, (uint)_states.Blend);
+        gl.Enable(GLEnum.DepthTest, (uint)_states.DepthTest);
+        gl.DepthFunc((GLEnum)_states.DepthFunc);
+        gl.DepthMask(_states.DepthWriteMask == 1);
+        gl.Enable(GLEnum.CullFace, (uint)_states.CullFace);
 
-        States = States.Next;
+        _states = _states.Next;
 
     }
 
@@ -346,27 +339,27 @@ public static class GLExternFunctions
 public struct GameConfig
 {
     public Type? DefaultGameModeClass;
-    public string DefaultLevel = string.Empty;
+    public string? DefaultLevel = string.Empty;
 
     public GameConfig()
     {
     }
 }
-class OpenGLStates
+class OpenGlStates
 {
 
     public int Blend;
     public int BlendDstAlpha;
-    public int BlendDstRGB;
+    public int BlendDstRgb;
     public int BlendEquationAlpha;
     public int BlendEquationRgb;
     public int BlendSrcAlpha;
-    public int BlendSrcRGB;
+    public int BlendSrcRgb;
 
     public int DepthTest;
     public int DepthFunc;
     public int DepthWriteMask;
     public int CullFace;
 
-    public OpenGLStates? Next;
+    public OpenGlStates? Next;
 }

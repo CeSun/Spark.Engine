@@ -79,9 +79,9 @@ public class ImGuiSubSystem(Engine engine) : BaseSubSystem(engine)
                 flags |= ImGuiConfigFlags.DockingEnable;
                 ImGui.StyleColorsDark();
 
-                _fonts.Add("msyh", LoadFont("Fonts/msyh.ttc", 14, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull()));
+                _fonts.Add("msyh", LoadFont("../Fonts/msyh.ttc", 14, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull()));
 
-                _fonts.Add("forkawesome", LoadFont("Fonts/forkawesome-webfont.ttf", 14,
+                _fonts.Add("forkawesome", LoadFont("../Fonts/forkawesome-webfont.ttf", 14,
                 [
                     (char)0xf000,
                     (char)0xf372
