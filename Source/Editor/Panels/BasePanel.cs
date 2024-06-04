@@ -13,6 +13,16 @@ public class BasePanel(ImGuiSubSystem imGuiSubSystem)
         ImGuiSubSystem.AddCanvas(this);
     }
 
+    public virtual void OnOpen()
+    {
+
+    }
+
+    public virtual void OnClose()
+    {
+
+    }
+
 
     public void RemoveFromViewPort()
     {

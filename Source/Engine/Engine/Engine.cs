@@ -36,8 +36,6 @@ public partial class Engine
         Args.AddRange(args);
         Platform = platform;
 
-        IFileSystem.Init(platform.FileSystem);
-
         WindowSize = new Point(View.Size.X, View.Size.Y);
         MainWorld = new World(this);
         MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTarget(this.WindowSize.X, this.WindowSize.Y);
@@ -121,7 +119,8 @@ public partial class Engine
     }
     public void LoadSetting()
     {
-        var text = FileSystem.LoadText($"../Config/DefaultGame.ini");
+        using var sr = FileSystem.GetConfigStreamReader("DefaultGame.ini");
+        var text = sr.ReadToEnd();
         var parser =new IniDataParser();
         var ini = parser.Parse(text);
         var defaultGameMode = ini["Game"]["DefaultGameMode"];

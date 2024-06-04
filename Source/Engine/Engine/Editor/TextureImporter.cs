@@ -23,7 +23,7 @@ public static class TextureImporter
 {
     public static TextureLdr ImportTextureFromFile(this Engine engine, string path, TextureImportSetting setting)
     {
-        using var streamReader = engine.FileSystem.GetStreamReader(path);
+        using var streamReader = engine.FileSystem.GetContentStreamReader(path);
         if (setting.FlipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(1);
@@ -79,7 +79,7 @@ public static class TextureImporter
 
     public static TextureHdr ImportTextureHdrFromFile(this Engine engine, string path, TextureImportSetting setting)
     {
-        using var streamReader = engine.FileSystem.GetStreamReader(path);
+        using var streamReader = engine.FileSystem.GetContentStreamReader(path);
         if (setting.FlipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(1);

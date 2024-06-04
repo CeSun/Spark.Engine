@@ -32,7 +32,7 @@ public class AssetMgr
             return asset;
         }
         Type? type = null;
-        using (var stream = Engine.FileSystem.GetStreamReader(path))
+        using (var stream = Engine.FileSystem.GetContentStreamReader(path))
         {
             var br = new BinaryReader(stream.BaseStream);
             var assetMagicCode = br.ReadInt32();
@@ -45,7 +45,7 @@ public class AssetMgr
     }
     public AssetBase Reload(Type assetType, string path) 
     {
-        using var stream = Engine.FileSystem.GetStreamReader(path);
+        using var stream = Engine.FileSystem.GetContentStreamReader(path);
         var asset = (AssetBase)Activator.CreateInstance(assetType)!;
         asset.Deserialize(new BinaryReader(stream.BaseStream), Engine);
         _assets[path] = asset;
@@ -54,7 +54,7 @@ public class AssetMgr
     }
     public T Reload<T>(string path) where T : AssetBase, ISerializable, new()
     {
-        using var stream = Engine.FileSystem.GetStreamReader(path);
+        using var stream = Engine.FileSystem.GetContentStreamReader(path);
         var asset = new T();
         asset.Deserialize(new BinaryReader(stream.BaseStream), Engine);
         _assets[path] = asset;

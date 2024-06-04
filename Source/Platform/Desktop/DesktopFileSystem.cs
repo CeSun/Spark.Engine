@@ -9,30 +9,14 @@ namespace Desktop;
 
 public class DesktopFileSystem : IFileSystem
 {
-    public Stream GetStream(string path)
+
+    public StreamReader GetContentStreamReader(string path)
     {
-        return new StreamReader(path).BaseStream;
+        return new StreamReader("../Content/" + path);
     }
 
-    public StreamWriter GetStreamWriter(string path) 
-    { 
-        return new StreamWriter(path);
-    }
-    public StreamReader GetStreamReader(string path)
+    public StreamReader GetConfigStreamReader(string path)
     {
-        return new StreamReader(path);
-    }
-
-    public string LoadText(string path)
-    {
-        using (var sr = new StreamReader(path))
-        {
-            return sr.ReadToEnd();
-        }
-    }
-
-    public bool FileExits(string Path)
-    {
-        return File.Exists(Path);
+        return new StreamReader("../Config/" + path);
     }
 }

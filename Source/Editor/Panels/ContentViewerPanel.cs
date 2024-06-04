@@ -19,7 +19,6 @@ public class ContentViewerPanel : BasePanel
     {
         _editorSubsystem = Engine.GetSubSystem<EditorSubsystem>()!;
 
-        BuildFolderTree();
 
         OnChangeDir += _ => Folders.Clear();
 
@@ -29,15 +28,19 @@ public class ContentViewerPanel : BasePanel
         Engine.OnFileDrop += OnFileDrop;
     }
 
+    public override void OnOpen()
+    {
+        BuildFolderTree();
+    }
 
     public void OnFileDrop(string[] paths)
     {
-        var currentPath = _editorSubsystem.CurrentPath;
+        var currentPath = _editorSubsystem.CurrentPath + "/Content";
         if (CurrentViewFolder != null)
         {
             currentPath = CurrentViewFolder.Path;
         }
-        List<(AssetBase, string)> assets = new List<(AssetBase, string)>();
+        List<(AssetBase, string)> assets = [];
         foreach (var path in paths)
         {
             var extension = Path.GetExtension(path);
@@ -97,7 +100,7 @@ public class ContentViewerPanel : BasePanel
                     }
                 }
             }
-            asset.Path = fullFileName.Substring(_editorSubsystem.CurrentPath.Length + 1, fullFileName.Length - _editorSubsystem.CurrentPath.Length - 1);
+            asset.Path = fullFileName.Substring(currentPath.Length + 1, fullFileName.Length - currentPath.Length - 1);
             using var sw = new StreamWriter(fullFileName);
             asset.Serialize(new BinaryWriter(sw.BaseStream), Engine);
         }
@@ -124,7 +127,7 @@ public class ContentViewerPanel : BasePanel
     public List<Folder> Folders { get; set; } = new List<Folder>();
     private void BuildFolderTree()
     {
-        _root = CreateFolder(new DirectoryInfo(Directory.GetCurrentDirectory()));
+        _root = CreateFolder(new DirectoryInfo(_editorSubsystem.CurrentPath + "/Content"));
     }
 
     private Folder CreateFolder(DirectoryInfo dir, bool ignoreSubDir = false)
@@ -136,9 +139,9 @@ public class ContentViewerPanel : BasePanel
         };
         if (ignoreSubDir == false)
         {
-            foreach (var subdir in dir.GetDirectories())
+            foreach (var directoryInfo in dir.GetDirectories())
             {
-                folder.ChildFolders.Add(CreateFolder(subdir));
+                folder.ChildFolders.Add(CreateFolder(directoryInfo));
             }
 
             foreach(var file in dir.GetFiles())

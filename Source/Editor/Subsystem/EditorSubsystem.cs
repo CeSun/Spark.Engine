@@ -17,7 +17,7 @@ public class EditorSubsystem(Engine engine) : BaseSubSystem(engine)
 
     private readonly Dictionary<string, object?> _maps = [];
 
-    public string CurrentPath = Directory.GetCurrentDirectory().Replace("\\", "/");
+    public string CurrentPath = string.Empty;
     public T? GetValue<T>(string key)
     {
         if (_maps.TryGetValue(key, out var value))

@@ -34,7 +34,7 @@ public class ImGuiSubSystem : BaseSubSystem
     }
 
 
-    private ImFontPtr LoadFont(string path, int fontSize, char[] glyphRanges)
+    private static ImFontPtr LoadFont(string path, int fontSize, char[] glyphRanges)
     {
         unsafe
         {
@@ -44,14 +44,14 @@ public class ImGuiSubSystem : BaseSubSystem
             }
         }
     }
-    private ImFontPtr LoadFont(string path, int fontSize, nint glyphRanges)
+    private static ImFontPtr LoadFont(string path, int fontSize, nint glyphRanges)
     {
         List<byte> data = [];
-        using (var sr = CurrentEngine.FileSystem.GetStreamReader(path))
+        using (var sr = new StreamReader(path))
         {
             var br = new BinaryReader(sr.BaseStream);
 
-            byte[] buffer = new byte[1024];
+            var buffer = new byte[1024];
             while (true)
             {
                 var len = br.Read(buffer, 0, buffer.Length);

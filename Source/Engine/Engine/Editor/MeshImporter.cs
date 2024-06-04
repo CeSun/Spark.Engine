@@ -27,7 +27,7 @@ public static class MeshImporter
 {
     public static void ImporterStaticMeshFromGlbFile(this Engine engine, string filePath, StaticMeshImportSetting staticMeshImportSetting, List<TextureLdr> textures, List<Material> materials, out StaticMesh staticMesh)
     {
-        using var sr = IFileSystem.Instance.GetStreamReader(filePath);
+        using var sr = engine.FileSystem.GetContentStreamReader(filePath);
         ModelRoot model = ModelRoot.ReadGLB(sr.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
         var sm = new StaticMesh();
@@ -205,7 +205,7 @@ public static class MeshImporter
 
     {
         Skeleton? tmpSkeleton = null;
-        using var sr = IFileSystem.Instance.GetStreamReader(filePath);
+        using var sr = engine.FileSystem.GetContentStreamReader(filePath);
         if (string.IsNullOrEmpty(skeletalMeshImportSetting.SkeletonAssetPath) == false)
         {
             tmpSkeleton = engine.AssetMgr.Load<Skeleton>(skeletalMeshImportSetting.SkeletonAssetPath);

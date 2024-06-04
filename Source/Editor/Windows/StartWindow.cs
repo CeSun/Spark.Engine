@@ -23,15 +23,20 @@ public class StartWindow : WindowBase
 
     public void OnCreateProject(string projectName, string projectDir)
     {
-
+        if (Directory.Exists(projectDir + "/" + projectName))
+            return;
+        Directory.CreateDirectory(projectDir + "/" + projectName);
+        Directory.CreateDirectory(projectDir + "/" + projectName + "/Config");
+        Directory.CreateDirectory(projectDir + "/" + projectName + "/Content");
+        using var sw = new StreamWriter(projectDir + "/" + projectName + "/" + projectName + ".sproject");
+        sw.Write("{}");
     }
 
 
-    public void OnOpenProject(string projectDir)
+    public void OnOpenProject(string projectFilePath)
     {
         Close();
-
-        new EditorWindow(_engine).Open();
+        new EditorWindow(_engine).OpenProject(projectFilePath);
 
     }
 }

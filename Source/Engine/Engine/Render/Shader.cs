@@ -16,26 +16,7 @@ public class Shader
     List<string> Macros;
 
     public string? Path;
-    public Shader(string Path, GL GL) : this(Path, new List<string>(), GL)
-    {
-        
-    }
-    public Shader(string Path, List<string> Macros, GL GL)
-    {
-        this.Path = Path;
-        using (var sr = IFileSystem.Instance.GetStreamReader("Content" + Path + ".vert"))
-        {
-            VertShaderSource = sr.ReadToEnd();
-        }
-        using (var sr = IFileSystem.Instance.GetStreamReader("Content" + Path + ".frag"))
-        {
-            FragShaderSource = sr.ReadToEnd();
-        }
-        this.Macros = Macros;
-        this.gl = GL;
-        InitRender();
-    }
-
+    
     public Shader (string VertShaderSource, string FragShaderSource, List<string> Macros, GL GL)
     {
         this.VertShaderSource = VertShaderSource;

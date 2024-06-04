@@ -19,13 +19,16 @@ public class WindowBase(Engine engine)
         foreach (var panel in _panels)
         {
             panel.AddToViewPort();
+            panel.OnOpen();
         }
+
     }
 
     public void Close()
     {
         foreach (var panel in _panels)
         {
+            panel.OnClose();
             panel.RemoveFromViewPort();
         }
     }

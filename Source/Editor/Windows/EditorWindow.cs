@@ -23,5 +23,21 @@ public class EditorWindow : WindowBase
             new DetailsPanel(imGuiSubSystem)
         ]);
     }
+
+    public void OpenProject(string projectFilePath)
+    {
+        var projectFile = new FileInfo(projectFilePath);
+        var projectDir = projectFile.Directory;
+        if (projectDir == null)
+            return;
+        var editorSubSystem = _engine.GetSubSystem<EditorSubsystem>()!;
+        editorSubSystem.CurrentPath = projectDir.FullName;
+        Open();
+    }
+
+    public void CloseProject()
+    {
+        Close();
+    }
 }
 

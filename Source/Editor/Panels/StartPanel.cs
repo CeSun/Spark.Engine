@@ -43,7 +43,7 @@ public class StartPanel(ImGuiSubSystem imGuiSubSystem) : BasePanel(imGuiSubSyste
             if (ImGui.Button("创建"))
             {
                 OnCreateProject?.Invoke(_projectName, _projectDir);
-                OnOpenProject?.Invoke(_projectDir + "/" + _projectName);
+                OnOpenProject?.Invoke(_projectDir + "/" + _projectName + "/" + _projectName + ".sproject");
             }
             ImGui.EndPopup();
         }

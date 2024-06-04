@@ -414,7 +414,7 @@ namespace Editor.Panels
                     isModifyInput = true;
                     
                 }
-                if (isModifyInput && IFileSystem.Instance.FileExits(path))
+                if (isModifyInput && File.Exists(path))
                 {
                     if (path == "")
                     {
