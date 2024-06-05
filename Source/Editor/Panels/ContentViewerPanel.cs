@@ -46,7 +46,8 @@ public class ContentViewerPanel : BasePanel
             var extension = Path.GetExtension(path);
             if (extension == ".bmp" || extension == ".png" || extension == ".tga")
             {
-                assets.Add((Engine.ImportTextureFromFile(path, new TextureImportSetting
+                using var sr = new StreamReader(path);
+                assets.Add((Engine.ImportTextureFromStream(sr, new TextureImportSetting
                 {
                     IsGammaSpace = false,
                     FlipVertically = false
@@ -54,13 +55,14 @@ public class ContentViewerPanel : BasePanel
             }
             else if (extension == ".hdr")
             {
-                var hdr = Engine.ImportTextureHdrFromFile(path, new TextureImportSetting
+                using var sr = new StreamReader(path);
+                var hdr = Engine.ImportTextureHdrFromStream(sr, new TextureImportSetting
                 {
                     IsGammaSpace = false,
                     FlipVertically = false
                 });
                 assets.Add((hdr, path));
-                var textureCube = Engine.GenerateTextureCubeFromTextureHDR(hdr);
+                var textureCube = Engine.GenerateTextureCubeFromTextureHdr(hdr);
                 assets.Add((textureCube.RightFace, path)!);
                 assets.Add((textureCube.LeftFace, path)!);
                 assets.Add((textureCube.UpFace, path)!);
@@ -76,6 +78,7 @@ public class ContentViewerPanel : BasePanel
                 List<TextureLdr> textures = [];
                 List<Material> materials = [];
                 List<AnimSequence> animSequences = [];
+                using var sr = new StreamReader(path);
                 Engine.ImporterSkeletalMeshFromGlbFile(path, new SkeletalMeshImportSetting(), textures, materials, animSequences, out var skeleton, out var skeletalMesh);
                 textures.ForEach(texture => assets.Add((texture, path)));
                 materials.ForEach(material => assets.Add((material, path)));

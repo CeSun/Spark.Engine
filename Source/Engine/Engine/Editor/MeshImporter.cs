@@ -25,10 +25,18 @@ public class SkeletalMeshImportSetting
 }
 public static class MeshImporter
 {
-    public static void ImporterStaticMeshFromGlbFile(this Engine engine, string filePath, StaticMeshImportSetting staticMeshImportSetting, List<TextureLdr> textures, List<Material> materials, out StaticMesh staticMesh)
+    public static void ImporterStaticMeshFromGlbFile(this Engine engine, string filePath,
+        StaticMeshImportSetting staticMeshImportSetting, List<TextureLdr> textures, List<Material> materials,
+        out StaticMesh staticMesh)
     {
-        using var sr = engine.FileSystem.GetContentStreamReader(filePath);
-        ModelRoot model = ModelRoot.ReadGLB(sr.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
+
+        using var streamReader = engine.FileSystem.GetContentStreamReader(filePath);
+        ImporterStaticMeshFromGlbStream(engine, streamReader, staticMeshImportSetting, textures, materials, out staticMesh);
+    }
+
+    public static void ImporterStaticMeshFromGlbStream(this Engine engine, StreamReader streamReader, StaticMeshImportSetting staticMeshImportSetting, List<TextureLdr> textures, List<Material> materials, out StaticMesh staticMesh)
+    {
+        ModelRoot model = ModelRoot.ReadGLB(streamReader.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
         var sm = new StaticMesh();
         foreach (var glMesh in model.LogicalMeshes)
@@ -199,18 +207,24 @@ public static class MeshImporter
         }
     }
 
-
     public static void ImporterSkeletalMeshFromGlbFile(this Engine engine, string filePath,
+        SkeletalMeshImportSetting skeletalMeshImportSetting, List<TextureLdr> textures, List<Material> materials,
+        List<AnimSequence> animSequences, out Skeleton skeleton, out SkeletalMesh skeletalMesh)
+    {
+
+        using var streamReader = engine.FileSystem.GetContentStreamReader(filePath);
+        ImporterSkeletalMeshFromGlbStream(engine, streamReader, skeletalMeshImportSetting, textures, materials, animSequences, out skeleton, out skeletalMesh);
+    }
+    public static void ImporterSkeletalMeshFromGlbStream(this Engine engine, StreamReader streamReader,
         SkeletalMeshImportSetting skeletalMeshImportSetting, List<TextureLdr> textures, List<Material> materials,List<AnimSequence> animSequences,out Skeleton skeleton, out SkeletalMesh skeletalMesh)
 
     {
         Skeleton? tmpSkeleton = null;
-        using var sr = engine.FileSystem.GetContentStreamReader(filePath);
         if (string.IsNullOrEmpty(skeletalMeshImportSetting.SkeletonAssetPath) == false)
         {
             tmpSkeleton = engine.AssetMgr.Load<Skeleton>(skeletalMeshImportSetting.SkeletonAssetPath);
         }
-        var model = ModelRoot.ReadGLB(sr.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
+        var model = ModelRoot.ReadGLB(streamReader.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
         SkeletalMesh sk = new SkeletalMesh();
         LoadVertices(engine, sk, model);

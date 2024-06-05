@@ -24,6 +24,10 @@ public static class TextureImporter
     public static TextureLdr ImportTextureFromFile(this Engine engine, string path, TextureImportSetting setting)
     {
         using var streamReader = engine.FileSystem.GetContentStreamReader(path);
+        return ImportTextureFromStream(engine, streamReader, setting);
+    }
+    public static TextureLdr ImportTextureFromStream(this Engine engine, StreamReader streamReader, TextureImportSetting setting)
+    {
         if (setting.FlipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(1);
@@ -80,6 +84,11 @@ public static class TextureImporter
     public static TextureHdr ImportTextureHdrFromFile(this Engine engine, string path, TextureImportSetting setting)
     {
         using var streamReader = engine.FileSystem.GetContentStreamReader(path);
+        return ImportTextureHdrFromStream(engine, streamReader, setting);
+    }
+
+    public static TextureHdr ImportTextureHdrFromStream(this Engine engine, StreamReader streamReader, TextureImportSetting setting)
+    {
         if (setting.FlipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(1);
@@ -231,7 +240,7 @@ public static class TextureImporter
         };
     }
 
-    public static TextureCube GenerateTextureCubeFromTextureHDR(this Engine engine, TextureHdr texture, uint width = 1024)
+    public static TextureCube GenerateTextureCubeFromTextureHdr(this Engine engine, TextureHdr texture, uint width = 1024)
     {
         uint maxWidth = width;
         TextureCube textureCube = new TextureCube();
