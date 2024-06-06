@@ -380,7 +380,7 @@ namespace Editor.Panels
                             {
                                 var filePath = (string)gcHandle.Target;
                                 var myPath = filePath.Replace("\\", "/");
-                                myPath = myPath.Substring(_editorSubsystem.CurrentPath.Length + 1, myPath.Length - _editorSubsystem.CurrentPath.Length - 1);
+                                myPath = myPath.Substring(_editorSubsystem.ContentPath.Length + 1, myPath.Length - _editorSubsystem.ContentPath.Length - 1);
                                 path = myPath;
                                 isModifyInput = true;
                             }
@@ -398,7 +398,7 @@ namespace Editor.Panels
                 {
                     var file = _editorSubsystem.GetValue<AssetFile>("CurrentSelectFile");
                     var myPath = file.Path.Replace("\\", "/");
-                    myPath = myPath.Substring(_editorSubsystem.CurrentPath.Length + 1, myPath.Length - _editorSubsystem.CurrentPath.Length - 1);
+                    myPath = myPath.Substring(_editorSubsystem.ContentPath.Length + 1, myPath.Length - _editorSubsystem.ContentPath.Length - 1);
                     path = myPath;
                     isModifyInput = true;
                 }
@@ -414,7 +414,7 @@ namespace Editor.Panels
                     isModifyInput = true;
                     
                 }
-                if (isModifyInput && File.Exists(path))
+                if (isModifyInput && File.Exists(_editorSubsystem.ContentPath + "/" + path))
                 {
                     if (path == "")
                     {

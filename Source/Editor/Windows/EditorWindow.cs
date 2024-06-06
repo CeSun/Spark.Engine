@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Desktop;
 using Editor.Panels;
 using Editor.Subsystem;
 using Spark.Engine;
@@ -32,6 +33,10 @@ public class EditorWindow : WindowBase
             return;
         var editorSubSystem = _engine.GetSubSystem<EditorSubsystem>()!;
         editorSubSystem.CurrentPath = projectDir.FullName;
+        if (_engine.FileSystem is DesktopFileSystem desktopFileSystem)
+        {
+            desktopFileSystem.ChangeBasePath(projectDir.FullName);
+        }
         Open();
     }
 

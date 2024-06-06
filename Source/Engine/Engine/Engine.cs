@@ -44,7 +44,6 @@ public partial class Engine
         {
             window.FileDrop += paths => OnFileDrop.Invoke(paths);
         }
-        ProcessArgs();
         LoadSetting();
         LoadSubsystem();
 

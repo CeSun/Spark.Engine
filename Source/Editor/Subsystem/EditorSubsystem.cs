@@ -18,6 +18,8 @@ public class EditorSubsystem(Engine engine) : BaseSubSystem(engine)
     private readonly Dictionary<string, object?> _maps = [];
 
     public string CurrentPath = string.Empty;
+
+    public string ContentPath => CurrentPath + "/Content";
     public T? GetValue<T>(string key)
     {
         if (_maps.TryGetValue(key, out var value))

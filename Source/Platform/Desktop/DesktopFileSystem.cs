@@ -9,14 +9,25 @@ namespace Desktop;
 
 public class DesktopFileSystem : IFileSystem
 {
+    private string _basePath;
 
+
+    public void ChangeBasePath(string basePath)
+    {
+        _basePath = basePath;
+    }
+
+    public DesktopFileSystem(string basePath)
+    {
+        _basePath = basePath;
+    }
     public StreamReader GetContentStreamReader(string path)
     {
-        return new StreamReader("../Content/" + path);
+        return new StreamReader($"{_basePath}/Content/{path}");
     }
 
     public StreamReader GetConfigStreamReader(string path)
     {
-        return new StreamReader("../Config/" + path);
+        return new StreamReader($"{_basePath}/Config/{path}");
     }
 }

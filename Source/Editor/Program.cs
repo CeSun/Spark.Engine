@@ -29,7 +29,7 @@ window.Load += () =>
 
     engine = new Engine(args, new DesktopPlatform
     {
-        FileSystem = new DesktopFileSystem(),
+        FileSystem = new DesktopFileSystem(Directory.GetParent(Directory.GetCurrentDirectory()).FullName),
         GraphicsApi = gl,
         InputContext = window.CreateInput(),
         View = window,

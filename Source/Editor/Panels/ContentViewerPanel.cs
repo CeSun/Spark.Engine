@@ -288,10 +288,7 @@ public class ContentViewerPanel : BasePanel
             _firstChange = false;
             if (ImGui.CollapsingHeader($"All##all", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                foreach (var dir in _root.ChildFolders)
-                {
-                    RenderSubDir(dir);
-                }
+                RenderSubDir(_root);
             }
             ImGui.EndChild();
         }
