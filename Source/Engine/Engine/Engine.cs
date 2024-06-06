@@ -56,19 +56,7 @@ public partial class Engine
 
     public event Action<string[]> OnFileDrop = _ => { };
    
-    public void ProcessArgs()
-    {
-        for(int i = 0; i < Args.Count; i++)
-        {
-            if (i < Args.Count - 1)
-            {
-                if (Args[i] == "-game")
-                    GameName = Args[i + 1];
-            }
-        }
-
-    }
-
+    
     public T? GetSubSystem<T>() where T : BaseSubSystem
     {
         foreach(var subsystem in SubSystems)
@@ -153,8 +141,8 @@ public partial class Engine
 
     public GameConfig GameConfig { get; private set; }
 
-    public string GameName { get; private set; } = string.Empty;
     public Action<Level>? OnBeginPlay;
+
     public Action<Level>? OnEndPlay;
 
     public void Update(double deltaTime)
