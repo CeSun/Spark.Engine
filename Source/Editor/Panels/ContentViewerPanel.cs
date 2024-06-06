@@ -79,7 +79,7 @@ public class ContentViewerPanel : BasePanel
                 List<Material> materials = [];
                 List<AnimSequence> animSequences = [];
                 using var sr = new StreamReader(path);
-                Engine.ImporterSkeletalMeshFromGlbFile(path, new SkeletalMeshImportSetting(), textures, materials, animSequences, out var skeleton, out var skeletalMesh);
+                Engine.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), textures, materials, animSequences, out var skeleton, out var skeletalMesh);
                 textures.ForEach(texture => assets.Add((texture, path)));
                 materials.ForEach(material => assets.Add((material, path)));
                 assets.Add((skeleton, path));

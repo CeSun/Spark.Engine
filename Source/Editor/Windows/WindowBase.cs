@@ -14,7 +14,7 @@ public class WindowBase(Engine engine)
     protected Engine _engine = engine;
 
     protected readonly List<BasePanel> _panels = [];
-    public void Open()
+    public virtual void Open()
     {
         foreach (var panel in _panels)
         {
@@ -24,7 +24,7 @@ public class WindowBase(Engine engine)
 
     }
 
-    public void Close()
+    public virtual void Close()
     {
         foreach (var panel in _panels)
         {

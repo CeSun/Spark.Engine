@@ -17,11 +17,13 @@ GlfwWindowing.RegisterPlatform();
 GlfwInput.RegisterPlatform();
 option.Size = new Vector2D<int>(800, 600);
 
-
-
 Engine? engine;
 var window = Window.Create(option);
 GL? gl = null;
+
+
+var path = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)!.FullName;
+path = Directory.GetParent(path)!.FullName;
 
 window.Load += () =>
 {
@@ -29,7 +31,7 @@ window.Load += () =>
 
     engine = new Engine(args, new DesktopPlatform
     {
-        FileSystem = new DesktopFileSystem(Directory.GetParent(Directory.GetCurrentDirectory()).FullName),
+        FileSystem = new DesktopFileSystem(path),
         GraphicsApi = gl,
         InputContext = window.CreateInput(),
         View = window,

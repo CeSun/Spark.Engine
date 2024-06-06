@@ -80,15 +80,18 @@ public class ImGuiSubSystem : BaseSubSystem
     {
         try
         {
+            var enginePath = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)!.FullName;
+            enginePath = Directory.GetParent(enginePath)!.FullName;
+
             _controller = new ImGuiController(CurrentEngine.GraphicsApi, CurrentEngine.View, CurrentEngine.Input, null, () =>
             {
                 ref var flags = ref ImGui.GetIO().ConfigFlags;
                 flags |= ImGuiConfigFlags.DockingEnable;
                 ImGui.StyleColorsDark();
 
-                _fonts.Add("msyh", LoadFont("../Fonts/msyh.ttc", 18, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull()));
+                _fonts.Add("msyh", LoadFont($"{enginePath}/Fonts/msyh.ttc", 18, ImGui.GetIO().Fonts.GetGlyphRangesChineseFull()));
 
-                _fonts.Add("forkawesome", LoadFont("../Fonts/forkawesome-webfont.ttf", 14,
+                _fonts.Add("forkawesome", LoadFont($"{enginePath}/Fonts/forkawesome-webfont.ttf", 14,
                 [
                     (char)0xf000,
                     (char)0xf372

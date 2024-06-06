@@ -57,9 +57,10 @@ public class StartPanel(ImGuiSubSystem imGuiSubSystem) : BasePanel(imGuiSubSyste
 
 
         ImGui.SameLine();
-        ImGui.Button("导入");
-        ImGui.SameLine();
-        ImGui.Button("扫描");
+        if (ImGui.Button("打开"))
+        {
+            
+        }
 
 
         ImGui.End();

@@ -21,6 +21,18 @@ public class StartWindow : WindowBase
         startPanel.OnOpenProject += OnOpenProject;
     }
 
+    public override void Open()
+    {
+        base.Open();
+
+        if (_engine.Args.Count > 0)
+        {
+            OnOpenProject(_engine.Args[0]);
+        }
+    }
+
+
+
     public void OnCreateProject(string projectName, string projectDir)
     {
         if (Directory.Exists(projectDir + "/" + projectName))

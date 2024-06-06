@@ -2,6 +2,7 @@
   "profiles": {
     "Editor": {
       "commandName": "Project",
+      "commandLineArgs": "E:\\NewProject\\NewProject.sproject",
       "workingDirectory": "../../Binaries"
     }
   }

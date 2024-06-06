@@ -19,7 +19,7 @@ public partial class Engine
     public List<Action<GL>> NextRenderFrame { get; private set; } = [];
 
     public List<Action<double>> NextFrame { get; private set; } = [];
-    private List<string> Args { get; } = [];
+    public List<string> Args { get; } = [];
 
     public World? MainWorld;
 
