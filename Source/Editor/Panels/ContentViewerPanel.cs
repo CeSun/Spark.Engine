@@ -1,10 +1,13 @@
 ﻿using Editor.Properties;
 using Editor.Subsystem;
 using ImGuiNET;
+using SharpGLTF.Schema2;
+using Spark.Engine;
 using Spark.Engine.Assets;
 using Spark.Engine.Editor;
 using System.Runtime.InteropServices;
 using File = System.IO.File;
+using Material = Spark.Engine.Assets.Material;
 
 
 
@@ -35,7 +38,7 @@ public class ContentViewerPanel : BasePanel
 
     public void OnFileDrop(string[] paths)
     {
-        var currentPath = _editorSubsystem.CurrentPath + "/Content";
+        var currentPath = _editorSubsystem.ContentPath;
         if (CurrentViewFolder != null)
         {
             currentPath = CurrentViewFolder.Path;
@@ -75,16 +78,11 @@ public class ContentViewerPanel : BasePanel
             }
             else if (extension == ".glb")
             {
-                List<TextureLdr> textures = [];
-                List<Material> materials = [];
-                List<AnimSequence> animSequences = [];
-                using var sr = new StreamReader(path);
-                Engine.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), textures, materials, animSequences, out var skeleton, out var skeletalMesh);
-                textures.ForEach(texture => assets.Add((texture, path)));
-                materials.ForEach(material => assets.Add((material, path)));
-                assets.Add((skeleton, path));
-                animSequences.ForEach(animSequence => assets.Add((animSequence, path)));
-                assets.Add((skeletalMesh, path));
+               ImGuiSubSystem.NextFrame.Add(() => ImGui.OpenPopup("GLB导入选项#GlbImportOption"));
+                ImportPath = path;
+                /*
+                
+                */
             }
         }
 
@@ -208,6 +206,7 @@ public class ContentViewerPanel : BasePanel
         ImGui.NextColumn();
         RenderFileList();
         ImGui.End();
+        RenderImportDialog();
     }
     public void RenderFileList()
     {
@@ -355,6 +354,162 @@ public class ContentViewerPanel : BasePanel
 
     public event Action<Folder>? OnChangeDir;
 
+    bool IsSkeletalMesh = false;
+    bool ImportPhysicsAsset = false;
+    string SkeletonAssetPath = string.Empty;
+    string ImportPath = string.Empty;
+    public void RenderImportDialog()
+    {
+        if (ImGui.BeginPopupModal("GLB导入选项#GlbImportOption"))
+        {
+            ImGui.Checkbox("骨骼网格体#SkeletalMesh", ref IsSkeletalMesh);
+
+            if (IsSkeletalMesh == false)
+                ImGui.Checkbox("导入物理资产#ImportPhysicsAsset", ref ImportPhysicsAsset);
+            if (IsSkeletalMesh == true)
+            {
+                ImGui.InputText("骨骼网格体#Skeleton", ref SkeletonAssetPath, 256);
+            }
+
+            if (ImGui.Button("导入"))
+            {
+                if (IsSkeletalMesh)
+                {
+                    importGlbSkeletalMesh();
+                }
+                else
+                {
+                    importGlbStaticMesh();
+                }
+                BuildFolderTree();
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("取消"))
+            {
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.EndPopup();
+        }
+    }
+
+    private void importGlbStaticMesh()
+    {
+        List<TextureLdr> textures = [];
+        List<Material> materials = [];
+        using var sr = new StreamReader(ImportPath);
+        Engine.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting { ImporterPhysicsAsset = ImportPhysicsAsset }, textures, materials, out var staticMesh);
+
+        var fileInfo = new FileInfo(ImportPath);
+        var fileName = fileInfo.Name;
+
+        fileName = fileName.Replace(fileInfo.Extension, "");
+
+        Dictionary<AssetBase, string> assets = [];
+
+        var currentPath = _editorSubsystem.ContentPath;
+        int i = 0;
+        foreach (var material in materials)
+        {
+            if (material.BaseColor != null)
+            {
+                assets.Add(material.BaseColor, fileName + "_Texture_BaseColor");
+            }
+            if (material.Normal != null)
+            {
+                assets.Add(material.Normal, fileName + "_Texture_Normal");
+            }
+            if (material.Arm != null)
+            {
+                assets.Add(material.Arm, fileName + "_Texture_Arm");
+            }
+            if (material.Parallax != null)
+            {
+                assets.Add(material.Parallax, fileName + "_Texture_Parallax");
+            }
+
+            assets.Add(material, fileName + "_Material");
+        }
+
+        assets.Add(staticMesh, fileName);
+
+        foreach (var (asset, path) in assets)
+        {
+            var newPath = path;
+            int index = 0;
+            while (File.Exists(currentPath + "/" + newPath + ".asset") == true)
+            {
+                newPath = path + (++index);
+            }
+            asset.Path = "/" + newPath + ".asset";
+            using var sw = new StreamWriter(currentPath + "/" + newPath + ".asset");
+            asset.Serialize(new BinaryWriter(sw.BaseStream), _editorSubsystem.CurrentEngine);
+
+        }
+
+    }
+    private void importGlbSkeletalMesh()
+    {
+        List<TextureLdr> textures = [];
+        List<Material> materials = [];
+        List<AnimSequence> animSequences = [];
+        using var sr = new StreamReader(ImportPath);
+        Engine.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting { SkeletonAssetPath = SkeletonAssetPath }, textures, materials, animSequences, out var skeleton, out var skeletalMesh);
+
+        var fileInfo = new FileInfo(ImportPath);
+        var fileName = fileInfo.Name;
+
+        fileName = fileName.Replace(fileInfo.Extension, "");
+
+        Dictionary<AssetBase, string> assets = [];
+
+        var currentPath = _editorSubsystem.ContentPath;
+        int i = 0;
+        foreach (var material in materials)
+        {
+            if (material.BaseColor != null)
+            {
+                assets.Add(material.BaseColor, fileName + "_Texture_BaseColor");
+            }
+            if (material.Normal != null)
+            {
+                assets.Add(material.Normal, fileName + "_Texture_Normal");
+            }
+            if (material.Arm != null)
+            {
+                assets.Add(material.Arm, fileName + "_Texture_Arm");
+            }
+            if (material.Parallax != null)
+            {
+                assets.Add(material.Parallax, fileName + "_Texture_Parallax");
+            }
+
+            assets.Add(material, fileName + "_Material");
+        }
+
+        assets.Add(skeleton, fileName + "_Skeleton");
+        assets.Add(skeletalMesh, fileName);
+
+        foreach (var animSequence in animSequences)
+        {
+            assets.Add(animSequence, fileName + "_AnimSequemce_" + animSequence.AnimName);
+        }
+
+
+        foreach (var (asset, path) in assets)
+        {
+            var newPath = path;
+            int index = 0;
+            while (File.Exists(currentPath + "/" + newPath + ".asset") == true)
+            {
+                newPath = path + (++index);
+            }
+            asset.Path = "/" + newPath + ".asset";
+            using var sw = new StreamWriter(currentPath + "/" + newPath + ".asset");
+            asset.Serialize(new BinaryWriter(sw.BaseStream), _editorSubsystem.CurrentEngine);
+
+        }
+    }
 
     public class BaseFile
     {

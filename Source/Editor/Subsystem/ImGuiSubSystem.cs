@@ -22,6 +22,7 @@ public class ImGuiSubSystem : BaseSubSystem
     private readonly List<BasePanel> _addCanvas = [];
     private readonly List<BasePanel> _delCanvas = [];
 
+    public List<Action> NextFrame = [];
     public void AddCanvas(BasePanel imGuiCanvas)
     {
         _addCanvas.Add(imGuiCanvas);
@@ -121,6 +122,8 @@ public class ImGuiSubSystem : BaseSubSystem
         _imGuiCanvasList.ForEach(item => item.Render(deltaTime));
         _delCanvas.ForEach(canvas => _imGuiCanvasList.Remove(canvas));
         _delCanvas.Clear();
+        NextFrame.ForEach(action=> action());
+        NextFrame.Clear();
         CurrentEngine.GraphicsApi.PushGroup("GUI Pass");
         _controller?.Render();
         CurrentEngine.GraphicsApi.PopGroup();
