@@ -1,13 +1,11 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Platform;
-using StbImageSharp;
 using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
 
-public class TextureHdr : Texture, IAssetBaseInterface
+public class TextureHdr : Texture
 {
-    public static int AssetMagicCode => MagicCode.TextureHdr;
     public List<float> Pixels { get; set; } = new List<float>();
 
     public unsafe void InitRender(GL gl)
@@ -26,40 +24,4 @@ public class TextureHdr : Texture, IAssetBaseInterface
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
     }
-
-    public override void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(AssetMagicCode);
-        bw.WriteUInt32(Width);
-        bw.WriteUInt32(Height);
-        bw.WriteInt32((int)Channel);
-        bw.WriteInt32((int)Filter);
-        bw.WriteInt32(Pixels.Count);
-        foreach(var num in Pixels)
-        {
-            bw.WriteSingle(num);
-        }
-    }
-
-    public override void Deserialize(BinaryReader br, Engine engine)
-    {
-        var assetMagicCode = br.ReadInt32();
-        if (assetMagicCode != MagicCode.Asset)
-            throw new Exception("");
-        var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != AssetMagicCode)
-            throw new Exception("");
-        Width = br.ReadUInt32();
-        Height = br.ReadUInt32();
-        Channel = (TexChannel)br.ReadInt32();
-        Filter = (TexFilter)br.ReadInt32();
-        var pixelsLen = br.ReadInt32();
-        for(var i = 0; i < pixelsLen; i++)
-        {
-            Pixels.Add(br.ReadSingle());
-        }
-        engine.NextRenderFrame.Add(InitRender);
-    }
-
 }

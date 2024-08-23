@@ -6,7 +6,6 @@ using System.Numerics;
 using Spark.Engine.Render.Renderer;
 using System.Drawing;
 using Spark.Engine.Attributes;
-using Spark.Engine.Editor;
 
 namespace Spark.Engine.Components;
 

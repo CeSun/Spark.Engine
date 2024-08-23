@@ -1,5 +1,4 @@
-﻿using SharpGLTF.Schema2;
-using Silk.NET.OpenGLES;
+﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Physics;

@@ -80,10 +80,8 @@ public class World
         {
             CurrentLevel.Destory();
         }
-
         using var stream = Engine.FileSystem.GetContentStreamReader(path);
         CurrentLevel = new Level(this);
-        CurrentLevel.Deserialize(new BinaryReader(stream.BaseStream), Engine);
         CurrentLevel.BeginPlay();
     }
 
@@ -92,17 +90,6 @@ public class World
         CurrentLevel = new Level(this);
         CurrentLevel.BeginPlay();
         CurrentLevel.CreateLevel();
-
-        Task.Delay(100).Then(() =>
-        {
-            using (var stream = new StreamWriter(path))
-            {
-                CurrentLevel.Serialize(new BinaryWriter(stream.BaseStream), Engine);
-            }
-            OpenLevel("Content/test.level");
-
-        });
-
     }
 
     public void Destory()

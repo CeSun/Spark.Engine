@@ -7,9 +7,8 @@ using Jitter2.Collision.Shapes;
 
 namespace Spark.Engine.Assets;
 
-public class StaticMesh : AssetBase, IAssetBaseInterface
+public class StaticMesh : AssetBase
 {
-    public static int AssetMagicCode => MagicCode.StaticMesh;
 
     public List<Element<StaticMeshVertex>> Elements = [];
     public List<Shape> Shapes = [];
@@ -162,43 +161,9 @@ public class StaticMesh : AssetBase, IAssetBaseInterface
             Elements[index].ElementBufferObjectIndex = ebo;
         }
     }
-
-
-    public override void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(AssetMagicCode);
-        bw.WriteInt32(Elements.Count);
-        foreach(var element in Elements)
-        {
-            element.Serialize(bw, engine);
-        }
-    }
-
-    public override void Deserialize(BinaryReader br, Engine engine)
-    {
-        var assetMagicCode = br.ReadInt32();
-        if (assetMagicCode != MagicCode.Asset)
-            throw new Exception("");
-        var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != AssetMagicCode)
-            throw new Exception("");
-        var count = br.ReadInt32();
-        for(var i = 0; i < count; i++)
-        {
-            var element = new Element<StaticMeshVertex>() {
-                Vertices = new List<StaticMeshVertex>(),
-                Indices = new List<uint>(),
-                Material = new Material()
-            };
-            element.Deserialize(br, engine);
-            Elements.Add(element);
-        }
-        engine.NextRenderFrame.Add(InitRender);
-    }
 }
 
-public class Element<T> : ISerializable  where T  : struct, ISerializable
+public class Element<T>  where T  : struct
 {
     public required List<T> Vertices;
     public required List<uint> Indices;
@@ -207,45 +172,9 @@ public class Element<T> : ISerializable  where T  : struct, ISerializable
     public uint VertexBufferObjectIndex;
     public uint ElementBufferObjectIndex;
     public uint IndicesLen;
-
-    public void Deserialize(BinaryReader br, Engine engine)
-    {
-        var count = br.ReadInt32();
-        for(int i = 0; i < count; i ++ )
-        {
-            var vertex = new T();
-            vertex.Deserialize(br, engine);
-            Vertices.Add(vertex);
-        }
-
-        count = br.ReadInt32();
-
-        for (int i = 0; i < count; i++)
-        {
-            Indices.Add(br.ReadUInt32());
-        }
-        Material = ISerializable.AssetDeserialize<Material>(br, engine)!;
-
-        IndicesLen = (uint)Indices.Count;
-    }
-
-    public void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.WriteInt32(Vertices.Count);
-        foreach(var vertex in Vertices)
-        {
-            vertex.Serialize(bw, engine);
-        }
-        bw.WriteInt32(Indices.Count);
-        foreach (var index in Indices)
-        {
-            bw.Write(BitConverter.GetBytes(index));
-        }
-        ISerializable.AssetSerialize(Material, bw, engine);
-    }
 }
 
-public struct StaticMeshVertex: ISerializable
+public struct StaticMeshVertex
 {
     public Vector3 Location;
 
@@ -259,23 +188,4 @@ public struct StaticMeshVertex: ISerializable
 
     public Vector2 TexCoord;
 
-    public void Deserialize(BinaryReader br, Engine engine)
-    {
-        Location = br.ReadVector3();
-        Normal = br.ReadVector3();
-        Tangent = br.ReadVector3();
-        BitTangent = br.ReadVector3();
-        Color = br.ReadVector3();
-        TexCoord = br.ReadVector2();
-    }
-
-    public void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.Write(Location);
-        bw.Write(Normal);
-        bw.Write(Tangent);
-        bw.Write(BitTangent);
-        bw.Write(Color);
-        bw.Write(TexCoord);
-    }
 }

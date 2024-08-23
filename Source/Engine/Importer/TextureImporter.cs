@@ -1,32 +1,33 @@
 ﻿using Spark.Engine.Assets;
-using Spark.Engine.Platform;
+using Spark;
 using StbImageSharp;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Numerics;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
-using System.Text.Json.Nodes;
-using System.Threading.Tasks;
 
-namespace Spark.Engine.Editor;
+namespace Spark.Importer;
 
-
-public class TextureImportSetting 
+public class TextureImportSetting
 {
     public bool IsGammaSpace { get; set; } = false;
     public bool FlipVertically { get; set; } = false;
 }
 public static class TextureImporter
 {
-    public static TextureLdr ImportTextureFromFile(this Engine engine, string path, TextureImportSetting setting)
+    public static TexChannel ToTexChannel(this ColorComponents colorComponents)
+    {
+        return colorComponents switch
+        {
+            ColorComponents.RedGreenBlueAlpha => TexChannel.Rgba,
+            ColorComponents.RedGreenBlue => TexChannel.Rgb,
+            _ => throw new NotImplementedException()
+        };
+    }
+
+    public static TextureLdr ImportTextureFromFile(this Engine.Engine engine, string path, TextureImportSetting setting)
     {
         using var streamReader = engine.FileSystem.GetContentStreamReader(path);
         return ImportTextureFromStream(engine, streamReader, setting);
     }
-    public static TextureLdr ImportTextureFromStream(this Engine engine, StreamReader streamReader, TextureImportSetting setting)
+    public static TextureLdr ImportTextureFromStream(this Engine.Engine engine, StreamReader streamReader, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -53,7 +54,7 @@ public static class TextureImporter
         }
         throw new Exception("Load Texture error");
     }
-    public static TextureLdr ImportTextureFromMemory(this Engine engine, byte[] data, TextureImportSetting setting)
+    public static TextureLdr ImportTextureFromMemory(this Engine.Engine engine, byte[] data, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -81,13 +82,13 @@ public static class TextureImporter
         throw new Exception("Load Texture error");
     }
 
-    public static TextureHdr ImportTextureHdrFromFile(this Engine engine, string path, TextureImportSetting setting)
+    public static TextureHdr ImportTextureHdrFromFile(this Engine.Engine engine, string path, TextureImportSetting setting)
     {
         using var streamReader = engine.FileSystem.GetContentStreamReader(path);
         return ImportTextureHdrFromStream(engine, streamReader, setting);
     }
 
-    public static TextureHdr ImportTextureHdrFromStream(this Engine engine, StreamReader streamReader, TextureImportSetting setting)
+    public static TextureHdr ImportTextureHdrFromStream(this Engine.Engine engine, StreamReader streamReader, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -118,7 +119,7 @@ public static class TextureImporter
     }
 
 
-    public static TextureLdr CreateNoiseTexture(this Engine engine, int width, int height)
+    public static TextureLdr CreateNoiseTexture(this Engine.Engine engine, int width, int height)
     {
         var texture = new TextureLdr();
         var data = new byte[width * height * 3];
@@ -149,9 +150,9 @@ public static class TextureImporter
     }
 
 
-    public static TextureLdr MergePbrTexture(this Engine engine, TextureLdr? metallicRoughness,TextureLdr? ao)
+    public static TextureLdr MergePbrTexture(this Engine.Engine engine, TextureLdr? metallicRoughness, TextureLdr? ao)
     {
-        
+
         var main = metallicRoughness ?? ao;
         uint height = 1;
         uint width = 1;
@@ -231,21 +232,21 @@ public static class TextureImporter
         return i switch
         {
             0 => new Vector3(1, -1 * Pos.Y, -1 * Pos.X),
-            1 => new Vector3(-1, -1 * Pos.Y,  Pos.X),
-            2 => new Vector3( Pos.X, 1, Pos.Y),
-            3 => new Vector3( Pos.X, -1, -1 * Pos.Y),
+            1 => new Vector3(-1, -1 * Pos.Y, Pos.X),
+            2 => new Vector3(Pos.X, 1, Pos.Y),
+            3 => new Vector3(Pos.X, -1, -1 * Pos.Y),
             4 => new Vector3(Pos.X, -1 * Pos.Y, 1),
             5 => new Vector3(-1 * Pos.X, -1 * Pos.Y, -1),
             _ => throw new Exception("")
         };
     }
 
-    public static TextureCube GenerateTextureCubeFromTextureHdr(this Engine engine, TextureHdr texture, uint width = 1024)
+    public static TextureCube GenerateTextureCubeFromTextureHdr(this Engine.Engine engine, TextureHdr texture, uint width = 1024)
     {
         uint maxWidth = width;
         TextureCube textureCube = new TextureCube();
 
-        for (int i = 0; i < 6; i ++)
+        for (int i = 0; i < 6; i++)
         {
             TextureHdr texture1 = new()
             {
@@ -255,17 +256,17 @@ public static class TextureImporter
                 Filter = TexFilter.Liner
             };
             texture1.Pixels = new();
-            for (int y = 0; y < maxWidth;  y ++)
+            for (int y = 0; y < maxWidth; y++)
             {
                 for (int x = 0; x < maxWidth; x++)
                 {
-                    var xf = (x / (float)maxWidth) * 2 - 1.0f;
-                    var yf = (y / (float)maxWidth) * 2 - 1.0f;
+                    var xf = x / (float)maxWidth * 2 - 1.0f;
+                    var yf = y / (float)maxWidth * 2 - 1.0f;
                     var location = Pos(new Vector2(xf, yf), i);
 
                     var uv = SampleSphericalMap(Vector3.Normalize(location));
                     var color = Sample(texture, uv);
-                    texture1.Pixels.Add(color.X );
+                    texture1.Pixels.Add(color.X);
                     texture1.Pixels.Add(color.Y);
                     texture1.Pixels.Add(color.Z);
                 }

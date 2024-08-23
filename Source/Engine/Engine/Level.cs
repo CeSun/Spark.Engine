@@ -9,7 +9,7 @@ using Spark.Util;
 
 namespace Spark.Engine;
 
-public partial class Level : ISerializable
+public partial class Level
 {
     public World CurrentWorld { private set; get; }
 
@@ -51,49 +51,6 @@ public partial class Level : ISerializable
         }
     }
 
-    public void Serialize(BinaryWriter writer, Engine engine)
-    {
-        writer.WriteInt32(MagicCode.Asset);
-        writer.WriteInt32(MagicCode.Level);
-        writer.WriteString2(Name);
-        var actors = new List<Actor>();
-        foreach(var actor in Actors)
-        {
-            if (_delActors.Contains(actor))
-                continue;
-            if (actor.IsEditorActor)
-                continue;
-            actors.Add(actor);
-        }
-        foreach (var actor in _addActors)
-        {
-            if (_delActors.Contains(actor))
-                continue;
-            actors.Add(actor);
-        }
-
-        writer.WriteInt32(actors.Count);
-        actors.ForEach(actor => actor.Serialize(writer, engine));
-        
-    }
-
-    public void Deserialize(BinaryReader reader, Engine engine)
-    {
-        if (reader.ReadInt32() != MagicCode.Asset)
-            throw new Exception("");
-        if (reader.ReadInt32() != MagicCode.Level)
-            throw new Exception("");
-        Name = reader.ReadString2();
-        var actorNum = reader.ReadInt32();
-        for (var i = 0; i < actorNum; i++)
-        {
-            var typename = reader.ReadString2();
-            var type = AssemblyHelper.GetType(typename);
-            if (type == null) continue;
-            var actor = (Actor)Activator.CreateInstance(type, [ this, "" ])!;
-            actor.Deserialize(reader, Engine);
-        }
-    }
 }
 
 

@@ -1,11 +1,9 @@
-﻿using SharpGLTF.Schema2;
-using System.Numerics;
+﻿using System.Numerics;
 
 namespace Spark.Engine.Assets;
 
-public class AnimSequence : AnimBase, IAssetBaseInterface
+public class AnimSequence : AnimBase
 {
-    public static int AssetMagicCode => MagicCode.AnimSequence;
     public Skeleton? Skeleton { get; set; }
     public AnimSequence()
     {
@@ -42,44 +40,6 @@ public class AnimSequence : AnimBase, IAssetBaseInterface
         }
     }
 
-    public override void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(AssetMagicCode);
-        bw.WriteString2(AnimName);
-        bw.WriteDouble(Duration);
-        ISerializable.AssetSerialize(Skeleton, bw, engine);
-        bw.WriteInt32(Channels.Count);
-        foreach (var (id, channel) in Channels)
-        {
-            bw.WriteInt32(id);
-            channel.Serialize(bw, engine);
-        }
-
-    }
-
-    public override void Deserialize(BinaryReader br, Engine engine)
-    {
-        var assetMagicCode = br.ReadInt32();
-        if (assetMagicCode != MagicCode.Asset)
-            throw new Exception("");
-        var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != AssetMagicCode)
-            throw new Exception("");
-        AnimName = br.ReadString2();
-        Duration = br.ReadDouble();
-        Skeleton = ISerializable.AssetDeserialize<Skeleton>(br, engine);
-        var count = br.ReadInt32();
-        for (int i = 0; i < count; i++)
-        {
-            var id = br.ReadInt32();
-            var channel = new BoneChannel();
-            channel.Deserialize(br, engine);
-            Channels.Add(id, channel);
-        }
-        InitTransform();
-    }
-
     public double Duration { private set; get; }
     public string AnimName = string.Empty;
     public Dictionary<int, BoneChannel> Channels;
@@ -91,7 +51,7 @@ public class BoneTransform
     public int BoneId;
     public List<(float, Matrix4x4)> Transforms = new List<(float, Matrix4x4)> ();
 }
-public class BoneChannel : ISerializable
+public class BoneChannel
 {
     public int BoneId;
 
@@ -100,63 +60,6 @@ public class BoneChannel : ISerializable
     public List<(float, Quaternion)> Rotation = new List<(float, Quaternion)>();
 
     public List<(float, Vector3)> Scale = new List<(float, Vector3)>();
-
-    public void Deserialize(BinaryReader br, Engine engine)
-    {
-        BoneId = br.ReadInt32();
-        var count = br.ReadInt32();
-        for(int i = 0; i < count; i++)
-        {
-            var time = br.ReadSingle();
-            var translation = br.ReadVector3();
-            Translation.Add((time, translation));
-        }
-
-        count = br.ReadInt32();
-        for (int i = 0; i < count; i++)
-        {
-            var time = br.ReadSingle();
-            var rotation = br.ReadQuaternion();
-            Rotation.Add((time, rotation));
-        }
-
-
-        count = br.ReadInt32();
-        for (int i = 0; i < count; i++)
-        {
-            var time = br.ReadSingle();
-            var scale = br.ReadVector3();
-            Scale.Add((time, scale));
-        }
-    }
-
-    public void Serialize(BinaryWriter writer, Engine engine)
-    {
-        var bw = new BinaryWriter(writer.BaseStream);
-        bw.WriteInt32(BoneId);
-        bw.WriteInt32(Translation.Count);
-        foreach(var (time, translation) in Translation)
-        {
-            bw.WriteSingle(time);
-            bw.Write(translation);
-        }
-
-
-        bw.WriteInt32(Rotation.Count);
-        foreach (var (time, rotation) in Rotation)
-        {
-            bw.WriteSingle(time);
-            bw.Write(rotation);
-        }
-
-
-        bw.WriteInt32(Scale.Count);
-        foreach (var (time, scale) in Scale)
-        {
-            bw.WriteSingle(time);
-            bw.Write(scale);
-        }
-    }
 }
 
 

@@ -1,5 +1,4 @@
 ﻿using Silk.NET.OpenGLES;
-using StbImageSharp;
 using System.Numerics;
 using Spark.Engine.Platform;
 using System.Runtime.InteropServices;
@@ -19,17 +18,6 @@ public enum TexFilter
 }
 public static class ChannelHelper 
 {
-    public static TexChannel ToTexChannel(this ColorComponents colorComponents)
-    {
-        return colorComponents switch
-        {
-            ColorComponents.RedGreenBlueAlpha => TexChannel.Rgba,
-            ColorComponents.RedGreenBlue => TexChannel.Rgb,
-            _ => throw new NotImplementedException()
-        };
-    }
-
-
     public static GLEnum ToGlEnum(this TexChannel channel)
     {
         return channel switch
@@ -59,40 +47,10 @@ public static class ChannelHelper
     }
 
 }
-public class TextureLdr : Texture, IAssetBaseInterface
+public class TextureLdr : Texture
 {
-    public static int AssetMagicCode => MagicCode.TextureLdr;
-    
     public List<byte> Pixels { get; set; } = [];
 
-    public override void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(AssetMagicCode);
-        bw.WriteUInt32(Width);
-        bw.WriteUInt32(Height);
-        bw.WriteInt32((int)Channel);
-        bw.WriteInt32((int)Filter);
-        bw.WriteInt32(Pixels.Count);
-        bw.Write(Pixels.ToArray());
-    }
-
-    public override void Deserialize(BinaryReader br, Engine engine)
-    {
-        var assetMagicCode = br.ReadInt32();
-        if (assetMagicCode != MagicCode.Asset)
-            throw new Exception("");
-        var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != AssetMagicCode)
-            throw new Exception("");
-        Width = br.ReadUInt32();
-        Height = br.ReadUInt32();
-        Channel = (TexChannel)br.ReadInt32();
-        Filter = (TexFilter)br.ReadInt32();
-        var pixelsLen = br.ReadInt32();
-        Pixels.AddRange(br.ReadBytes(pixelsLen));
-        engine.NextRenderFrame.Add(InitRender);
-    }
     public unsafe void InitRender(GL gl)
     {
         if (TextureId > 0)

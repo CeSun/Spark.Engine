@@ -5,9 +5,8 @@ using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
 
-public partial class SkeletalMesh : AssetBase, IAssetBaseInterface
+public partial class SkeletalMesh : AssetBase
 {
-    public static int AssetMagicCode => MagicCode.SkeletalMesh;
 
     public List<Element<SkeletalMeshVertex>> Elements = [];
 
@@ -129,53 +128,12 @@ public partial class SkeletalMesh
             vertices[(int)indices[i]] = p1;
             vertices[(int)indices[i + 1]] = p2;
             vertices[(int)indices[i + 2]] = p3;
-
         }
 
     }
-
-
-    public override void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(AssetMagicCode);
-        bw.WriteInt32(Elements.Count);
-        foreach (var element in Elements)
-        {
-            element.Serialize(bw, engine);
-        }
-        ISerializable.AssetSerialize(Skeleton, bw, engine);
-    }
-
-    public override void Deserialize(BinaryReader br, Engine engine)
-    {
-        var assetMagicCode = br.ReadInt32();
-        if (assetMagicCode != MagicCode.Asset)
-            throw new Exception("");
-        var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != AssetMagicCode)
-            throw new Exception("");
-        var count = br.ReadInt32();
-        for (var i = 0; i < count; i++)
-        {
-            var element = new Element<SkeletalMeshVertex>()
-            {
-                Vertices = new List<SkeletalMeshVertex>(),
-                Indices = new List<uint>(),
-                Material = new Material()
-            };
-            element.Deserialize(br, engine);
-            Elements.Add(element);
-        }
-        Skeleton = ISerializable.AssetDeserialize<Skeleton>(br, engine);
-
-        engine.NextRenderFrame.Add(InitRender);
-
-    }
-
 }
 
-public struct SkeletalMeshVertex : ISerializable
+public struct SkeletalMeshVertex
 {
     public Vector3 Location;
 
@@ -192,33 +150,4 @@ public struct SkeletalMeshVertex : ISerializable
     public Vector4 BoneIds;
 
     public Vector4 BoneWeights;
-
-    public void Deserialize(BinaryReader br, Engine engine)
-    {
-        Location = br.ReadVector3();
-        Normal = br.ReadVector3();
-        Tangent = br.ReadVector3();
-        BitTangent = br.ReadVector3();
-        Color = br.ReadVector3();
-        TexCoord = br.ReadVector2();
-        BoneIds = br.ReadVector4();
-        BoneWeights = br.ReadVector4();
-    }
-
-    public void Serialize(BinaryWriter bw, Engine engine)
-    {
-
-        bw.Write(Location);
-        bw.Write(Normal);
-        bw.Write(Tangent);
-        bw.Write(BitTangent);
-        bw.Write(Color);
-        bw.Write(TexCoord);
-        bw.Write(BoneIds);
-        bw.Write(BoneWeights);
-
-
-
-
-    }
 }

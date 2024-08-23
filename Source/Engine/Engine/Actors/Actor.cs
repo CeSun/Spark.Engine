@@ -161,7 +161,7 @@ public partial class Actor
 /// <summary>
 /// Component
 /// </summary>
-public partial class Actor : ISerializable
+public partial class Actor
 {
     List<PrimitiveComponent> _PrimitiveComponents = new List<PrimitiveComponent>();
     public IReadOnlyList<PrimitiveComponent> PrimitiveComponents { get { return _PrimitiveComponents; } }
@@ -236,31 +236,5 @@ public partial class Actor : ISerializable
             }
         }
         return list;
-    }
-
-    public void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.WriteString2(GetType().FullName);
-        bw.WriteString2(Name);
-        ISerializable.ReflectionSerialize(this, bw, engine);
-        bw.WriteInt32(PrimitiveComponents.Count);
-        foreach(var component in  PrimitiveComponents)
-        {
-            ISerializable.ReflectionSerialize(component, bw, engine);
-        }
-    }
-
-    public void Deserialize(BinaryReader br, Engine engine)
-    {
-        Name = br.ReadString2();
-        ISerializable.ReflectionDeserialize(this, br, engine);
-        var cmpNums = br.ReadInt32();
-        if (cmpNums != PrimitiveComponents.Count)
-            throw new Exception("");
-        foreach(var component in PrimitiveComponents)
-        {
-            ISerializable.ReflectionDeserialize(component, br, engine);
-        }
-
     }
 }

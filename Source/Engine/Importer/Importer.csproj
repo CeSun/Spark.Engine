@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+	  <PackageReference Include="StbImageSharp" Version="2.27.14" />
+	  <ProjectReference Include="..\Engine\Engine.csproj" />
+	  <PackageReference Include="SharpGLTF.Core" Version="1.0.1" />
+  </ItemGroup>
+
+</Project>

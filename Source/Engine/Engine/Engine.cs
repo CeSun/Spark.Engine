@@ -14,7 +14,6 @@ namespace Spark.Engine;
 
 public partial class Engine
 {
-    public AssetMgr AssetMgr { get; private set; }
     public SingleThreadSyncContext? SyncContext { get; private set; }
     public List<Action<GL>> NextRenderFrame { get; private set; } = [];
 
@@ -30,8 +29,6 @@ public partial class Engine
     {
         SyncContext = new SingleThreadSyncContext();
         SynchronizationContext.SetSynchronizationContext(SyncContext);
-
-        AssetMgr = new AssetMgr{ Engine = this };
 
         Args.AddRange(args);
         Platform = platform;

@@ -1,13 +1,10 @@
-﻿using SharpGLTF.Schema2;
-using Silk.NET.OpenGLES;
+﻿using Silk.NET.OpenGLES;
 using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
 
-public class TextureCube : AssetBase, ISerializable, IAssetBaseInterface
+public class TextureCube : AssetBase
 {
-    public static int AssetMagicCode => MagicCode.TextureCube;
-
     private static readonly GLEnum[] TexTargets =
     [
         GLEnum.TextureCubeMapPositiveX,
@@ -40,33 +37,6 @@ public class TextureCube : AssetBase, ISerializable, IAssetBaseInterface
     public Texture? DownFace { get => Textures[3]; set => Textures[3] = value; }
     public Texture? FrontFace { get => Textures[4]; set => Textures[4] = value; }
     public Texture? BackFace { get => Textures[5]; set => Textures[5] = value; }
-
-
-    public override void Serialize(BinaryWriter bw, Engine engine)
-    {
-        bw.WriteInt32(MagicCode.Asset);
-        bw.WriteInt32(AssetMagicCode);
-
-        foreach (var texture in Textures)
-        {
-            ISerializable.AssetSerialize(texture, bw, engine);
-        }
-    }
-
-    public override void Deserialize(BinaryReader br, Engine engine)
-    {
-        var assetMagicCode = br.ReadInt32();
-        if (assetMagicCode != MagicCode.Asset)
-            throw new Exception("");
-        var textureMagicCode = br.ReadInt32();
-        if (textureMagicCode != AssetMagicCode)
-            throw new Exception("");
-        for (int i = 0; i < 6; i++)
-        {
-            Textures[i] = (Texture?)ISerializable.AssetDeserialize2(br, engine);
-        }
-        engine.NextRenderFrame.Add(InitRender);
-    }
 
     public unsafe void InitRender(GL gl)
     {

@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using SharpGLTF.Schema2;
+﻿using System.Drawing;
 using Silk.NET.OpenGLES;
 
 namespace Spark.Engine.Render;

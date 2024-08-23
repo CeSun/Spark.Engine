@@ -1,11 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
       <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<PublishAot>true</PublishAot>
       </PropertyGroup>
 
       <ItemGroup>
@@ -16,21 +17,16 @@
 
       <ItemGroup>
         <PackageReference Include="ini-parser-netstandard" Version="2.5.2" />
-        <PackageReference Include="Jitter2" Version="2.3.0" />
-        <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0030" />
+        <PackageReference Include="Jitter2" Version="2.4.1" />
 	    <PackageReference Include="Silk.NET.Input.Common" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES.Extensions.EXT" Version="$(SilkVersion)" />
-        <PackageReference Include="StbImageSharp" Version="2.27.13" />
-        <PackageReference Include="StbImageWriteSharp" Version="1.16.7" />
       </ItemGroup>
 
       <ItemGroup>
         <ProjectReference Include="..\Util\Util.csproj" />
       </ItemGroup>
-    <ItemGroup>
-	    <TrimmerRootAssembly Include="SharpGLTF.Schema2" />
-    </ItemGroup>
+	
     <ItemGroup>
       <Compile Update="Properties\Resources.Designer.cs">
         <DesignTime>True</DesignTime>
