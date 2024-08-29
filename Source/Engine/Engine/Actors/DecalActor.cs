@@ -7,7 +7,7 @@ namespace Spark.Engine.Actors;
 [ActorInfo(DisplayOnEditor = true, Group = "Visuals")]
 public class DecalActor : Actor
 {
-    public DecalActor(Level level, string Name = "") : base(level, Name)
+    public DecalActor(World.Level level, string Name = "") : base(level, Name)
     {
         DecalComponent = new DecalComponent(this);
     }

@@ -1,32 +1,31 @@
 ﻿using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
-using Spark.Engine.Physics;
 using System.Numerics;
 
 namespace Spark.Engine.Components;
 
 public class DecalComponent : PrimitiveComponent
 {
-    private readonly BoundingBox _boundingBox;
+    private readonly World.BoundingBox _boundingBox;
 
-    private static readonly Box Box = new()
+    private static readonly World.Box Box = new()
     {
         MinPoint = new Vector3(-1, -1, -1),
         MaxPoint = new Vector3(1, 1, 1)
     };
-    public override BaseBounding Bounding => _boundingBox;
+    public override World.BaseBounding Bounding => _boundingBox;
     protected override bool ReceiveUpdate => true;
     public DecalComponent(Actor actor) : base(actor)
     {
-        _boundingBox = new BoundingBox(this);
+        _boundingBox = new World.BoundingBox(this);
         RefreshBoundingBox();
     }
 
     private void RefreshBoundingBox()
     {
         var worldTransform = WorldTransform;
-        Box box = default;
+        World.Box box = default;
         for (var i = 0; i < 8; i++)
         {
             if (i == 0)

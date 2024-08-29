@@ -2,6 +2,12 @@
 
 public class SingleThreadSyncContext : SynchronizationContext
 {
+    public static SingleThreadSyncContext Initialize()
+    {
+        var ctx = new SingleThreadSyncContext();
+        SetSynchronizationContext(ctx);
+        return ctx;
+    }
     readonly List<TaskInfo> _taskList = [];
 
     readonly List<TaskInfo> _tempList = [];

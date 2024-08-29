@@ -6,8 +6,8 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spark.Engine.Physics;
-    
+namespace Spark.Engine.World;
+
 public class Octree
 {
     static readonly float SideLength = 1024;
@@ -124,10 +124,10 @@ public class Octree
             goto InsertCurrentNode;
         }
         int targetIndex = -1;
-        for (int i = 0; i < 8; i ++)
+        for (int i = 0; i < 8; i++)
         {
             var subBox = _childBox[i];
-            if (subBox.Contains(new Box() { MaxPoint = box.MaxPoint, MinPoint = box.MinPoint}))
+            if (subBox.Contains(new Box() { MaxPoint = box.MaxPoint, MinPoint = box.MinPoint }))
             {
                 targetIndex = i;
                 break;
@@ -154,11 +154,11 @@ public class Octree
         return;
 
 
-InsertCurrentNode:
+    InsertCurrentNode:
         _boundingBoxes.Add(box);
         box.ParentNode = this;
     }
-    
+
     public void RemoveObject(BaseBounding box)
     {
         if (box.ParentNode == null)
@@ -172,7 +172,7 @@ InsertCurrentNode:
 
     public void FrustumCulling<T>(List<T> components, Plane[] planes)
     {
-        if (this._currentBox.TestPlanes(planes) == false)
+        if (_currentBox.TestPlanes(planes) == false)
             return;
         foreach (var subox in _boundingBoxes)
         {
@@ -195,7 +195,7 @@ InsertCurrentNode:
             return;
         foreach (var subox in _boundingBoxes)
         {
-            if (subox.PrimitiveComponent is T t &&  sphere.TestBox(new Box() { MinPoint = subox.MinPoint, MaxPoint = subox.MaxPoint }))
+            if (subox.PrimitiveComponent is T t && sphere.TestBox(new Box() { MinPoint = subox.MinPoint, MaxPoint = subox.MaxPoint }))
             {
                 components.Add(t);
             }
@@ -215,7 +215,7 @@ public abstract class BaseBounding
 {
     public BaseBounding(PrimitiveComponent primitiveComponent)
     {
-        this.PrimitiveComponent = primitiveComponent;
+        PrimitiveComponent = primitiveComponent;
     }
     public Octree? ParentNode;
 
@@ -227,8 +227,8 @@ public abstract class BaseBounding
     public abstract float YLength { get; }
     public abstract float ZLength { get; }
 
-    public abstract Vector3 MinPoint { get;}
-    public abstract Vector3 MaxPoint { get;}
+    public abstract Vector3 MinPoint { get; }
+    public abstract Vector3 MaxPoint { get; }
 
 
 }

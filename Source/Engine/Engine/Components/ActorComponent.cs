@@ -1,4 +1,5 @@
-﻿ using Spark.Engine.Actors;
+﻿using Spark.Engine.Actors;
+using Spark.Engine.World;
 
 namespace Spark.Engine.Components;
 
@@ -18,7 +19,7 @@ public class ActorComponent
     /// <summary>
     /// Actor所在世界
     /// </summary>
-    public World CurrentWorld { get => Owner.CurrentWorld; }
+    public World.World CurrentWorld { get => Owner.CurrentWorld; }
 
     /// <summary>
     /// 组件拥有者

@@ -2,7 +2,7 @@
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
-using Spark.Engine.Physics;
+using Spark.Engine.World;
 using System.Numerics;
 
 namespace Spark.Engine.Components;

@@ -10,7 +10,7 @@ namespace Spark.Engine.Actors;
 [ActorInfo(DisplayOnEditor = true, Group = "Base")]
 public class Pawn : Actor
 {
-    public Pawn(Level level, string Name = "") : base(level, Name)
+    public Pawn(World.Level level, string Name = "") : base(level, Name)
     {
     }
 

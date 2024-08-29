@@ -13,7 +13,7 @@ namespace Spark.Engine.Actors;
 public class SkeletalMeshActor : Actor
 {
     public SkeletalMeshComponent SkeletalMeshComponent { get; private set; }
-    public SkeletalMeshActor(Level level, string Name = "") : base(level, Name)
+    public SkeletalMeshActor(World.Level level, string Name = "") : base(level, Name)
     {
         SkeletalMeshComponent = new SkeletalMeshComponent(this);
     }

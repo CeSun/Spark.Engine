@@ -16,6 +16,7 @@ namespace Spark.Util
                 {
                     action?.Invoke(task.Result);
                 }
+
                 else if (task.IsFaulted)
                 {
                     Exception? ex = task.Exception;

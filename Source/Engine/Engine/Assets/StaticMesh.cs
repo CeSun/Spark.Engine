@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using Silk.NET.OpenGLES;
-using Spark.Engine.Physics;
 using Jitter2.LinearMath;
 using Jitter2.Collision.Shapes;
 
@@ -12,8 +11,8 @@ public class StaticMesh : AssetBase
 
     public List<Element<StaticMeshVertex>> Elements = [];
     public List<Shape> Shapes = [];
-    public Box Box { get; private set; }
-    public List<Box> Boxes { get; } = [];
+    public World.Box Box { get; private set; }
+    public List<World.Box> Boxes { get; } = [];
     public StaticMesh()
     {
         Path = string.Empty;

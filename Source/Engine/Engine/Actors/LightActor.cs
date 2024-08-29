@@ -13,7 +13,7 @@ namespace Spark.Engine.Actors
     abstract public class LightActor : Actor
     {
         public abstract LightComponent LightComponent { get; }
-        protected LightActor(Level level, string Name = "") : base(level, Name)
+        protected LightActor(World.Level level, string Name = "") : base(level, Name)
         {
         }
 

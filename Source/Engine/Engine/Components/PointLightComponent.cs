@@ -1,8 +1,7 @@
 ﻿using Spark.Engine.Actors;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Attributes;
-using Spark.Engine.Physics;
-using System.Numerics;
+using Spark.Engine.World;
 
 namespace Spark.Engine.Components;
 

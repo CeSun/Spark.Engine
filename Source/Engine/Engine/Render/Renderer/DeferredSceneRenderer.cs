@@ -6,6 +6,7 @@ using System.Numerics;
 using Spark.Util;
 using TextureLdr = Spark.Engine.Assets.TextureLdr;
 using Spark.Engine.Properties;
+using Spark.Engine.World;
 
 namespace Spark.Engine.Render.Renderer;
 
@@ -51,7 +52,7 @@ public class DeferredSceneRenderer : IRenderer
     private readonly RenderTarget _postProcessBuffer1;
     private readonly RenderTarget? _postProcessBuffer2;
     private readonly RenderTarget? _postProcessBuffer3;
-    private World World { get; set; }
+    private World.World World { get; set; }
 
     private readonly TextureLdr _brdfTexture;
 
@@ -82,7 +83,7 @@ public class DeferredSceneRenderer : IRenderer
     }
 
     public GL gl => World.Engine.GraphicsApi!;
-    public DeferredSceneRenderer(World world)
+    public DeferredSceneRenderer(World.World world)
     {
 
         World = world;
@@ -701,7 +702,7 @@ public class DeferredSceneRenderer : IRenderer
         foreach (var pointLightComponent in _pointLightComponents)
         {
             _tmpCullingStaticMesh.Clear();
-            World.CurrentLevel.RenderObjectOctree.SphereCulling(_tmpCullingStaticMesh, new Physics.Sphere() { Location = pointLightComponent.WorldLocation, Radius = pointLightComponent.AttenuationRadius * 4 });
+            World.CurrentLevel.RenderObjectOctree.SphereCulling(_tmpCullingStaticMesh, new World.Sphere() { Location = pointLightComponent.WorldLocation, Radius = pointLightComponent.AttenuationRadius * 4 });
           
             if (pointLightComponent.IsCastShadowMap == false)
             {
@@ -1329,7 +1330,7 @@ public class DeferredSceneRenderer : IRenderer
     private readonly List<PointLightComponent> _pointLightComponents = [];
     private readonly List<DecalComponent> _decalComponents = [];
 
-    public DeferredSceneRenderer(Shader instanceDlShadowMapShader, Shader renderToCamera, Shader hismShader, Shader decalPostShader, RenderTarget globalBuffer, Shader staticMeshBaseShader, Shader directionalLightingShader, Shader spotLightingShader, Shader pointLightingShader, Shader directionalLightingShaderNoShadow, Shader spotLightingShaderNoShadow, Shader pointLightingShaderNoShadow, Shader dlShadowMapShader, Shader spotShadowMapShader, Shader instanceSpotShadowMapShader, Shader instancePointLightingShader, Shader skyboxShader, Shader pointLightShadowShader, Shader bloomPreShader, Shader bloomShader, Shader decalShader, Shader ssaoShader, Shader skeletalMeshDlShadowMapShader, Shader skeletalMeshSpotShadowMapShader, Shader skeletalMeshPointLightingShader, Shader skeletalMeshBaseShader, Shader bloomPostShader, Shader irradianceShader, Shader prefilterShader, Shader indirectLightShader, Shader hdri2CubeMapShader, RenderTarget postProcessBuffer1, World world, TextureLdr brdfTexture)
+    public DeferredSceneRenderer(Shader instanceDlShadowMapShader, Shader renderToCamera, Shader hismShader, Shader decalPostShader, RenderTarget globalBuffer, Shader staticMeshBaseShader, Shader directionalLightingShader, Shader spotLightingShader, Shader pointLightingShader, Shader directionalLightingShaderNoShadow, Shader spotLightingShaderNoShadow, Shader pointLightingShaderNoShadow, Shader dlShadowMapShader, Shader spotShadowMapShader, Shader instanceSpotShadowMapShader, Shader instancePointLightingShader, Shader skyboxShader, Shader pointLightShadowShader, Shader bloomPreShader, Shader bloomShader, Shader decalShader, Shader ssaoShader, Shader skeletalMeshDlShadowMapShader, Shader skeletalMeshSpotShadowMapShader, Shader skeletalMeshPointLightingShader, Shader skeletalMeshBaseShader, Shader bloomPostShader, Shader irradianceShader, Shader prefilterShader, Shader indirectLightShader, Shader hdri2CubeMapShader, RenderTarget postProcessBuffer1, World.World world, TextureLdr brdfTexture)
     {
         _instanceDlShadowMapShader = instanceDlShadowMapShader;
         _renderToCamera = renderToCamera;

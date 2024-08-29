@@ -12,7 +12,7 @@ using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
-using Spark.Engine.Physics;
+using Spark.Engine.World;
 
 namespace Spark.Engine.Components;
 
@@ -26,7 +26,7 @@ public partial class PrimitiveComponent
     public Engine Engine => Owner.CurrentWorld.Engine;
 
     public GL gl => Engine.GraphicsApi;
-    public World World => Owner.CurrentWorld;
+    public World.World World => Owner.CurrentWorld;
 
     public Level CurrentLevel => Owner.CurrentLevel;
     public Jitter2.World PhysicsWorld => CurrentLevel.PhysicsWorld;

@@ -2,6 +2,7 @@
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
 using Spark.Engine.Components;
+using Spark.Engine.World;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,7 +32,7 @@ public partial class Actor
     /// <summary>
     /// Actor所在世界
     /// </summary>
-    public World CurrentWorld  => CurrentLevel.CurrentWorld;
+    public World.World CurrentWorld  => CurrentLevel.CurrentWorld;
 
     public Actor(Level level, string name = "")
     {

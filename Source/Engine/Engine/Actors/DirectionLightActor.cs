@@ -13,7 +13,7 @@ namespace Spark.Engine.Actors;
 public class DirectionLightActor : LightActor
 {
     public DirectionLightComponent DirectionLightComponent { get; private set; }
-    public DirectionLightActor(Level level, string Name = "") : base(level, Name)
+    public DirectionLightActor(World.Level level, string Name = "") : base(level, Name)
     {
         DirectionLightComponent = new DirectionLightComponent(this);
     }

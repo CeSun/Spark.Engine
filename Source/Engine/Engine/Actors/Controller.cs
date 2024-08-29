@@ -11,7 +11,7 @@ namespace Spark.Engine.Actors;
 [ActorInfo(DisplayOnEditor = false)]
 public class Controller : Actor
 {
-    public Controller(Level level, string Name = "") : base(level, Name)
+    public Controller(World.Level level, string Name = "") : base(level, Name)
     {
 
     }

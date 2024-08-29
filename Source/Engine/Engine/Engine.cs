@@ -4,11 +4,7 @@ using System.Drawing;
 using Silk.NET.Input;
 using Spark.Engine.Platform;
 using Silk.NET.Windowing;
-using System.Reflection;
-using Spark.Engine.Assets;
-using IniParser.Parser;
-using Spark.Engine.Actors;
-using Spark.Engine.Attributes;
+using Spark.Engine.World;
 
 namespace Spark.Engine;
 
@@ -16,38 +12,35 @@ public partial class Engine
 {
     public SingleThreadSyncContext? SyncContext { get; private set; }
     public List<Action<GL>> NextRenderFrame { get; private set; } = [];
-
     public List<Action<double>> NextFrame { get; private set; } = [];
-    public List<string> Args { get; } = [];
 
-    public World? MainWorld;
+    public World.World? MainWorld;
 
     public List<BaseSubSystem> SubSystems = [];
 
-    public Dictionary<string, bool> SubsystemConfigs= [];
-    public Engine(string[] args, IPlatform platform)
+    public Engine(IPlatform platform)
     {
-        SyncContext = new SingleThreadSyncContext();
-        SynchronizationContext.SetSynchronizationContext(SyncContext);
+        SyncContext = SingleThreadSyncContext.Initialize();
 
-        Args.AddRange(args);
         Platform = platform;
 
         WindowSize = new Point(View.Size.X, View.Size.Y);
-        MainWorld = new World(this);
+
+        MainWorld = new World.World(this);
+
         MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTarget(this.WindowSize.X, this.WindowSize.Y);
+
         Worlds.Add(MainWorld);
+
         if (View is IWindow window)
         {
-            window.FileDrop += paths => OnFileDrop.Invoke(paths);
+            window.FileDrop += OnFileDrop.Invoke;
         }
-        LoadSetting();
-        LoadSubsystem();
 
     }
 
 
-    public List<World> Worlds = [];
+    public List<World.World> Worlds = [];
   
 
     public event Action<string[]> OnFileDrop = _ => { };
@@ -62,80 +55,6 @@ public partial class Engine
         }
         return null;
     }
-    private void LoadSubsystem()
-    {
-        foreach(var type in AssemblyHelper.GetAllType())
-        {
-            if (type.IsSubclassOf(typeof(BaseSubSystem)) == false)
-                continue;
-            if (type.FullName == null || SubsystemConfigs.Keys.Contains(type.FullName))
-                continue;
-            var att = type.GetCustomAttribute<SubsystemAttribute>();
-            if (att == null || att.Enable == false)
-            {
-                SubsystemConfigs.Add(type.FullName, false);
-            }    
-            else
-            {
-                SubsystemConfigs.Add(type.FullName, true);
-            }
-            
-        }
-
-        foreach(var (k, v) in SubsystemConfigs.ToDictionary())
-        {
-            var type = AssemblyHelper.GetType(k);
-            if (type == null || type.IsSubclassOf(typeof(BaseSubSystem)) == false)
-            {
-                SubsystemConfigs.Remove(k);
-                continue;
-            }
-            if (v == false)
-                continue;
-            var obj = Activator.CreateInstance(type, [this]);
-            if (obj is BaseSubSystem subsystem)
-            {
-                SubSystems.Add(subsystem);
-            }
-        }
-
-
-    }
-    public void LoadSetting()
-    {
-        using var sr = FileSystem.GetConfigStreamReader("DefaultGame.ini");
-        var text = sr.ReadToEnd();
-        var parser =new IniDataParser();
-        var ini = parser.Parse(text);
-        var defaultGameMode = ini["Game"]["DefaultGameMode"];
-        var gameConfig = new GameConfig
-        {
-            DefaultGameModeClass = typeof(GameMode),
-        };
-
-        if (string.IsNullOrEmpty(defaultGameMode) == false)
-        {
-            gameConfig.DefaultGameModeClass = AssemblyHelper.GetType(defaultGameMode);
-        }
-        gameConfig.DefaultLevel = ini["Game"]["DefaultLevel"];
-        GameConfig = gameConfig;
-
-        foreach (var item in ini["Subsystem"])
-        {
-            if (SubsystemConfigs.Keys.Contains(item.KeyName))
-                continue;
-            if (item.Value.ToLower() == "true")
-            {
-                SubsystemConfigs.Add(item.KeyName, true);
-            }
-            if (item.Value.ToLower() == "false")
-            {
-                SubsystemConfigs.Add(item.KeyName, false);
-            }
-        }
-    }
-
-    public GameConfig GameConfig { get; private set; }
 
     public Action<Level>? OnBeginPlay;
 
@@ -196,7 +115,6 @@ public partial class Engine
 
 public partial class Engine
 {
-
     public IPlatform Platform { get; private set; }
     public GL GraphicsApi => Platform.GraphicsApi;
     public IInputContext Input => Platform.InputContext;

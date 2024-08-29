@@ -1,13 +1,9 @@
 ﻿using System.Numerics;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
-using Spark.Engine.Manager;
 using PhyWorld = Jitter2.World;
-using Spark.Engine.Physics;
-using Spark.Engine.Assets;
-using Spark.Util;
 
-namespace Spark.Engine;
+namespace Spark.Engine.World;
 
 public partial class Level
 {
@@ -16,7 +12,6 @@ public partial class Level
     public PhyWorld PhysicsWorld;
     public Engine Engine => CurrentWorld.Engine;
 
-    public PlayerController? LocalPlayerController;
     public string Name = string.Empty;
     public Level(World world)
     {
@@ -25,13 +20,10 @@ public partial class Level
         RenderObjectOctree = new Octree(null);
         PhysicsWorld = new PhyWorld();
     }
-
-
     public Octree RenderObjectOctree { get; private set; }
 
     public UpdateManager UpdateManager { private set; get; }
 
- 
     public void Destory() 
     {
         EndPlay();
@@ -41,8 +33,6 @@ public partial class Level
         ActorUpdate(deltaTime);
         UpdateManager.Update(deltaTime);
     }
-
-
     public void Render(double deltaTime)
     {
         foreach (var camera in CameraComponents)

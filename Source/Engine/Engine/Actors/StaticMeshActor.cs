@@ -9,7 +9,7 @@ public class StaticMeshActor : Actor
 {
     [Property]
     public StaticMeshComponent StaticMeshComponent { get; private set; }
-    public StaticMeshActor(Level level, string Name = "") : base(level, Name)
+    public StaticMeshActor(World.Level level, string Name = "") : base(level, Name)
     {
         StaticMeshComponent = new StaticMeshComponent(this);
     }

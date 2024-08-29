@@ -1,14 +1,13 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Actors;
 using Spark.Engine.Assets;
-using Spark.Engine.Physics;
 using System;
 using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
+using Spark.Engine.World;
 
 namespace Spark.Engine.Components;
 

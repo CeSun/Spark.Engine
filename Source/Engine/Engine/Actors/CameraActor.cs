@@ -13,7 +13,7 @@ namespace Spark.Engine.Actors;
 public class CameraActor : Actor
 {
     public CameraComponent CameraComponent { get; private set; }
-    public CameraActor(Level level, string Name = "") : base(level, Name)
+    public CameraActor(World.Level level, string Name = "") : base(level, Name)
     {
         CameraComponent = new CameraComponent(this);
     }

@@ -17,7 +17,9 @@
 *  3. This notice may not be removed or altered from any source distribution. 
 */
 
-namespace Jitter2.LinearMath
+using Jitter2.LinearMath;
+
+namespace Spark.Engine.Physics
 {
 
     /// <summary>
@@ -60,7 +62,7 @@ namespace Jitter2.LinearMath
                 for (int phiIndex = 0; phiIndex < steps; phiIndex++)
                 {
                     // [-PI,PI]
-                    float phi = (2.0f * (float)Math.PI) / (steps - 0) * phiIndex - (float)Math.PI;
+                    float phi = 2.0f * (float)Math.PI / (steps - 0) * phiIndex - (float)Math.PI;
                     float sinPhi = (float)Math.Sin(phi);
                     float cosPhi = (float)Math.Cos(phi);
 

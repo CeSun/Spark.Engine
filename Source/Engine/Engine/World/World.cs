@@ -3,7 +3,7 @@ using Spark.Engine.Render;
 using Spark.Engine.Render.Renderer;
 using Spark.Util;
 
-namespace Spark.Engine;
+namespace Spark.Engine.World;
 
 public class World
 {
@@ -35,23 +35,8 @@ public class World
     public void BeginPlay()
     {
         OnBeginPlay();
-
-        if (Engine.GameConfig.DefaultLevel != null && Engine.MainWorld == this)
-        {
-            OpenLevel(Engine.GameConfig.DefaultLevel);
-        }
-        else if (Engine.GameConfig.DefaultGameModeClass != null && Engine.MainWorld == this)
-        {
-            CurrentLevel = new Level(this);
-            Activator.CreateInstance(Engine.GameConfig.DefaultGameModeClass, [CurrentLevel, "GameMode"]);
-            CurrentLevel.BeginPlay();
-        }
-        else
-        {
-            CurrentLevel = new Level(this);
-            _ = new GameMode(CurrentLevel, "GameMode");
-            CurrentLevel.BeginPlay();
-        }
+        CurrentLevel = new Level(this);
+        CurrentLevel.BeginPlay();
     }
 
     protected virtual void OnBeginPlay()

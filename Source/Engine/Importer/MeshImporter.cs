@@ -6,8 +6,7 @@ using Jitter2.LinearMath;
 using SharpGLTF.Schema2;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Assets;
-using Spark.Engine.Physics;
-using Spark.Engine.Platform;
+using Spark.Engine.World;
 using Material = Spark.Engine.Assets.Material;
 using TextureLdr = Spark.Engine.Assets.TextureLdr;
 

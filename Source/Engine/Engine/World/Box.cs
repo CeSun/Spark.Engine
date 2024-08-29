@@ -1,29 +1,29 @@
 ﻿using System.Numerics;
 
-namespace Spark.Engine.Physics;
+namespace Spark.Engine.World;
 public struct Box :
     IAdditionOperators<Box, Vector3, Box>, IAdditionOperators<Box, Box, Box>
 {
     public int CompareTo(Box box, int axis)
     {
-        var num = (MiddlePoint[axis] - box.MiddlePoint[axis]);  
+        var num = MiddlePoint[axis] - box.MiddlePoint[axis];
         if (num == 0)
             return 0;
-        return num > 0 ? 1: -1;
+        return num > 0 ? 1 : -1;
     }
-    public Vector3 MinPoint 
+    public Vector3 MinPoint
     {
         get => _minPoint;
-        set 
+        set
         {
             _minPoint = value;
             MiddlePoint = (MinPoint + MaxPoint) / 2;
         }
     }
-    public Vector3 MaxPoint 
+    public Vector3 MaxPoint
     {
         get => _maxPoint;
-        set 
+        set
         {
             _maxPoint = value;
             MiddlePoint = (MaxPoint - MinPoint) / 2;
@@ -38,7 +38,7 @@ public struct Box :
     {
         float min = (MinPoint - location).Length();
 
-        for(int i = 1; i < 8; i ++)
+        for (int i = 1; i < 8; i++)
         {
             float tmp = (this[i] - location).Length();
             if (tmp < min)
@@ -48,17 +48,17 @@ public struct Box :
     }
     public bool Contains(in Box box)
     {
-        if (box.MinPoint.X < this.MinPoint.X)
+        if (box.MinPoint.X < MinPoint.X)
             return false;
-        if (box.MinPoint.Y < this.MinPoint.Y)
+        if (box.MinPoint.Y < MinPoint.Y)
             return false;
-        if (box.MinPoint.Z < this.MinPoint.Z)
+        if (box.MinPoint.Z < MinPoint.Z)
             return false;
-        if (box.MaxPoint.X > this.MaxPoint.X)
+        if (box.MaxPoint.X > MaxPoint.X)
             return false;
-        if (box.MaxPoint.Y > this.MaxPoint.Y)
+        if (box.MaxPoint.Y > MaxPoint.Y)
             return false;
-        if (box.MaxPoint.Z > this.MaxPoint.Z)
+        if (box.MaxPoint.Z > MaxPoint.Z)
             return false;
 
         return true;
@@ -83,12 +83,12 @@ public struct Box :
     }
     public static Box operator +(Box left, Vector3 right)
     {
-        for(var i = 0; i < 3; i ++)
+        for (var i = 0; i < 3; i++)
         {
             if (left.MinPoint[i] > right[i])
             {
                 var tmp = left.MinPoint;
-                tmp[i] = right[i] ;
+                tmp[i] = right[i];
                 left.MinPoint = tmp;
             }
 
@@ -109,7 +109,7 @@ public struct Box :
         return left;
     }
 
-    public static Box operator*(Box left, Matrix4x4 matrix)
+    public static Box operator *(Box left, Matrix4x4 matrix)
     {
         left.MaxPoint = Vector3.Transform(left.MaxPoint, matrix);
         left.MinPoint = Vector3.Transform(left.MinPoint, matrix);
@@ -119,10 +119,10 @@ public struct Box :
 
     public bool TestPlanes(Plane[] planes)
     {
-        foreach(var plane in planes)
+        foreach (var plane in planes)
         {
             var num = 0;
-            for(var j = 0; j < 8; j ++)
+            for (var j = 0; j < 8; j++)
             {
                 if (plane.Point2Plane(this[j]) >= 0 == false)
                 {

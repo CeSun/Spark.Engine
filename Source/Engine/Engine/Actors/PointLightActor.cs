@@ -14,7 +14,7 @@ public class PointLightActor : LightActor
     public PointLightComponent PointLightComponent { get; private set; }
     public override LightComponent LightComponent { get => PointLightComponent; }
 
-    public PointLightActor(Level level, string Name = "") : base(level, Name)
+    public PointLightActor(World.Level level, string Name = "") : base(level, Name)
     {
         PointLightComponent = new PointLightComponent(this);
     }
