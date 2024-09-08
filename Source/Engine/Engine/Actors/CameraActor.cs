@@ -9,11 +9,10 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
-[ActorInfo(DisplayOnEditor = true, Group = "Base")]
 public class CameraActor : Actor
 {
     public CameraComponent CameraComponent { get; private set; }
-    public CameraActor(World.Level level, string Name = "") : base(level, Name)
+    public CameraActor(World.Level level) : base(level)
     {
         CameraComponent = new CameraComponent(this);
     }

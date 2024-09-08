@@ -6,7 +6,7 @@ namespace Spark.Engine.Actors;
 public class SkyboxActor : Actor
 {
     public SkyboxComponent SkyboxComponent { get; private set; }
-    public SkyboxActor(World.Level level, string Name = "") : base(level, Name)
+    public SkyboxActor(World.Level level) : base(level)
     {
         SkyboxComponent = new SkyboxComponent(this);
     }

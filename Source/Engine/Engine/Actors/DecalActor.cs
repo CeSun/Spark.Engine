@@ -4,10 +4,9 @@ using Spark.Engine.Components;
 
 namespace Spark.Engine.Actors;
 
-[ActorInfo(DisplayOnEditor = true, Group = "Visuals")]
 public class DecalActor : Actor
 {
-    public DecalActor(World.Level level, string Name = "") : base(level, Name)
+    public DecalActor(World.Level level) : base(level)
     {
         DecalComponent = new DecalComponent(this);
     }

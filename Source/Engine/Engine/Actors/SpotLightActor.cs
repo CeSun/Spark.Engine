@@ -8,13 +8,12 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
-[ActorInfo(DisplayOnEditor = true, Group = "Lights")]
 public class SpotLightActor : LightActor
 {
 
     public SpotLightComponent SpotLightComponent { get; private set; }
 
-    public SpotLightActor(World.Level level, string Name = "") : base(level, Name)
+    public SpotLightActor(World.Level level) : base(level)
     {
         SpotLightComponent = new SpotLightComponent(this);
     }

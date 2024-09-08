@@ -22,32 +22,15 @@ public partial class Actor
     /// Actor所在关卡
     /// </summary>
     public Level CurrentLevel { get; }
-
-    private static readonly Dictionary<string, int> NameMap = [];
-
     protected virtual bool ReceiveUpdate => false;
-
-    public string Name { get ;  set; }
  
     /// <summary>
     /// Actor所在世界
     /// </summary>
     public World.World CurrentWorld  => CurrentLevel.CurrentWorld;
 
-    public Actor(Level level, string name = "")
+    public Actor(Level level)
     {
-        if (string.IsNullOrEmpty(name))
-        {
-            var typeName = GetType().Name;
-            NameMap.TryAdd(typeName, 0);
-            var index = ++NameMap[typeName] ;
-
-            this.Name = typeName + index;
-        }
-        else
-        {
-            this.Name = name;
-        }
         CurrentLevel = level;
         level.RegisterActor(this);
         CurrentLevel.Engine.NextFrame.Add(_ => BeginPlay());

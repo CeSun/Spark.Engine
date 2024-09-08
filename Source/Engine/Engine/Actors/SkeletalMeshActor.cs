@@ -9,11 +9,10 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors;
 
-[ActorInfo(DisplayOnEditor = true, Group = "Visuals")]
 public class SkeletalMeshActor : Actor
 {
     public SkeletalMeshComponent SkeletalMeshComponent { get; private set; }
-    public SkeletalMeshActor(World.Level level, string Name = "") : base(level, Name)
+    public SkeletalMeshActor(World.Level level) : base(level)
     {
         SkeletalMeshComponent = new SkeletalMeshComponent(this);
     }

@@ -9,11 +9,10 @@ using System.Threading.Tasks;
 
 namespace Spark.Engine.Actors
 {
-    [ActorInfo(DisplayOnEditor = false, Group = "Lights")]
     abstract public class LightActor : Actor
     {
         public abstract LightComponent LightComponent { get; }
-        protected LightActor(World.Level level, string Name = "") : base(level, Name)
+        protected LightActor(World.Level level) : base(level)
         {
         }
 
