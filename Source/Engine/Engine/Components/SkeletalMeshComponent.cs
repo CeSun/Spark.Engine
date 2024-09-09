@@ -1,5 +1,4 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
 using System.Numerics;
@@ -19,7 +18,6 @@ public class SkeletalMeshComponent : PrimitiveComponent
     public List<Matrix4x4> AnimBuffer = new List<Matrix4x4>(100);
     protected override bool ReceiveUpdate => true;
 
-    [Property]
     public SkeletalMesh? SkeletalMesh 
     { 
         get => _SkeletalMesh;
@@ -28,7 +26,6 @@ public class SkeletalMeshComponent : PrimitiveComponent
 
     private SkeletalMesh? _SkeletalMesh;
 
-    [Property]
     public AnimSequence? AnimSequence 
     { 
         get 

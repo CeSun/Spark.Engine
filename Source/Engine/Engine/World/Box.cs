@@ -1,8 +1,7 @@
 ﻿using System.Numerics;
 
 namespace Spark.Engine.World;
-public struct Box :
-    IAdditionOperators<Box, Vector3, Box>, IAdditionOperators<Box, Box, Box>
+public struct Box : IAdditionOperators<Box, Vector3, Box>, IAdditionOperators<Box, Box, Box>
 {
     public int CompareTo(Box box, int axis)
     {

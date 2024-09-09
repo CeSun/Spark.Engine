@@ -1,5 +1,4 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Actors;
 using System.Drawing;
 using System.Numerics;
 

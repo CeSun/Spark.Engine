@@ -1,5 +1,4 @@
-﻿using Spark.Engine.Actors;
-using Spark.Engine.Attributes;
+﻿using Spark.Engine.Attributes;
 using System.Drawing;
 using System.Numerics;
 
@@ -9,14 +8,11 @@ public class LightComponent : PrimitiveComponent
 {
     private float _LightStrength = 1f;
 
-    [Property (DisplayName = "LightStrength", IsDisplay = true, IsReadOnly = false)]
     public float LightStrength
     {
         get => _LightStrength;
         set => _LightStrength = value;
     }
-
-    [Property(DisplayName = "Color", IsDisplay = true, IsReadOnly = false)]
     public Color Color
     {
         get

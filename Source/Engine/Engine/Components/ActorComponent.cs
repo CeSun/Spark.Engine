@@ -1,5 +1,4 @@
-﻿using Spark.Engine.Actors;
-using Spark.Engine.World;
+﻿using Spark.Engine.World;
 
 namespace Spark.Engine.Components;
 

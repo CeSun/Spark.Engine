@@ -1,13 +1,7 @@
-﻿using Spark.Engine.Attributes;
-using Spark.Engine.Components;
+﻿using Spark.Engine.Components;
 using Spark.Engine.Render;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Spark.Engine.Actors;
+namespace Spark.Engine;
 
 public class CameraActor : Actor
 {

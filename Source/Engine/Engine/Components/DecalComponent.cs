@@ -1,5 +1,4 @@
-﻿using Spark.Engine.Actors;
-using Spark.Engine.Assets;
+﻿using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
 using System.Numerics;
 
@@ -42,9 +41,6 @@ public class DecalComponent : PrimitiveComponent
         _boundingBox.Box.MinPoint = box.MinPoint;
         UpdateOctree();
     }
-
-
-    [Property]
     public Material? Material { get; set; }
 
 

@@ -9,8 +9,6 @@ using System.Numerics;
 using Jitter2.Collision.Shapes;
 using Jitter2.Dynamics;
 using Silk.NET.OpenGLES;
-using Spark.Engine.Actors;
-using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
 using Spark.Engine.World;
 
@@ -273,7 +271,6 @@ public partial class PrimitiveComponent
         }
     }
 
-    [Property(IsDisplay = false)]
     public Matrix4x4 RelativeTransform
     {
         get => MatrixHelper.CreateTransform(RelativeLocation, RelativeRotation, RelativeScale);

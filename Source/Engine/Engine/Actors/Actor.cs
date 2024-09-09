@@ -1,18 +1,9 @@
-﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Assets;
-using Spark.Engine.Attributes;
+﻿using Spark.Engine.Attributes;
 using Spark.Engine.Components;
 using Spark.Engine.World;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Reflection;
-using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Spark.Engine.Actors;
+namespace Spark.Engine;
 
 public partial class Actor
 {
@@ -86,8 +77,6 @@ public partial class Actor
 
 }
 
-
-[ActorInfo(Group = "Base")]
 public partial class Actor
 {
     public PrimitiveComponent? RootComponent;

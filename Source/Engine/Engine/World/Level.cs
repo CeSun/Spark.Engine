@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using PhyWorld = Jitter2.World;
 

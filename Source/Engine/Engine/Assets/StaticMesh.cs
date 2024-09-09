@@ -10,6 +10,7 @@ public class StaticMesh : AssetBase
 {
 
     public List<Element<StaticMeshVertex>> Elements = [];
+
     public List<Shape> Shapes = [];
     public World.Box Box { get; private set; }
     public List<World.Box> Boxes { get; } = [];

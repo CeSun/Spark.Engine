@@ -1,5 +1,4 @@
-﻿using Spark.Engine.Actors;
-using Silk.NET.OpenGLES;
+﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Assets;
 using Spark.Util;
 using System.Numerics;
@@ -139,7 +138,6 @@ public class SkyboxComponent : PrimitiveComponent
     }
 
     private TextureCube? _SkyboxCube;
-    [Property]
     public TextureCube? SkyboxCube
     {
         get => _SkyboxCube;

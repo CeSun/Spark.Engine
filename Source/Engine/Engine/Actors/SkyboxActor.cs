@@ -1,7 +1,7 @@
 ﻿using Spark.Engine.Assets;
 using Spark.Engine.Components;
 
-namespace Spark.Engine.Actors;
+namespace Spark.Engine;
 
 public class SkyboxActor : Actor
 {

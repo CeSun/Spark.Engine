@@ -1,5 +1,4 @@
-﻿using Spark.Engine.Actors;
-using Silk.NET.OpenGLES;
+﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Attributes;
 using Spark.Engine.World;
 
@@ -41,7 +40,6 @@ public class PointLightComponent : LightComponent
 
 
     private float _AttenuationRadius;
-    [Property(DisplayName = "FalloffRadius", IsDisplay = true, IsReadOnly = false)]
     public float AttenuationRadius
     {
         get => _AttenuationRadius;

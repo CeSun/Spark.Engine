@@ -1,13 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
-using Spark.Engine.Physics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Components;
@@ -22,7 +16,6 @@ public class InstancedStaticMeshComponent : PrimitiveComponent
         PrimitiveComponents = new List<PrimitiveComponent>();
     }
 
-    [Property]
     public StaticMesh? StaticMesh
     {
         get => _StaticMesh;

@@ -1,5 +1,4 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Actors;
 using Spark.Engine.Assets;
 using System;
 using System.Diagnostics;

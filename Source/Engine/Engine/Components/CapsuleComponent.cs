@@ -1,10 +1,7 @@
-﻿using Spark.Engine.Actors;
-using Jitter2.Collision;
-using Jitter2.Collision.Shapes;
+﻿using Jitter2.Collision.Shapes;
 using Jitter2.Dynamics;
 using System.Numerics;
 using Jitter2.LinearMath;
-using Spark.Engine.Assets;
 using Spark.Engine.Attributes;
 
 namespace Spark.Engine.Components;
@@ -21,11 +18,7 @@ public class CapsuleComponent : PrimitiveComponent
         _rigidBody = PhysicsWorld.CreateRigidBody();
         _rigidBody.AddShape( _CapsuleShape );
     }
-
-
-    [Property]
     public float Radius { get => _CapsuleShape.Radius; set => _CapsuleShape.Radius = value; }
-    [Property]
     public float Length { get => _CapsuleShape.Length; set => _CapsuleShape.Length = value; }
     public override  bool IsStatic { get => _rigidBody.IsStatic; set => _rigidBody.IsStatic = value; }
 
