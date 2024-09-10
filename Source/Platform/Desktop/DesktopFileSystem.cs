@@ -26,8 +26,4 @@ public class DesktopFileSystem : IFileSystem
         return new StreamReader($"{_basePath}/Content/{path}");
     }
 
-    public StreamReader GetConfigStreamReader(string path)
-    {
-        return new StreamReader($"{_basePath}/Config/{path}");
-    }
 }

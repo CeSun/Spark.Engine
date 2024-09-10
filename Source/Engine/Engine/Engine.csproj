@@ -17,7 +17,7 @@
 
       <ItemGroup>
         <PackageReference Include="ini-parser-netstandard" Version="2.5.2" />
-        <PackageReference Include="Jitter2" Version="2.4.2" />
+        <PackageReference Include="Jitter2" Version="2.4.3" />
 	    <PackageReference Include="Silk.NET.Input.Common" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES.Extensions.EXT" Version="$(SilkVersion)" />

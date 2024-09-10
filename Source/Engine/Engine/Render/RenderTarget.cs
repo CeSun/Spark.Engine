@@ -6,56 +6,55 @@ namespace Spark.Engine.Render;
 public class RenderTarget : IDisposable
 {
     private GL gl => Engine.GraphicsApi;
+
     public Engine Engine;
-    public int BufferWidth { private set; get; }
-    public int BufferHeight { private set; get; }
 
     public int Width { private set; get; }
     public int Height { private set; get; }
 
     public uint BufferId { private set; get; }
     public uint DepthId { private set; get; }
+    public uint[] ColorIds { private set; get; }
 
-
-    public uint[] GBufferIds { private set; get; }
     public bool IsViewport = false;
 
     public GLEnum[] Attachments { private set; get; }
-    List<(GLEnum, GLEnum)> Formats = new List<(GLEnum, GLEnum)>();
+
+    List<(GLEnum, GLEnum)> Formats = [];
     public RenderTarget(int width, int height, uint GbufferNums, Engine engine, List<(GLEnum, GLEnum)> Formats)
     {
-        this.Formats.AddRange(Formats);
-        GBufferIds = new uint[GbufferNums];
+        Formats.AddRange(Formats);
+        ColorIds = new uint[GbufferNums];
         Attachments = new GLEnum[GbufferNums];
         for (int i = 0; i < GbufferNums; i++)
         {
             Attachments[i] = GLEnum.ColorAttachment0 + i;
         }
-        this.Engine = engine;
+        Engine = engine;
         Resize(width, height);
     }
     public RenderTarget(int width, int height, uint GbufferNums, Engine engine)
     {
         for(int i = 0; i < GbufferNums; i ++)
         {
-            this.Formats.Add((GLEnum.Rgba, GLEnum.UnsignedByte));
+            Formats.Add((GLEnum.Rgba, GLEnum.UnsignedByte));
         }
-        this.Formats.Add((GLEnum.DepthComponent32f, GLEnum.DepthComponent));
-        GBufferIds = new uint[GbufferNums];
+        Formats.Add((GLEnum.DepthComponent32f, GLEnum.DepthComponent));
+        ColorIds = new uint[GbufferNums];
         Attachments = new GLEnum[GbufferNums];
         for (int i = 0; i < GbufferNums; i++)
         {
             Attachments[i] = GLEnum.ColorAttachment0 + i;
         }
-        this.Engine = engine;
+        Engine = engine;
         Resize(width, height);
     }
     public RenderTarget(int width, int height, Engine engine)
     {
-        GBufferIds = new uint[0];
-        Attachments = new GLEnum[0];
+        ColorIds = [];
+        Attachments = [];
         IsViewport = true;
-        this.Engine = engine;
+        Engine = engine;
         Resize(width, height);
     }
 
@@ -66,21 +65,12 @@ public class RenderTarget : IDisposable
         if (IsViewport == true)
         {
             BufferId = 0;
-            BufferWidth = width;
-            BufferHeight = height;
             return;
         }
-        if (BufferWidth < Width || BufferHeight < Height)
+
+        if (width != Width || height != Height)
         {
-            if (BufferWidth < width)
-            {
-                BufferWidth = width;
-            }
-            if (BufferHeight < height)
-            {
-                BufferHeight = height;
-            }
-            foreach (var id in GBufferIds)
+            foreach (var id in ColorIds)
             {
                 if (id != 0)
                 {
@@ -98,14 +88,14 @@ public class RenderTarget : IDisposable
             BufferId = gl.GenFramebuffer();
             gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
 
-            for (int i = 0; i < GBufferIds.Length; i++)
+            for (int i = 0; i < ColorIds.Length; i++)
             {
-                GenGbuffer(i);
+                GenFrameBuffer(i);
             }
 
             DepthId = gl.GenTexture();
             gl.BindTexture(GLEnum.Texture2D, DepthId);
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Formats[Formats.Count - 1].Item1, (uint)BufferWidth, (uint)BufferHeight, 0, Formats[Formats.Count - 1].Item2, GLEnum.Float, (void*)0);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Formats[Formats.Count - 1].Item1, (uint)Width, (uint)Height, 0, Formats[Formats.Count - 1].Item2, GLEnum.Float, (void*)0);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
             gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
             gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Texture2D, DepthId, 0);
@@ -123,19 +113,17 @@ public class RenderTarget : IDisposable
                 Console.WriteLine("fbo 出错！" + state);
             }
             gl.BindFramebuffer(GLEnum.Framebuffer, 0);
-
-
         }
     }
 
-    protected virtual unsafe void GenGbuffer(int index)
+    protected virtual unsafe void GenFrameBuffer(int index)
     {
-        GBufferIds[index] = gl.GenTexture();
-        gl.BindTexture(GLEnum.Texture2D, GBufferIds[index]);
-        gl.TexImage2D(GLEnum.Texture2D, 0, (int)Formats[index].Item1, (uint)BufferWidth, (uint)BufferHeight, 0, GLEnum.Rgba, Formats[index].Item2, (void*)0);
+        ColorIds[index] = gl.GenTexture();
+        gl.BindTexture(GLEnum.Texture2D, ColorIds[index]);
+        gl.TexImage2D(GLEnum.Texture2D, 0, (int)Formats[index].Item1, (uint)Width, (uint)Height, 0, GLEnum.Rgba, Formats[index].Item2, (void*)0);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
-        gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0 + index, GLEnum.Texture2D, GBufferIds[index], 0);
+        gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0 + index, GLEnum.Texture2D, ColorIds[index], 0);
     }
 
     public RenderTarget Begin()
@@ -145,11 +133,6 @@ public class RenderTarget : IDisposable
         return this;
     }
 
-
-    ~RenderTarget()
-    {
-    
-    }
     public void Render(Action RenderAction)
     {
         gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);

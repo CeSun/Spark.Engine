@@ -1,5 +1,4 @@
 ﻿using Spark.Engine.Render;
-using Spark.Engine.Render.Renderer;
 
 namespace Spark.Engine.World;
 

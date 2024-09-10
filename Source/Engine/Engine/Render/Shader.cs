@@ -1,9 +1,5 @@
-﻿// #define TraceShaderUniformError 
-
-using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using Silk.NET.OpenGLES;
-using Spark.Engine.Platform;
 
 namespace Spark.Engine.Render;
 
@@ -17,10 +13,10 @@ public class Shader
 
     public string? Path;
     
-    public Shader (string VertShaderSource, string FragShaderSource, List<string> Macros, GL GL)
+    public Shader (string vertShaderSource, string fragShaderSource, List<string> Macros, GL GL)
     {
-        this.VertShaderSource = VertShaderSource;
-        this.FragShaderSource = FragShaderSource;
+        this.VertShaderSource = vertShaderSource;
+        this.FragShaderSource = fragShaderSource;
         this.Macros = Macros;
         this.gl = GL;
         InitRender();
