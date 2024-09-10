@@ -47,41 +47,6 @@ public class SkeletalMeshComponent : PrimitiveComponent
         }
     }
     public AnimSampler? AnimSampler { get; private set; }
-    public override void Render(double DeltaTime)
-    {
-        base.Render(DeltaTime);
-        if (SkeletalMesh != null)
-        {
-            int index = 0;
-            gl.PushGroup("Render Skeletal Mesh");
-           
-            foreach (var element in SkeletalMesh.Elements)
-            {
-                if (element.VertexArrayObjectIndex == 0)
-                    continue;
-                for (int i = 0; i < element.Material.Textures.Count(); i++)
-                {
-                    var texture = element.Material.Textures[i];
-                    gl.ActiveTexture(GLEnum.Texture0 + i);
-                    if (texture != null)
-                    {
-                        gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
-                    }
-                    else
-                    {
-                        gl.BindTexture(GLEnum.Texture2D, 0);
-                    }
-                }
-                gl.BindVertexArray(element.VertexArrayObjectIndex);
-                unsafe
-                {
-                    gl.DrawElements(GLEnum.Triangles, (uint)element.IndicesLen, GLEnum.UnsignedInt, (void*)0);
-                }
-                index++;
-            }
-            gl.PopGroup();
-        }
-    }
 
     public override void OnUpdate(double DeltaTime)
     {

@@ -12,22 +12,19 @@ public partial class Actor
     /// <summary>
     /// Actor所在关卡
     /// </summary>
-    public Level CurrentLevel { get; }
     protected virtual bool ReceiveUpdate => false;
  
     /// <summary>
     /// Actor所在世界
     /// </summary>
-    public World.World CurrentWorld  => CurrentLevel.CurrentWorld;
+    public World.World CurrentWorld { get; set; }
 
-    public Actor(Level level)
+    public Actor(World.World world)
     {
-        CurrentLevel = level;
-        level.RegisterActor(this);
-        CurrentLevel.Engine.NextFrame.Add(_ => BeginPlay());
+        CurrentWorld = world;
         if (ReceiveUpdate)
         {
-            CurrentLevel.UpdateManager.RegisterUpdate(Update);
+            CurrentWorld.UpdateManager.RegisterUpdate(Update);
         }
     }
 
@@ -40,7 +37,7 @@ public partial class Actor
     public void Update(double deltaTime)
     {
         if (_isBegan == false)
-            return;
+            BeginPlay();
         OnUpdate(deltaTime);
     }
 
@@ -61,9 +58,8 @@ public partial class Actor
         }
         if (ReceiveUpdate)
         {
-            CurrentLevel.UpdateManager.UnregisterUpdate(Update);
+            CurrentWorld.UpdateManager.UnregisterUpdate(Update);
         }
-        CurrentLevel.UnregistActor(this);
     }
 
     protected virtual void OnEndPlay()
@@ -150,7 +146,6 @@ public partial class Actor
             return;
         }
         _PrimitiveComponents.Add(Component);
-        CurrentLevel.RegistComponent(Component);
         foreach (var SubComponent in Component.ChildrenComponent)
         {
             if (PrimitiveComponents.Contains(SubComponent))
@@ -158,7 +153,6 @@ public partial class Actor
                 continue;
             }
             _PrimitiveComponents.Add(SubComponent);
-            CurrentLevel.RegistComponent(SubComponent);
         }
     }
 
@@ -173,7 +167,6 @@ public partial class Actor
             return;
         }
         _PrimitiveComponents.Remove(Component);
-        CurrentLevel.UnregisterComponent(Component);
         foreach (var SubComponent in Component.ChildrenComponent)
         {
             if (!PrimitiveComponents.Contains(SubComponent))
@@ -181,7 +174,6 @@ public partial class Actor
                 continue;
             }
             _PrimitiveComponents.Remove(SubComponent);
-            CurrentLevel.UnregisterComponent(SubComponent);
         }
     }
 

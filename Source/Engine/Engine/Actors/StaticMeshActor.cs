@@ -7,7 +7,7 @@ namespace Spark.Engine;
 public class StaticMeshActor : Actor
 {
     public StaticMeshComponent StaticMeshComponent { get; private set; }
-    public StaticMeshActor(World.Level level) : base(level)
+    public StaticMeshActor(World.World world) : base(world)
     {
         StaticMeshComponent = new StaticMeshComponent(this);
     }

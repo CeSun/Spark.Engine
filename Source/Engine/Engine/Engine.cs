@@ -55,11 +55,6 @@ public partial class Engine
         }
         return null;
     }
-
-    public Action<Level>? OnBeginPlay;
-
-    public Action<Level>? OnEndPlay;
-
     public void Update(double deltaTime)
     {
         var count = NextFrame.Count;

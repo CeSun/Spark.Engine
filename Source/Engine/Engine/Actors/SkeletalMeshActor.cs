@@ -6,13 +6,10 @@ namespace Spark.Engine;
 public class SkeletalMeshActor : Actor
 {
     public SkeletalMeshComponent SkeletalMeshComponent { get; private set; }
-    public SkeletalMeshActor(World.Level level) : base(level)
+
+    public SkeletalMeshActor(World.World world) : base(world)
     {
         SkeletalMeshComponent = new SkeletalMeshComponent(this);
     }
 
-    public AnimSequence? AnimSequence { get => SkeletalMeshComponent.AnimSequence; set => SkeletalMeshComponent.AnimSequence = value; }
-
-    public SkeletalMesh? SkeletalMesh { get => SkeletalMeshComponent.SkeletalMesh; set => SkeletalMeshComponent.SkeletalMesh = value; }
-    
 }

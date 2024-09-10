@@ -1,8 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using Silk.NET.OpenGLES;
-using Jitter2.LinearMath;
-using Jitter2.Collision.Shapes;
 
 namespace Spark.Engine.Assets;
 
@@ -11,9 +9,6 @@ public class StaticMesh : AssetBase
 
     public List<Element<StaticMeshVertex>> Elements = [];
 
-    public List<Shape> Shapes = [];
-    public World.Box Box { get; private set; }
-    public List<World.Box> Boxes { get; } = [];
     public StaticMesh()
     {
         Path = string.Empty;
@@ -34,37 +29,6 @@ public class StaticMesh : AssetBase
         }
     }
 
-    public void InitPhysics()
-    {
-        if (Shapes.Count > 0 )
-        {
-            return;
-        }
-        List<JVector> vertices = new List<JVector>();
-        foreach(var element in Elements)
-        {
-            foreach(var vertex in element.Vertices)
-            {
-
-                vertices.Add(new JVector
-                {
-                    X = vertex.Location.X,
-                    Y = vertex.Location.Y,
-                    Z = vertex.Location.Z
-                });
-            }
-        }
-        Shapes.Add(new PointCloudShape(vertices));
-
-        if (Boxes.Count > 0)
-        {
-            Box = Boxes[0];
-            foreach (var box in Boxes)
-            {
-                Box += box;
-            }
-        }
-    }
     private void InitMeshTbn(int index)
     {
         var vertices = Elements[index].Vertices;

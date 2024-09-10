@@ -27,8 +27,11 @@ public class Skeleton : AssetBase
         }
     }
     public List<BoneNode> _BoneList = new List<BoneNode>();
+
     public BoneNode Root;
+
     public Matrix4x4 RootParentMatrix;
+
     private Dictionary<string, BoneNode> _BonesMap = new Dictionary<string, BoneNode>();
     public IReadOnlyDictionary<string, BoneNode> BonesMap => _BonesMap;
 
@@ -39,6 +42,7 @@ public class Skeleton : AssetBase
 public class BoneNode
 {
     public BoneNode? Parent;
+
     public string? Name;
 
     public List<BoneNode> ChildrenBone = new List<BoneNode>();
@@ -56,6 +60,7 @@ public class BoneNode
     public Matrix4x4 RelativeTransform;
 
     public Matrix4x4 LocalToWorldTransform;
+
     public Matrix4x4 WorldToLocalTransform;
 
 }

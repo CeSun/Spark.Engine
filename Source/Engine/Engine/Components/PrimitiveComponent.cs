@@ -6,7 +6,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
-using Jitter2.Collision.Shapes;
 using Jitter2.Dynamics;
 using Silk.NET.OpenGLES;
 using Spark.Engine.Attributes;
@@ -26,23 +25,10 @@ public partial class PrimitiveComponent
     public GL gl => Engine.GraphicsApi;
     public World.World World => Owner.CurrentWorld;
 
-    public Level CurrentLevel => Owner.CurrentLevel;
-    public Jitter2.World PhysicsWorld => CurrentLevel.PhysicsWorld;
     protected virtual bool ReceiveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
 
-    public virtual BaseBounding? Bounding
-    {
-        get => null;
-    }
 
-    public void UpdateOctree()
-    {
-        if (Bounding == null)
-            return;
-        CurrentLevel.RenderObjectOctree.RemoveObject(Bounding);
-        CurrentLevel.RenderObjectOctree.InsertObject(Bounding);
-    }
     public bool IsCastShadowMap { get; set; } = true;
     /// <summary>
     /// 构造函数
@@ -59,7 +45,7 @@ public partial class PrimitiveComponent
         }
         if (ReceiveUpdate)
         {
-            this.Owner.CurrentLevel.UpdateManager.RegisterUpdate(Update);
+            this.Owner.CurrentWorld.UpdateManager.RegisterUpdate(Update);
         }
     }
 
@@ -118,11 +104,6 @@ public partial class PrimitiveComponent
             return;
         }
         OnEndPlay();
-        if (RigidBody != null)
-        {
-            RigidBody.Tag = null;
-            CurrentLevel.PhysicsWorld.Remove(RigidBody);
-        }
         Owner.UnregistComponent(this);
         if (ParentComponent != null)
         {
@@ -130,7 +111,7 @@ public partial class PrimitiveComponent
         }
         if (ReceiveUpdate)
         {
-            this.Owner.CurrentLevel.UpdateManager.UnregisterUpdate(Update);
+            this.Owner.CurrentWorld.UpdateManager.UnregisterUpdate(Update);
         }
         IsDestoryed = true;
     }
@@ -360,5 +341,4 @@ public partial class PrimitiveComponent
 public partial class PrimitiveComponent
 {
     public virtual RigidBody? RigidBody { get; }
-    public virtual Shape? Shape { get; }
 }

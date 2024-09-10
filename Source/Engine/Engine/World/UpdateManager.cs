@@ -15,7 +15,6 @@ public class UpdateManager
     {
         _addUpdateFunctions.Add(tickFunction);
     }
-
     public void UnregisterUpdate(Action<double> tickFunction)
     {
         _removeUpdateFunctions.Add(tickFunction);

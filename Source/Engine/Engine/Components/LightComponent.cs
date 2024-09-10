@@ -6,13 +6,7 @@ namespace Spark.Engine.Components;
 
 public class LightComponent : PrimitiveComponent
 {
-    private float _LightStrength = 1f;
-
-    public float LightStrength
-    {
-        get => _LightStrength;
-        set => _LightStrength = value;
-    }
+    public float LightStrength = 1;
     public Color Color
     {
         get
@@ -28,10 +22,8 @@ public class LightComponent : PrimitiveComponent
     public Vector3 _Color;
     public LightComponent(Actor actor) : base(actor)
     {
-        ShadowMapSize = new Point(512, 512);  
 
     }
 
-    public Point ShadowMapSize { get; set; }
 
 }

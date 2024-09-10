@@ -11,11 +11,6 @@ public class ActorComponent
     }
 
     /// <summary>
-    /// Actor所在关卡
-    /// </summary>
-    public Level CurrentLevel { get => Owner.CurrentLevel; }
-
-    /// <summary>
     /// Actor所在世界
     /// </summary>
     public World.World CurrentWorld { get => Owner.CurrentWorld; }

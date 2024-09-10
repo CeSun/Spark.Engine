@@ -7,7 +7,7 @@ public class SpotLightActor : LightActor
 
     public SpotLightComponent SpotLightComponent { get; private set; }
 
-    public SpotLightActor(World.Level level) : base(level)
+    public SpotLightActor(World.World world) : base(world)
     {
         SpotLightComponent = new SpotLightComponent(this);
     }

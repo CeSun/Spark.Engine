@@ -18,13 +18,13 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     public int Order { get; set; }
     public CameraComponent(Actor actor) : base(actor)
     {
-        if (CurrentLevel.CurrentWorld.WorldMainRenderTarget != null)
+        if (Owner.CurrentWorld.WorldMainRenderTarget != null)
         {
-            RenderTarget = CurrentLevel.CurrentWorld.WorldMainRenderTarget;
+            RenderTarget = Owner.CurrentWorld.WorldMainRenderTarget;
         }
         else
         {
-            RenderTarget = CurrentLevel.CurrentWorld.SceneRenderer.CreateRenderTarget(this.Engine.WindowSize.X, this.Engine.WindowSize.Y);
+            RenderTarget = Owner.CurrentWorld.SceneRenderer.CreateRenderTarget(this.Engine.WindowSize.X, this.Engine.WindowSize.Y);
         }
         FieldOfView = 90;
         NearPlaneDistance = 10;
@@ -99,16 +99,12 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     }
 
 
-
-    Plane[] tmpPlanes = new Plane[6];
-
-
-    public Plane[] GetPlanes()
+    public void GetPlanes(ref Span<Plane> Planes)
     {
-        GetPlanes(View * Projection, ref tmpPlanes);
-        return tmpPlanes;
+        GetPlanes(View * Projection, ref Planes);
     }
-    public static void GetPlanes(Matrix4x4 ViewTransform, ref Plane[] Planes)
+
+    public static void GetPlanes(Matrix4x4 ViewTransform, ref Span<Plane> Planes)
     {
         if (Planes.Length < 6)
         {
