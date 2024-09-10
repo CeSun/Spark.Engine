@@ -1,5 +1,4 @@
-﻿using Spark.Engine.Attributes;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Numerics;
 
 namespace Spark.Engine.Components;

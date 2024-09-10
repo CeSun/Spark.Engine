@@ -1,9 +1,4 @@
-﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Attributes;
-using System.Drawing;
-
-
-namespace Spark.Engine.Components;
+﻿namespace Spark.Engine.Components;
 
 public class SpotLightComponent : LightComponent
 {

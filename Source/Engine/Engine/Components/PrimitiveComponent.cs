@@ -1,15 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Numerics;
+﻿using System.Numerics;
 using Jitter2.Dynamics;
 using Silk.NET.OpenGLES;
-using Spark.Engine.Attributes;
-using Spark.Engine.World;
 
 namespace Spark.Engine.Components;
 

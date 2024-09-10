@@ -1,6 +1,4 @@
-﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Assets;
-using Spark.Engine.Attributes;
+﻿using Spark.Engine.Assets;
 using System.Numerics;
 
 namespace Spark.Engine.Components;

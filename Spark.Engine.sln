@@ -13,8 +13,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Engine", "Source\Engine\Eng
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Util", "Source\Engine\Util\Util.csproj", "{AC568E16-A47B-48C1-955C-8F9314599639}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Editor", "Editor", "{A7AC3F79-88FE-4D52-B158-88BD68BB242B}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Importer", "Source\Engine\Importer\Importer.csproj", "{6AEA9981-17A7-4A13-82D8-7D2E36920825}"
 EndProject
 Global

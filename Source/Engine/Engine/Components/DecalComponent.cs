@@ -1,6 +1,4 @@
 ﻿using Spark.Engine.Assets;
-using Spark.Engine.Attributes;
-using System.Numerics;
 
 namespace Spark.Engine.Components;
 

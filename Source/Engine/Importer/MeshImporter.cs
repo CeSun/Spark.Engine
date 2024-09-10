@@ -4,9 +4,7 @@ using System.Numerics;
 using Jitter2.Collision.Shapes;
 using Jitter2.LinearMath;
 using SharpGLTF.Schema2;
-using Silk.NET.OpenGLES;
 using Spark.Engine.Assets;
-using Spark.Engine.World;
 using Material = Spark.Engine.Assets.Material;
 using TextureLdr = Spark.Engine.Assets.TextureLdr;
 
@@ -109,16 +107,6 @@ public static class MeshImporter
                             }
                         }
                     }
-                    Box box = new Box();
-                    if (staticMeshVertices.Count > 0)
-                    {
-                        box.MaxPoint = box.MinPoint = staticMeshVertices[0].Location;
-                    }
-                    foreach (var vertex in staticMeshVertices)
-                    {
-                        box += vertex.Location;
-                    }
-                    sm.Boxes.Add(box);
                     List<uint> indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
                     var material = new Material();
                     TextureLdr? metallicRoughness = null;
@@ -191,12 +179,10 @@ public static class MeshImporter
                         };
                         shapeSource.Add(tri);
                     }
-                    sm.Shapes.Add(new ConvexHullShape(shapeSource));
                 }
             }
         }
         sm.InitTbn();
-        sm.InitPhysics();
         engine.NextRenderFrame.Add(sm.InitRender);
         staticMesh = sm;
         foreach (var element in staticMesh.Elements)
@@ -403,15 +389,6 @@ public static class MeshImporter
                             index++;
                         }
                     }
-                }
-                Box box = new Box();
-                if (skeletalMeshVertices.Count > 0)
-                {
-                    box.MaxPoint = box.MinPoint = skeletalMeshVertices[0].Location;
-                }
-                foreach (var vertex in skeletalMeshVertices)
-                {
-                    box += vertex.Location;
                 }
                 var indices = glPrimitive.IndexAccessor.AsIndicesArray().ToList();
                 var material = new Material();

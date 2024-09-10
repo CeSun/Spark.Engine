@@ -1,5 +1,4 @@
-﻿using Spark.Engine.Attributes;
-using Spark.Engine.Render;
+﻿using Spark.Engine.Render;
 using Spark.Util;
 using System.Numerics;
 

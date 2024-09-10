@@ -1,5 +1,4 @@
 ﻿using Spark.Engine.Assets;
-using Spark.Engine.Attributes;
 using Spark.Engine.Components;
 
 namespace Spark.Engine;

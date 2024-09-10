@@ -1,8 +1,4 @@
-﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Attributes;
-using Spark.Engine.World;
-
-namespace Spark.Engine.Components;
+﻿namespace Spark.Engine.Components;
 
 public class PointLightComponent : LightComponent
 {

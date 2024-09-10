@@ -129,7 +129,6 @@ public partial class SkeletalMesh
             vertices[(int)indices[i + 1]] = p2;
             vertices[(int)indices[i + 2]] = p3;
         }
-
     }
 }
 
