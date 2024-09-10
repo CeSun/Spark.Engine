@@ -4,7 +4,7 @@ using System.Drawing;
 using Silk.NET.Input;
 using Spark.Engine.Platform;
 using Silk.NET.Windowing;
-using Spark.Engine.World;
+using Spark.Engine;
 
 namespace Spark.Engine;
 
@@ -14,7 +14,7 @@ public partial class Engine
     public List<Action<GL>> NextRenderFrame { get; private set; } = [];
     public List<Action<double>> NextFrame { get; private set; } = [];
 
-    public World.World? MainWorld;
+    public World? MainWorld;
 
     public List<BaseSubSystem> SubSystems = [];
 
@@ -26,9 +26,9 @@ public partial class Engine
 
         WindowSize = new Point(View.Size.X, View.Size.Y);
 
-        MainWorld = new World.World(this);
+        MainWorld = new World(this);
 
-        MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTarget(this.WindowSize.X, this.WindowSize.Y);
+        MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTargetByFrameBufferId(this.WindowSize.X, this.WindowSize.Y);
 
         Worlds.Add(MainWorld);
 
@@ -40,7 +40,7 @@ public partial class Engine
     }
 
 
-    public List<World.World> Worlds = [];
+    public List<World> Worlds = [];
   
 
     public event Action<string[]> OnFileDrop = _ => { };

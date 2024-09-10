@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spark.Engine.World;
+namespace Spark.Engine;
 
 public class UpdateManager
 {

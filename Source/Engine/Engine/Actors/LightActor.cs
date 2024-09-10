@@ -6,7 +6,7 @@ namespace Spark.Engine
     abstract public class LightActor : Actor
     {
         public abstract LightComponent LightComponent { get; }
-        protected LightActor(World.World world) : base(world)
+        protected LightActor(World world) : base(world)
         {
         }
 

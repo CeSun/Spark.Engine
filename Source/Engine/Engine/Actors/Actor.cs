@@ -15,9 +15,9 @@ public partial class Actor
     /// <summary>
     /// Actor所在世界
     /// </summary>
-    public World.World CurrentWorld { get; set; }
+    public World CurrentWorld { get; set; }
 
-    public Actor(World.World world)
+    public Actor(World world)
     {
         CurrentWorld = world;
         if (ReceiveUpdate)

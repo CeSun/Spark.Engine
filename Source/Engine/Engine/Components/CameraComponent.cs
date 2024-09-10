@@ -23,7 +23,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         }
         else
         {
-            RenderTarget = Owner.CurrentWorld.SceneRenderer.CreateRenderTarget(this.Engine.WindowSize.X, this.Engine.WindowSize.Y);
+            // todo
         }
         FieldOfView = 90;
         NearPlaneDistance = 10;

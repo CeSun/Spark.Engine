@@ -5,7 +5,7 @@ namespace Spark.Engine;
 
 public class DecalActor : Actor
 {
-    public DecalActor(World.World world) : base(world)
+    public DecalActor(World world) : base(world)
     {
         DecalComponent = new DecalComponent(this);
     }

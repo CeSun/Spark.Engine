@@ -5,7 +5,7 @@ namespace Spark.Engine;
 public class DirectionLightActor : LightActor
 {
     public DirectionLightComponent DirectionLightComponent { get; private set; }
-    public DirectionLightActor(World.World world) : base(world)
+    public DirectionLightActor(World world) : base(world)
     {
         DirectionLightComponent = new DirectionLightComponent(this);
     }

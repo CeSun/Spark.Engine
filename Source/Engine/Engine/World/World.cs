@@ -1,6 +1,6 @@
 ﻿using Spark.Engine.Render;
 
-namespace Spark.Engine.World;
+namespace Spark.Engine;
 
 public class World
 {

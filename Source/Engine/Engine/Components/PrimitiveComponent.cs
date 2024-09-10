@@ -14,7 +14,7 @@ public partial class PrimitiveComponent
     public Engine Engine => Owner.CurrentWorld.Engine;
 
     public GL gl => Engine.GraphicsApi;
-    public World.World World => Owner.CurrentWorld;
+    public World World => Owner.CurrentWorld;
 
     protected virtual bool ReceiveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
