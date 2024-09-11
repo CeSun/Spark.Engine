@@ -6,17 +6,9 @@
         <Nullable>enable</Nullable>
         <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-		<PublishAot>true</PublishAot>
       </PropertyGroup>
 
       <ItemGroup>
-        <Compile Remove="GUI\**" />
-        <EmbeddedResource Remove="GUI\**" />
-        <None Remove="GUI\**" />
-      </ItemGroup>
-
-      <ItemGroup>
-        <PackageReference Include="ini-parser-netstandard" Version="2.5.2" />
         <PackageReference Include="Jitter2" Version="2.4.3" />
 	    <PackageReference Include="Silk.NET.Input.Common" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES" Version="$(SilkVersion)" />

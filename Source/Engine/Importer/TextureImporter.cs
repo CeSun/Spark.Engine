@@ -22,12 +22,7 @@ public static class TextureImporter
         };
     }
 
-    public static TextureLdr ImportTextureFromFile(this Engine.Engine engine, string path, TextureImportSetting setting)
-    {
-        using var streamReader = engine.FileSystem.GetContentStreamReader(path);
-        return ImportTextureFromStream(engine, streamReader, setting);
-    }
-    public static TextureLdr ImportTextureFromStream(this Engine.Engine engine, StreamReader streamReader, TextureImportSetting setting)
+    public static TextureLdr ImportTextureFromStream(StreamReader streamReader, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -53,7 +48,7 @@ public static class TextureImporter
         }
         throw new Exception("Load Texture error");
     }
-    public static TextureLdr ImportTextureFromMemory(this Engine.Engine engine, byte[] data, TextureImportSetting setting)
+    public static TextureLdr ImportTextureFromMemory(byte[] data, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -80,13 +75,7 @@ public static class TextureImporter
         throw new Exception("Load Texture error");
     }
 
-    public static TextureHdr ImportTextureHdrFromFile(this Engine.Engine engine, string path, TextureImportSetting setting)
-    {
-        using var streamReader = engine.FileSystem.GetContentStreamReader(path);
-        return ImportTextureHdrFromStream(engine, streamReader, setting);
-    }
-
-    public static TextureHdr ImportTextureHdrFromStream(this Engine.Engine engine, StreamReader streamReader, TextureImportSetting setting)
+    public static TextureHdr ImportTextureHdrFromStream(StreamReader streamReader, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -116,7 +105,7 @@ public static class TextureImporter
     }
 
 
-    public static TextureLdr CreateNoiseTexture(this Engine.Engine engine, int width, int height)
+    public static TextureLdr CreateNoiseTexture(int width, int height)
     {
         var texture = new TextureLdr();
         var data = new byte[width * height * 3];
@@ -146,7 +135,7 @@ public static class TextureImporter
     }
 
 
-    public static TextureLdr MergePbrTexture(this Engine.Engine engine, TextureLdr? metallicRoughness, TextureLdr? ao)
+    public static TextureLdr MergePbrTexture(TextureLdr? metallicRoughness, TextureLdr? ao)
     {
 
         var main = metallicRoughness ?? ao;
@@ -236,7 +225,7 @@ public static class TextureImporter
         };
     }
 
-    public static TextureCube GenerateTextureCubeFromTextureHdr(this Engine.Engine engine, TextureHdr texture, uint width = 1024)
+    public static TextureCube GenerateTextureCubeFromTextureHdr(TextureHdr texture, uint width = 1024)
     {
         uint maxWidth = width;
         TextureCube textureCube = new TextureCube();

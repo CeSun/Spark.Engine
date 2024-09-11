@@ -22,15 +22,7 @@ public class SkeletalMeshImportSetting
 }
 public static class MeshImporter
 {
-    public static void ImporterStaticMeshFromGlbFile(this Engine.Engine engine, string filePath,
-        StaticMeshImportSetting staticMeshImportSetting, List<TextureLdr> textures, List<Material> materials,
-        out StaticMesh staticMesh)
-    {
-
-        using var streamReader = engine.FileSystem.GetContentStreamReader(filePath);
-        ImporterStaticMeshFromGlbStream(engine, streamReader, staticMeshImportSetting, textures, materials, out staticMesh);
-    }
-
+   
     public static void ImporterStaticMeshFromGlbStream(this Engine.Engine engine, StreamReader streamReader, StaticMeshImportSetting staticMeshImportSetting, List<TextureLdr> textures, List<Material> materials, out StaticMesh staticMesh)
     {
         ModelRoot model = ModelRoot.ReadGLB(streamReader.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
@@ -120,20 +112,20 @@ public static class MeshImporter
                         {
                             case "BaseColor":
                             case "Diffuse":
-                                material.BaseColor = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new() { IsGammaSpace = true });
+                                material.BaseColor = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new() { IsGammaSpace = true });
                                 break;
                             case "Normal":
-                                material.Normal = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                                material.Normal = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                                 break;
                             case "MetallicRoughness":
-                                metallicRoughness = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                                metallicRoughness = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                                 break;
                             case "AmbientOcclusion":
-                                ambientOcclusion = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                                ambientOcclusion = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                                 break;
                         }
                     }
-                    var arm = engine.MergePbrTexture(metallicRoughness, ambientOcclusion);
+                    var arm = TextureImporter.MergePbrTexture(metallicRoughness, ambientOcclusion);
                     material.Arm = arm;
                     sm.Elements.Add(new Element<StaticMeshVertex>
                     {
@@ -191,14 +183,6 @@ public static class MeshImporter
         }
     }
 
-    public static void ImporterSkeletalMeshFromGlbFile(this Engine.Engine engine, string filePath,
-        SkeletalMeshImportSetting skeletalMeshImportSetting, List<TextureLdr> textures, List<Material> materials,
-        List<AnimSequence> animSequences, out Skeleton skeleton, out SkeletalMesh skeletalMesh)
-    {
-
-        using var streamReader = engine.FileSystem.GetContentStreamReader(filePath);
-        ImporterSkeletalMeshFromGlbStream(engine, streamReader, skeletalMeshImportSetting, textures, materials, animSequences, out skeleton, out skeletalMesh);
-    }
     public static void ImporterSkeletalMeshFromGlbStream(this Engine.Engine engine, StreamReader streamReader,
         SkeletalMeshImportSetting skeletalMeshImportSetting, List<TextureLdr> textures, List<Material> materials, List<AnimSequence> animSequences, out Skeleton skeleton, out SkeletalMesh skeletalMesh)
 
@@ -401,20 +385,20 @@ public static class MeshImporter
                     {
                         case "BaseColor":
                         case "Diffuse":
-                            material.BaseColor = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new() { IsGammaSpace = true });
+                            material.BaseColor = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new() { IsGammaSpace = true });
                             break;
                         case "Normal":
-                            material.Normal = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                            material.Normal = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                             break;
                         case "MetallicRoughness":
-                            metallicRoughness = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                            metallicRoughness = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                             break;
                         case "AmbientOcclusion":
-                            ambientOcclusion = engine.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                            ambientOcclusion = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
                             break;
                     }
                 }
-                var custom = engine.MergePbrTexture(metallicRoughness, ambientOcclusion);
+                var custom = TextureImporter.MergePbrTexture(metallicRoughness, ambientOcclusion);
                 material.Arm = custom;
                 skeletalMesh.Elements.Add(new Element<SkeletalMeshVertex>
                 {

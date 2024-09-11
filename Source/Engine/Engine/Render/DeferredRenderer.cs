@@ -9,23 +9,24 @@ namespace Spark.Engine.Render;
 
 public class DeferredRenderer : IRenderer
 {
-    public Engine Engine { get; private set; }
-    public DeferredRenderer(Engine engine)
+    public World World { get; private set; }
+    public DeferredRenderer(World world)
     {
-        Engine = engine;
+        World = world;
     }
 
     public RenderTarget CreateRenderTargetByFrameBufferId(int width, int height, uint frameBufferId)
     {
-        return new RenderTarget(Engine, width, height, frameBufferId);
+        return new RenderTarget(World.GraphicsApi, width, height, frameBufferId);
     }
 
     public void Render(GL gl)
     {
+
     }
 
     public RenderTarget CreateDefaultRenderTarget(int width, int height)
     {
-        throw new NotImplementedException();
+        return new RenderTarget(width, height, 1, World.GraphicsApi);
     }
 }

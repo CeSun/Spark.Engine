@@ -5,9 +5,7 @@ namespace Spark.Engine.Render;
 
 public class RenderTarget : IDisposable
 {
-    private GL gl => Engine.GraphicsApi;
-
-    public Engine Engine;
+    private GL gl { get; set; }
 
     public int Width { private set; get; }
     public int Height { private set; get; }
@@ -21,8 +19,9 @@ public class RenderTarget : IDisposable
     public GLEnum[] Attachments { private set; get; }
 
     List<(GLEnum, GLEnum)> Formats = [];
-    public RenderTarget(int width, int height, uint GbufferNums, Engine engine, List<(GLEnum, GLEnum)> Formats)
+    public RenderTarget(int width, int height, uint GbufferNums, GL gl, List<(GLEnum, GLEnum)> Formats)
     {
+        this.gl = gl;
         Formats.AddRange(Formats);
         ColorIds = new uint[GbufferNums];
         Attachments = new GLEnum[GbufferNums];
@@ -30,12 +29,12 @@ public class RenderTarget : IDisposable
         {
             Attachments[i] = GLEnum.ColorAttachment0 + i;
         }
-        Engine = engine;
         Resize(width, height);
     }
-    public RenderTarget(int width, int height, uint GbufferNums, Engine engine)
+    public RenderTarget(int width, int height, uint GbufferNums, GL gl)
     {
-        for(int i = 0; i < GbufferNums; i ++)
+        this.gl = gl;
+        for (int i = 0; i < GbufferNums; i ++)
         {
             Formats.Add((GLEnum.Rgba, GLEnum.UnsignedByte));
         }
@@ -46,15 +45,14 @@ public class RenderTarget : IDisposable
         {
             Attachments[i] = GLEnum.ColorAttachment0 + i;
         }
-        Engine = engine;
         Resize(width, height);
     }
-    public RenderTarget(Engine engine, int width, int height, uint frameBufferId)
+    public RenderTarget(GL gl, int width, int height, uint frameBufferId)
     {
+        this.gl = gl;
         ColorIds = [];
         Attachments = [];
         IsViewport = true;
-        Engine = engine;
         BufferId = frameBufferId;
         Resize(width, height);
     }

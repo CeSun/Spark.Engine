@@ -1,10 +1,13 @@
-﻿using Spark.Engine.Render;
+﻿using Silk.NET.OpenGLES;
+using Silk.NET.Windowing;
+using Spark.Engine.Render;
 using System.Drawing;
 
 namespace Spark.Engine;
 
 public class World
 {
+    public GL GraphicsApi { get; set; }
     public Engine Engine { get; set; }
 
     public RenderTarget? WorldMainRenderTarget;
@@ -12,7 +15,8 @@ public class World
     public World(Engine engine)
     {
         Engine = engine;
-        SceneRenderer = new DeferredRenderer(Engine);
+        GraphicsApi = Engine.GraphicsApi;
+        SceneRenderer = new DeferredRenderer(this);
     }
 
     public IRenderer SceneRenderer;
