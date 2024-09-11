@@ -23,14 +23,14 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         }
         else
         {
-            // todo
+            RenderTarget = Owner.CurrentWorld.SceneRenderer.CreateDefaultRenderTarget(100, 100);
+            World.OnResize += RenderTarget.Resize;
         }
         FieldOfView = 90;
         NearPlaneDistance = 10;
         FarPlaneDistance = 100;
         Order = 0;
         ProjectionType = ProjectionType.Perspective;
-        Engine.OnWindowResize += RenderTarget.Resize;
     }
     public ProjectionType ProjectionType { get; set; }
     /// <summary>
@@ -85,7 +85,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     public void RenderScene(double DeltaTime)
     {
         CurrentCameraComponent = this;
-        Owner.CurrentWorld.SceneRenderer.Render(DeltaTime);
+        Owner.CurrentWorld.SceneRenderer.Render(Engine.GraphicsApi);
         CurrentCameraComponent = null;
     }
 

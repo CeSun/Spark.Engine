@@ -49,7 +49,6 @@ public static class TextureImporter
                 Process(imageResult.Data);
             }
             texture.Pixels.AddRange(imageResult.Data);
-            engine.NextRenderFrame.Add(texture.InitRender);
             return texture;
         }
         throw new Exception("Load Texture error");
@@ -76,7 +75,6 @@ public static class TextureImporter
                 Process(imageResult.Data);
             }
             texture.Pixels.AddRange(imageResult.Data);
-            engine.NextRenderFrame.Add(texture.InitRender);
             return texture;
         }
         throw new Exception("Load Texture error");
@@ -112,7 +110,6 @@ public static class TextureImporter
                 Process(imageResult.Data);
             }
             texture.Pixels.AddRange(imageResult.Data);
-            engine.NextRenderFrame.Add(texture.InitRender);
             return texture;
         }
         throw new Exception("Load Texture error");
@@ -145,7 +142,6 @@ public static class TextureImporter
         texture.Width = (uint)width;
         texture.Channel = TexChannel.Rgb;
         texture.Pixels.AddRange(data);
-        engine.NextRenderFrame.Add(texture.InitRender);
         return texture;
     }
 
@@ -206,7 +202,6 @@ public static class TextureImporter
             Channel = TexChannel.Rgb
         };
         texture.Pixels.AddRange(data);
-        engine.NextRenderFrame.Add(texture.InitRender);
         return texture;
 
     }
@@ -274,7 +269,6 @@ public static class TextureImporter
 
             textureCube.Textures[i] = texture1;
         }
-        engine.NextRenderFrame.Add(textureCube.InitRender);
         return textureCube;
     }
 

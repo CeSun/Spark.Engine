@@ -183,7 +183,6 @@ public static class MeshImporter
             }
         }
         sm.InitTbn();
-        engine.NextRenderFrame.Add(sm.InitRender);
         staticMesh = sm;
         foreach (var element in staticMesh.Elements)
         {
@@ -216,7 +215,6 @@ public static class MeshImporter
         tmpSkeleton ??= LoadBones(model);
         sk.Skeleton = tmpSkeleton;
         var anims = LoadAnimSequence(model, tmpSkeleton);
-        engine.NextRenderFrame.Add(sk.InitRender);
         skeletalMesh = sk;
         skeleton = tmpSkeleton;
         foreach (var element in skeletalMesh.Elements)

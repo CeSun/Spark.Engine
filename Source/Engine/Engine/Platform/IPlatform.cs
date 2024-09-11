@@ -14,6 +14,5 @@ public interface IPlatform
     public IInputContext InputContext { get; }
     public GL GraphicsApi { get; }
     public IView View { get; }
-
-    public bool IsMobile { get; }
+    public uint DefaultFrameBufferId { get; }
 }

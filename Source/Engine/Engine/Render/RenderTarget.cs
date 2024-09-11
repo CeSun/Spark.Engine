@@ -49,12 +49,13 @@ public class RenderTarget : IDisposable
         Engine = engine;
         Resize(width, height);
     }
-    public RenderTarget(int width, int height, Engine engine)
+    public RenderTarget(Engine engine, int width, int height, uint frameBufferId)
     {
         ColorIds = [];
         Attachments = [];
         IsViewport = true;
         Engine = engine;
+        BufferId = frameBufferId;
         Resize(width, height);
     }
 

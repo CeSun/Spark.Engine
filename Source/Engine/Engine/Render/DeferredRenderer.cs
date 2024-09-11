@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Silk.NET.OpenGLES;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,12 +15,17 @@ public class DeferredRenderer : IRenderer
         Engine = engine;
     }
 
-    public RenderTarget CreateRenderTargetByFrameBufferId(int width, int height)
+    public RenderTarget CreateRenderTargetByFrameBufferId(int width, int height, uint frameBufferId)
     {
-        return new RenderTarget(width, height, Engine);
+        return new RenderTarget(Engine, width, height, frameBufferId);
     }
 
-    public void Render(double DeltaTime)
+    public void Render(GL gl)
     {
+    }
+
+    public RenderTarget CreateDefaultRenderTarget(int width, int height)
+    {
+        throw new NotImplementedException();
     }
 }

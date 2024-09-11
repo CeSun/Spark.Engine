@@ -48,7 +48,8 @@ public class SkeletalMeshComponent : PrimitiveComponent
 
     public override void OnUpdate(double DeltaTime)
     {
-        if (AnimSampler != null && SkeletalMesh != null && SkeletalMesh.Skeleton != null)
+        if (AnimSampler != null && AnimSampler.Skeleton != null && AnimSampler.Skeleton.Root != null
+            && SkeletalMesh != null && SkeletalMesh.Skeleton != null )
         {
             AnimSampler.Update(DeltaTime);
             ProcessNode(AnimSampler.Skeleton.Root);

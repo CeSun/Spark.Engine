@@ -8,8 +8,5 @@ namespace Spark.Engine.Platform;
 
 public interface IFileSystem
 {
-    StreamReader GetContentStreamReader(string path);
-
-    StreamReader GetConfigStreamReader(string path);
 }
 

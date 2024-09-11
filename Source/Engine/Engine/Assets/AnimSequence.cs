@@ -76,7 +76,7 @@ public class AnimSampler
     public AnimSampler(AnimSequence sequence)
     {
         Sequence = sequence;
-        Skeleton = sequence.Skeleton;
+        Skeleton = sequence.Skeleton!;
         TransformBuffer = new List<Matrix4x4>(Skeleton.BoneList.Count);
         foreach(var bone in Skeleton.BoneList)
         {

@@ -26,9 +26,9 @@ public class Skeleton : AssetBase
             }
         }
     }
-    public List<BoneNode> _BoneList = new List<BoneNode>();
+    public List<BoneNode> _BoneList = [];
 
-    public BoneNode Root;
+    public BoneNode? Root;
 
     public Matrix4x4 RootParentMatrix;
 
@@ -43,7 +43,7 @@ public class BoneNode
 {
     public BoneNode? Parent;
 
-    public string? Name;
+    public string Name = string.Empty;
 
     public List<BoneNode> ChildrenBone = new List<BoneNode>();
 

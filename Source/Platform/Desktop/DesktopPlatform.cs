@@ -16,6 +16,6 @@ public class DesktopPlatform : IPlatform
     public required IInputContext InputContext { get; set; }
     public required GL GraphicsApi { get; set; }
     public required IView View { get; set; }
-    public bool IsMobile => false;
+    public uint DefaultFrameBufferId => 0;
 }
 
