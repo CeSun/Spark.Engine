@@ -18,7 +18,7 @@ public partial class Engine
 
         Platform = platform;
 
-        WindowSize = new Point(View.Size.X, View.Size.Y);
+        WindowSize = new Point(MainView.Size.X, MainView.Size.Y);
 
         MainWorld = new World(this);
 
@@ -26,19 +26,10 @@ public partial class Engine
 
         Worlds.Add(MainWorld);
 
-        if (View is IWindow window)
-        {
-            window.FileDrop += OnFileDrop.Invoke;
-        }
-
     }
 
     public List<World> Worlds = [];
-  
-
-    public event Action<string[]> OnFileDrop = _ => { };
    
-    
     public void Update(double deltaTime)
     {
         SyncContext?.Tick();
@@ -78,7 +69,7 @@ public partial class Engine
     public GL GraphicsApi => Platform.GraphicsApi;
     public IInputContext Input => Platform.InputContext;
     public IFileSystem FileSystem => Platform.FileSystem;
-    public IView View => Platform.View;
+    public IView MainView => Platform.View;
 
     public IKeyboard? MainKeyBoard
     {
@@ -89,42 +80,4 @@ public partial class Engine
     {
         get => Input.Mice.FirstOrDefault();
     }
-}
-
-
-public static class GlExternFunctions
-{
-    static bool _supportDebugGroup = true;
-    public static void PushGroup(this GL gl, string debugInfo)
-    {
-#if DEBUG
-        if (_supportDebugGroup == false)
-            return;
-        try
-        {
-            gl.PushDebugGroup(DebugSource.DebugSourceApplication, 1, (uint)debugInfo.Length, debugInfo);
-        }
-        catch
-        {
-            _supportDebugGroup = false;
-        }
-#endif
-    }
-
-    public static void PopGroup(this GL gl)
-    {
-#if DEBUG
-        if (_supportDebugGroup == false)
-            return;
-        try
-        {
-            gl.PopDebugGroup();
-        }
-        catch
-        {
-            _supportDebugGroup = false;
-        }
-#endif
-    }
-
 }
