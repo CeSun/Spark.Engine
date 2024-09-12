@@ -9,18 +9,6 @@ public class StaticMesh : AssetBase
 
     public List<Element<StaticMeshVertex>> Elements = [];
 
-    public StaticMesh()
-    {
-        Path = string.Empty;
-    }
-
-    public StaticMesh(List<Element<StaticMeshVertex>> elements)
-    {
-        Path = string.Empty;
-        Elements.AddRange(elements);
-    }
-
-  
     public void InitTbn()
     {
         for (int i = 0; i < Elements.Count; i ++)

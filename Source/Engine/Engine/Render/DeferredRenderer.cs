@@ -1,10 +1,12 @@
 ﻿using Silk.NET.OpenGLES;
+using Spark.Engine.Assets;
 
 namespace Spark.Engine.Render;
 
 public class DeferredRenderer : IRenderer
 {
-    GL gl;
+    public GL gl { get; set; }
+
     public DeferredRenderer(GL GraphicsApi)
     {
         gl = GraphicsApi;
@@ -41,4 +43,26 @@ public class DeferredRenderer : IRenderer
             ];
         return new RenderTarget(gl, width, height, configs);
     }
+
+    public T? GetProxy<T>(object obj) where T : class
+    {
+        if (ProxyDictonary.TryGetValue(obj, out var proxy))
+        {
+            if (proxy is T t)
+                return t;
+        }
+        return null;
+    }
+
+    public void AddNeedRebuildRenderResourceProxy(RenderProxy proxy)
+    {
+        if (NeedRebuildProxy.Contains(proxy))
+        {
+            NeedRebuildProxy.Add(proxy);
+        }
+    }
+
+    public HashSet<RenderProxy> NeedRebuildProxy = [];
+
+    public Dictionary<object, RenderProxy> ProxyDictonary = [];
 }

@@ -35,7 +35,7 @@ public partial class Actor
     public void Update(double deltaTime)
     {
         if (_isBegan == false)
-            BeginPlay();
+            return;
         OnUpdate(deltaTime);
     }
 

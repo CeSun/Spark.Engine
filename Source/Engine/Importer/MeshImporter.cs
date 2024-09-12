@@ -125,8 +125,9 @@ public static class MeshImporter
                                 break;
                         }
                     }
-                    var arm = TextureImporter.MergePbrTexture(metallicRoughness, ambientOcclusion);
-                    material.Arm = arm;
+                    material.MetallicRoughness = metallicRoughness;
+                    material.AmbientOcclusion = ambientOcclusion;
+
                     sm.Elements.Add(new Element<StaticMeshVertex>
                     {
                         Vertices = staticMeshVertices,
@@ -399,7 +400,8 @@ public static class MeshImporter
                     }
                 }
                 var custom = TextureImporter.MergePbrTexture(metallicRoughness, ambientOcclusion);
-                material.Arm = custom;
+                material.MetallicRoughness = metallicRoughness;
+                material.AmbientOcclusion = ambientOcclusion;
                 skeletalMesh.Elements.Add(new Element<SkeletalMeshVertex>
                 {
                     Material = material,

@@ -49,12 +49,41 @@ public static class ChannelHelper
 }
 public class TextureLdr : Texture
 {
+    public IReadOnlyList<byte> _pixels = [];
+    public IReadOnlyList<byte> Pixels
+    {
+        get => _pixels;
+        set
+        {
+            _pixels = value;
+            var list = value.ToList();
+            AssetModify(render =>
+            {
+                var proxy = render.GetProxy<TextureLdrProxy>(this);
+                if (proxy != null)
+                {
+                    proxy.Pixels = list;
+                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                }
+            });
+
+        }
+
+    }
+
+}
+
+
+public class TextureLdrProxy : TextureProxy
+{
     public List<byte> Pixels { get; set; } = [];
 
     public unsafe void InitRender(GL gl)
     {
-        if (TextureId > 0)
-            return;
+        if (TextureId != 0)
+        {
+            gl.DeleteTexture(TextureId);
+        }
         TextureId = gl.GenTexture();
         gl.BindTexture(GLEnum.Texture2D, TextureId);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.Repeat);
@@ -67,5 +96,4 @@ public class TextureLdr : Texture
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
     }
-
 }

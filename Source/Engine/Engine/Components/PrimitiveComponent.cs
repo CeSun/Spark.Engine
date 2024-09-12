@@ -16,9 +16,8 @@ public partial class PrimitiveComponent
 
     protected virtual bool ReceiveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
-
-
     public bool IsCastShadowMap { get; set; } = true;
+
     /// <summary>
     /// 构造函数
     /// </summary>
@@ -26,15 +25,15 @@ public partial class PrimitiveComponent
     public PrimitiveComponent(Actor actor)
     {
         IsDestoryed = false;
-        _Owner = actor;
-        _Owner.RegistComponent(this);
+        _owner = actor;
+        _owner.RegistComponent(this);
         if (Owner.RootComponent == null)
         {
             Owner.RootComponent = this;
         }
         if (ReceiveUpdate)
         {
-            this.Owner.CurrentWorld.UpdateManager.RegisterUpdate(Update);
+            Owner.CurrentWorld.UpdateManager.RegisterUpdate(Update);
         }
     }
 
@@ -153,39 +152,39 @@ public partial class PrimitiveComponent
     /// </summary>
     public Actor Owner
     {
-        get => _Owner;
+        get => _owner;
         set
         {
             if (value == null)
             {
                 return;
             }
-            _Owner = value;
+            _owner = value;
         }
     }
 
     public PrimitiveComponent? ParentComponent 
     {
-        get => _ParentComponent;
+        get => _parentComponent;
         set
         {
-            if (_ParentComponent != null)
+            if (_parentComponent != null)
             {
-                if (_ParentComponent._ChildrenComponent.Contains(this))
+                if (_parentComponent._childrenComponent.Contains(this))
                 {
-                    _ParentComponent._ChildrenComponent.Remove(this);
+                    _parentComponent._childrenComponent.Remove(this);
                 }
-                _ParentComponent = value;
+                _parentComponent = value;
             }
-            _ParentComponent = value;
-            if (_ParentComponent != null)
+            _parentComponent = value;
+            if (_parentComponent != null)
             {
-                _ParentComponent._ChildrenComponent.Add(this);
+                _parentComponent._childrenComponent.Add(this);
             }
         }
     }
 
-    public IReadOnlyList<PrimitiveComponent> ChildrenComponent => _ChildrenComponent;
+    public IReadOnlyList<PrimitiveComponent> ChildrenComponent => _childrenComponent;
 
     public bool IsDestoryed { protected set; get; }
 
@@ -215,29 +214,29 @@ public partial class PrimitiveComponent
 
     public virtual Vector3 RelativeLocation
     {
-        get => _RelativeLocation;
+        get => _relativeLocation;
         set
         {
-            _RelativeLocation = value;
+            _relativeLocation = value;
         }
     }
 
     public virtual Quaternion RelativeRotation
     {
 
-        get => _RelativeRotation;
+        get => _relativeRotation;
         set
         {
-            _RelativeRotation = value;
+            _relativeRotation = value;
         }
     }
 
     public virtual Vector3 RelativeScale
     {
-        get => _RelativeScale;
+        get => _relativeScale;
         set
         {
-            _RelativeScale = value;
+            _relativeScale = value;
         }
     }
 
@@ -314,17 +313,17 @@ public partial class PrimitiveComponent
 }
 public partial class PrimitiveComponent
 {
-    private Actor _Owner;
+    private Actor _owner;
 
-    private PrimitiveComponent? _ParentComponent;
+    private PrimitiveComponent? _parentComponent;
 
-    private List<PrimitiveComponent> _ChildrenComponent = new List<PrimitiveComponent>();
+    private List<PrimitiveComponent> _childrenComponent = new List<PrimitiveComponent>();
 
-    public Vector3 _RelativeLocation;
+    public Vector3 _relativeLocation;
 
-    public Quaternion _RelativeRotation;
+    public Quaternion _relativeRotation;
 
-    public Vector3 _RelativeScale = Vector3.One;
+    public Vector3 _relativeScale = Vector3.One;
 
 }
 public partial class PrimitiveComponent
