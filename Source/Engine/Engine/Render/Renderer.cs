@@ -4,7 +4,7 @@ namespace Spark.Engine.Render;
 
 public interface IRenderer
 {
-    void Render(GL gl);
+    void Render();
 
     public RenderTarget CreateRenderTargetByFrameBufferId(int width, int height, uint frameBufferId);
 

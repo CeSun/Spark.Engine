@@ -10,50 +10,26 @@ public class RenderTarget : IDisposable
     public int Width { private set; get; }
     public int Height { private set; get; }
 
-    public uint BufferId { private set; get; }
+    public uint FrameBufferId { private set; get; }
     public uint DepthId { private set; get; }
-    public uint[] ColorIds { private set; get; }
+    public uint[] AttachmentTextureIds { private set; get; }
 
-    public bool IsViewport = false;
+    public bool IsViewport => Configs.Count == 0;
 
-    public GLEnum[] Attachments { private set; get; }
-
-    List<(GLEnum, GLEnum)> Formats = [];
-    public RenderTarget(int width, int height, uint GbufferNums, GL gl, List<(GLEnum, GLEnum)> Formats)
+    List<FrameBufferConfig> Configs = [];
+    public RenderTarget(GL gl, int width, int height, List<FrameBufferConfig> Configs)
     {
         this.gl = gl;
-        Formats.AddRange(Formats);
-        ColorIds = new uint[GbufferNums];
-        Attachments = new GLEnum[GbufferNums];
-        for (int i = 0; i < GbufferNums; i++)
-        {
-            Attachments[i] = GLEnum.ColorAttachment0 + i;
-        }
+        this.Configs = Configs;
+        AttachmentTextureIds = new uint[Configs.Count];
         Resize(width, height);
     }
-    public RenderTarget(int width, int height, uint GbufferNums, GL gl)
-    {
-        this.gl = gl;
-        for (int i = 0; i < GbufferNums; i ++)
-        {
-            Formats.Add((GLEnum.Rgba, GLEnum.UnsignedByte));
-        }
-        Formats.Add((GLEnum.DepthComponent32f, GLEnum.DepthComponent));
-        ColorIds = new uint[GbufferNums];
-        Attachments = new GLEnum[GbufferNums];
-        for (int i = 0; i < GbufferNums; i++)
-        {
-            Attachments[i] = GLEnum.ColorAttachment0 + i;
-        }
-        Resize(width, height);
-    }
+
     public RenderTarget(GL gl, int width, int height, uint frameBufferId)
     {
         this.gl = gl;
-        ColorIds = [];
-        Attachments = [];
-        IsViewport = true;
-        BufferId = frameBufferId;
+        AttachmentTextureIds = [];
+        FrameBufferId = frameBufferId;
         Resize(width, height);
     }
 
@@ -63,13 +39,13 @@ public class RenderTarget : IDisposable
         Height = height;
         if (IsViewport == true)
         {
-            BufferId = 0;
+            FrameBufferId = 0;
             return;
         }
 
         if (width != Width || height != Height)
         {
-            foreach (var id in ColorIds)
+            foreach (var id in AttachmentTextureIds)
             {
                 if (id != 0)
                 {
@@ -80,29 +56,20 @@ public class RenderTarget : IDisposable
             {
                 gl.DeleteTexture(DepthId);
             }
-            if (BufferId != 0)
+            if (FrameBufferId != 0)
             {
-                gl.DeleteFramebuffer(BufferId);
+                gl.DeleteFramebuffer(FrameBufferId);
             }
-            BufferId = gl.GenFramebuffer();
-            gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
+            FrameBufferId = gl.GenFramebuffer();
+            gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
 
-            for (int i = 0; i < ColorIds.Length; i++)
+            for (int i = 0; i < AttachmentTextureIds.Length; i++)
             {
                 GenFrameBuffer(i);
             }
 
-            DepthId = gl.GenTexture();
-            gl.BindTexture(GLEnum.Texture2D, DepthId);
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Formats[Formats.Count - 1].Item1, (uint)Width, (uint)Height, 0, Formats[Formats.Count - 1].Item2, GLEnum.Float, (void*)0);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-            gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
-            gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.DepthAttachment, GLEnum.Texture2D, DepthId, 0);
-
-            gl.Enable(GLEnum.DepthTest);
-
-            gl.DrawBuffers(Attachments);
-            if (Attachments.Length < 0)
+            gl.DrawBuffers(Configs.Select(config => (GLEnum)config.FramebufferAttachment).ToArray());
+            if (Configs.Count < 0)
             {
                 gl.ReadBuffer(GLEnum.None);
             }
@@ -117,24 +84,30 @@ public class RenderTarget : IDisposable
 
     protected virtual unsafe void GenFrameBuffer(int index)
     {
-        ColorIds[index] = gl.GenTexture();
-        gl.BindTexture(GLEnum.Texture2D, ColorIds[index]);
-        gl.TexImage2D(GLEnum.Texture2D, 0, (int)Formats[index].Item1, (uint)Width, (uint)Height, 0, GLEnum.Rgba, Formats[index].Item2, (void*)0);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
-        gl.FramebufferTexture2D(GLEnum.Framebuffer, GLEnum.ColorAttachment0 + index, GLEnum.Texture2D, ColorIds[index], 0);
+        AttachmentTextureIds[index] = gl.GenTexture();
+        gl.BindTexture(GLEnum.Texture2D, AttachmentTextureIds[index]);
+        gl.TexImage2D(GLEnum.Texture2D, 0, (int)Configs[index].InternalFormat, (uint)Width, (uint)Height, 0, GLEnum.Rgba, (GLEnum)Configs[index].Format, (void*)0);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)Configs[index].MagFilter);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)Configs[index].MinFilter);
+        gl.FramebufferTexture2D(GLEnum.Framebuffer, Configs[index].FramebufferAttachment, GLEnum.Texture2D, AttachmentTextureIds[index], 0);
+
+        if (Configs[index].Format == PixelFormat.DepthComponent)
+        {
+            DepthId = AttachmentTextureIds[index];
+            gl.Enable(GLEnum.DepthTest);
+        }
     }
 
     public RenderTarget Begin()
     {
-        gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
+        gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
         gl.Viewport(new Rectangle(0, 0, Width, Height));
         return this;
     }
 
     public void Render(Action RenderAction)
     {
-        gl.BindFramebuffer(GLEnum.Framebuffer, BufferId);
+        gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
         RenderAction();
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
     }
@@ -143,4 +116,18 @@ public class RenderTarget : IDisposable
     {
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
     }
+}
+
+
+public class FrameBufferConfig
+{
+    public TextureMagFilter MagFilter;
+
+    public TextureMinFilter MinFilter;
+
+    public InternalFormat InternalFormat;
+
+    public FramebufferAttachment FramebufferAttachment;
+
+    public PixelFormat Format;
 }

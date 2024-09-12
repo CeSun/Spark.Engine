@@ -11,20 +11,23 @@ public enum ProjectionType
 }
 public partial class CameraComponent : PrimitiveComponent, IComparable<CameraComponent>
 {
-    public RenderTarget RenderTarget { get; set; }
+    public RenderTarget? RenderTarget { get; set; }
 
     public static CameraComponent? CurrentCameraComponent { get; private set; }
     public int Order { get; set; }
     public CameraComponent(Actor actor) : base(actor)
     {
-        if (Owner.CurrentWorld.WorldMainRenderTarget != null)
+        if (Engine.MainView != null && Owner.CurrentWorld.SceneRenderer != null)
         {
-            RenderTarget = Owner.CurrentWorld.WorldMainRenderTarget;
-        }
-        else
-        {
-            RenderTarget = Owner.CurrentWorld.SceneRenderer.CreateDefaultRenderTarget(100, 100);
-            World.OnResize += RenderTarget.Resize;
+            if (Owner.CurrentWorld.WorldMainRenderTarget != null)
+            {
+                RenderTarget = Owner.CurrentWorld.WorldMainRenderTarget;
+            }
+            else
+            {
+                RenderTarget = Owner.CurrentWorld.SceneRenderer.CreateDefaultRenderTarget(100, 100);
+                World.OnResize += RenderTarget.Resize;
+            }
         }
         FieldOfView = 90;
         NearPlaneDistance = 10;
@@ -74,19 +77,34 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     }
     public Matrix4x4 View => Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + ForwardVector, UpVector);
 
-    public Matrix4x4 Projection => this.ProjectionType switch
+    public Matrix4x4 Projection 
     {
-        ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), RenderTarget.Width / (float)RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
-        ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget.Width, RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
-        _ => throw new NotImplementedException()
-    };
+        get
+        {
+            if (RenderTarget == null)
+            {
+                return Matrix4x4.Identity;
+            }
+
+            return this.ProjectionType switch
+            {
+                ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), RenderTarget.Width / (float)RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
+                ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget.Width, RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
+                _ => throw new NotImplementedException()
+            };
+        }
+   
+    }
 
 
     public void RenderScene(double DeltaTime)
     {
-        CurrentCameraComponent = this;
-        Owner.CurrentWorld.SceneRenderer.Render(Engine.GraphicsApi);
-        CurrentCameraComponent = null;
+        if (Owner.CurrentWorld.SceneRenderer != null)
+        {
+            CurrentCameraComponent = this;
+            Owner.CurrentWorld.SceneRenderer.Render();
+            CurrentCameraComponent = null;
+        }
     }
 
 

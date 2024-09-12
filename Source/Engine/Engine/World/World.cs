@@ -7,7 +7,7 @@ namespace Spark.Engine;
 
 public class World
 {
-    public GL GraphicsApi { get; set; }
+    public GL? GraphicsApi { get; set; }
     public Engine Engine { get; set; }
 
     public RenderTarget? WorldMainRenderTarget;
@@ -16,10 +16,13 @@ public class World
     {
         Engine = engine;
         GraphicsApi = Engine.GraphicsApi;
-        SceneRenderer = new DeferredRenderer(this);
+        if (GraphicsApi != null)
+        {
+            SceneRenderer = new DeferredRenderer(GraphicsApi);
+        }
     }
 
-    public IRenderer SceneRenderer;
+    public IRenderer? SceneRenderer;
 
     public void BeginPlay()
     {

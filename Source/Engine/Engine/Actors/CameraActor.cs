@@ -11,7 +11,7 @@ public class CameraActor : Actor
         CameraComponent = new CameraComponent(this);
     }
 
-    public RenderTarget RenderTarget { get => CameraComponent.RenderTarget; set => CameraComponent.RenderTarget = value; }
+    public RenderTarget? RenderTarget { get => CameraComponent.RenderTarget; set => CameraComponent.RenderTarget = value; }
 
     public int Order { get => CameraComponent.Order; set => CameraComponent.Order = value; }
 

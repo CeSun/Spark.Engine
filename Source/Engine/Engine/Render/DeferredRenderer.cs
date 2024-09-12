@@ -1,32 +1,44 @@
 ﻿using Silk.NET.OpenGLES;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Spark.Engine.Render;
 
 public class DeferredRenderer : IRenderer
 {
-    public World World { get; private set; }
-    public DeferredRenderer(World world)
+    GL gl;
+    public DeferredRenderer(GL GraphicsApi)
     {
-        World = world;
+        gl = GraphicsApi;
+    }
+
+
+    public void Render()
+    {
+
     }
 
     public RenderTarget CreateRenderTargetByFrameBufferId(int width, int height, uint frameBufferId)
     {
-        return new RenderTarget(World.GraphicsApi, width, height, frameBufferId);
-    }
-
-    public void Render(GL gl)
-    {
-
+        return new RenderTarget(gl, width, height, frameBufferId);
     }
 
     public RenderTarget CreateDefaultRenderTarget(int width, int height)
     {
-        return new RenderTarget(width, height, 1, World.GraphicsApi);
+        List<FrameBufferConfig> configs =  [
+                new ()  {
+                    MagFilter = TextureMagFilter.Nearest,
+                    MinFilter = TextureMinFilter.Nearest,
+                    InternalFormat = InternalFormat.Rgba,
+                    Format = PixelFormat.UnsignedInt,
+                    FramebufferAttachment = FramebufferAttachment.ColorAttachment0
+                },
+                new () {
+                    MagFilter = TextureMagFilter.Nearest,
+                    MinFilter = TextureMinFilter.Nearest,
+                    InternalFormat = InternalFormat.Depth24Stencil8,
+                    Format = PixelFormat.DepthStencil,
+                    FramebufferAttachment = FramebufferAttachment.DepthStencilAttachment
+                }
+            ];
+        return new RenderTarget(gl, width, height, configs);
     }
 }

@@ -18,11 +18,12 @@ public partial class Engine
 
         Platform = platform;
 
-        WindowSize = new Point(MainView.Size.X, MainView.Size.Y);
-
         MainWorld = new World(this);
+        if (MainView != null && MainWorld.SceneRenderer != null)
+        {
+            MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTargetByFrameBufferId(MainView.Size.X, MainView.Size.Y, Platform.DefaultFrameBufferId);
 
-        MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTargetByFrameBufferId(WindowSize.X, WindowSize.Y, Platform.DefaultFrameBufferId);
+        }
 
         Worlds.Add(MainWorld);
 
@@ -53,23 +54,20 @@ public partial class Engine
 
     public void Resize(int width, int height)
     {
-        WindowSize = new(width, height);
         MainWorld?.Resize(width, height);
     }
 
     public Action<int, int>? OnWindowResize;
-
-    public Point WindowSize { get; private set; }
 }
 
 
 public partial class Engine
 {
     public IPlatform Platform { get; private set; }
-    public GL GraphicsApi => Platform.GraphicsApi;
+    public GL? GraphicsApi => Platform.GraphicsApi;
     public IInputContext Input => Platform.InputContext;
     public IFileSystem FileSystem => Platform.FileSystem;
-    public IView MainView => Platform.View;
+    public IView? MainView => Platform.View;
 
     public IKeyboard? MainKeyBoard
     {

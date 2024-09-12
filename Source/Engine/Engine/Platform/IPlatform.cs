@@ -12,7 +12,7 @@ public interface IPlatform
 {
     public IFileSystem FileSystem { get; }
     public IInputContext InputContext { get; }
-    public GL GraphicsApi { get; }
-    public IView View { get; }
+    public GL? GraphicsApi { get; }
+    public IView? View { get; }
     public uint DefaultFrameBufferId { get; }
 }

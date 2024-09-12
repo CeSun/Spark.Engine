@@ -12,8 +12,6 @@ public enum AttachRelation
 public partial class PrimitiveComponent
 {
     public Engine Engine => Owner.CurrentWorld.Engine;
-
-    public GL gl => Engine.GraphicsApi;
     public World World => Owner.CurrentWorld;
 
     protected virtual bool ReceiveUpdate => false;
