@@ -7,6 +7,10 @@ public abstract class AssetBase
 {
     public event Action<Action<IRenderer>>? OnAssetModify;
 
+    public void RequestRendererRebuild()
+    {
+        AssetModify(renderer => renderer.AddNeedRebuildRenderResourceProxy(renderer.GetProxy(this)!));
+    }
     public void AssetModify(Action<IRenderer> action)
     {
         OnAssetModify?.Invoke(action);

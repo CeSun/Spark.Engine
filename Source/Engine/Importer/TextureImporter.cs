@@ -1,7 +1,8 @@
-﻿using Spark.Engine.Assets;
-using Spark;
+﻿using Silk.NET.OpenGLES;
+using Spark.Engine.Assets;
 using StbImageSharp;
 using System.Numerics;
+using Texture = Spark.Engine.Assets.Texture;
 
 namespace Spark.Importer;
 
@@ -22,7 +23,7 @@ public static class TextureImporter
         };
     }
 
-    public static TextureLdr ImportTextureFromStream(StreamReader streamReader, TextureImportSetting setting)
+    public static Texture ImportTextureFromStream(StreamReader streamReader, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -35,7 +36,7 @@ public static class TextureImporter
         }
         if (imageResult != null)
         {
-            var texture = new TextureLdr();
+            var texture = new Texture();
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
@@ -43,12 +44,13 @@ public static class TextureImporter
             {
                 Process(imageResult.Data);
             }
-            texture.Pixels.AddRange(imageResult.Data);
+            texture.LDRPixels = imageResult.Data;
+            texture.IsHdrTexture = false;
             return texture;
         }
         throw new Exception("Load Texture error");
     }
-    public static TextureLdr ImportTextureFromMemory(byte[] data, TextureImportSetting setting)
+    public static Texture ImportTextureFromMemory(byte[] data, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -61,7 +63,7 @@ public static class TextureImporter
         }
         if (imageResult != null)
         {
-            var texture = new TextureLdr();
+            var texture = new Texture();
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
@@ -69,13 +71,14 @@ public static class TextureImporter
             {
                 Process(imageResult.Data);
             }
-            texture.Pixels.AddRange(imageResult.Data);
+            texture.LDRPixels = imageResult.Data;
+            texture.IsHdrTexture = false;
             return texture;
         }
         throw new Exception("Load Texture error");
     }
 
-    public static TextureHdr ImportTextureHdrFromStream(StreamReader streamReader, TextureImportSetting setting)
+    public static Texture ImportTextureHdrFromStream(StreamReader streamReader, TextureImportSetting setting)
     {
         if (setting.FlipVertically)
         {
@@ -88,7 +91,7 @@ public static class TextureImporter
         }
         if (imageResult != null)
         {
-            var texture = new TextureHdr
+            var texture = new Texture
             {
                 Width = (uint)imageResult.Width,
                 Height = (uint)imageResult.Height,
@@ -98,16 +101,17 @@ public static class TextureImporter
             {
                 Process(imageResult.Data);
             }
-            texture.Pixels.AddRange(imageResult.Data);
+            texture.HDRPixels = imageResult.Data;
+            texture.IsHdrTexture = true;
             return texture;
         }
         throw new Exception("Load Texture error");
     }
 
 
-    public static TextureLdr CreateNoiseTexture(int width, int height)
+    public static Texture CreateNoiseTexture(int width, int height)
     {
-        var texture = new TextureLdr();
+        var texture = new Texture();
         var data = new byte[width * height * 3];
         for (int j = 0; j < height; j++)
         {
@@ -130,12 +134,13 @@ public static class TextureImporter
         texture.Height = (uint)height;
         texture.Width = (uint)width;
         texture.Channel = TexChannel.Rgb;
-        texture.Pixels.AddRange(data);
+        texture.LDRPixels = data;
+        texture.IsHdrTexture = false;
         return texture;
     }
 
 
-    public static TextureLdr MergePbrTexture(TextureLdr? metallicRoughness, TextureLdr? ao)
+    public static Texture MergePbrTexture(Texture? metallicRoughness, Texture? ao)
     {
 
         var main = metallicRoughness ?? ao;
@@ -165,8 +170,8 @@ public static class TextureImporter
                     _ => 3
                 };
 
-                data[i * 3 + 2] = metallicRoughness.Pixels[i * step + 2];
-                data[i * 3 + 1] = metallicRoughness.Pixels[i * step + 1];
+                data[i * 3 + 2] = metallicRoughness.LDRPixels[i * step + 2];
+                data[i * 3 + 1] = metallicRoughness.LDRPixels[i * step + 1];
             }
             if (ao == null)
             {
@@ -181,16 +186,17 @@ public static class TextureImporter
                     _ => 3
                 };
 
-                data[i * 3] = ao.Pixels[i * step];
+                data[i * 3] = ao.LDRPixels[i * step];
             }
         }
-        TextureLdr texture = new()
+        Texture texture = new()
         {
             Width = width,
             Height = height,
-            Channel = TexChannel.Rgb
+            Channel = TexChannel.Rgb,
+            IsHdrTexture = false,
         };
-        texture.Pixels.AddRange(data);
+        texture.LDRPixels = data;
         return texture;
 
     }
@@ -225,21 +231,22 @@ public static class TextureImporter
         };
     }
 
-    public static TextureCube GenerateTextureCubeFromTextureHdr(TextureHdr texture, uint width = 1024)
+    public static TextureCube GenerateTextureCubeFromTextureHdr(Texture texture, uint width = 1024)
     {
         uint maxWidth = width;
         TextureCube textureCube = new TextureCube();
 
         for (int i = 0; i < 6; i++)
         {
-            TextureHdr texture1 = new()
+            Texture texture1 = new()
             {
                 Channel = TexChannel.Rgb,
                 Width = maxWidth,
                 Height = maxWidth,
-                Filter = TexFilter.Liner
+                Filter = TexFilter.Liner,
+                IsHdrTexture = true
             };
-            texture1.Pixels = new();
+            List<float> Pixels = new();
             for (int y = 0; y < maxWidth; y++)
             {
                 for (int x = 0; x < maxWidth; x++)
@@ -250,33 +257,27 @@ public static class TextureImporter
 
                     var uv = SampleSphericalMap(Vector3.Normalize(location));
                     var color = Sample(texture, uv);
-                    texture1.Pixels.Add(color.X);
-                    texture1.Pixels.Add(color.Y);
-                    texture1.Pixels.Add(color.Z);
+                    Pixels.Add(color.X);
+                    Pixels.Add(color.Y);
+                    Pixels.Add(color.Z);
                 }
             }
-
+            texture1.HDRPixels = Pixels;
             textureCube.Textures[i] = texture1;
         }
         return textureCube;
     }
 
-    public static Vector3 Sample(TextureHdr texture, Vector2 uv)
+    public static Vector3 Sample(Texture texture, Vector2 uv)
     {
         var pixelLocation = new Vector2(uv.X * texture.Width, uv.Y * texture.Height);
-
         int step = 3;
         if (texture.Channel == TexChannel.Rgba)
             step = 4;
-
         var index = ((int)pixelLocation.Y * (int)texture.Width + (int)pixelLocation.X) * step;
-
-
-        var r = texture.Pixels[index];
-        var g = texture.Pixels[index + 1];
-        var b = texture.Pixels[index + 2];
-
-
+        var r = texture.HDRPixels[index];
+        var g = texture.HDRPixels[index + 1];
+        var b = texture.HDRPixels[index + 2];
         return new Vector3(r, g, b);
     }
 

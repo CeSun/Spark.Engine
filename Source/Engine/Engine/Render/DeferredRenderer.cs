@@ -54,8 +54,18 @@ public class DeferredRenderer : IRenderer
         return null;
     }
 
+    public RenderProxy? GetProxy(object obj)
+    {
+        if (ProxyDictonary.TryGetValue(obj, out var proxy))
+        {
+            return proxy;
+        }
+        return null;
+    }
     public void AddNeedRebuildRenderResourceProxy(RenderProxy proxy)
     {
+        if (proxy == null)
+            return;
         if (NeedRebuildProxy.Contains(proxy))
         {
             NeedRebuildProxy.Add(proxy);

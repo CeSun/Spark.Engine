@@ -1,12 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using System.Xml.Linq;
 using Jitter2.Collision.Shapes;
 using Jitter2.LinearMath;
 using SharpGLTF.Schema2;
 using Spark.Engine.Assets;
 using Material = Spark.Engine.Assets.Material;
-using TextureLdr = Spark.Engine.Assets.TextureLdr;
+using Texture = Spark.Engine.Assets.Texture;
 
 namespace Spark.Importer;
 
@@ -23,7 +24,7 @@ public class SkeletalMeshImportSetting
 public static class MeshImporter
 {
    
-    public static void ImporterStaticMeshFromGlbStream(this Engine.Engine engine, StreamReader streamReader, StaticMeshImportSetting staticMeshImportSetting, List<TextureLdr> textures, List<Material> materials, out StaticMesh staticMesh)
+    public static void ImporterStaticMeshFromGlbStream(this Engine.Engine engine, StreamReader streamReader, StaticMeshImportSetting staticMeshImportSetting, List<Texture> textures, List<Material> materials, out StaticMesh staticMesh)
     {
         ModelRoot model = ModelRoot.ReadGLB(streamReader.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
@@ -101,8 +102,8 @@ public static class MeshImporter
                     }
                     List<uint> indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
                     var material = new Material();
-                    TextureLdr? metallicRoughness = null;
-                    TextureLdr? ambientOcclusion = null;
+                    Texture? metallicRoughness = null;
+                    Texture? ambientOcclusion = null;
 
                     foreach (var glChannel in glPrimitive.Material.Channels)
                     {
@@ -127,13 +128,12 @@ public static class MeshImporter
                     }
                     material.MetallicRoughness = metallicRoughness;
                     material.AmbientOcclusion = ambientOcclusion;
-
+                    InitMeshTbn(staticMeshVertices, indices);
                     sm.Elements.Add(new Element<StaticMeshVertex>
                     {
                         Vertices = staticMeshVertices,
                         Material = material,
                         Indices = indices,
-                        IndicesLen = (uint)indices.Count
                     });
                 }
             }
@@ -175,17 +175,19 @@ public static class MeshImporter
                 }
             }
         }
-        sm.InitTbn();
         staticMesh = sm;
         foreach (var element in staticMesh.Elements)
         {
-            materials.Add(element.Material);
-            textures.AddRange(element.Material.Textures.OfType<TextureLdr>());
+            if (element.Material != null)
+            {
+                materials.Add(element.Material);
+                textures.AddRange(element.Material.Textures.OfType<Texture>());
+            }
         }
     }
 
     public static void ImporterSkeletalMeshFromGlbStream(this Engine.Engine engine, StreamReader streamReader,
-        SkeletalMeshImportSetting skeletalMeshImportSetting, List<TextureLdr> textures, List<Material> materials, List<AnimSequence> animSequences, out Skeleton skeleton, out SkeletalMesh skeletalMesh)
+        SkeletalMeshImportSetting skeletalMeshImportSetting, List<Texture> textures, List<Material> materials, List<AnimSequence> animSequences, out Skeleton skeleton, out SkeletalMesh skeletalMesh)
 
     {
         Skeleton? tmpSkeleton = null;
@@ -204,8 +206,11 @@ public static class MeshImporter
         skeleton = tmpSkeleton;
         foreach (var element in skeletalMesh.Elements)
         {
-            materials.Add(element.Material);
-            textures.AddRange(element.Material.Textures.OfType<TextureLdr>());
+            if (element.Material != null)
+            {
+                materials.Add(element.Material);
+                textures.AddRange(element.Material.Textures.OfType<Texture>());
+            }
         }
         animSequences.AddRange(anims);
     }
@@ -375,8 +380,8 @@ public static class MeshImporter
                 }
                 var indices = glPrimitive.IndexAccessor.AsIndicesArray().ToList();
                 var material = new Material();
-                TextureLdr? metallicRoughness = null;
-                TextureLdr? ambientOcclusion = null;
+                Texture? metallicRoughness = null;
+                Texture? ambientOcclusion = null;
 
                 foreach (var glChannel in glPrimitive.Material.Channels)
                 {
@@ -399,20 +404,18 @@ public static class MeshImporter
                             break;
                     }
                 }
-                var custom = TextureImporter.MergePbrTexture(metallicRoughness, ambientOcclusion);
                 material.MetallicRoughness = metallicRoughness;
                 material.AmbientOcclusion = ambientOcclusion;
+                InitMeshTbn(skeletalMeshVertices, indices);
                 skeletalMesh.Elements.Add(new Element<SkeletalMeshVertex>
                 {
                     Material = material,
                     Vertices = skeletalMeshVertices,
                     Indices = indices,
-                    IndicesLen = (uint)indices.Count
                 });
 
             }
         }
-        skeletalMesh.InitTbn();
     }
 
 
@@ -462,6 +465,54 @@ public static class MeshImporter
             BoneList = boneList,
             RootParentMatrix = bone2Node[treeRoots[0].BoneId].VisualParent.WorldMatrix
         };
+    }
+
+    private static void InitMeshTbn<T>(List<T> Vertices, List<uint> Indices) where T :IVertex
+    {
+        var indices = Indices;
+        var vertices = Vertices;
+        for (int i = 0; i < indices.Count - 2; i += 3)
+        {
+
+            var p1 = vertices[(int)indices[i]];
+            var p2 = vertices[(int)indices[i + 1]];
+            var p3 = vertices[(int)indices[i + 2]];
+
+            Vector3 edge1 = p2.Location - p1.Location;
+            Vector3 edge2 = p3.Location - p1.Location;
+            Vector2 deltaUv1 = p2.TexCoord - p1.TexCoord;
+            Vector2 deltaUv2 = p3.TexCoord - p1.TexCoord;
+
+            float f = 1.0f / (deltaUv1.X * deltaUv2.Y - deltaUv2.X * deltaUv1.Y);
+
+            Vector3 tangent1;
+            Vector3 bitangent1;
+
+            tangent1.X = f * (deltaUv2.Y * edge1.X - deltaUv1.Y * edge2.X);
+            tangent1.Y = f * (deltaUv2.Y * edge1.Y - deltaUv1.Y * edge2.Y);
+            tangent1.Z = f * (deltaUv2.Y * edge1.Z - deltaUv1.Y * edge2.Z);
+            tangent1 = Vector3.Normalize(tangent1);
+
+            bitangent1.X = f * (-deltaUv2.X * edge1.X + deltaUv1.X * edge2.X);
+            bitangent1.Y = f * (-deltaUv2.X * edge1.Y + deltaUv1.X * edge2.Y);
+            bitangent1.Z = f * (-deltaUv2.X * edge1.Z + deltaUv1.X * edge2.Z);
+            bitangent1 = Vector3.Normalize(bitangent1);
+
+            p1.Tangent = tangent1;
+            p2.Tangent = tangent1;
+            p3.Tangent = tangent1;
+
+
+            p1.BitTangent = bitangent1;
+            p2.BitTangent = bitangent1;
+            p3.BitTangent = bitangent1;
+
+            vertices[(int)indices[i]] = p1;
+            vertices[(int)indices[i + 1]] = p2;
+            vertices[(int)indices[i + 2]] = p3;
+
+        }
+
     }
 }
 

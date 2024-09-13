@@ -7,14 +7,16 @@ namespace Spark.Engine.Assets;
 
 public partial class SkeletalMesh : AssetBase
 {
-
     public List<Element<SkeletalMeshVertex>> Elements = [];
-
     public Skeleton? Skeleton { get; set; }
+}
 
-    public unsafe void InitRender(GL gl)
+public class SkeletalMeshProxy : RenderProxy
+{
+    public List<ElementProxy<SkeletalMeshVertex>> Elements = [];
+
+    public unsafe override void RebuildGpuResource(GL gl)
     {
-
         for (var index = 0; index < Elements.Count; index++)
         {
             if (Elements[index].VertexArrayObjectIndex > 0)
@@ -67,84 +69,29 @@ public partial class SkeletalMesh : AssetBase
             Elements[index].ElementBufferObjectIndex = ebo;
         }
     }
-   
-   
-
-
- 
-
-    
 }
-
-public partial class SkeletalMesh
+public interface IVertex
 {
-    public void InitTbn()
-    {
-        for (int i = 0; i < Elements.Count; i++)
-        {
-            InitMeshTbn(i);
-        }
-    }
-    private void InitMeshTbn(int index)
-    {
-        var vertices = Elements[index].Vertices;
-        var indices = Elements[index].Indices;
+    public Vector3 Location { get; set; }
 
-        for (int i = 0; i < indices.Count; i += 3)
-        {
-            var p1 = vertices[(int)indices[i]];
-            var p2 = vertices[(int)indices[i + 1]];
-            var p3 = vertices[(int)indices[i + 2]];
+    public Vector3 Normal { get; set; }
 
-            Vector3 edge1 = p2.Location - p1.Location;
-            Vector3 edge2 = p3.Location - p1.Location;
-            Vector2 deltaUv1 = p2.TexCoord - p1.TexCoord;
-            Vector2 deltaUv2 = p3.TexCoord - p1.TexCoord;
+    public Vector3 Tangent { get; set; }
 
-            var f = 1.0f / (deltaUv1.X * deltaUv2.Y - deltaUv2.X * deltaUv1.Y);
+    public Vector3 BitTangent { get; set; }
 
-            Vector3 tangent1;
-            Vector3 bitangent1;
+    public Vector3 Color { get; set; }
 
-            tangent1.X = f * (deltaUv2.Y * edge1.X - deltaUv1.Y * edge2.X);
-            tangent1.Y = f * (deltaUv2.Y * edge1.Y - deltaUv1.Y * edge2.Y);
-            tangent1.Z = f * (deltaUv2.Y * edge1.Z - deltaUv1.Y * edge2.Z);
-            tangent1 = Vector3.Normalize(tangent1);
-
-            bitangent1.X = f * (-deltaUv2.X * edge1.X + deltaUv1.X * edge2.X);
-            bitangent1.Y = f * (-deltaUv2.X * edge1.Y + deltaUv1.X * edge2.Y);
-            bitangent1.Z = f * (-deltaUv2.X * edge1.Z + deltaUv1.X * edge2.Z);
-            bitangent1 = Vector3.Normalize(bitangent1);
-
-            p1.Tangent = tangent1;
-            p2.Tangent = tangent1;
-            p3.Tangent = tangent1;
-
-
-            p1.BitTangent = bitangent1;
-            p2.BitTangent = bitangent1;
-            p3.BitTangent = bitangent1;
-
-            vertices[(int)indices[i]] = p1;
-            vertices[(int)indices[i + 1]] = p2;
-            vertices[(int)indices[i + 2]] = p3;
-        }
-    }
+    public Vector2 TexCoord { get; set; }
 }
-
-public struct SkeletalMeshVertex
+public struct SkeletalMeshVertex : IVertex
 {
-    public Vector3 Location;
-
-    public Vector3 Normal;
-
-    public Vector3 Tangent;
-
-    public Vector3 BitTangent;
-
-    public Vector3 Color;
-
-    public Vector2 TexCoord;
+    public Vector3 Location { get; set; }
+    public Vector3 Normal { get; set; }
+    public Vector3 Tangent { get; set; }
+    public Vector3 BitTangent { get; set; }
+    public Vector3 Color { get; set; }
+    public Vector2 TexCoord { get; set; }
 
     public Vector4 BoneIds;
 
