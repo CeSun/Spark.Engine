@@ -11,6 +11,26 @@ namespace Spark.Engine.Assets;
 
 public class RenderTarget : AssetBase
 {
+    private bool _isDefaultRenderTarget;
+
+    public bool IsDefaultRenderTarget
+    {
+        get => _isDefaultRenderTarget;
+        set
+        {
+            _isDefaultRenderTarget = value;
+            RunOnRenderer(renderer =>
+            {
+                var proxy = renderer.GetProxy<RenderTargetProxy>(this);
+                if (proxy != null)
+                {
+                    proxy.IsDefaultRenderTarget = value;
+                    renderer.AddNeedRebuildRenderResourceProxy(proxy);
+                }
+            });
+
+        }
+    }
     private int _width;
     public int Width 
     {
@@ -78,6 +98,7 @@ public class RenderTargetProxy : RenderProxy, IDisposable
     public uint DepthId { private set; get; }
 
 
+    public bool IsDefaultRenderTarget { get; set; }
     public int Width { set; get; }
     public int Height { set; get; }
 
@@ -93,14 +114,12 @@ public class RenderTargetProxy : RenderProxy, IDisposable
                 gl.DeleteTexture(id);
             }
         }
-        if (DepthId != 0)
-        {
-            gl.DeleteTexture(DepthId);
-        }
         if (FrameBufferId != 0)
         {
             gl.DeleteFramebuffer(FrameBufferId);
         }
+        
+
         FrameBufferId = gl.GenFramebuffer();
         gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
         AttachmentTextureIds = new(Configs.Count); 
