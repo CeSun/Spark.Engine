@@ -1,7 +1,6 @@
 ﻿using Silk.NET.OpenGLES;
-using Silk.NET.Windowing;
+using Spark.Engine.Assets;
 using Spark.Engine.Render;
-using System.Drawing;
 
 namespace Spark.Engine;
 

@@ -15,35 +15,30 @@ public class DeferredRenderer : IRenderer
 
     public void Render()
     {
+        PreRender();
+
+
 
     }
 
-    public RenderTarget CreateRenderTargetByFrameBufferId(int width, int height, uint frameBufferId)
+    private void PreRender()
     {
-        return new RenderTarget(gl, width, height, frameBufferId);
+        var list = Actions;
+        Actions = TempActions;
+        TempActions = Actions;
+        foreach (var action in TempActions)
+        {
+            action.Invoke(this);
+        }
+        TempActions.Clear();
+        foreach (var proxy in NeedRebuildProxies)
+        {
+            proxy.RebuildGpuResource(gl);
+        }
+        NeedRebuildProxies.Clear();
     }
 
-    public RenderTarget CreateDefaultRenderTarget(int width, int height)
-    {
-        List<FrameBufferConfig> configs =  [
-                new ()  {
-                    MagFilter = TextureMagFilter.Nearest,
-                    MinFilter = TextureMinFilter.Nearest,
-                    InternalFormat = InternalFormat.Rgba,
-                    Format = PixelFormat.UnsignedInt,
-                    FramebufferAttachment = FramebufferAttachment.ColorAttachment0
-                },
-                new () {
-                    MagFilter = TextureMagFilter.Nearest,
-                    MinFilter = TextureMinFilter.Nearest,
-                    InternalFormat = InternalFormat.Depth24Stencil8,
-                    Format = PixelFormat.DepthStencil,
-                    FramebufferAttachment = FramebufferAttachment.DepthStencilAttachment
-                }
-            ];
-        return new RenderTarget(gl, width, height, configs);
-    }
-
+    
     public T? GetProxy<T>(object obj) where T : class
     {
         if (ProxyDictonary.TryGetValue(obj, out var proxy))
@@ -62,17 +57,27 @@ public class DeferredRenderer : IRenderer
         }
         return null;
     }
+
     public void AddNeedRebuildRenderResourceProxy(RenderProxy proxy)
     {
         if (proxy == null)
             return;
-        if (NeedRebuildProxy.Contains(proxy))
+        if (NeedRebuildProxies.Contains(proxy))
         {
-            NeedRebuildProxy.Add(proxy);
+            NeedRebuildProxies.Add(proxy);
         }
     }
 
-    public HashSet<RenderProxy> NeedRebuildProxy = [];
+    private HashSet<RenderProxy> NeedRebuildProxies = [];
 
-    public Dictionary<object, RenderProxy> ProxyDictonary = [];
+    private Dictionary<object, RenderProxy> ProxyDictonary = [];
+
+    private List<Action<IRenderer>> Actions = new List<Action<IRenderer>>();
+
+    private List<Action<IRenderer>> TempActions = new List<Action<IRenderer>>();
+
+    public void AddRunOnRendererAction(Action<IRenderer> action)
+    {
+        Actions.Add(action);
+    }
 }

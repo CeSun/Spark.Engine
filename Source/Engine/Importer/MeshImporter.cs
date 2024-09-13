@@ -29,6 +29,7 @@ public static class MeshImporter
         ModelRoot model = ModelRoot.ReadGLB(streamReader.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
         var sm = new StaticMesh();
+        var elements = new List<Element<StaticMeshVertex>>();
         foreach (var glMesh in model.LogicalMeshes)
         {
             if (glMesh == null)
@@ -129,7 +130,7 @@ public static class MeshImporter
                     material.MetallicRoughness = metallicRoughness;
                     material.AmbientOcclusion = ambientOcclusion;
                     InitMeshTbn(staticMeshVertices, indices);
-                    sm.Elements.Add(new Element<StaticMeshVertex>
+                    elements.Add(new Element<StaticMeshVertex>
                     {
                         Vertices = staticMeshVertices,
                         Material = material,
@@ -176,6 +177,7 @@ public static class MeshImporter
             }
         }
         staticMesh = sm;
+        staticMesh.Elements = elements;
         foreach (var element in staticMesh.Elements)
         {
             if (element.Material != null)
@@ -271,6 +273,7 @@ public static class MeshImporter
 
     static void LoadVertices(Engine.Engine engine, SkeletalMesh skeletalMesh, ModelRoot model)
     {
+        List<Element<SkeletalMeshVertex>> elements = new();
         foreach (var glMesh in model.LogicalMeshes)
         {
             foreach (var glPrimitive in glMesh.Primitives)
@@ -407,7 +410,7 @@ public static class MeshImporter
                 material.MetallicRoughness = metallicRoughness;
                 material.AmbientOcclusion = ambientOcclusion;
                 InitMeshTbn(skeletalMeshVertices, indices);
-                skeletalMesh.Elements.Add(new Element<SkeletalMeshVertex>
+                elements.Add(new Element<SkeletalMeshVertex>
                 {
                     Material = material,
                     Vertices = skeletalMeshVertices,
@@ -416,6 +419,7 @@ public static class MeshImporter
 
             }
         }
+        skeletalMesh.Elements = elements;
     }
 
 

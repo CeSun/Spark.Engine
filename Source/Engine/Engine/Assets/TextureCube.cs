@@ -5,19 +5,113 @@ namespace Spark.Engine.Assets;
 
 public class TextureCube : AssetBase
 {
+    public IReadOnlyList<float>[] _hdrPixels = [[], [], [], [], [], []];
 
-    public uint TextureId;
+    public IReadOnlyList<float>[] _ldrPixels = [[], [], [], [], [], []];
 
-    public readonly Texture?[] Textures = new Texture?[6];
+    private uint _width;
+    public uint Width
+    {
+        get => _width;
+        set
+        {
+            _width = value;
+            RunOnRenderer(render =>
+            {
+                var proxy = render.GetProxy<TextureCubeProxy>(this);
+                if (proxy != null)
+                {
+                    proxy.Width = value;
+                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                }
+            });
+        }
+    }
 
-    public Texture? RightFace { get => Textures[0]; set => Textures[0] = value; }
-    public Texture? LeftFace { get => Textures[1]; set => Textures[1] = value; }
-    public Texture? UpFace { get => Textures[2]; set => Textures[2] = value; }
-    public Texture? DownFace { get => Textures[3]; set => Textures[3] = value; }
-    public Texture? FrontFace { get => Textures[4]; set => Textures[4] = value; }
-    public Texture? BackFace { get => Textures[5]; set => Textures[5] = value; }
 
-  
+    private uint _height;
+    public uint Height
+    {
+        get => _height;
+        set
+        {
+            _height = value;
+            RunOnRenderer(render =>
+            {
+                var proxy = render.GetProxy<TextureCubeProxy>(this);
+                if (proxy != null)
+                {
+                    proxy.Height = value;
+                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                }
+            });
+        }
+    }
+
+
+    private TexChannel _channel;
+    public TexChannel Channel
+    {
+        get => _channel;
+        set
+        {
+            _channel = value;
+            RunOnRenderer(render =>
+            {
+                var proxy = render.GetProxy<TextureCubeProxy>(this);
+                if (proxy != null)
+                {
+                    proxy.Channel = value;
+                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                }
+            });
+        }
+    }
+
+
+    private TexFilter _filter = TexFilter.Liner;
+    public TexFilter Filter
+    {
+        get => _filter;
+        set
+        {
+            _filter = value;
+            RunOnRenderer(render =>
+            {
+                var proxy = render.GetProxy<TextureCubeProxy>(this);
+                if (proxy != null)
+                {
+                    proxy.Filter = value;
+                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                }
+            });
+        }
+    }
+
+
+    private bool _isHdrTexture = false;
+    public bool IsLdrTexture
+    {
+        get => !IsHdrTexture;
+        set => IsHdrTexture = !value;
+    }
+    public bool IsHdrTexture
+    {
+        get => _isHdrTexture;
+        set
+        {
+            RunOnRenderer(render =>
+            {
+                var proxy = render.GetProxy<TextureCubeProxy>(this);
+                if (proxy != null)
+                {
+                    proxy.IsHdrTexture = value;
+                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                }
+            });
+        }
+    }
+
 }
 
 
@@ -47,32 +141,36 @@ public class TextureCubeProxy : RenderProxy
         "Front",
         "Back"
     ];
-    /*
+    public uint Width { get; set; }
+    public uint Height { get; set; }
+    public TexChannel Channel { get; set; }
+    public TexFilter Filter { get; set; } = TexFilter.Liner;
+    public bool IsHdrTexture { get; set; }
+
+    public List<float>[] _hdrPixels = [[], [], [], [], [], []];
+
+    public List<float>[] _ldrPixels = [[], [], [], [], [], []];
+    
     public unsafe override void RebuildGpuResource(GL gl)
     {
-        if (TextureId > 0)
-            return;
         TextureId = gl.GenTexture();
         gl.BindTexture(GLEnum.TextureCubeMap, TextureId);
 
         for (int i = 0; i < 6; i++)
         {
-            var tex = Textures[i];
-            if (tex == null)
-                continue;
-            if (tex is TextureHdr textureHdr)
+            if (IsHdrTexture == true)
             {
-                fixed (void* data = CollectionsMarshal.AsSpan(textureHdr.Pixels))
+                fixed (void* data = CollectionsMarshal.AsSpan(_hdrPixels[i]))
                 {
-                    gl.TexImage2D(TexTargets[i], 0, (int)tex.Channel.ToGlHdrEnum(), tex.Width, tex.Height, 0, tex.Channel.ToGlEnum(), GLEnum.Float, data);
+                    gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlHdrEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, data);
                 }
 
             }
-            else if (tex is TextureLdr textureLdr)
+            else 
             {
-                fixed (void* data = CollectionsMarshal.AsSpan(textureLdr.Pixels))
+                fixed (void* data = CollectionsMarshal.AsSpan(_ldrPixels[i]))
                 {
-                    gl.TexImage2D(TexTargets[i], 0, (int)tex.Channel.ToGlEnum(), tex.Width, tex.Height, 0, tex.Channel.ToGlEnum(), GLEnum.UnsignedByte, data);
+                    gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, data);
                 }
             }
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
@@ -82,5 +180,4 @@ public class TextureCubeProxy : RenderProxy
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
         }
     }
-    */
 }

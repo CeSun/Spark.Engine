@@ -1,4 +1,4 @@
-﻿using Spark.Engine.Render;
+﻿using Spark.Engine.Assets;
 using Spark.Util;
 using System.Numerics;
 
@@ -25,8 +25,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
             }
             else
             {
-                RenderTarget = Owner.CurrentWorld.SceneRenderer.CreateDefaultRenderTarget(100, 100);
-                World.OnResize += RenderTarget.Resize;
+                RenderTarget = new RenderTarget();
             }
         }
         FieldOfView = 90;

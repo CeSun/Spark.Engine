@@ -2,6 +2,7 @@
 using Spark.Engine.Assets;
 using StbImageSharp;
 using System.Numerics;
+using System.Threading.Channels;
 using Texture = Spark.Engine.Assets.Texture;
 
 namespace Spark.Importer;
@@ -235,17 +236,14 @@ public static class TextureImporter
     {
         uint maxWidth = width;
         TextureCube textureCube = new TextureCube();
+        textureCube.Width = width;
+        textureCube.Height = width;
+        textureCube.Channel = TexChannel.Rgb;
+        textureCube.Filter = TexFilter.Liner;
+        textureCube.IsHdrTexture = true;
 
         for (int i = 0; i < 6; i++)
         {
-            Texture texture1 = new()
-            {
-                Channel = TexChannel.Rgb,
-                Width = maxWidth,
-                Height = maxWidth,
-                Filter = TexFilter.Liner,
-                IsHdrTexture = true
-            };
             List<float> Pixels = new();
             for (int y = 0; y < maxWidth; y++)
             {
@@ -262,8 +260,7 @@ public static class TextureImporter
                     Pixels.Add(color.Z);
                 }
             }
-            texture1.HDRPixels = Pixels;
-            textureCube.Textures[i] = texture1;
+            textureCube._hdrPixels[i] = Pixels;
         }
         return textureCube;
     }

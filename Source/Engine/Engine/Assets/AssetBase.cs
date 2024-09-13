@@ -9,11 +9,16 @@ public abstract class AssetBase
 
     public void RequestRendererRebuild()
     {
-        AssetModify(renderer => renderer.AddNeedRebuildRenderResourceProxy(renderer.GetProxy(this)!));
+        RunOnRenderer(renderer => renderer.AddNeedRebuildRenderResourceProxy(renderer.GetProxy(this)!));
     }
-    public void AssetModify(Action<IRenderer> action)
+    public void RunOnRenderer(Action<IRenderer> action)
     {
         OnAssetModify?.Invoke(action);
+    }
+
+    public virtual void PostProxyToRenderer()
+    {
+
     }
 }
 

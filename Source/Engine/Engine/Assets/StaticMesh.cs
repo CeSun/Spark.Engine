@@ -8,8 +8,16 @@ namespace Spark.Engine.Assets;
 public class StaticMesh : AssetBase
 {
 
-    public List<Element<StaticMeshVertex>> Elements = [];
+    private IReadOnlyList<Element<StaticMeshVertex>> _elements = [];
+    public IReadOnlyList<Element<StaticMeshVertex>> Elements 
+    {
+        get => _elements; 
+        set
+        {
+            _elements = value;
 
+        }
+    }
     
 }
 public class StaticMeshProxy : RenderProxy

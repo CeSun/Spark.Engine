@@ -21,8 +21,7 @@ public partial class Engine
         MainWorld = new World(this);
         if (MainView != null && MainWorld.SceneRenderer != null)
         {
-            MainWorld.WorldMainRenderTarget = MainWorld.SceneRenderer.CreateRenderTargetByFrameBufferId(MainView.Size.X, MainView.Size.Y, Platform.DefaultFrameBufferId);
-
+           
         }
 
         Worlds.Add(MainWorld);

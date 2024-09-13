@@ -7,7 +7,7 @@ namespace Spark.Engine.Assets;
 
 public partial class SkeletalMesh : AssetBase
 {
-    public List<Element<SkeletalMeshVertex>> Elements = [];
+    public IReadOnlyList<Element<SkeletalMeshVertex>> Elements = [];
     public Skeleton? Skeleton { get; set; }
 }
 

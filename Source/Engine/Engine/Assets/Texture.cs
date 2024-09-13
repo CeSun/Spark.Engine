@@ -1,16 +1,11 @@
 ﻿using Silk.NET.OpenGLES;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Spark.Engine.Assets;
 
 public class Texture : AssetBase
 {
-    public IReadOnlyList<float> _hdrPixels = [];
+    private IReadOnlyList<float> _hdrPixels = [];
     public IReadOnlyList<float> HDRPixels
     {
         get => _hdrPixels;
@@ -18,7 +13,7 @@ public class Texture : AssetBase
         {
             _hdrPixels = value;
             var list = value.ToList();
-            AssetModify(render =>
+            RunOnRenderer(render =>
             {
                 var proxy = render.GetProxy<TextureProxy>(this);
                 if (proxy != null)
@@ -31,7 +26,7 @@ public class Texture : AssetBase
         }
     }
 
-    public IReadOnlyList<byte> _ldrPixels = [];
+    private IReadOnlyList<byte> _ldrPixels = [];
     public IReadOnlyList<byte> LDRPixels
     {
         get => _ldrPixels;
@@ -39,7 +34,7 @@ public class Texture : AssetBase
         {
             _ldrPixels = value;
             var list = value.ToList();
-            AssetModify(render =>
+            RunOnRenderer(render =>
             {
                 var proxy = render.GetProxy<TextureProxy>(this);
                 if (proxy != null)
@@ -53,14 +48,14 @@ public class Texture : AssetBase
 
     }
 
-    public uint _width;
+    private uint _width;
     public uint Width 
     { 
         get => _width; 
         set
         {
             _width = value;
-            AssetModify(render =>
+            RunOnRenderer(render =>
             {
                 var proxy = render.GetProxy<TextureProxy>(this);
                 if (proxy != null)
@@ -71,14 +66,16 @@ public class Texture : AssetBase
             });
         }
     }
-    public uint _height;
+
+
+    private uint _height;
     public uint Height 
     { 
         get => _height;
         set
         {
             _height = value;
-            AssetModify(render =>
+            RunOnRenderer(render =>
             {
                 var proxy = render.GetProxy<TextureProxy>(this);
                 if (proxy != null)
@@ -89,14 +86,16 @@ public class Texture : AssetBase
             });
         }
     }
-    public TexChannel _channel;
+
+
+    private TexChannel _channel;
     public TexChannel Channel 
     { 
         get => _channel;
         set 
         {
             _channel = value;
-            AssetModify(render =>
+            RunOnRenderer(render =>
             {
                 var proxy = render.GetProxy<TextureProxy>(this);
                 if (proxy != null)
@@ -107,14 +106,16 @@ public class Texture : AssetBase
             });
         }
     }
-    public TexFilter _filter = TexFilter.Liner;
+
+
+    private TexFilter _filter = TexFilter.Liner;
     public TexFilter Filter 
     { 
         get => _filter; 
         set
         {
             _filter = value;
-            AssetModify(render =>
+            RunOnRenderer(render =>
             {
                 var proxy = render.GetProxy<TextureProxy>(this);
                 if (proxy != null)
@@ -126,14 +127,19 @@ public class Texture : AssetBase
         }
     }
 
-    public bool _isHdrTexture;
 
+    private bool _isHdrTexture = false;
+    public bool IsLdrTexture
+    {
+        get => !IsHdrTexture;
+        set => IsHdrTexture = !value;
+    }
     public bool IsHdrTexture
     {
         get => _isHdrTexture;
         set
         {
-            AssetModify(render =>
+            RunOnRenderer(render =>
             {
                 var proxy = render.GetProxy<TextureProxy>(this);
                 if (proxy != null)
@@ -152,12 +158,9 @@ public abstract class TextureProxy : RenderProxy
     public uint TextureId { get; protected set; }
     public uint Width { get; set; }
     public uint Height { get; set; }
-
-    public TexChannel Channel;
+    public TexChannel Channel { get; set; }
     public TexFilter Filter { get; set; } = TexFilter.Liner;
-
     public bool IsHdrTexture { get; set; }
-
     public List<float> HDRPixels { get; set; } = [];
     public List<byte> LDRPixels { get; set; } = [];
 
