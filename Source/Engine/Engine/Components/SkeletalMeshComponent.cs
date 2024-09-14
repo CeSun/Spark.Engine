@@ -19,7 +19,14 @@ public class SkeletalMeshComponent : PrimitiveComponent
     public SkeletalMesh? SkeletalMesh 
     { 
         get => _SkeletalMesh;
-        set => _SkeletalMesh = value;
+        set
+        {
+            _SkeletalMesh = value;
+            if (_SkeletalMesh != null && World.SceneRenderer != null)
+            {
+                _SkeletalMesh.PostProxyToRenderer(World.SceneRenderer);
+            }
+        }
     }
 
     private SkeletalMesh? _SkeletalMesh;

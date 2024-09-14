@@ -1,10 +1,18 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Render;
+using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
 
 public abstract class AssetBase
 {
+    public GCHandle WeakGCHandle { get; private set; }
+    public AssetBase()
+    {
+        WeakGCHandle = GCHandle.Alloc(this, GCHandleType.WeakTrackResurrection);
+    }
+
+
     public HashSet<IRenderer> RenderHashSet = [];
 
     public void RequestRendererRebuildGpuResource()
@@ -48,4 +56,8 @@ public class RenderProxy
 
     }
 
+
+    public virtual void DestoryGpuResource(GL gl) 
+    { 
+    }
 }

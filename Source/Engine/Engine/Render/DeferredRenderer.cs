@@ -1,5 +1,6 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Engine.Assets;
+using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Render;
 
@@ -15,6 +16,7 @@ public class DeferredRenderer : IRenderer
 
     public void Render()
     {
+        CheckNullWeakGCHandle();
         PreRender();
 
 
@@ -39,25 +41,30 @@ public class DeferredRenderer : IRenderer
     }
 
     
-    public T? GetProxy<T>(object obj) where T : class
+    public T? GetProxy<T>(AssetBase obj) where T : class
     {
-        if (ProxyDictonary.TryGetValue(obj, out var proxy))
-        {
-            if (proxy is T t)
-                return t;
-        }
-        return null;
+        return GetProxy(obj) as T;
     }
 
-    public RenderProxy? GetProxy(object obj)
+    public RenderProxy? GetProxy(AssetBase obj)
     {
-        if (ProxyDictonary.TryGetValue(obj, out var proxy))
+        if (obj == null)
+            return null;
+        if (ProxyDictonary.TryGetValue(obj.WeakGCHandle, out var proxy))
         {
             return proxy;
         }
         return null;
     }
 
+    public void AddProxy(AssetBase obj, RenderProxy renderProxy)
+    {
+        if (obj == null)
+            return;
+        if (ProxyDictonary.ContainsKey(obj.WeakGCHandle))
+            return;
+        ProxyDictonary.Add(obj.WeakGCHandle, renderProxy);
+    }
     public void AddNeedRebuildRenderResourceProxy(RenderProxy proxy)
     {
         if (proxy == null)
@@ -68,9 +75,22 @@ public class DeferredRenderer : IRenderer
         }
     }
 
+    private void CheckNullWeakGCHandle()
+    {
+        List<GCHandle> GCHandles = [];
+        foreach(var (gchandle, proxy) in ProxyDictonary)
+        {
+            if (gchandle.Target != null)
+                continue;
+            GCHandles.Add(gchandle);
+            proxy.DestoryGpuResource(gl);
+        }
+        GCHandles.ForEach(gchandle => ProxyDictonary.Remove(gchandle));
+    }
+
     private HashSet<RenderProxy> NeedRebuildProxies = [];
 
-    private Dictionary<object, RenderProxy> ProxyDictonary = [];
+    private Dictionary<GCHandle, RenderProxy> ProxyDictonary = [];
 
     private List<Action<IRenderer>> Actions = new List<Action<IRenderer>>();
 
@@ -80,4 +100,5 @@ public class DeferredRenderer : IRenderer
     {
         Actions.Add(action);
     }
+
 }
