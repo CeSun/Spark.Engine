@@ -25,7 +25,7 @@ public class RenderTarget : AssetBase
                 if (proxy != null)
                 {
                     proxy.IsDefaultRenderTarget = value;
-                    renderer.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
 
@@ -44,7 +44,7 @@ public class RenderTarget : AssetBase
                 if (proxy != null)
                 {
                     proxy.Width = value;
-                    renderer.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -63,7 +63,7 @@ public class RenderTarget : AssetBase
                 if (proxy != null)
                 {
                     proxy.Height = value;
-                    renderer.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -82,7 +82,7 @@ public class RenderTarget : AssetBase
                 if (proxy != null)
                 {
                     proxy.Configs = value;
-                    renderer.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -96,9 +96,8 @@ public class RenderTargetProxy : RenderProxy, IDisposable
     public uint FrameBufferId { private set; get; }
     public List<uint> AttachmentTextureIds { private set; get; } = [];
     public uint DepthId { private set; get; }
-
-
     public bool IsDefaultRenderTarget { get; set; }
+    private bool IsDefaultRenderTargetLast { get; set; }
     public int Width { set; get; }
     public int Height { set; get; }
 
@@ -107,19 +106,21 @@ public class RenderTargetProxy : RenderProxy, IDisposable
 
     public override void RebuildGpuResource(GL gl)
     {
-        foreach (var id in AttachmentTextureIds)
+        if (IsDefaultRenderTargetLast == false)
         {
-            if (id != 0)
+            foreach (var id in AttachmentTextureIds)
             {
-                gl.DeleteTexture(id);
+                if (id != 0)
+                {
+                    gl.DeleteTexture(id);
+                }
+            }
+            if (FrameBufferId != 0)
+            {
+                gl.DeleteFramebuffer(FrameBufferId);
             }
         }
-        if (FrameBufferId != 0)
-        {
-            gl.DeleteFramebuffer(FrameBufferId);
-        }
-        
-
+        IsDefaultRenderTargetLast = IsDefaultRenderTarget;
         FrameBufferId = gl.GenFramebuffer();
         gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
         AttachmentTextureIds = new(Configs.Count); 

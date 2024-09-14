@@ -5,20 +5,37 @@ namespace Spark.Engine.Assets;
 
 public abstract class AssetBase
 {
-    public event Action<Action<IRenderer>>? OnAssetModify;
+    public HashSet<IRenderer> RenderHashSet = [];
 
-    public void RequestRendererRebuild()
+    public void RequestRendererRebuildGpuResource()
     {
         RunOnRenderer(renderer => renderer.AddNeedRebuildRenderResourceProxy(renderer.GetProxy(this)!));
     }
     public void RunOnRenderer(Action<IRenderer> action)
     {
-        OnAssetModify?.Invoke(action);
+        foreach(var renderer in RenderHashSet)
+        {
+            renderer.AddRunOnRendererAction(action);
+        }
     }
-
-    public virtual void PostProxyToRenderer()
+    public virtual Func<IRenderer, RenderProxy>? GetGenerateProxyDelegate()
     {
-
+        return null ;
+    }
+    public virtual void PostProxyToRenderer(IRenderer renderer)
+    {
+        var fun = GetGenerateProxyDelegate();
+        if (fun == null)
+            return;
+        if (RenderHashSet.Contains(renderer) == false)
+        {
+            RenderHashSet.Add(renderer);
+            RunOnRenderer(render =>
+            {
+                var proxy = fun(render);
+                render.AddProxy(this, proxy);
+            });
+        }
     }
 }
 

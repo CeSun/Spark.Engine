@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGLES;
+using Spark.Engine.Render;
 using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
@@ -19,7 +20,7 @@ public class Texture : AssetBase
                 if (proxy != null)
                 {
                     proxy.HDRPixels = list;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
 
@@ -40,7 +41,7 @@ public class Texture : AssetBase
                 if (proxy != null)
                 {
                     proxy.LDRPixels = list;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
 
@@ -61,7 +62,7 @@ public class Texture : AssetBase
                 if (proxy != null)
                 {
                     proxy.Width = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -81,7 +82,7 @@ public class Texture : AssetBase
                 if (proxy != null)
                 {
                     proxy.Height = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -101,7 +102,7 @@ public class Texture : AssetBase
                 if (proxy != null)
                 {
                     proxy.Channel = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -121,7 +122,7 @@ public class Texture : AssetBase
                 if (proxy != null)
                 {
                     proxy.Filter = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -145,15 +146,40 @@ public class Texture : AssetBase
                 if (proxy != null)
                 {
                     proxy.IsHdrTexture = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
     }
+
+    public override Func<IRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    {
+        var isHdrTexture = IsHdrTexture;
+        var width = Width;
+        var height = Height;
+        var channel = Channel;
+        var filter = Filter;
+        List<float> hdrPixels = _hdrPixels.ToList();
+        List<byte> ldrPixels = _ldrPixels.ToList();
+
+        return renderer =>
+        {
+            return new TextureProxy
+            {
+                Width = width,
+                Height = height,
+                Channel = channel,
+                Filter = filter,
+                IsHdrTexture = isHdrTexture,
+                HDRPixels = hdrPixels,
+                LDRPixels = ldrPixels,
+            };
+        };
+    }
 }
 
 
-public abstract class TextureProxy : RenderProxy
+public class TextureProxy : RenderProxy
 {
     public uint TextureId { get; protected set; }
     public uint Width { get; set; }

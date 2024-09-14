@@ -2,6 +2,7 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Silk.NET.OpenGLES;
+using Spark.Engine.Render;
 
 namespace Spark.Engine.Assets;
 
@@ -15,17 +16,56 @@ public class StaticMesh : AssetBase
         set
         {
             _elements = value;
-
+            var list = _elements.ToList();
+            RunOnRenderer(renderer =>
+            {
+                var staticMeshProxy = renderer.GetProxy<StaticMeshProxy>(this);
+                if (staticMeshProxy != null)
+                {
+                    staticMeshProxy.Elements = list;
+                    RequestRendererRebuildGpuResource();
+                }
+            });
         }
     }
-    
+
+    public override void PostProxyToRenderer(IRenderer renderer)
+    {
+        foreach (var element in _elements)
+        {
+            if (element.Material == null)
+                continue;
+            element.Material.PostProxyToRenderer(renderer);
+        }
+        base.PostProxyToRenderer(renderer);
+    }
+    public override Func<IRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    {
+        var elements = Elements.ToList();
+
+        return renderer => new StaticMeshProxy
+        {
+            Elements = elements
+        }; 
+    }
 }
 public class StaticMeshProxy : RenderProxy
 {
-    public List<ElementProxy<StaticMeshVertex>> Elements = [];
+    public List<Element<StaticMeshVertex>> Elements = [];
 
+    public List<uint> VertexArrayObjectIndexes = [];
+    public List<uint> VertexBufferObjectIndexes = [];
+    public List<uint> ElementBufferObjectIndexes = [];
     public unsafe override void RebuildGpuResource(GL gl)
     {
+        VertexArrayObjectIndexes.ForEach(gl.DeleteVertexArray);
+        VertexBufferObjectIndexes.ForEach(gl.DeleteBuffer);
+        ElementBufferObjectIndexes.ForEach(gl.DeleteBuffer);
+
+        VertexArrayObjectIndexes = new List<uint>(Elements.Count);
+        VertexBufferObjectIndexes = new List<uint>(Elements.Count);
+        ElementBufferObjectIndexes = new List<uint>(Elements.Count);
+
         for (var index = 0; index < Elements.Count; index++)
         {
             uint vao = gl.GenVertexArray();
@@ -65,31 +105,20 @@ public class StaticMeshProxy : RenderProxy
             gl.EnableVertexAttribArray(5);
             gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(5 * sizeof(Vector3)));
             gl.BindVertexArray(0);
-            Elements[index].VertexArrayObjectIndex = vao;
-            Elements[index].VertexBufferObjectIndex = vbo;
-            Elements[index].ElementBufferObjectIndex = ebo;
+            VertexArrayObjectIndexes[index] = vao;
+            VertexBufferObjectIndexes[index] = vbo;
+            ElementBufferObjectIndexes[index] = ebo;
         }
 
     }
 }
 public class Element<T>  where T  : struct
 {
-    public IReadOnlyList<T> Vertices = [];
-    public IReadOnlyList<uint> Indices = [];
-    public Material? Material;
-}
-
-
-public class ElementProxy<T> where T : struct
-{
     public List<T> Vertices = [];
     public List<uint> Indices = [];
     public Material? Material;
-    public uint VertexArrayObjectIndex;
-    public uint VertexBufferObjectIndex;
-    public uint ElementBufferObjectIndex;
-    public uint IndicesLen;
 }
+
 public struct StaticMeshVertex : IVertex
 {
     public Vector3 Location { get; set; }

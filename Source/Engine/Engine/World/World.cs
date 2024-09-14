@@ -18,6 +18,7 @@ public class World
         if (GraphicsApi != null)
         {
             SceneRenderer = new DeferredRenderer(GraphicsApi);
+            WorldMainRenderTarget = new RenderTarget() { IsDefaultRenderTarget = true };
         }
     }
 

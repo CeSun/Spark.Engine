@@ -17,17 +17,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
     public int Order { get; set; }
     public CameraComponent(Actor actor) : base(actor)
     {
-        if (Engine.MainView != null && Owner.CurrentWorld.SceneRenderer != null)
-        {
-            if (Owner.CurrentWorld.WorldMainRenderTarget != null)
-            {
-                RenderTarget = Owner.CurrentWorld.WorldMainRenderTarget;
-            }
-            else
-            {
-                RenderTarget = new RenderTarget();
-            }
-        }
+        RenderTarget = new RenderTarget() { IsDefaultRenderTarget = true };
         FieldOfView = 90;
         NearPlaneDistance = 10;
         FarPlaneDistance = 100;

@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGLES;
+using Spark.Engine.Render;
 using System.Runtime.InteropServices;
 
 namespace Spark.Engine.Assets;
@@ -7,7 +8,7 @@ public class TextureCube : AssetBase
 {
     public IReadOnlyList<float>[] _hdrPixels = [[], [], [], [], [], []];
 
-    public IReadOnlyList<float>[] _ldrPixels = [[], [], [], [], [], []];
+    public IReadOnlyList<byte>[] _ldrPixels = [[], [], [], [], [], []];
 
     private uint _width;
     public uint Width
@@ -22,7 +23,7 @@ public class TextureCube : AssetBase
                 if (proxy != null)
                 {
                     proxy.Width = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -42,7 +43,7 @@ public class TextureCube : AssetBase
                 if (proxy != null)
                 {
                     proxy.Height = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -56,13 +57,13 @@ public class TextureCube : AssetBase
         set
         {
             _channel = value;
-            RunOnRenderer(render =>
+            RunOnRenderer(renderer =>
             {
-                var proxy = render.GetProxy<TextureCubeProxy>(this);
+                var proxy = renderer.GetProxy<TextureCubeProxy>(this);
                 if (proxy != null)
                 {
                     proxy.Channel = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -82,7 +83,7 @@ public class TextureCube : AssetBase
                 if (proxy != null)
                 {
                     proxy.Filter = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
@@ -106,11 +107,53 @@ public class TextureCube : AssetBase
                 if (proxy != null)
                 {
                     proxy.IsHdrTexture = value;
-                    render.AddNeedRebuildRenderResourceProxy(proxy);
+                    RequestRendererRebuildGpuResource();
                 }
             });
         }
     }
+
+    public override Func<IRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    {
+        var isHdrTexture = IsHdrTexture;
+        var width = Width;
+        var height = Height;
+        var channel = Channel;
+        var filter = Filter;
+        List<float>[] hdrPixels = 
+        [
+            _hdrPixels[0].ToList(),
+            _hdrPixels[1].ToList(),
+            _hdrPixels[2].ToList(),
+            _hdrPixels[3].ToList(),
+            _hdrPixels[4].ToList(),
+            _hdrPixels[5].ToList(),
+        ];
+        List<byte>[] ldrPixels =
+        [
+            _ldrPixels[0].ToList(),
+            _ldrPixels[1].ToList(),
+            _ldrPixels[2].ToList(),
+            _ldrPixels[3].ToList(),
+            _ldrPixels[4].ToList(),
+            _ldrPixels[5].ToList(),
+        ];
+
+        return renderer =>
+        {
+            return new TextureCubeProxy
+            {
+                Width = width,
+                Height = height,
+                Channel = channel,
+                Filter = filter,
+                IsHdrTexture = isHdrTexture,
+                HDRPixels = hdrPixels,
+                LDRPixels = ldrPixels,
+            };
+        };
+    }
+
 
 }
 
@@ -147,9 +190,9 @@ public class TextureCubeProxy : RenderProxy
     public TexFilter Filter { get; set; } = TexFilter.Liner;
     public bool IsHdrTexture { get; set; }
 
-    public List<float>[] _hdrPixels = [[], [], [], [], [], []];
+    public List<float>[] HDRPixels = [[], [], [], [], [], []];
 
-    public List<float>[] _ldrPixels = [[], [], [], [], [], []];
+    public List<byte>[] LDRPixels = [[], [], [], [], [], []];
     
     public unsafe override void RebuildGpuResource(GL gl)
     {
@@ -160,7 +203,7 @@ public class TextureCubeProxy : RenderProxy
         {
             if (IsHdrTexture == true)
             {
-                fixed (void* data = CollectionsMarshal.AsSpan(_hdrPixels[i]))
+                fixed (void* data = CollectionsMarshal.AsSpan(HDRPixels[i]))
                 {
                     gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlHdrEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, data);
                 }
@@ -168,7 +211,7 @@ public class TextureCubeProxy : RenderProxy
             }
             else 
             {
-                fixed (void* data = CollectionsMarshal.AsSpan(_ldrPixels[i]))
+                fixed (void* data = CollectionsMarshal.AsSpan(LDRPixels[i]))
                 {
                     gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, data);
                 }

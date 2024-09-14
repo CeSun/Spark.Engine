@@ -1,26 +1,75 @@
 ﻿using System.Numerics;
 using Silk.NET.OpenGLES;
 using System.Runtime.InteropServices;
+using Spark.Engine.Render;
 
 
 namespace Spark.Engine.Assets;
 
 public partial class SkeletalMesh : AssetBase
 {
-    public IReadOnlyList<Element<SkeletalMeshVertex>> Elements = [];
+    public IReadOnlyList<Element<SkeletalMeshVertex>> _elements = [];
+    public IReadOnlyList<Element<SkeletalMeshVertex>> Elements 
+    {
+        get => _elements;
+        set
+        {
+            _elements = value;
+            var list = _elements.ToList();
+            RunOnRenderer(renderer =>
+            {
+                var staticMeshProxy = renderer.GetProxy<SkeletalMeshProxy>(this);
+                if (staticMeshProxy != null)
+                {
+                    staticMeshProxy.Elements = list;
+                    RequestRendererRebuildGpuResource();
+                }
+            });
+
+        }
+    }
     public Skeleton? Skeleton { get; set; }
+
+    public override void PostProxyToRenderer(IRenderer renderer)
+    {
+        foreach (var element in _elements)
+        {
+            if (element.Material == null)
+                continue;
+            element.Material.PostProxyToRenderer(renderer);
+        }
+        base.PostProxyToRenderer(renderer);
+    }
+    public override Func<IRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    {
+        var elements = Elements.ToList();
+
+        return renderer => new SkeletalMeshProxy
+        {
+            Elements = elements
+        };
+    }
 }
 
 public class SkeletalMeshProxy : RenderProxy
 {
-    public List<ElementProxy<SkeletalMeshVertex>> Elements = [];
+    public List<Element<SkeletalMeshVertex>> Elements = [];
+
+    public List<uint> VertexArrayObjectIndexes = [];
+    public List<uint> VertexBufferObjectIndexes = [];
+    public List<uint> ElementBufferObjectIndexes = [];
 
     public unsafe override void RebuildGpuResource(GL gl)
     {
+        VertexArrayObjectIndexes.ForEach(gl.DeleteVertexArray);
+        VertexBufferObjectIndexes.ForEach(gl.DeleteBuffer);
+        ElementBufferObjectIndexes.ForEach(gl.DeleteBuffer);
+
+        VertexArrayObjectIndexes = new List<uint>(Elements.Count);
+        VertexBufferObjectIndexes = new List<uint>(Elements.Count);
+        ElementBufferObjectIndexes = new List<uint>(Elements.Count);
         for (var index = 0; index < Elements.Count; index++)
         {
-            if (Elements[index].VertexArrayObjectIndex > 0)
-                continue;
             uint vao = gl.GenVertexArray();
             uint vbo = gl.GenBuffer();
             uint ebo = gl.GenBuffer();
@@ -64,9 +113,9 @@ public class SkeletalMeshProxy : RenderProxy
             gl.EnableVertexAttribArray(7);
             gl.VertexAttribPointer(7, 4, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(5 * sizeof(Vector3) + sizeof(Vector2) + sizeof(Vector4)));
             gl.BindVertexArray(0);
-            Elements[index].VertexArrayObjectIndex = vao;
-            Elements[index].VertexBufferObjectIndex = vbo;
-            Elements[index].ElementBufferObjectIndex = ebo;
+            VertexArrayObjectIndexes[index] = vao;
+            VertexBufferObjectIndexes[index] = vbo;
+            ElementBufferObjectIndexes[index] = ebo;
         }
     }
 }
