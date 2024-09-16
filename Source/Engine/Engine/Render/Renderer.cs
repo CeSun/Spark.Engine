@@ -1,7 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Assets;
+using Spark.Assets;
 
-namespace Spark.Engine.Render;
+namespace Spark.Render;
 
 public interface IRenderer
 {
@@ -11,6 +11,7 @@ public interface IRenderer
     void AddProxy(AssetBase obj, RenderProxy renderProxy);
     void AddNeedRebuildRenderResourceProxy(RenderProxy proxy);
     void AddRunOnRendererAction(Action<IRenderer> action);
-    void Render();
+    void Render(RenderWorld renderWorld);
+    void Destory();
 
 }

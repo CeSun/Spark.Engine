@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Silk.NET.Input;
 using Silk.NET.OpenGLES;
 using Silk.NET.Windowing;
-using Spark.Engine.Platform;
+using Spark.Platform;
 
 namespace Desktop;
 

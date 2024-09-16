@@ -1,8 +1,8 @@
-﻿using Spark.Engine.Assets;
+﻿using Spark.Assets;
 using Spark.Util;
 using System.Numerics;
 
-namespace Spark.Engine.Components;
+namespace Spark.Components;
 
 public enum ProjectionType
 {
@@ -84,18 +84,6 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         }
    
     }
-
-
-    public void RenderScene(double DeltaTime)
-    {
-        if (Owner.CurrentWorld.SceneRenderer != null)
-        {
-            CurrentCameraComponent = this;
-            Owner.CurrentWorld.SceneRenderer.Render();
-            CurrentCameraComponent = null;
-        }
-    }
-
 
     public int CompareTo(CameraComponent? other)
     {

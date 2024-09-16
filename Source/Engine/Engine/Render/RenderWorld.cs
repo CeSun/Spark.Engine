@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spark.Assets;
+namespace Spark.Render;
 
-public class Level : AssetBase
+public class RenderWorld
 {
 
 }

@@ -5,7 +5,7 @@ using System.Xml.Linq;
 using Jitter2.Collision.Shapes;
 using Jitter2.LinearMath;
 using SharpGLTF.Schema2;
-using Spark.Engine.Assets;
+using Spark.Assets;
 using Material = Spark.Engine.Assets.Material;
 using Texture = Spark.Engine.Assets.Texture;
 

@@ -2,7 +2,7 @@
 using Jitter2.Dynamics;
 using Silk.NET.OpenGLES;
 
-namespace Spark.Engine.Components;
+namespace Spark.Components;
 
 public enum AttachRelation
 {

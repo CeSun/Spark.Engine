@@ -1,7 +1,7 @@
-﻿using Spark.Engine.Assets;
+﻿using Spark.Assets;
 using System.Numerics;
 
-namespace Spark.Engine.Components;
+namespace Spark.Components;
 
 public class SkeletalMeshComponent : PrimitiveComponent
 {
@@ -22,9 +22,9 @@ public class SkeletalMeshComponent : PrimitiveComponent
         set
         {
             _SkeletalMesh = value;
-            if (_SkeletalMesh != null && World.SceneRenderer != null)
+            if (_SkeletalMesh != null && World.Engine.SceneRenderer != null)
             {
-                _SkeletalMesh.PostProxyToRenderer(World.SceneRenderer);
+                _SkeletalMesh.PostProxyToRenderer(World.Engine.SceneRenderer);
             }
         }
     }

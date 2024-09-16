@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spark.Engine.Platform;
+namespace Spark.Platform;
 
 public interface IFileSystem
 {

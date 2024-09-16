@@ -1,6 +1,6 @@
-﻿using Spark.Engine;
+﻿using Spark;
 
-namespace Spark.Engine.Components;
+namespace Spark.Components;
 
 public class ActorComponent
 {

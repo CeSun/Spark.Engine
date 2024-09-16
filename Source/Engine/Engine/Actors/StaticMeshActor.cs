@@ -1,7 +1,7 @@
-﻿using Spark.Engine.Assets;
-using Spark.Engine.Components;
+﻿using Spark.Assets;
+using Spark.Components;
 
-namespace Spark.Engine;
+namespace Spark;
 
 public class StaticMeshActor : Actor
 {

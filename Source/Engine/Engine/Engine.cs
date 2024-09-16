@@ -1,44 +1,51 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Util;
-using System.Drawing;
 using Silk.NET.Input;
-using Spark.Engine.Platform;
+using Spark.Platform;
 using Silk.NET.Windowing;
+using Spark.Render;
 
-namespace Spark.Engine;
+namespace Spark;
 
 public partial class Engine
 {
-    public SingleThreadSyncContext? SyncContext { get; private set; }
-
-    public World MainWorld;
     public Engine(IPlatform platform)
     {
         SyncContext = SingleThreadSyncContext.Initialize();
 
         Platform = platform;
 
-        MainWorld = new World(this);
-        if (MainView != null && MainWorld.SceneRenderer != null)
+        if (GraphicsApi != null)
         {
-           
+            SceneRenderer = new DeferredRenderer(GraphicsApi);
         }
+
+        MainWorld = new World(this);
 
         Worlds.Add(MainWorld);
 
     }
+    public SingleThreadSyncContext? SyncContext { get; private set; }
 
     public List<World> Worlds = [];
-   
+
+    public World MainWorld;
+
+    public IRenderer? SceneRenderer;
+
+    public bool WantClose { get; private set; } = false;
+    public void RequestClose()
+    {
+        if (WantClose == false)
+        {
+            WantClose = true;
+        }
+    }
+
     public void Update(double deltaTime)
     {
         SyncContext?.Tick();
         Worlds.ForEach(world => world.Update(deltaTime));
-    }
-
-    public void Render(double deltaTime)
-    {
-        Worlds.ForEach(world => world.Render(deltaTime));
     }
 
     public void Start()
@@ -50,6 +57,33 @@ public partial class Engine
     {
         Worlds.ForEach(world => world.Destory());
     }
+
+    public void Render()
+    {
+        if (SceneRenderer != null)
+        {
+            foreach (var world in Worlds)
+            {
+                if (world.RenderWorld == null)
+                    continue;
+                SceneRenderer.Render(world.RenderWorld);
+            }
+        }
+    }
+
+    public void RenderDestory()
+    {
+        if (SceneRenderer != null)
+        {
+            foreach (var world in Worlds)
+            {
+                if (world.RenderWorld == null)
+                    continue;
+                SceneRenderer.Destory();
+            }
+        }
+    }
+
 
     public void Resize(int width, int height)
     {

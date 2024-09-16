@@ -1,8 +1,8 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Render;
+using Spark.Render;
 using System.Runtime.InteropServices;
 
-namespace Spark.Engine.Assets;
+namespace Spark.Assets;
 
 public class TextureCube : AssetBase
 {

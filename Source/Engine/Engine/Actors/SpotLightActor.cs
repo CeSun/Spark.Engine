@@ -1,6 +1,6 @@
-﻿using Spark.Engine.Components;
+﻿using Spark.Components;
 
-namespace Spark.Engine;
+namespace Spark;
 
 public class SpotLightActor : LightActor
 {

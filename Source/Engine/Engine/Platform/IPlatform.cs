@@ -7,7 +7,7 @@ using Silk.NET.Input;
 using Silk.NET.OpenGLES;
 using Silk.NET.Windowing;
 
-namespace Spark.Engine.Platform;
+namespace Spark.Platform;
 public interface IPlatform
 {
     public IFileSystem FileSystem { get; }

@@ -1,28 +1,28 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Assets;
-using Spark.Engine.Render;
+using Spark.Assets;
+using Spark.Render;
 
-namespace Spark.Engine;
+namespace Spark;
 
 public class World
 {
     public GL? GraphicsApi { get; set; }
     public Engine Engine { get; set; }
 
-    public RenderTarget? WorldMainRenderTarget;
     public UpdateManager UpdateManager { get;  private set; } = new UpdateManager();
+
+    public RenderTarget? WorldMainRenderTarget { get; set; }
+    public RenderWorld? RenderWorld { get; set; } 
     public World(Engine engine)
     {
         Engine = engine;
         GraphicsApi = Engine.GraphicsApi;
         if (GraphicsApi != null)
         {
-            SceneRenderer = new DeferredRenderer(GraphicsApi);
             WorldMainRenderTarget = new RenderTarget() { IsDefaultRenderTarget = true };
+            RenderWorld = new RenderWorld();
         }
     }
-
-    public IRenderer? SceneRenderer;
 
     public void BeginPlay()
     {

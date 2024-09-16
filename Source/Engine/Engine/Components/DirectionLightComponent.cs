@@ -2,7 +2,7 @@
 using System.Drawing;
 using System.Numerics;
 
-namespace Spark.Engine.Components;
+namespace Spark.Components;
 
 public class DirectionLightComponent : LightComponent
 {

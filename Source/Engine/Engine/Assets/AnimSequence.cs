@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace Spark.Engine.Assets;
+namespace Spark.Assets;
 
 public class AnimSequence : AnimBase
 {

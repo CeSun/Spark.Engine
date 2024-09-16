@@ -1,6 +1,6 @@
-﻿using Spark.Engine.Assets;
+﻿using Spark.Assets;
 
-namespace Spark.Engine.Components;
+namespace Spark.Components;
 
 public class StaticMeshComponent : PrimitiveComponent
 {
@@ -14,9 +14,9 @@ public class StaticMeshComponent : PrimitiveComponent
         set
         {
             _StaticMesh = value;
-            if (_StaticMesh != null && World.SceneRenderer != null)
+            if (_StaticMesh != null && World.Engine.SceneRenderer != null)
             {
-                _StaticMesh.PostProxyToRenderer(World.SceneRenderer);
+                _StaticMesh.PostProxyToRenderer(World.Engine.SceneRenderer);
             }
         }
     }

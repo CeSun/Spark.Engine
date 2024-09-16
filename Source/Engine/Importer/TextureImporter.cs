@@ -1,5 +1,5 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Engine.Assets;
+using Spark.Assets;
 using StbImageSharp;
 using System.Numerics;
 using System.Threading.Channels;

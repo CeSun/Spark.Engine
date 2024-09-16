@@ -6,7 +6,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Spark.Engine.Assets;
+namespace Spark.Assets;
 
 public class Skeleton : AssetBase
 {
