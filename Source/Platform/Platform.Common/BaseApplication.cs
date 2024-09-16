@@ -1,6 +1,6 @@
 ﻿using Spark.Core;
 
-namespace Common;
+namespace Spark.Platform.Common;
 
 public abstract class BaseApplication
 {

@@ -1,7 +1,7 @@
 ﻿using Spark.Core;
 using System.Diagnostics;
 
-namespace Common;
+namespace Spark.Platform.Common;
 
 public class ConsoleApplication : BaseApplication
 {

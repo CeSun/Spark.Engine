@@ -1,10 +1,10 @@
 ﻿using Spark.Platform.Desktop;
+using Spark.Core;
+using Spark.Platform.Common;
 using Silk.NET.Input;
 using Silk.NET.OpenGLES;
 using Silk.NET.Windowing;
 using Silk.NET.Windowing.Sdl;
-using Spark.Core;
-using Common;
 using Silk.NET.Input.Sdl;
 
 SdlWindowing.RegisterPlatform();

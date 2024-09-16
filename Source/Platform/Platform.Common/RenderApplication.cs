@@ -2,7 +2,7 @@
 using Spark.Core;
 using System.Diagnostics;
 
-namespace Common;
+namespace Spark.Platform.Common;
 
 public class RenderApplication : BaseApplication
 {
@@ -36,12 +36,12 @@ public class RenderApplication : BaseApplication
         RunRender();
         while (Engine.WantClose == false)
         {
-            UpdateWaitEvent.WaitOne();
             stopwatch.Stop();
             var deltaTime = stopwatch.ElapsedMilliseconds;
             stopwatch.Restart();
             Engine.Platform.View?.DoEvents();
             Engine.Update(deltaTime);
+            UpdateWaitEvent.WaitOne();
             RenderWaitEvent.Set();
         }
         stopwatch.Stop();
