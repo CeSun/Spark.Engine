@@ -1,10 +1,10 @@
 ﻿using System.Numerics;
 using Silk.NET.OpenGLES;
 using System.Runtime.InteropServices;
-using Spark.Render;
+using Spark.Core.Render;
 
 
-namespace Spark.Assets;
+namespace Spark.Core.Assets;
 
 public partial class SkeletalMesh : AssetBase
 {

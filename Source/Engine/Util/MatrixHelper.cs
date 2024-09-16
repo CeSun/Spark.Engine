@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
 
-namespace System.Numerics;
+namespace Spark.Util;
 public static class MatrixHelper
 {
     // 计算缩放分量

@@ -1,7 +1,8 @@
-﻿using Spark.Assets;
+﻿using Spark.Core.Actors;
+using Spark.Core.Assets;
 using System.Numerics;
 
-namespace Spark.Components;
+namespace Spark.Core.Components;
 
 public class SkeletalMeshComponent : PrimitiveComponent
 {

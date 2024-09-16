@@ -1,6 +1,6 @@
-﻿using Spark.Components;
+﻿using Spark.Core.Components;
 
-namespace Spark;
+namespace Spark.Core.Actors;
 public class SkeletalMeshActor : Actor
 {
     public SkeletalMeshComponent SkeletalMeshComponent { get; private set; }

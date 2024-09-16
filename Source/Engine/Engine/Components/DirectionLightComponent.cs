@@ -1,8 +1,7 @@
-﻿using Silk.NET.OpenGLES;
-using System.Drawing;
+﻿using Spark.Core.Actors;
 using System.Numerics;
 
-namespace Spark.Components;
+namespace Spark.Core.Components;
 
 public class DirectionLightComponent : LightComponent
 {

@@ -1,8 +1,8 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Assets;
-using Spark.Render;
+using Spark.Core.Assets;
+using Spark.Core.Render;
 
-namespace Spark;
+namespace Spark.Core;
 
 public class World
 {

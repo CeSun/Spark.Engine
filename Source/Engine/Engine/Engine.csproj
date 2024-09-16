@@ -4,12 +4,12 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+        <RootNamespace>Spark.Core</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
       </PropertyGroup>
 
       <ItemGroup>
-        <PackageReference Include="Jitter2" Version="2.4.3" />
+        <PackageReference Include="Jitter2" Version="2.4.4" />
 	    <PackageReference Include="Silk.NET.Input.Common" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES.Extensions.EXT" Version="$(SilkVersion)" />

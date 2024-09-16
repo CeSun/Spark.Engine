@@ -1,6 +1,7 @@
-﻿using Spark.Assets;
+﻿using Spark.Core.Actors;
+using Spark.Core.Assets;
 
-namespace Spark.Components;
+namespace Spark.Core.Components;
 
 public class SkyboxComponent : PrimitiveComponent
 {

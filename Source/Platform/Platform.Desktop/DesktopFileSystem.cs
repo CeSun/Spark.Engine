@@ -1,6 +1,6 @@
-﻿using Spark.Platform;
+﻿using Spark.Core.Platform;
 
-namespace Desktop;
+namespace Spark.Platform.Desktop;
 
 public class DesktopFileSystem : IFileSystem
 {

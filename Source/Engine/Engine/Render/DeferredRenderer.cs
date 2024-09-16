@@ -1,8 +1,6 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Assets;
-using System.Runtime.InteropServices;
 
-namespace Spark.Render;
+namespace Spark.Core.Render;
 
 public class DeferredRenderer : BaseRenderer
 {

@@ -1,7 +1,8 @@
-﻿using System.Drawing;
+﻿using Spark.Core.Actors;
+using System.Drawing;
 using System.Numerics;
 
-namespace Spark.Components;
+namespace Spark.Core.Components;
 
 public class LightComponent : PrimitiveComponent
 {

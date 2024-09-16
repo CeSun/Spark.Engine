@@ -1,4 +1,6 @@
-﻿namespace Spark.Components;
+﻿using Spark.Core.Actors;
+
+namespace Spark.Core.Components;
 
 public class PointLightComponent : LightComponent
 {

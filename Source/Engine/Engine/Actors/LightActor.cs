@@ -1,7 +1,7 @@
-﻿using Spark.Components;
+﻿using Spark.Core.Components;
 using System.Drawing;
 
-namespace Spark
+namespace Spark.Core.Actors
 {
     abstract public class LightActor : Actor
     {

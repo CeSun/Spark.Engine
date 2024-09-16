@@ -1,14 +1,18 @@
-﻿using Desktop;
+﻿using Spark.Platform.Desktop;
 using Silk.NET.Input;
-using Silk.NET.Input.Sdl;
 using Silk.NET.OpenGLES;
 using Silk.NET.Windowing;
 using Silk.NET.Windowing.Sdl;
-using Spark;
-using Spark.Platform.Common;
+using Spark.Core;
+using Common;
+using Silk.NET.Input.Sdl;
 
 SdlWindowing.RegisterPlatform();
+
 SdlWindowing.Use();
+
+SdlInput.RegisterPlatform();
+SdlInput.Use();
 
 WindowOptions options = WindowOptions.Default;
 
@@ -24,6 +28,6 @@ var platform = new DesktopPlatform { View = window, FileSystem = new DesktopFile
 
 var engine = new Engine(platform);
 
-var app = new WindowApplication(engine);
+var app = new RenderApplication(engine);
 
 app.Run();

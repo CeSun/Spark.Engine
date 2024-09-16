@@ -1,8 +1,9 @@
 ﻿using System.Numerics;
+using Spark.Core.Actors;
 using Jitter2.Dynamics;
-using Silk.NET.OpenGLES;
+using Spark.Util;
 
-namespace Spark.Components;
+namespace Spark.Core.Components;
 
 public enum AttachRelation
 {

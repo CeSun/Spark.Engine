@@ -1,8 +1,8 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Render;
+using Spark.Core.Render;
 using System.Runtime.InteropServices;
 
-namespace Spark.Assets;
+namespace Spark.Core.Assets;
 
 public abstract class AssetBase
 {

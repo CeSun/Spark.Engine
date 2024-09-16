@@ -1,13 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Render;
-using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Spark.Assets;
+namespace Spark.Core.Assets;
 
 public class RenderTarget : AssetBase
 {

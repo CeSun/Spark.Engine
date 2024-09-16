@@ -1,7 +1,7 @@
-﻿using Spark.Components;
+﻿using Spark.Core.Components;
 using System.Numerics;
 
-namespace Spark;
+namespace Spark.Core.Actors;
 
 public partial class Actor
 {

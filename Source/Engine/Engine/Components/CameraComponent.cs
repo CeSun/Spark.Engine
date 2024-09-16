@@ -1,8 +1,9 @@
-﻿using Spark.Assets;
-using Spark.Util;
+﻿using Spark.Core.Assets;
 using System.Numerics;
+using Spark.Core.Actors;
+using Spark.Util;
 
-namespace Spark.Components;
+namespace Spark.Core.Components;
 
 public enum ProjectionType
 {

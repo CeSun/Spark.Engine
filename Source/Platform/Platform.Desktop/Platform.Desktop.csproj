@@ -13,7 +13,7 @@
   <ItemGroup>
     <PackageReference Include="Silk.NET.Input" Version="$(SilkVersion)" />
     <PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="$(SilkVersion)" />
-    <PackageReference Include="Silk.NET.Windowing" Version="$(SilkVersion)" />
+    <PackageReference Include="Silk.NET.Windowing.Common" Version="$(SilkVersion)" />
   </ItemGroup>
 
 

@@ -1,12 +1,9 @@
-﻿using Silk.NET.OpenGLES;
-using Spark.Assets;
+﻿using Spark.Core.Assets;
 using StbImageSharp;
 using System.Numerics;
-using System.Threading.Channels;
-using Texture = Spark.Engine.Assets.Texture;
+using Texture = Spark.Core.Assets.Texture;
 
 namespace Spark.Importer;
-
 public class TextureImportSetting
 {
     public bool IsGammaSpace { get; set; } = false;

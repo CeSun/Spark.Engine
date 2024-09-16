@@ -1,7 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Assets;
+using Spark.Core.Assets;
 
-namespace Spark.Render;
+namespace Spark.Core.Render;
 
 public interface IRenderer
 {

@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using Silk.NET.OpenGLES;
 
-namespace Spark.Render;
+namespace Spark.Core.Render;
 
 public class Shader
 {

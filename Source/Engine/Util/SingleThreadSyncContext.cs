@@ -1,4 +1,5 @@
-﻿namespace Spark.Util;
+﻿
+namespace Spark.Util;
 
 public class SingleThreadSyncContext : SynchronizationContext
 {

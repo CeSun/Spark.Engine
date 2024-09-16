@@ -1,13 +1,8 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Assets;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using Spark.Core.Assets;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Spark.Render;
+namespace Spark.Core.Render;
 
 public abstract class BaseRenderer : IRenderer
 {

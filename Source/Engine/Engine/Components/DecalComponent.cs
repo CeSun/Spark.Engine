@@ -1,6 +1,7 @@
-﻿using Spark.Assets;
+﻿using Spark.Core.Assets;
+using Spark.Core.Actors;
 
-namespace Spark.Components;
+namespace Spark.Core.Components;
 
 public class DecalComponent : PrimitiveComponent
 {

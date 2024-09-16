@@ -1,11 +1,11 @@
 ﻿using Silk.NET.OpenGLES;
-using Spark.Util;
 using Silk.NET.Input;
-using Spark.Platform;
+using Spark.Core.Platform;
 using Silk.NET.Windowing;
-using Spark.Render;
+using Spark.Core.Render;
+using Spark.Util;
 
-namespace Spark;
+namespace Spark.Core;
 
 public partial class Engine
 {
@@ -23,7 +23,6 @@ public partial class Engine
         MainWorld = new World(this);
 
         Worlds.Add(MainWorld);
-
     }
     public SingleThreadSyncContext? SyncContext { get; private set; }
 
@@ -98,17 +97,17 @@ public partial class Engine
 {
     public IPlatform Platform { get; private set; }
     public GL? GraphicsApi => Platform.GraphicsApi;
-    public IInputContext Input => Platform.InputContext;
+    public IInputContext? Input => Platform.InputContext;
     public IFileSystem FileSystem => Platform.FileSystem;
     public IView? MainView => Platform.View;
 
     public IKeyboard? MainKeyBoard
     {
-        get => Input.Keyboards.FirstOrDefault();
+        get => Input?.Keyboards.FirstOrDefault();
     }
 
     public IMouse? MainMouse
     {
-        get => Input.Mice.FirstOrDefault();
+        get => Input?.Mice.FirstOrDefault();
     }
 }

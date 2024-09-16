@@ -1,6 +1,7 @@
-﻿using System.Numerics;
+﻿using Spark.Util;
+using System.Numerics;
 
-namespace Spark.Assets;
+namespace Spark.Core.Assets;
 
 public class AnimSequence : AnimBase
 {

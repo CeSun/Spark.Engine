@@ -1,13 +1,10 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Numerics;
-using System.Xml.Linq;
-using Jitter2.Collision.Shapes;
+﻿using System.Numerics;
 using Jitter2.LinearMath;
 using SharpGLTF.Schema2;
-using Spark.Assets;
-using Material = Spark.Engine.Assets.Material;
-using Texture = Spark.Engine.Assets.Texture;
+using Spark.Core.Assets;
+using Spark.Util;
+using Material = Spark.Core.Assets.Material;
+using Texture = Spark.Core.Assets.Texture;
 
 namespace Spark.Importer;
 
@@ -24,7 +21,7 @@ public class SkeletalMeshImportSetting
 public static class MeshImporter
 {
    
-    public static void ImporterStaticMeshFromGlbStream(this Engine.Engine engine, StreamReader streamReader, StaticMeshImportSetting staticMeshImportSetting, List<Texture> textures, List<Material> materials, out StaticMesh staticMesh)
+    public static void ImporterStaticMeshFromGlbStream(StreamReader streamReader, StaticMeshImportSetting staticMeshImportSetting, List<Texture> textures, List<Material> materials, out StaticMesh staticMesh)
     {
         ModelRoot model = ModelRoot.ReadGLB(streamReader.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
@@ -188,7 +185,7 @@ public static class MeshImporter
         }
     }
 
-    public static void ImporterSkeletalMeshFromGlbStream(this Engine.Engine engine, StreamReader streamReader,
+    public static void ImporterSkeletalMeshFromGlbStream(StreamReader streamReader,
         SkeletalMeshImportSetting skeletalMeshImportSetting, List<Texture> textures, List<Material> materials, List<AnimSequence> animSequences, out Skeleton skeleton, out SkeletalMesh skeletalMesh)
 
     {
@@ -200,7 +197,7 @@ public static class MeshImporter
         var model = ModelRoot.ReadGLB(streamReader.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
         SkeletalMesh sk = new SkeletalMesh();
-        LoadVertices(engine, sk, model);
+        LoadVertices(sk, model);
         tmpSkeleton ??= LoadBones(model);
         sk.Skeleton = tmpSkeleton;
         var anims = LoadAnimSequence(model, tmpSkeleton);
@@ -271,7 +268,7 @@ public static class MeshImporter
         return list;
     }
 
-    static void LoadVertices(Engine.Engine engine, SkeletalMesh skeletalMesh, ModelRoot model)
+    static void LoadVertices(SkeletalMesh skeletalMesh, ModelRoot model)
     {
         List<Element<SkeletalMeshVertex>> elements = new();
         foreach (var glMesh in model.LogicalMeshes)

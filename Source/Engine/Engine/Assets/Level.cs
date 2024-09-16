@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Spark.Assets;
+﻿namespace Spark.Core.Assets;
 
 public class Level : AssetBase
 {

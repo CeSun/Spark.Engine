@@ -1,20 +1,14 @@
-﻿
-
-using Silk.NET.OpenGLES;
-using Silk.NET.Windowing;
+﻿using Silk.NET.Windowing;
+using Spark.Core;
 using System.Diagnostics;
-using System.Drawing;
 
-namespace Spark.Platform.Common;
+namespace Common;
 
-public class WindowApplication
+public class RenderApplication : BaseApplication
 {
-
-    public Engine Engine { get; set; }
-
-    public WindowApplication(Engine engine)
+    public RenderApplication(Engine engine) : base(engine)
     {
-        Engine = engine;
+
     }
 
     private void Configure()
@@ -34,9 +28,7 @@ public class WindowApplication
         }
     }
 
-
-
-    public void Run()
+    public override void Run()
     {
         Configure();
         Engine.Start();
@@ -69,7 +61,6 @@ public class WindowApplication
             {
                 Engine.MainView.MakeCurrent();
             }
-            int i = 0;
             while (Engine.WantClose == false)
             {
                 RenderWaitEvent.WaitOne();

@@ -2,9 +2,9 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Silk.NET.OpenGLES;
-using Spark.Render;
+using Spark.Core.Render;
 
-namespace Spark.Assets;
+namespace Spark.Core.Assets;
 
 public class StaticMesh : AssetBase
 {

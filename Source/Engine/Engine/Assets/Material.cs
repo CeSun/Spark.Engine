@@ -1,7 +1,6 @@
-﻿
-using Spark.Render;
+﻿using Spark.Core.Render;
 
-namespace Spark.Assets;
+namespace Spark.Core.Assets;
 
 public class Material : AssetBase
 {
