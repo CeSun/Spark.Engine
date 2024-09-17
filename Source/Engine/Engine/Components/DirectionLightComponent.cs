@@ -5,7 +5,7 @@ namespace Spark.Core.Components;
 
 public class DirectionLightComponent : LightComponent
 {
-    public DirectionLightComponent(Actor actor) : base(actor)
+    public DirectionLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
     }
 

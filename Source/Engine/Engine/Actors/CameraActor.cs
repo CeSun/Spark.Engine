@@ -6,7 +6,7 @@ namespace Spark.Core.Actors;
 public class CameraActor : Actor
 {
     public CameraComponent CameraComponent { get; private set; }
-    public CameraActor(World world) : base(world)
+    public CameraActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
         CameraComponent = new CameraComponent(this);
     }

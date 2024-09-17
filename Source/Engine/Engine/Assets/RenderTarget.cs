@@ -63,6 +63,22 @@ public class RenderTarget : AssetBase
         }
     }
 
+    public void Resize(int width, int height)
+    {
+        _height = height;
+        _width = width;
+        RunOnRenderer(renderer =>
+        {
+            var proxy = renderer.GetProxy<RenderTargetProxy>(this);
+            if (proxy != null)
+            {
+                proxy.Height = _height;
+                proxy.Width = _width;
+                RequestRendererRebuildGpuResource();
+            }
+        });
+    }
+
     private IReadOnlyList<FrameBufferConfig> _configs = [];
     public IReadOnlyList<FrameBufferConfig> Configs
     {

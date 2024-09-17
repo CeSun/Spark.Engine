@@ -5,7 +5,7 @@ namespace Spark.Core.Components;
 
 public class SkyboxComponent : PrimitiveComponent
 {
-    public SkyboxComponent(Actor actor) : base(actor)
+    public SkyboxComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
 
     }

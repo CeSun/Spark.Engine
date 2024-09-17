@@ -6,7 +6,7 @@ namespace Spark.Core.Actors;
 public partial class Actor
 {
 
-    public bool IsEditorActor = false;
+    public WorldObjectState ActorState { get; private set; }
     /// <summary>
     /// Actor所在关卡
     /// </summary>
@@ -15,26 +15,59 @@ public partial class Actor
     /// <summary>
     /// Actor所在世界
     /// </summary>
-    public World CurrentWorld { get; set; }
+    public World World { get; set; }
 
-    public Actor(World world)
+    public Actor(World world, bool registerToWorld = true)
     {
-        CurrentWorld = world;
-        if (ReceiveUpdate)
+        ActorState = WorldObjectState.Invaild;
+        World = world;
+        if (registerToWorld)
         {
-            CurrentWorld.UpdateManager.RegisterUpdate(Update);
+            RegisterToWorld();
         }
     }
 
+    public void RegisterToWorld()
+    {
+        if (ActorState == WorldObjectState.Invaild)
+            return;
+        ActorState = WorldObjectState.Registered;
+        World.AddActor(this);
+        if (ReceiveUpdate)
+        {
+            World.UpdateManager.RegisterUpdate(Update);
+        }
+        foreach(var component in _PrimitiveComponents)
+        {
+            component.RegisterToWorld();
+        }
+        
+    }
+
+    public void UnregisterFromWorld()
+    {
+        World.RemoveActor(this);
+        if (ReceiveUpdate)
+        {
+            World.UpdateManager.UnregisterUpdate(Update);
+        }
+        foreach (var component in _PrimitiveComponents)
+        {
+            component.UnregisterFromWorld();
+        }
+    }
+
+
     public void BeginPlay()
     {
-        _isBegan = true;
+        if (ActorState != WorldObjectState.Registered)
+            return;
+        ActorState = WorldObjectState.Began;
         OnBeginPlay();
     }
-    private bool _isBegan = false;
     public void Update(double deltaTime)
     {
-        if (_isBegan == false)
+        if (ActorState != WorldObjectState.Began)
             return;
         OnUpdate(deltaTime);
     }
@@ -47,17 +80,14 @@ public partial class Actor
     {
 
     }
+
     public void Destory()
     {
+        if (ActorState != WorldObjectState.Began)
+            return;
         OnEndPlay();
-        foreach (var component in PrimitiveComponents.ToList())
-        {
-            UnregistComponent(component);
-        }
-        if (ReceiveUpdate)
-        {
-            CurrentWorld.UpdateManager.UnregisterUpdate(Update);
-        }
+        UnregisterFromWorld();
+        ActorState = WorldObjectState.Destoryed;
     }
 
     protected virtual void OnEndPlay()
@@ -130,14 +160,14 @@ public partial class Actor
 /// </summary>
 public partial class Actor
 {
-    List<PrimitiveComponent> _PrimitiveComponents = new List<PrimitiveComponent>();
-    public IReadOnlyList<PrimitiveComponent> PrimitiveComponents { get { return _PrimitiveComponents; } }
+    HashSet<PrimitiveComponent> _PrimitiveComponents = new HashSet<PrimitiveComponent>();
+    public IReadOnlySet<PrimitiveComponent> PrimitiveComponents => _PrimitiveComponents;
 
     /// <summary>
     /// 向Actor上注册组件
     /// </summary>
     /// <param name="Component"></param>
-    public void RegistComponent(PrimitiveComponent Component)
+    public void AddComponent(PrimitiveComponent Component)
     {
         if (PrimitiveComponents.Contains(Component))
         {
@@ -158,7 +188,7 @@ public partial class Actor
     /// 从Actor上注销组件
     /// </summary>
     /// <param name="Component"></param>
-    public void UnregistComponent(PrimitiveComponent Component)
+    public void RemoveComponent(PrimitiveComponent Component)
     {
         if (!PrimitiveComponents.Contains(Component))
         {
@@ -200,4 +230,13 @@ public partial class Actor
         }
         return list;
     }
+}
+
+
+public enum WorldObjectState
+{
+    Invaild,
+    Registered,
+    Began,
+    Destoryed,
 }

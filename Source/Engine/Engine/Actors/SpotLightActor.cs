@@ -7,7 +7,7 @@ public class SpotLightActor : LightActor
 
     public SpotLightComponent SpotLightComponent { get; private set; }
 
-    public SpotLightActor(World world) : base(world)
+    public SpotLightActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
         SpotLightComponent = new SpotLightComponent(this);
     }

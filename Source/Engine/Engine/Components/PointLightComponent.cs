@@ -6,7 +6,7 @@ public class PointLightComponent : LightComponent
 {
     protected override bool ReceiveUpdate => true;
 
-    public PointLightComponent(Actor actor) : base(actor)
+    public PointLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
         AttenuationRadius = 1f;
     }

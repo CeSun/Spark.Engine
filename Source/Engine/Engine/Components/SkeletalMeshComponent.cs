@@ -6,7 +6,7 @@ namespace Spark.Core.Components;
 
 public class SkeletalMeshComponent : PrimitiveComponent
 {
-    public SkeletalMeshComponent(Actor actor) : base(actor)
+    public SkeletalMeshComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
         for (var i = 0; i < 100; i++)
         {

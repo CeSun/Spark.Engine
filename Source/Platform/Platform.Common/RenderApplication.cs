@@ -6,6 +6,13 @@ namespace Spark.Platform.Common;
 
 public class RenderApplication : BaseApplication
 {
+
+    private AutoResetEvent RenderWaitEvent = new AutoResetEvent(false);
+
+    private AutoResetEvent UpdateWaitEvent = new AutoResetEvent(true);
+
+    private ManualResetEvent CloseWindowWaitEvent = new ManualResetEvent(false);
+
     public RenderApplication(Engine engine) : base(engine)
     {
 
@@ -19,11 +26,10 @@ public class RenderApplication : BaseApplication
             {
                 Engine.RequestClose();
                 RenderWaitEvent.Set();
-                while (RenderThreadExit == false)
-                {
-                    Thread.Sleep(1);
-                }
+                CloseWindowWaitEvent.WaitOne();
             };
+            Engine.MainView.Resize += size => Engine.Resize(size.X, size.Y);
+
             Engine.MainView.ClearContext();
         }
     }
@@ -36,7 +42,10 @@ public class RenderApplication : BaseApplication
         RunRender();
         while (Engine.WantClose == false)
         {
-            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds < 1000.0 / 60)
+            {
+                Wait((1000.0 / 60 - stopwatch.ElapsedMilliseconds));
+            }
             var deltaTime = stopwatch.ElapsedMilliseconds;
             stopwatch.Restart();
             Engine.Platform.View?.DoEvents();
@@ -47,12 +56,6 @@ public class RenderApplication : BaseApplication
         stopwatch.Stop();
         Engine.Stop();
     }
-
-    private AutoResetEvent RenderWaitEvent = new AutoResetEvent(false);
-
-    private AutoResetEvent UpdateWaitEvent = new AutoResetEvent(true);
-
-    private bool RenderThreadExit = false;
     private void RunRender()
     {
         new Thread(() =>
@@ -69,7 +72,7 @@ public class RenderApplication : BaseApplication
                 UpdateWaitEvent.Set();
             }
             Engine.RenderDestory();
-            RenderThreadExit = true;
+            CloseWindowWaitEvent.Set();
         }).Start();
     }
 

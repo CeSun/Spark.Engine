@@ -12,8 +12,9 @@ public enum AttachRelation
 }
 public partial class PrimitiveComponent
 {
-    public Engine Engine => Owner.CurrentWorld.Engine;
-    public World World => Owner.CurrentWorld;
+    public WorldObjectState ComponentState { get; private set; }
+    public Engine Engine => Owner.World.Engine;
+    public World World => Owner.World;
 
     protected virtual bool ReceiveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
@@ -23,21 +24,35 @@ public partial class PrimitiveComponent
     /// 构造函数
     /// </summary>
     /// <param name="actor">所属actor</param>
-    public PrimitiveComponent(Actor actor)
+    public PrimitiveComponent(Actor actor, bool registerToWorld = true)
     {
-        IsDestoryed = false;
         _owner = actor;
-        _owner.RegistComponent(this);
-        if (Owner.RootComponent == null)
+        ComponentState = WorldObjectState.Invaild;
+        _owner.AddComponent(this);
+        if (registerToWorld)
         {
-            Owner.RootComponent = this;
-        }
-        if (ReceiveUpdate)
-        {
-            Owner.CurrentWorld.UpdateManager.RegisterUpdate(Update);
+            RegisterToWorld();
         }
     }
 
+    public virtual void RegisterToWorld()
+    {
+        if (ComponentState != WorldObjectState.Invaild)
+            return;
+        ComponentState = WorldObjectState.Registered;
+        if (ReceiveUpdate)
+        {
+            Owner.World.UpdateManager.RegisterUpdate(Update);
+        }
+    }
+
+    public void UnregisterFromWorld()
+    {
+        if (ReceiveUpdate)
+        {
+            this.Owner.World.UpdateManager.UnregisterUpdate(Update);
+        }
+    }
     public void AttachTo(PrimitiveComponent Parent, string socket = "")
     {
         AttachTo(Parent, socket, Matrix4x4.Identity, AttachRelation.KeepWorldTransform);
@@ -81,32 +96,20 @@ public partial class PrimitiveComponent
     {
         return WorldTransform;
     }
-    public virtual void AddForce(Vector3 Force)
-    {
-
-    }
-
     public void Destory()
     {
-        if (IsDestoryed)
-        {
+        if (ComponentState != WorldObjectState.Began)
             return;
-        }
         OnEndPlay();
-        Owner.UnregistComponent(this);
-        if (ParentComponent != null)
-        {
-            ParentComponent = null;
-        }
-        if (ReceiveUpdate)
-        {
-            this.Owner.CurrentWorld.UpdateManager.UnregisterUpdate(Update);
-        }
-        IsDestoryed = true;
+        UnregisterFromWorld();
+        ComponentState = WorldObjectState.Destoryed;
     }
 
     protected void BeginPlay()
     {
+        if (ComponentState != WorldObjectState.Registered)
+            return;
+        ComponentState = WorldObjectState.Began;
         OnBeginPlay();
     }
 
@@ -129,18 +132,14 @@ public partial class PrimitiveComponent
     {
     }
 
-    private bool IsBegined = false;
     /// <summary>
     /// 更新
     /// </summary>
     /// <param name="DeltaTime"></param>
     public void Update(double DeltaTime)
     {
-        if (IsBegined == false)
-        {
-            IsBegined = true;
-            BeginPlay();
-        }
+        if (ComponentState != WorldObjectState.Began)
+            return;
         OnUpdate(DeltaTime);
     }
 
@@ -186,8 +185,6 @@ public partial class PrimitiveComponent
     }
 
     public IReadOnlyList<PrimitiveComponent> ChildrenComponent => _childrenComponent;
-
-    public bool IsDestoryed { protected set; get; }
 
 }
 

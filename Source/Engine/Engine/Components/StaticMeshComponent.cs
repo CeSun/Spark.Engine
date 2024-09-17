@@ -21,7 +21,7 @@ public class StaticMeshComponent : PrimitiveComponent
             }
         }
     }
-    public StaticMeshComponent(Actor actor) : base(actor)
+    public StaticMeshComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
 
     }

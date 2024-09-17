@@ -6,7 +6,7 @@ namespace Spark.Core.Actors
     abstract public class LightActor : Actor
     {
         public abstract LightComponent LightComponent { get; }
-        protected LightActor(World world) : base(world)
+        protected LightActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
         {
         }
 

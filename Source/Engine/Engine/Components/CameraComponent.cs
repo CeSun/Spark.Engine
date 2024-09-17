@@ -16,7 +16,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
 
     public static CameraComponent? CurrentCameraComponent { get; private set; }
     public int Order { get; set; }
-    public CameraComponent(Actor actor) : base(actor)
+    public CameraComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
         RenderTarget = new RenderTarget() { IsDefaultRenderTarget = true };
         FieldOfView = 90;

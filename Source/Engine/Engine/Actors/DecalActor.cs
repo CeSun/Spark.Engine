@@ -5,7 +5,7 @@ namespace Spark.Core.Actors;
 
 public class DecalActor : Actor
 {
-    public DecalActor(World world) : base(world)
+    public DecalActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
         DecalComponent = new DecalComponent(this);
     }

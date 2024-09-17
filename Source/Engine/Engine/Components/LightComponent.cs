@@ -20,7 +20,7 @@ public class LightComponent : PrimitiveComponent
     }
 
     public Vector3 _Color;
-    public LightComponent(Actor actor) : base(actor)
+    public LightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
 
     }

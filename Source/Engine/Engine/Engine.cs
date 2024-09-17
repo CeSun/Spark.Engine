@@ -86,7 +86,7 @@ public partial class Engine
 
     public void Resize(int width, int height)
     {
-        MainWorld?.Resize(width, height);
+        MainWorld?.WorldMainRenderTarget?.Resize(width, height);
     }
 
     public Action<int, int>? OnWindowResize;

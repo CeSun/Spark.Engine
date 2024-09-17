@@ -6,7 +6,7 @@ namespace Spark.Core.Components;
 public class DecalComponent : PrimitiveComponent
 {
     protected override bool ReceiveUpdate => true;
-    public DecalComponent(Actor actor) : base(actor)
+    public DecalComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
     }
 

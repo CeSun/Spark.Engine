@@ -6,7 +6,7 @@ namespace Spark.Core.Actors;
 public class StaticMeshActor : Actor
 {
     public StaticMeshComponent StaticMeshComponent { get; private set; }
-    public StaticMeshActor(World world) : base(world)
+    public StaticMeshActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
         StaticMeshComponent = new StaticMeshComponent(this);
     }

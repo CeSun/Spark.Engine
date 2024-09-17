@@ -19,7 +19,6 @@ public class ConsoleApplication : BaseApplication
             stopwatch.Stop();
             var deltaTime = stopwatch.ElapsedMilliseconds;
             stopwatch.Restart();
-            Engine.Platform.View?.DoEvents();
             Engine.Update(deltaTime);
         }
         stopwatch.Stop();

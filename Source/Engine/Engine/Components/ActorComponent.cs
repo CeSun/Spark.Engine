@@ -12,7 +12,7 @@ public class ActorComponent
     /// <summary>
     /// Actor所在世界
     /// </summary>
-    public World CurrentWorld { get => Owner.CurrentWorld; }
+    public World CurrentWorld { get => Owner.World; }
 
     /// <summary>
     /// 组件拥有者
