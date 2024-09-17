@@ -27,7 +27,7 @@ public partial class Actor
         }
     }
 
-    public void RegisterToWorld()
+    public virtual void RegisterToWorld()
     {
         if (ActorState == WorldObjectState.Invaild)
             return;
@@ -44,7 +44,7 @@ public partial class Actor
         
     }
 
-    public void UnregisterFromWorld()
+    public virtual void UnregisterFromWorld()
     {
         World.RemoveActor(this);
         if (ReceiveUpdate)

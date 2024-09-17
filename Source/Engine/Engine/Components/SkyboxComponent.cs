@@ -12,9 +12,4 @@ public class SkyboxComponent : PrimitiveComponent
 
     public TextureCube? SkyboxCube { get; set; }
 
-
-    public override void Render(double DeltaTime)
-    {
-        base.Render(DeltaTime);
-    }
 }

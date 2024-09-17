@@ -2,6 +2,8 @@
 using Spark.Core.Actors;
 using Jitter2.Dynamics;
 using Spark.Util;
+using Spark.Core.Render;
+using Spark.Core.Assets;
 
 namespace Spark.Core.Components;
 
@@ -18,7 +20,60 @@ public partial class PrimitiveComponent
 
     protected virtual bool ReceiveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
-    public bool IsCastShadowMap { get; set; } = true;
+
+    private bool _castShadow = true;
+    public bool CastShadow 
+    {
+        get => _castShadow; 
+        set
+        {
+            _castShadow = value;
+            if (ComponentState == WorldObjectState.Registered || ComponentState == WorldObjectState.Began)
+            {
+                if (World.Engine.SceneRenderer != null)
+                {
+                    if (World.RenderWorld != null)
+                    {
+                        World.Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+                        {
+                            var proxy = World.RenderWorld.GetProxy<PrimitiveComponentProxy>(this);
+                            if (proxy != null)
+                            {
+                                proxy.CastShadow = value;
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    }
+    private bool _hidden = false;
+    public bool Hidden 
+    {
+        get => _hidden;
+        set
+        {
+            _hidden = value;
+
+            if (ComponentState == WorldObjectState.Registered || ComponentState == WorldObjectState.Began)
+            {
+                if (World.Engine.SceneRenderer != null)
+                {
+                    if (World.RenderWorld != null)
+                    {
+                        World.Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+                        {
+                            var proxy = World.RenderWorld.GetProxy<PrimitiveComponentProxy>(this);
+                            if (proxy != null)
+                            {
+                                proxy.Hidden = value;
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// 构造函数
@@ -44,13 +99,32 @@ public partial class PrimitiveComponent
         {
             Owner.World.UpdateManager.RegisterUpdate(Update);
         }
+        var getProxyDelegate = GetRenderProxyDelegate();
+        if ( getProxyDelegate != null && Engine.SceneRenderer != null && World.RenderWorld != null)
+        {
+            Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+            {
+                var proxy = getProxyDelegate(renderer);
+                if (proxy != null)
+                {
+                    World.RenderWorld.AddPrimitiveComponentProxy(this, proxy);
+                }
+            });
+        }
     }
 
-    public void UnregisterFromWorld()
+    public virtual void UnregisterFromWorld()
     {
         if (ReceiveUpdate)
         {
-            this.Owner.World.UpdateManager.UnregisterUpdate(Update);
+            Owner.World.UpdateManager.UnregisterUpdate(Update);
+        }
+        if (Engine.SceneRenderer != null && World.RenderWorld != null)
+        {
+            Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+            {
+                World.RenderWorld.RemovePrimitiveComponentProxy(this);
+            });
         }
     }
     public void AttachTo(PrimitiveComponent Parent, string socket = "")
@@ -123,13 +197,9 @@ public partial class PrimitiveComponent
 
     }
 
-
-    /// <summary>
-    /// 渲染
-    /// </summary>
-    /// <param name="DeltaTime"></param>
-    public virtual void Render(double DeltaTime)
+    public virtual Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
     {
+        return null;
     }
 
     /// <summary>

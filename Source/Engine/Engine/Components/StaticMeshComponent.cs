@@ -1,11 +1,18 @@
 ﻿using Spark.Core.Actors;
 using Spark.Core.Assets;
+using Spark.Core.Render;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core.Components;
 
 public class StaticMeshComponent : PrimitiveComponent
 {
-    protected override bool ReceiveUpdate => true;
+    public StaticMeshComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
+    {
+
+    }
+
+    protected override bool ReceiveUpdate => false;
 
     private StaticMesh? _StaticMesh;
 
@@ -15,15 +22,51 @@ public class StaticMeshComponent : PrimitiveComponent
         set
         {
             _StaticMesh = value;
-            if (_StaticMesh != null && World.Engine.SceneRenderer != null)
+            if (ComponentState == WorldObjectState.Registered || ComponentState == WorldObjectState.Began)
             {
-                _StaticMesh.PostProxyToRenderer(World.Engine.SceneRenderer);
+                if (World.Engine.SceneRenderer != null)
+                {
+                    if (value != null)
+                    {
+                        value.PostProxyToRenderer(World.Engine.SceneRenderer);
+                    }
+                    if (World.RenderWorld != null)
+                    {
+                        World.Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+                        {
+                            var proxy = World.RenderWorld.GetProxy<StaticMeshComponentProxy>(this);
+                            if (proxy != null)
+                            {
+                                proxy.StaticMeshProxy = renderer.GetProxy<StaticMeshProxy>(value!);
+                            }
+                        });
+                    }
+                }
             }
         }
     }
-    public StaticMeshComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
+    public override Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
     {
-
+        var worldTransform = WorldTransform;
+        var hidden = Hidden;
+        var castShadow = CastShadow;
+        var gchandle = default(GCHandle);
+        if (StaticMesh != null)
+        {
+            gchandle = StaticMesh.WeakGCHandle;
+        }
+        return renderer => new StaticMeshComponentProxy
+        {
+            Trasnform = worldTransform,
+            Hidden = hidden,
+            CastShadow = castShadow,
+            StaticMeshProxy = renderer.GetProxy<StaticMeshProxy>(StaticMesh!)
+        };
     }
+}
+
+public class StaticMeshComponentProxy : PrimitiveComponentProxy
+{
+    public StaticMeshProxy? StaticMeshProxy { get; set; }
 
 }

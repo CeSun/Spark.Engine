@@ -23,9 +23,17 @@ public class SkeletalMeshComponent : PrimitiveComponent
         set
         {
             _SkeletalMesh = value;
-            if (_SkeletalMesh != null && World.Engine.SceneRenderer != null)
+            if (World.Engine.SceneRenderer != null)
             {
-                _SkeletalMesh.PostProxyToRenderer(World.Engine.SceneRenderer);
+                if (_SkeletalMesh != null)
+                {
+                    _SkeletalMesh.PostProxyToRenderer(World.Engine.SceneRenderer);
+                    
+                }
+                else
+                {
+
+                }
             }
         }
     }
