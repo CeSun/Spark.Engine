@@ -43,7 +43,6 @@ public partial class Engine
 
     public void Update(double deltaTime)
     {
-        Console.WriteLine(deltaTime);
         SyncContext?.Tick();
         Worlds.ForEach(world => world.Update(deltaTime));
     }
