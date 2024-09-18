@@ -12,6 +12,7 @@ SdlWindowing.RegisterPlatform();
 SdlWindowing.Use();
 
 SdlInput.RegisterPlatform();
+
 SdlInput.Use();
 
 WindowOptions options = WindowOptions.Default;

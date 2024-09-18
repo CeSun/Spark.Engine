@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Launcher.Desktop", "Source\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Launcher.Console", "Source\Launcher\Launcher.Console\Launcher.Console.csproj", "{E176740F-631A-4B50-B8D7-34679CF50A57}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Launcher.Android", "Source\Launcher\Launcher.Android\Launcher.Android.csproj", "{299794F2-AB4A-4490-8368-BD770A5EBFD5}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Platform", "Platform", "{435FD26B-C41A-44BE-85A2-72A1A5BD1410}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Engine", "Engine", "{350DF143-1DC2-42DE-A39E-725634242FCE}"
@@ -22,6 +24,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Platform.Common", "Source\Platform\Platform.Common\Platform.Common.csproj", "{DB72AB2C-2CA6-4AB7-8DB1-1E4192BC4BA5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Platform.Desktop", "Source\Platform\Platform.Desktop\Platform.Desktop.csproj", "{22F99D93-B801-42FD-9024-A7C626ADD7CC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Platfrom.Android", "Source\Platform\Platfrom.Android\Platfrom.Android.csproj", "{78E00A35-C9D8-49CA-BC89-9789AB60279E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -57,6 +61,16 @@ Global
 		{22F99D93-B801-42FD-9024-A7C626ADD7CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{22F99D93-B801-42FD-9024-A7C626ADD7CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{22F99D93-B801-42FD-9024-A7C626ADD7CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{299794F2-AB4A-4490-8368-BD770A5EBFD5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{299794F2-AB4A-4490-8368-BD770A5EBFD5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{299794F2-AB4A-4490-8368-BD770A5EBFD5}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{299794F2-AB4A-4490-8368-BD770A5EBFD5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{299794F2-AB4A-4490-8368-BD770A5EBFD5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{299794F2-AB4A-4490-8368-BD770A5EBFD5}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{78E00A35-C9D8-49CA-BC89-9789AB60279E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78E00A35-C9D8-49CA-BC89-9789AB60279E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78E00A35-C9D8-49CA-BC89-9789AB60279E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78E00A35-C9D8-49CA-BC89-9789AB60279E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -69,6 +83,8 @@ Global
 		{6AEA9981-17A7-4A13-82D8-7D2E36920825} = {350DF143-1DC2-42DE-A39E-725634242FCE}
 		{DB72AB2C-2CA6-4AB7-8DB1-1E4192BC4BA5} = {435FD26B-C41A-44BE-85A2-72A1A5BD1410}
 		{22F99D93-B801-42FD-9024-A7C626ADD7CC} = {435FD26B-C41A-44BE-85A2-72A1A5BD1410}
+		{299794F2-AB4A-4490-8368-BD770A5EBFD5} = {FD509877-362E-449B-9B28-13F84D4CF713}
+		{78E00A35-C9D8-49CA-BC89-9789AB60279E} = {435FD26B-C41A-44BE-85A2-72A1A5BD1410}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {42BDB398-B469-4DBF-BC12-6F17EE33C24C}

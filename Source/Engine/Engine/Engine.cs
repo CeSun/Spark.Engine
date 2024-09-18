@@ -26,7 +26,9 @@ public partial class Engine
     }
     public SingleThreadSyncContext? SyncContext { get; private set; }
 
-    public List<World> Worlds = [];
+    public HashSet<World> Worlds = [];
+
+    public HashSet<RenderWorld> RenderWorlds = [];
 
     public World MainWorld;
 
@@ -44,28 +46,35 @@ public partial class Engine
     public void Update(double deltaTime)
     {
         SyncContext?.Tick();
-        Worlds.ForEach(world => world.Update(deltaTime));
+        foreach (var world in Worlds)
+        {
+            world.Update(deltaTime);
+        }
     }
 
     public void Start()
     {
-        Worlds.ForEach(world => world.BeginPlay());
+        foreach (var world in Worlds)
+        {
+            world.BeginPlay();
+        }
     }
 
     public void Stop()
     {
-        Worlds.ForEach(world => world.Destory());
+        foreach (var world in Worlds)
+        {
+            world.Destory();
+        }
     }
 
     public void Render()
     {
         if (SceneRenderer != null)
         {
-            foreach (var world in Worlds)
+            foreach (var renderWorld in RenderWorlds)
             {
-                if (world.RenderWorld == null)
-                    continue;
-                SceneRenderer.Render(world.RenderWorld);
+                SceneRenderer.Render(renderWorld);
             }
         }
     }
@@ -74,12 +83,7 @@ public partial class Engine
     {
         if (SceneRenderer != null)
         {
-            foreach (var world in Worlds)
-            {
-                if (world.RenderWorld == null)
-                    continue;
-                SceneRenderer.Destory();
-            }
+            SceneRenderer.Destory();
         }
     }
 

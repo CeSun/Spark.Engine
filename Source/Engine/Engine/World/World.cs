@@ -18,10 +18,14 @@ public class World
     {
         Engine = engine;
         GraphicsApi = Engine.GraphicsApi;
+        WorldMainRenderTarget = new RenderTarget() { IsDefaultRenderTarget = true };
         if (GraphicsApi != null)
         {
-            WorldMainRenderTarget = new RenderTarget() { IsDefaultRenderTarget = true };
             RenderWorld = new RenderWorld();
+            engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+            {
+                engine.RenderWorlds.Add(RenderWorld);
+            });
         }
     }
 
@@ -36,7 +40,15 @@ public class World
     
     public void Destory()
     {
-
+        var engine = Engine;
+        var renderWorld = this.RenderWorld;
+        if (engine.SceneRenderer != null && renderWorld != null)
+        {
+            engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+            {
+                engine.RenderWorlds.Remove(renderWorld);
+            });
+        }
     }
 
     public IReadOnlySet<PrimitiveComponent> PrimitiveComponents => _primitiveComponents;
