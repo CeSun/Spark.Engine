@@ -8,6 +8,7 @@ public abstract class BaseApplication
     Stopwatch sw = Stopwatch.StartNew();
     public Engine Engine { get; set; }
 
+    protected float FramesPerSecond = 1000 / 60.0F;
     public BaseApplication(Engine engine)
     {
         Engine = engine;
@@ -16,11 +17,6 @@ public abstract class BaseApplication
     protected void Wait(double waitTime)
     {
         sw.Restart();
-        if (waitTime >= 10)
-        {
-            var sleepTime = (int)waitTime - 2;
-            Thread.Sleep(sleepTime);
-        }
         while (sw.ElapsedMilliseconds < waitTime)
         {
             

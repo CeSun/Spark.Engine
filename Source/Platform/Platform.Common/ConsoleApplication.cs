@@ -16,7 +16,10 @@ public class ConsoleApplication : BaseApplication
         var stopwatch = Stopwatch.StartNew();
         while (Engine.WantClose == false)
         {
-            stopwatch.Stop();
+            if (stopwatch.ElapsedMilliseconds < FramesPerSecond)
+            {
+                Wait(FramesPerSecond - stopwatch.ElapsedMilliseconds);
+            }
             var deltaTime = stopwatch.ElapsedMilliseconds;
             stopwatch.Restart();
             Engine.Update(deltaTime);

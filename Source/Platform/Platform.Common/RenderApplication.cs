@@ -13,7 +13,6 @@ public class RenderApplication : BaseApplication
 
     private ManualResetEvent CloseWindowWaitEvent = new ManualResetEvent(false);
 
-    private float FramesPerSecond = 1000 / 60.0F;
     public RenderApplication(Engine engine) : base(engine)
     {
 
