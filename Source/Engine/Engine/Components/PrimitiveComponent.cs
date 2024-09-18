@@ -28,23 +28,7 @@ public partial class PrimitiveComponent
         set
         {
             _castShadow = value;
-            if (ComponentState == WorldObjectState.Registered || ComponentState == WorldObjectState.Began)
-            {
-                if (World.Engine.SceneRenderer != null)
-                {
-                    if (World.RenderWorld != null)
-                    {
-                        World.Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
-                        {
-                            var proxy = World.RenderWorld.GetProxy<PrimitiveComponentProxy>(this);
-                            if (proxy != null)
-                            {
-                                proxy.CastShadow = value;
-                            }
-                        });
-                    }
-                }
-            }
+            UpdateRenderProxyProp<PrimitiveComponentProxy>(proxy => proxy.CastShadow = value);
         }
     }
     private bool _hidden = false;
@@ -54,24 +38,7 @@ public partial class PrimitiveComponent
         set
         {
             _hidden = value;
-
-            if (ComponentState == WorldObjectState.Registered || ComponentState == WorldObjectState.Began)
-            {
-                if (World.Engine.SceneRenderer != null)
-                {
-                    if (World.RenderWorld != null)
-                    {
-                        World.Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
-                        {
-                            var proxy = World.RenderWorld.GetProxy<PrimitiveComponentProxy>(this);
-                            if (proxy != null)
-                            {
-                                proxy.Hidden = value;
-                            }
-                        });
-                    }
-                }
-            }
+            UpdateRenderProxyProp<PrimitiveComponentProxy>(proxy => proxy.Hidden = value);
         }
     }
 
@@ -397,4 +364,32 @@ public partial class PrimitiveComponent
 public partial class PrimitiveComponent
 {
     public virtual RigidBody? RigidBody { get; }
+
+
+    protected void UpdateRenderProxyProp<T>(Action<T> action) where T : PrimitiveComponentProxy
+    {
+        UpdateRenderProxyProp<T>((proxy, renderer) => action(proxy));
+    }
+
+    protected void UpdateRenderProxyProp<T>(Action<T, IRenderer> action) where T : PrimitiveComponentProxy
+    {
+        if (ComponentState == WorldObjectState.Registered || ComponentState == WorldObjectState.Began)
+        {
+            if (World.Engine.SceneRenderer != null)
+            {
+                if (World.RenderWorld != null)
+                {
+                    World.Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+                    {
+                        var proxy = World.RenderWorld.GetProxy<T>(this);
+                        if (proxy != null)
+                        {
+                            action(proxy, renderer);
+                        }
+                    });
+                }
+            }
+        }
+
+    }
 }

@@ -1,22 +1,50 @@
 ﻿using Spark.Core.Actors;
+using Spark.Core.Render;
+using System.Numerics;
 
 namespace Spark.Core.Components;
 
 public class PointLightComponent : LightComponent
 {
-    protected override bool ReceiveUpdate => true;
-
     public PointLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
         AttenuationRadius = 1f;
     }
 
-    public override void OnUpdate(double DeltaTime)
+    private float _attenuationRadius;
+    public float AttenuationRadius 
     {
-        base.OnUpdate(DeltaTime);
+        get => _attenuationRadius;
+        
+        set
+        {
+            _attenuationRadius = value;
+            UpdateRenderProxyProp<PointLightComponentProxy>(proxy => proxy.AttenuationRadius = value);
+        }
     }
 
-    public float AttenuationRadius;
-
+    public override Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
+    {
+        return (renderer) =>
+        {
+            var castShadow = CastShadow;
+            var attenuationRadius = _attenuationRadius;
+            var color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f);
+            var lightStrength = LightStrength;
+            return new PointLightComponentProxy()
+            {
+                Color = color,
+                LightStrength = lightStrength,
+                CastShadow = castShadow,
+                AttenuationRadius = attenuationRadius
+            };
+        };
+    }
 
 }
+
+public class PointLightComponentProxy : LightComponentProxy
+{
+    public float AttenuationRadius { get; set; }
+}
+

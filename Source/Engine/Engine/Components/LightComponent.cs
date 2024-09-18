@@ -1,29 +1,46 @@
 ﻿using Spark.Core.Actors;
+using Spark.Core.Assets;
+using Spark.Core.Render;
 using System.Drawing;
 using System.Numerics;
 
 namespace Spark.Core.Components;
 
-public class LightComponent : PrimitiveComponent
+public abstract class LightComponent : PrimitiveComponent
 {
-    public float LightStrength = 1;
-    public Color Color
-    {
-        get
-        {
-            return Color.FromArgb(255, (int)(_Color.X * 255), (int)(_Color.Y * 255), (int)(_Color.Z * 255));
-        }
-        set
-        {
-            _Color = new Vector3(value.R / 255f, value.G / 255f, value.B / 255f);
-        }
-    }
-
-    public Vector3 _Color;
     public LightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
 
     }
 
+    private float _lightStrength;
+    public float LightStrength 
+    {
+        get => _lightStrength;
+        set
+        {
+            _lightStrength = value;
+            UpdateRenderProxyProp<LightComponentProxy>(proxy => proxy.LightStrength = value);
+        }
+    }
 
+    private Color _color;
+
+    public Color Color
+    {
+        get => _color;
+        set
+        {
+            _color = value;
+            UpdateRenderProxyProp<LightComponentProxy>(proxy => proxy.Color = new Vector3(value.R / 255f, value.G / 255f, value.B / 255f));
+        }
+    }
+
+}
+
+public class LightComponentProxy : PrimitiveComponentProxy
+{
+    public float LightStrength { get; set; }
+
+    public Vector3 Color { get; set; }
 }

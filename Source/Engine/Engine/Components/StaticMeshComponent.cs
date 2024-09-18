@@ -22,27 +22,11 @@ public class StaticMeshComponent : PrimitiveComponent
         set
         {
             _StaticMesh = value;
-            if (ComponentState == WorldObjectState.Registered || ComponentState == WorldObjectState.Began)
+            if (World.Engine.SceneRenderer != null && value != null)
             {
-                if (World.Engine.SceneRenderer != null)
-                {
-                    if (value != null)
-                    {
-                        value.PostProxyToRenderer(World.Engine.SceneRenderer);
-                    }
-                    if (World.RenderWorld != null)
-                    {
-                        World.Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
-                        {
-                            var proxy = World.RenderWorld.GetProxy<StaticMeshComponentProxy>(this);
-                            if (proxy != null)
-                            {
-                                proxy.StaticMeshProxy = renderer.GetProxy<StaticMeshProxy>(value!);
-                            }
-                        });
-                    }
-                }
+                value.PostProxyToRenderer(World.Engine.SceneRenderer);
             }
+            UpdateRenderProxyProp<StaticMeshComponentProxy>((proxy, renderer) => proxy.StaticMeshProxy = renderer.GetProxy<StaticMeshProxy>(value!));
         }
     }
     public override Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
@@ -50,10 +34,9 @@ public class StaticMeshComponent : PrimitiveComponent
         var worldTransform = WorldTransform;
         var hidden = Hidden;
         var castShadow = CastShadow;
-        var gchandle = default(GCHandle);
-        if (StaticMesh != null)
+        if (World.Engine.SceneRenderer != null && StaticMesh != null)
         {
-            gchandle = StaticMesh.WeakGCHandle;
+            StaticMesh.PostProxyToRenderer(World.Engine.SceneRenderer);
         }
         return renderer => new StaticMeshComponentProxy
         {
