@@ -66,7 +66,7 @@ public class RenderApplication : BaseApplication
                 Engine.MainView.MakeCurrent();
                 if (Engine.MainView.GLContext != null)
                 {
-                    Engine.MainView.GLContext.SwapInterval(0);
+                    Engine.MainView.GLContext.SwapInterval(Engine.MainView.VSync == true ? 1 : 0);
                 }
             }
             while (Engine.WantClose == false)
