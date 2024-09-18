@@ -13,6 +13,7 @@ public class RenderApplication : BaseApplication
 
     private ManualResetEvent CloseWindowWaitEvent = new ManualResetEvent(false);
 
+    private float FramesPerSecond = 1000 / 60.0F;
     public RenderApplication(Engine engine) : base(engine)
     {
 
@@ -42,9 +43,9 @@ public class RenderApplication : BaseApplication
         RunRender();
         while (Engine.WantClose == false)
         {
-            if (stopwatch.ElapsedMilliseconds < 1000.0 / 60)
+            if (stopwatch.ElapsedMilliseconds < FramesPerSecond)
             {
-                Wait((1000.0 / 60 - stopwatch.ElapsedMilliseconds));
+                Wait(FramesPerSecond - stopwatch.ElapsedMilliseconds);
             }
             var deltaTime = stopwatch.ElapsedMilliseconds;
             stopwatch.Restart();

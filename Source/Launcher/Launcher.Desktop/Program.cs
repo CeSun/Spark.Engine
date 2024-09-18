@@ -16,6 +16,14 @@ SdlInput.Use();
 
 WindowOptions options = WindowOptions.Default;
 
+options.FramesPerSecond = 0;
+
+options.UpdatesPerSecond = 0;
+
+options.VSync = false;
+
+options.ShouldSwapAutomatically = false;
+
 options.API = new GraphicsAPI { API = ContextAPI.OpenGLES, Flags = ContextFlags.Default, Profile = ContextProfile.Core, Version = new APIVersion(3, 0) };
 
 var window = Window.Create(options);
