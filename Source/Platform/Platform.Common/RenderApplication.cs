@@ -64,6 +64,10 @@ public class RenderApplication : BaseApplication
             if (Engine.MainView != null)
             {
                 Engine.MainView.MakeCurrent();
+                if (Engine.MainView.GLContext != null)
+                {
+                    Engine.MainView.GLContext.SwapInterval(0);
+                }
             }
             while (Engine.WantClose == false)
             {
