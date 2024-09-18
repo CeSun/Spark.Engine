@@ -22,10 +22,13 @@ public class World
         if (GraphicsApi != null)
         {
             RenderWorld = new RenderWorld();
-            engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+            if (engine.SceneRenderer != null)
             {
-                engine.RenderWorlds.Add(RenderWorld);
-            });
+                engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+                {
+                    engine.RenderWorlds.Add(RenderWorld);
+                });
+            }
         }
     }
 

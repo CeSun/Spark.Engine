@@ -33,11 +33,13 @@ public class DecalComponent : PrimitiveComponent
         {
             Material.PostProxyToRenderer(World.Engine.SceneRenderer);
         }
+        var transform = WorldTransform;
         return renderer =>
         {
             return new DecalComponentProxy
             {
-                MaterialProxy = renderer.GetProxy<MaterialProxy>(Material!)
+                MaterialProxy = renderer.GetProxy<MaterialProxy>(Material!),
+                Trasnform = transform
             };
         };
     }

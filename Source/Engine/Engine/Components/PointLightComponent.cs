@@ -31,12 +31,14 @@ public class PointLightComponent : LightComponent
             var attenuationRadius = _attenuationRadius;
             var color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f);
             var lightStrength = LightStrength;
+            var transform = WorldTransform;
             return new PointLightComponentProxy()
             {
                 Color = color,
                 LightStrength = lightStrength,
                 CastShadow = castShadow,
-                AttenuationRadius = attenuationRadius
+                AttenuationRadius = attenuationRadius,
+                Trasnform = transform
             };
         };
     }

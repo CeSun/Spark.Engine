@@ -38,6 +38,7 @@ public class SpotLightComponent : LightComponent
     {
         return (renderer) =>
         {
+            var transform = WorldTransform;
             var castShadow = CastShadow;
             var innerAngle = InnerAngle;
             var outerAngle = OuterAngle;
@@ -49,7 +50,8 @@ public class SpotLightComponent : LightComponent
                 LightStrength = lightStrength,
                 CastShadow = castShadow,
                 InnerAngle = innerAngle,
-                OuterAngle = outerAngle
+                OuterAngle = outerAngle,
+                Trasnform = transform,
             };
         };
     }
