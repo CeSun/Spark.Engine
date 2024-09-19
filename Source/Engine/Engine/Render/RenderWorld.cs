@@ -10,6 +10,8 @@ public class RenderWorld
 
     public IReadOnlyDictionary<PrimitiveComponent, PrimitiveComponentProxy> PrimitiveComponentProxyDictionary => _primitiveComponentProxyDictionary;
 
+    public Queue<nint> RenderPropertiesQueue { get; private set; } = [];
+
     public void AddPrimitiveComponentProxy(PrimitiveComponent component, PrimitiveComponentProxy proxy)
     {
         if (_primitiveComponentProxyDictionary.ContainsKey(component))
@@ -47,5 +49,18 @@ public class PrimitiveComponentProxy
     public bool Hidden {  get; set; }
     public bool CastShadow { get; set; }
     public Matrix4x4 Trasnform { get; set; }
+
+    public virtual void UpdateProperties(in PrimitiveComponentProperties properties, IRenderer renderer)
+    {
+        Hidden = properties.Hidden;
+        CastShadow = properties.CastShadow;
+        Trasnform = properties.WorldTransform;
+        UpdateSubComponentProxy(properties.CustomProperties, renderer);
+    }
+
+    public virtual void UpdateSubComponentProxy(IntPtr pointer, IRenderer renderer)
+    {
+
+    }
 }
 

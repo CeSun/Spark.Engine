@@ -2,6 +2,7 @@
 using Spark.Core.Render;
 using Spark.Util;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Spark.Core.Components;
 
@@ -29,7 +30,7 @@ public class SpotLightComponent : LightComponent
 
     public override nint GetSubComponentProperties()
     {
-        return StructPointerHelper.Malloc(new SpotLightComponentProperties
+        return UnsafeHelper.Malloc(new SpotLightComponentProperties
         {
             LightStrength = LightStrength,
             Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f),
@@ -43,6 +44,15 @@ public class SpotLightComponentProxy : LightComponentProxy
 {
     public float OuterAngle {  get; set; }
     public float InnerAngle {  get; set; }
+
+    public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    {
+        ref SpotLightComponentProperties properties = ref Unsafe.AsRef<SpotLightComponentProperties>((void*)pointer);
+        LightStrength = properties.LightStrength;
+        Color = properties.Color;
+        OuterAngle = properties.OuterAngle;
+        InnerAngle = properties.InnerAngle;
+    }
 
 }
 

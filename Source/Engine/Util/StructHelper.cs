@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Spark.Util;
 
 
-public static class StructPointerHelper
+public static class UnsafeHelper
 {
     public static void Free(this ref IntPtr ptr)
     {
@@ -33,5 +33,9 @@ public static class StructPointerHelper
         ref T t2 = ref Unsafe.AsRef<T>((void*)p);
         t2 = t;
         return p;
+    }
+    public unsafe static ref T AsRef<T>(nint ptr) where T : struct
+    {
+        return ref Unsafe.AsRef<T>((void*)ptr);
     }
 }

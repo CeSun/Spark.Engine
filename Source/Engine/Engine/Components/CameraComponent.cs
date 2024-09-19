@@ -2,6 +2,9 @@
 using System.Numerics;
 using Spark.Core.Actors;
 using Spark.Util;
+using System.Runtime.InteropServices;
+using Spark.Core.Render;
+using System.Runtime.CompilerServices;
 
 namespace Spark.Core.Components;
 
@@ -138,14 +141,54 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
         Planes[5].D = ViewTransform[3,3] - ViewTransform[3,2];
     }
 
-
+    public override nint GetSubComponentProperties()
+    {
+        return UnsafeHelper.Malloc(new CameraComponentProperties
+        {
+            Fov = _Fov,
+            Near = _Near,
+            Far = _Far,
+            Order = Order,
+            RenderTarget = RenderTarget == null? default : RenderTarget.WeakGCHandle,
+        });
+    }
 }
 
 
 public partial class CameraComponent : PrimitiveComponent
 {
-
+    
     private float _Fov;
     private float _Near;
     private float _Far;
+}
+
+
+public class CameraComponentProxy : PrimitiveComponentProxy
+{
+    public float Fov;
+    public float Near;
+    public float Far;
+    public int Order;
+    public RenderTargetProxy? RenderTarget;
+
+    public override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    {
+        ref CameraComponentProperties properties = ref UnsafeHelper.AsRef<CameraComponentProperties>(pointer);
+
+        Fov = properties.Fov;
+        Near = properties.Near;
+        Far = properties.Far;
+        Order = properties.Order;
+        RenderTarget = renderer.GetProxy<RenderTargetProxy>(properties.RenderTarget);
+    }
+}
+public struct CameraComponentProperties
+{
+    private IntPtr Destructors { get; set; }
+    public float Fov;
+    public float Near;
+    public float Far;
+    public int Order;
+    public GCHandle RenderTarget;
 }

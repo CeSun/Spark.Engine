@@ -44,6 +44,22 @@ public abstract class BaseRenderer : IRenderer
         return GetProxy(obj) as T;
     }
 
+    public T? GetProxy<T>(GCHandle gchandle) where T : class
+    {
+        return GetProxy(gchandle) as T;
+    }
+    public RenderProxy? GetProxy(GCHandle gchandle)
+    {
+        if (gchandle == default)
+            return null;
+        if (ProxyDictonary.TryGetValue(gchandle, out var proxy))
+        {
+            return proxy;
+        }
+        return null;
+    }
+
+
     public RenderProxy? GetProxy(AssetBase obj)
     {
         if (obj == null)

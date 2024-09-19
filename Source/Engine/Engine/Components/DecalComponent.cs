@@ -3,6 +3,7 @@ using Spark.Core.Actors;
 using Spark.Core.Render;
 using System.Runtime.InteropServices;
 using Spark.Util;
+using System.Runtime.CompilerServices;
 
 namespace Spark.Core.Components;
 
@@ -22,7 +23,7 @@ public class DecalComponent : PrimitiveComponent
 
     public override nint GetSubComponentProperties()
     {
-        return StructPointerHelper.Malloc(new DecalComponentProperties
+        return UnsafeHelper.Malloc(new DecalComponentProperties
         {
             Material = Material == null ? default : Material.WeakGCHandle,
         });
@@ -32,6 +33,12 @@ public class DecalComponent : PrimitiveComponent
 public class DecalComponentProxy : PrimitiveComponentProxy
 {
     public MaterialProxy? MaterialProxy { get; set; }
+
+    public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    {
+        ref DecalComponentProperties properties = ref Unsafe.AsRef<DecalComponentProperties>((void*)pointer);
+        MaterialProxy = renderer.GetProxy<MaterialProxy>(properties.Material);
+    }
 }
 
 public struct DecalComponentProperties

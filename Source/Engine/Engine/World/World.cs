@@ -14,6 +14,14 @@ public class World
     public RenderTarget? WorldMainRenderTarget { get; set; }
     public RenderWorld? RenderWorld { get; set; }
 
+    private HashSet<PrimitiveComponent> RenderDirtyComponent = [];
+
+    public void AddRenderDirtyComponent(PrimitiveComponent component)
+    {
+        if (RenderDirtyComponent.Contains(component))
+            return;
+        RenderDirtyComponent.Add(component);
+    }
     public World(Engine engine)
     {
         Engine = engine;
@@ -39,8 +47,28 @@ public class World
     public void Update(double deltaTime)
     {
         UpdateManager.Update(deltaTime);
+        UpdateRenderProperties();
     }
     
+    private void UpdateRenderProperties()
+    {
+        if (Engine.SceneRenderer != null && RenderWorld != null)
+        {
+            foreach (var component in RenderDirtyComponent)
+            {
+                if (component.ComponentState == WorldObjectState.Began || component.ComponentState == WorldObjectState.Registered)
+                {
+                    var propertiesStructPointer = component.GetPrimitiveComponentProperties();
+                    Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+                    {
+                        RenderWorld.RenderPropertiesQueue.Enqueue(propertiesStructPointer);
+                    });
+                }
+            }
+            RenderDirtyComponent.Clear();
+        }
+    }
+
     public void Destory()
     {
         var engine = Engine;

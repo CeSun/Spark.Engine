@@ -16,6 +16,7 @@ public enum AttachRelation
 }
 public partial class PrimitiveComponent
 {
+    public bool RenderPropertiesDirty { get; private set; }
     public GCHandle WeakGCHandle { get; private set; }
     public WorldObjectState ComponentState { get; private set; }
     public Engine Engine => Owner.World.Engine;
@@ -342,23 +343,29 @@ public partial class PrimitiveComponent
     public Vector3 UpVector => Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
 
 
-    public PrimitiveComponentProperties GetPrimitiveComponentProperties()
+    public IntPtr GetPrimitiveComponentProperties()
     {
-        var properties = new PrimitiveComponentProperties();
-
-        properties.WorldTransform = WorldTransform;
-        properties.CastShadow = _castShadow;
-        properties.Hidden = _hidden;
-
-        properties.CustomProperties = GetSubComponentProperties();
-
-        return properties;
+        return UnsafeHelper.Malloc(new PrimitiveComponentProperties()
+        {
+            WorldTransform = WorldTransform,
+            CastShadow = _castShadow,
+            Hidden = _hidden,
+            CustomProperties = GetSubComponentProperties(),
+            CreateProxyObject = GetCreateProxyObjectFunctionPointer(),
+        });
     }
 
     public virtual IntPtr GetSubComponentProperties()
     {
         return IntPtr.Zero;
     }
+
+    public virtual IntPtr GetCreateProxyObjectFunctionPointer()
+    {
+        return IntPtr.Zero;
+    }
+
+
 }
 public partial class PrimitiveComponent
 {
@@ -382,14 +389,23 @@ public partial class PrimitiveComponent
 
 public struct PrimitiveComponentProperties
 {
-    private IntPtr Destructors;
-
+    private IntPtr Destructor;
     public PrimitiveComponentProperties()
     {
         unsafe
         {
-            delegate* unmanaged[Cdecl]<IntPtr, void> p = &destory;
-            Destructors = (nint)p;
+            delegate* unmanaged[Cdecl]<IntPtr, void> p = &_destructor;
+            Destructor = (nint)p;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static void _destructor(IntPtr intptr)
+    {
+        ref var properties = ref UnsafeHelper.AsRef<PrimitiveComponentProperties>(intptr);
+        if (properties.CustomProperties != IntPtr.Zero)
+        {
+            properties.CustomProperties.Free();
         }
     }
 
@@ -401,10 +417,6 @@ public struct PrimitiveComponentProperties
 
     public IntPtr CustomProperties;
 
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    static void destory(IntPtr intptr)
-    {
-
-
-    }
+    public IntPtr CreateProxyObject;
+   
 }
