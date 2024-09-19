@@ -9,14 +9,6 @@
     <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
   </PropertyGroup>
 
-
-  <ItemGroup>
-    <PackageReference Include="Silk.NET.Input.Common" Version="$(SilkVersion)" />
-    <PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="$(SilkVersion)" />
-    <PackageReference Include="Silk.NET.Windowing.Common" Version="$(SilkVersion)" />
-  </ItemGroup>
-
-
   <ItemGroup>
     <ProjectReference Include="..\..\Engine\Engine\Engine.csproj" />
   </ItemGroup>

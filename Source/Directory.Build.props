@@ -2,4 +2,9 @@
   <PropertyGroup>
     <SilkVersion>2.21.0</SilkVersion>
   </PropertyGroup>
+
+	<PropertyGroup>
+		<SparkGameName>SparkGame</SparkGameName>
+		<SparkGamePackageId>com.sparkengine.sparkname</SparkGamePackageId>
+	</PropertyGroup>
 </Project>

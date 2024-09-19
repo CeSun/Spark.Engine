@@ -9,11 +9,11 @@
     <InvariantGlobalization>true</InvariantGlobalization>
 	<PublishAot>true</PublishAot>
     <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+    <AssemblyName>$(SparkGameName)</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Silk.NET.Input.Sdl" Version="$(SilkVersion)" />
-    <PackageReference Include="Silk.NET.OpenGLES.Extensions.ANGLE" Version="$(SilkVersion)" />
     <PackageReference Include="Silk.NET.Windowing.Sdl" Version="$(SilkVersion)" />
   </ItemGroup>
 

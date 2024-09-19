@@ -8,6 +8,7 @@
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+    <AssemblyName>$(SparkGameName)DS</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
