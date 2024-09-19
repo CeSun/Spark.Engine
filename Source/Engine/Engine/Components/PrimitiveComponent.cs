@@ -4,6 +4,8 @@ using Jitter2.Dynamics;
 using Spark.Util;
 using Spark.Core.Render;
 using Spark.Core.Assets;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace Spark.Core.Components;
 
@@ -14,6 +16,7 @@ public enum AttachRelation
 }
 public partial class PrimitiveComponent
 {
+    public GCHandle WeakGCHandle { get; private set; }
     public WorldObjectState ComponentState { get; private set; }
     public Engine Engine => Owner.World.Engine;
     public World World => Owner.World;
@@ -25,21 +28,13 @@ public partial class PrimitiveComponent
     public bool CastShadow 
     {
         get => _castShadow; 
-        set
-        {
-            _castShadow = value;
-            UpdateRenderProxyProp<PrimitiveComponentProxy>(proxy => proxy.CastShadow = value);
-        }
+        set =>  _castShadow = value;
     }
     private bool _hidden = false;
     public bool Hidden 
     {
         get => _hidden;
-        set
-        {
-            _hidden = value;
-            UpdateRenderProxyProp<PrimitiveComponentProxy>(proxy => proxy.Hidden = value);
-        }
+        set => _hidden = value;
     }
 
     /// <summary>
@@ -48,6 +43,7 @@ public partial class PrimitiveComponent
     /// <param name="actor">所属actor</param>
     public PrimitiveComponent(Actor actor, bool registerToWorld = true)
     {
+        WeakGCHandle = GCHandle.Alloc(this, GCHandleType.WeakTrackResurrection);
         _owner = actor;
         ComponentState = WorldObjectState.Invaild;
         _owner.AddComponent(this);
@@ -345,6 +341,24 @@ public partial class PrimitiveComponent
     public Vector3 RightVector => Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
     public Vector3 UpVector => Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
 
+
+    public PrimitiveComponentProperties GetPrimitiveComponentProperties()
+    {
+        var properties = new PrimitiveComponentProperties();
+
+        properties.WorldTransform = WorldTransform;
+        properties.CastShadow = _castShadow;
+        properties.Hidden = _hidden;
+
+        properties.CustomProperties = GetSubComponentProperties();
+
+        return properties;
+    }
+
+    public virtual IntPtr GetSubComponentProperties()
+    {
+        return IntPtr.Zero;
+    }
 }
 public partial class PrimitiveComponent
 {
@@ -364,32 +378,33 @@ public partial class PrimitiveComponent
 public partial class PrimitiveComponent
 {
     public virtual RigidBody? RigidBody { get; }
+}
 
+public struct PrimitiveComponentProperties
+{
+    private IntPtr Destructors;
 
-    protected void UpdateRenderProxyProp<T>(Action<T> action) where T : PrimitiveComponentProxy
+    public PrimitiveComponentProperties()
     {
-        UpdateRenderProxyProp<T>((proxy, renderer) => action(proxy));
+        unsafe
+        {
+            delegate* unmanaged[Cdecl]<IntPtr, void> p = &destory;
+            Destructors = (nint)p;
+        }
     }
 
-    protected void UpdateRenderProxyProp<T>(Action<T, IRenderer> action) where T : PrimitiveComponentProxy
+    public Matrix4x4 WorldTransform;
+
+    public bool CastShadow;
+
+    public bool Hidden;
+
+    public IntPtr CustomProperties;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static void destory(IntPtr intptr)
     {
-        if (ComponentState == WorldObjectState.Registered || ComponentState == WorldObjectState.Began)
-        {
-            if (World.Engine.SceneRenderer != null)
-            {
-                if (World.RenderWorld != null)
-                {
-                    World.Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
-                    {
-                        var proxy = World.RenderWorld.GetProxy<T>(this);
-                        if (proxy != null)
-                        {
-                            action(proxy, renderer);
-                        }
-                    });
-                }
-            }
-        }
+
 
     }
 }

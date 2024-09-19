@@ -17,11 +17,7 @@ public abstract class LightComponent : PrimitiveComponent
     public float LightStrength 
     {
         get => _lightStrength;
-        set
-        {
-            _lightStrength = value;
-            UpdateRenderProxyProp<LightComponentProxy>(proxy => proxy.LightStrength = value);
-        }
+        set => _lightStrength = value;
     }
 
     private Color _color;
@@ -29,11 +25,7 @@ public abstract class LightComponent : PrimitiveComponent
     public Color Color
     {
         get => _color;
-        set
-        {
-            _color = value;
-            UpdateRenderProxyProp<LightComponentProxy>(proxy => proxy.Color = new Vector3(value.R / 255f, value.G / 255f, value.B / 255f));
-        }
+        set =>_color = value;
     }
 
 }

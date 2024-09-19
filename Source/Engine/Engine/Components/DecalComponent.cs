@@ -2,6 +2,7 @@
 using Spark.Core.Actors;
 using Spark.Core.Render;
 using System.Runtime.InteropServices;
+using Spark.Util;
 
 namespace Spark.Core.Components;
 
@@ -13,41 +14,28 @@ public class DecalComponent : PrimitiveComponent
     }
 
     private Material? _material;
-    public Material? Material 
+    public Material? Material
     {
         get => _material;
-        set
-        {
-            _material = value;
-            if (World.Engine.SceneRenderer != null && value != null)
-            {
-                value.PostProxyToRenderer(World.Engine.SceneRenderer);
-            }
-            UpdateRenderProxyProp<DecalComponentProxy>((proxy, renderer) => proxy.MaterialProxy = renderer.GetProxy<MaterialProxy>(value!));
-        }
+        set => _material = value;
     }
 
-    public override Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
+    public override nint GetSubComponentProperties()
     {
-        if (World.Engine.SceneRenderer != null && Material != null)
+        return StructPointerHelper.Malloc(new DecalComponentProperties
         {
-            Material.PostProxyToRenderer(World.Engine.SceneRenderer);
-        }
-        var transform = WorldTransform;
-        return renderer =>
-        {
-            return new DecalComponentProxy
-            {
-                MaterialProxy = renderer.GetProxy<MaterialProxy>(Material!),
-                Trasnform = transform
-            };
-        };
+            Material = Material == null ? default : Material.WeakGCHandle,
+        });
     }
-
-
 }
 
 public class DecalComponentProxy : PrimitiveComponentProxy
 {
     public MaterialProxy? MaterialProxy { get; set; }
+}
+
+public struct DecalComponentProperties
+{
+    private IntPtr Destructors { get; set; }
+    public GCHandle Material {  get; set; }
 }

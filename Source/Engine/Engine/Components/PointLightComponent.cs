@@ -1,5 +1,6 @@
 ﻿using Spark.Core.Actors;
 using Spark.Core.Render;
+using Spark.Util;
 using System.Numerics;
 
 namespace Spark.Core.Components;
@@ -16,33 +17,17 @@ public class PointLightComponent : LightComponent
     {
         get => _attenuationRadius;
         
-        set
-        {
-            _attenuationRadius = value;
-            UpdateRenderProxyProp<PointLightComponentProxy>(proxy => proxy.AttenuationRadius = value);
-        }
+        set =>_attenuationRadius = value;
     }
-
-    public override Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
+    public override nint GetSubComponentProperties()
     {
-        return (renderer) =>
+        return StructPointerHelper.Malloc(new PointLightComponentProperties
         {
-            var castShadow = CastShadow;
-            var attenuationRadius = _attenuationRadius;
-            var color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f);
-            var lightStrength = LightStrength;
-            var transform = WorldTransform;
-            return new PointLightComponentProxy()
-            {
-                Color = color,
-                LightStrength = lightStrength,
-                CastShadow = castShadow,
-                AttenuationRadius = attenuationRadius,
-                Trasnform = transform
-            };
-        };
+            LightStrength = LightStrength,
+            Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f),
+            AttenuationRadius = _attenuationRadius,
+        });
     }
-
 }
 
 public class PointLightComponentProxy : LightComponentProxy
@@ -50,3 +35,10 @@ public class PointLightComponentProxy : LightComponentProxy
     public float AttenuationRadius { get; set; }
 }
 
+public struct PointLightComponentProperties
+{
+    private IntPtr Destructors { get; set; }
+    public float LightStrength { get; set; }
+    public Vector3 Color { get; set; }
+    public float AttenuationRadius { get; set; }
+}

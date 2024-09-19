@@ -1,6 +1,8 @@
 ﻿using Spark.Core.Actors;
 using Spark.Core.Assets;
 using Spark.Core.Render;
+using Spark.Util;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core.Components;
 
@@ -15,24 +17,15 @@ public class SkyboxComponent : PrimitiveComponent
     public TextureCube? SkyboxCube 
     {
         get => _skyboxCube; 
-        set
-        {
-            _skyboxCube = value;
-            UpdateRenderProxyProp<SkyboxComponentProxy>((proxy, renderer) => proxy.SkyboxCubeProxy = renderer.GetProxy<TextureCubeProxy>(value!));
-        }
+        set => _skyboxCube = value;
     }
 
-    public override Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
+    public override nint GetSubComponentProperties()
     {
-        return renderer =>
+        return StructPointerHelper.Malloc(new SkyboxComponentProperties
         {
-            var skyboxCube = _skyboxCube;
-            return new SkyboxComponentProxy
-            {
-                SkyboxCubeProxy = renderer.GetProxy<TextureCubeProxy>(skyboxCube!)
-
-            };
-        };
+            SkyboxCube = SkyboxCube == null ? default : SkyboxCube.WeakGCHandle,
+        });
     }
 
 }
@@ -41,4 +34,11 @@ public class SkyboxComponent : PrimitiveComponent
 public class SkyboxComponentProxy : PrimitiveComponentProxy
 {
     public TextureCubeProxy? SkyboxCubeProxy { get; set; }
+}
+
+public struct SkyboxComponentProperties
+{
+    private IntPtr Destructors { get; set; }
+
+    public GCHandle SkyboxCube {  get; set; }
 }

@@ -1,6 +1,7 @@
 ﻿using Spark.Core.Actors;
 using Spark.Core.Assets;
 using Spark.Core.Render;
+using Spark.Util;
 using System.Runtime.InteropServices;
 
 namespace Spark.Core.Components;
@@ -19,32 +20,20 @@ public class StaticMeshComponent : PrimitiveComponent
     public StaticMesh? StaticMesh 
     {
         get => _StaticMesh;
-        set
-        {
-            _StaticMesh = value;
-            if (World.Engine.SceneRenderer != null && value != null)
-            {
-                value.PostProxyToRenderer(World.Engine.SceneRenderer);
-            }
-            UpdateRenderProxyProp<StaticMeshComponentProxy>((proxy, renderer) => proxy.StaticMeshProxy = renderer.GetProxy<StaticMeshProxy>(value!));
-        }
+        set => _StaticMesh = value;
     }
-    public override Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
+
+    public override nint GetSubComponentProperties()
     {
-        var worldTransform = WorldTransform;
-        var hidden = Hidden;
-        var castShadow = CastShadow;
-        if (World.Engine.SceneRenderer != null && StaticMesh != null)
+        GCHandle gchandle = default;
+        if (this.StaticMesh != null) 
         {
-            StaticMesh.PostProxyToRenderer(World.Engine.SceneRenderer);
+            gchandle = StaticMesh.WeakGCHandle;
         }
-        return renderer => new StaticMeshComponentProxy
+        return StructPointerHelper.Malloc(new StaticMeshComponentProperties
         {
-            Trasnform = worldTransform,
-            Hidden = hidden,
-            CastShadow = castShadow,
-            StaticMeshProxy = renderer.GetProxy<StaticMeshProxy>(StaticMesh!)
-        };
+            StaticMesh = gchandle
+        });
     }
 }
 
@@ -52,4 +41,13 @@ public class StaticMeshComponentProxy : PrimitiveComponentProxy
 {
     public StaticMeshProxy? StaticMeshProxy { get; set; }
 
+}
+
+public struct StaticMeshComponentProperties
+{
+    private IntPtr Destructors { get; set; }
+
+    public GCHandle StaticMesh {  get; set; }
+
+    
 }

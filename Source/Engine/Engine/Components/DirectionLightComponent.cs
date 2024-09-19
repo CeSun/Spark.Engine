@@ -1,5 +1,6 @@
 ﻿using Spark.Core.Actors;
 using Spark.Core.Render;
+using Spark.Util;
 using System.Numerics;
 
 namespace Spark.Core.Components;
@@ -10,20 +11,13 @@ public class DirectionLightComponent : LightComponent
     {
     }
 
-    public override Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
+    public override nint GetSubComponentProperties()
     {
-        return (renderer) =>
+        return StructPointerHelper.Malloc(new DirectionLightComponentProperties
         {
-            var castShadow = CastShadow;
-            var color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f);
-            var lightStrength = LightStrength;
-            return new DirectionLightComponentProxy()
-            {
-                Color = color,
-                LightStrength = lightStrength,
-                CastShadow = castShadow,
-            };
-        };
+            LightStrength = LightStrength,
+            Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f),
+        });
     }
 }
 
@@ -31,4 +25,11 @@ public class DirectionLightComponent : LightComponent
 public class DirectionLightComponentProxy : LightComponentProxy
 {
 
+}
+
+public struct DirectionLightComponentProperties
+{
+    private IntPtr Destructors { get; set; }
+    public float LightStrength { get; set; }
+    public Vector3 Color { get; set; }
 }
