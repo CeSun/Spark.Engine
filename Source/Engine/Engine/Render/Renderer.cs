@@ -16,5 +16,6 @@ public interface IRenderer
     void AddRunOnRendererAction(Action<IRenderer> action);
     void Render(RenderWorld renderWorld);
     void Destory();
+    public void Update();
 
 }

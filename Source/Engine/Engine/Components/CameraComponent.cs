@@ -5,6 +5,7 @@ using Spark.Util;
 using System.Runtime.InteropServices;
 using Spark.Core.Render;
 using System.Runtime.CompilerServices;
+using Jitter2.LinearMath;
 
 namespace Spark.Core.Components;
 
@@ -13,132 +14,56 @@ public enum ProjectionType
     Orthographic,
     Perspective
 }
-public partial class CameraComponent : PrimitiveComponent, IComparable<CameraComponent>
+public partial class CameraComponent : PrimitiveComponent
 {
-    public RenderTarget? RenderTarget { get; set; }
-
-    public static CameraComponent? CurrentCameraComponent { get; private set; }
-    public int Order { get; set; }
     public CameraComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
-        RenderTarget = new RenderTarget() { IsDefaultRenderTarget = true };
+        if (World.WorldMainRenderTarget != null)
+        {
+            RenderTarget = World.WorldMainRenderTarget;
+        }
         FieldOfView = 90;
         NearPlaneDistance = 10;
         FarPlaneDistance = 100;
         Order = 0;
         ProjectionType = ProjectionType.Perspective;
     }
-    public ProjectionType ProjectionType { get; set; }
-    /// <summary>
-    /// 视角角度，FOV
-    /// </summary>
+
+    private RenderTarget? _renderTarget;
+    public RenderTarget? RenderTarget 
+    {
+        get => _renderTarget;
+        set => ChangeAssetProperty(ref _renderTarget, value);
+    }
+
+    private int _order;
+    public int Order 
+    {
+        get => _order;
+        set => ChangeProperty(ref _order, value);
+    }
+    public ProjectionType _projectionType;
+    public ProjectionType ProjectionType 
+    {
+        get => _projectionType;
+        set => ChangeProperty(ref _projectionType, value);
+    }
     public float FieldOfView
     {
         get => _Fov;
-        set
-        {
-            if (value <= 0.0f)
-                return;
-            if (value > 180f)
-                return;
-            _Fov = value;
-        }
+        set => ChangeProperty(ref _Fov, value);
     }
 
-    /// <summary>
-    /// 远平面
-    /// </summary>
     public float FarPlaneDistance
     {
         get => _Far;
-        set
-        {
-            _Far = value;
-        }
+        set => ChangeProperty(ref _Far, value);
     }
 
-    /// <summary>
-    /// 近平面
-    /// </summary>
     public float NearPlaneDistance
     {
         get => _Near;
-        set
-        {
-            _Near = value;
-        }
-    }
-    public Matrix4x4 View => Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + ForwardVector, UpVector);
-
-    public Matrix4x4 Projection 
-    {
-        get
-        {
-            if (RenderTarget == null)
-            {
-                return Matrix4x4.Identity;
-            }
-
-            return this.ProjectionType switch
-            {
-                ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), RenderTarget.Width / (float)RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
-                ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget.Width, RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
-                _ => throw new NotImplementedException()
-            };
-        }
-   
-    }
-
-    public int CompareTo(CameraComponent? other)
-    {
-        if (other == null) 
-            return -1;
-        return this.Order - other.Order;
-    }
-
-
-    public void GetPlanes(ref Span<Plane> Planes)
-    {
-        GetPlanes(View * Projection, ref Planes);
-    }
-
-    public static void GetPlanes(Matrix4x4 ViewTransform, ref Span<Plane> Planes)
-    {
-        if (Planes.Length < 6)
-        {
-            Planes = new Plane[6];
-        }
-
-        //左侧  
-        Planes[0].Normal.X = ViewTransform[0,3] + ViewTransform[0,0];
-        Planes[0].Normal.Y = ViewTransform[1,3] + ViewTransform[1,0];
-        Planes[0].Normal.Z = ViewTransform[2,3] + ViewTransform[2,0];
-        Planes[0].D = ViewTransform[3,3] + ViewTransform[3,0];
-        //右侧
-        Planes[1].Normal.X = ViewTransform[0,3] - ViewTransform[0,0];
-        Planes[1].Normal.Y = ViewTransform[1,3] - ViewTransform[1,0];
-        Planes[1].Normal.Z = ViewTransform[2,3] - ViewTransform[2,0];
-        Planes[1].D = ViewTransform[3,3] - ViewTransform[3,0];
-        //上侧
-        Planes[2].Normal.X = ViewTransform[0,3] - ViewTransform[0,1];
-        Planes[2].Normal.Y = ViewTransform[1,3] - ViewTransform[1,1];
-        Planes[2].Normal.Z = ViewTransform[2,3] - ViewTransform[2,1];
-        Planes[2].D = ViewTransform[3,3] - ViewTransform[3,1];
-        //下侧
-        Planes[3].Normal.X = ViewTransform[0,3] + ViewTransform[0,1];
-        Planes[3].Normal.Y = ViewTransform[1,3] + ViewTransform[1,1];
-        Planes[3].Normal.Z = ViewTransform[2,3] + ViewTransform[2,1];
-        Planes[3].D = ViewTransform[3,3] + ViewTransform[3,1];
-        //Near
-        Planes[4].Normal.X = ViewTransform[0,3] + ViewTransform[0,2];
-        Planes[4].Normal.Y = ViewTransform[1,3] + ViewTransform[1,2];
-        Planes[4].Normal.Z = ViewTransform[2,3] + ViewTransform[2,2];
-        Planes[4].D = ViewTransform[3,3] + ViewTransform[3,2];
-        //Far
-        Planes[5].Normal.X = ViewTransform[0,3] - ViewTransform[0,2];
-        Planes[5].Normal.Y = ViewTransform[1,3] - ViewTransform[1,2];
-        Planes[5].Normal.Z = ViewTransform[2,3] - ViewTransform[2,2];
-        Planes[5].D = ViewTransform[3,3] - ViewTransform[3,2];
+        set => ChangeProperty(ref _Near, value);
     }
 
     public override nint GetSubComponentProperties()
@@ -149,6 +74,7 @@ public partial class CameraComponent : PrimitiveComponent, IComparable<CameraCom
             Near = _Near,
             Far = _Far,
             Order = Order,
+            ProjectionType = ProjectionType,
             RenderTarget = RenderTarget == null? default : RenderTarget.WeakGCHandle,
         });
     }
@@ -164,13 +90,59 @@ public partial class CameraComponent : PrimitiveComponent
 }
 
 
-public class CameraComponentProxy : PrimitiveComponentProxy
+public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraComponentProxy>
 {
     public float Fov;
     public float Near;
     public float Far;
     public int Order;
+    public ProjectionType ProjectionType;
     public RenderTargetProxy? RenderTarget;
+    
+    public Matrix4x4 View;
+    public Matrix4x4 Projection;
+    public Matrix4x4 ViewProjection;
+    public Plane[] Planes = new Plane[6];
+    public int CompareTo(CameraComponentProxy? other)
+    {
+        if (other == null)
+            return -1;
+        return this.Order - other.Order;
+    }
+
+    private void UpdatePlanes()
+    {
+        //左侧  
+        Planes[0].Normal.X = ViewProjection[0, 3] + ViewProjection[0, 0];
+        Planes[0].Normal.Y = ViewProjection[1, 3] + ViewProjection[1, 0];
+        Planes[0].Normal.Z = ViewProjection[2, 3] + ViewProjection[2, 0];
+        Planes[0].D = ViewProjection[3, 3] + ViewProjection[3, 0];
+        //右侧
+        Planes[1].Normal.X = ViewProjection[0, 3] - ViewProjection[0, 0];
+        Planes[1].Normal.Y = ViewProjection[1, 3] - ViewProjection[1, 0];
+        Planes[1].Normal.Z = ViewProjection[2, 3] - ViewProjection[2, 0];
+        Planes[1].D = ViewProjection[3, 3] - ViewProjection[3, 0];
+        //上侧
+        Planes[2].Normal.X = ViewProjection[0, 3] - ViewProjection[0, 1];
+        Planes[2].Normal.Y = ViewProjection[1, 3] - ViewProjection[1, 1];
+        Planes[2].Normal.Z = ViewProjection[2, 3] - ViewProjection[2, 1];
+        Planes[2].D = ViewProjection[3, 3] - ViewProjection[3, 1];
+        //下侧
+        Planes[3].Normal.X = ViewProjection[0, 3] + ViewProjection[0, 1];
+        Planes[3].Normal.Y = ViewProjection[1, 3] + ViewProjection[1, 1];
+        Planes[3].Normal.Z = ViewProjection[2, 3] + ViewProjection[2, 1];
+        Planes[3].D = ViewProjection[3, 3] + ViewProjection[3, 1];
+        //Near
+        Planes[4].Normal.X = ViewProjection[0, 3] + ViewProjection[0, 2];
+        Planes[4].Normal.Y = ViewProjection[1, 3] + ViewProjection[1, 2];
+        Planes[4].Normal.Z = ViewProjection[2, 3] + ViewProjection[2, 2];
+        Planes[4].D = ViewProjection[3, 3] + ViewProjection[3, 2];
+        //Far
+        Planes[5].Normal.X = ViewProjection[0, 3] - ViewProjection[0, 2];
+        Planes[5].Normal.Y = ViewProjection[1, 3] - ViewProjection[1, 2];
+        Planes[5].Normal.Z = ViewProjection[2, 3] - ViewProjection[2, 2];
+        Planes[5].D = ViewProjection[3, 3] - ViewProjection[3, 2];
+    }
 
     public override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
     {
@@ -181,14 +153,30 @@ public class CameraComponentProxy : PrimitiveComponentProxy
         Far = properties.Far;
         Order = properties.Order;
         RenderTarget = renderer.GetProxy<RenderTargetProxy>(properties.RenderTarget);
+        ProjectionType = properties.ProjectionType;
+
+        if (RenderTarget != null)
+        {
+            Projection = this.ProjectionType switch
+            {
+                ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(Fov.DegreeToRadians(), RenderTarget.Width / (float)RenderTarget.Height, Near, Far),
+                ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget.Width, RenderTarget.Height, Near, Far),
+                _ => throw new NotImplementedException()
+            };
+            View = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, Up);
+            ViewProjection = View * Projection;
+            UpdatePlanes();
+        }
+
     }
 }
 public struct CameraComponentProperties
 {
-    private IntPtr Destructors { get; set; }
+    private IntPtr Destructors;
     public float Fov;
     public float Near;
     public float Far;
     public int Order;
+    public ProjectionType ProjectionType;
     public GCHandle RenderTarget;
 }

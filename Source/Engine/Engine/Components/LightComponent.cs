@@ -17,7 +17,7 @@ public abstract class LightComponent : PrimitiveComponent
     public float LightStrength 
     {
         get => _lightStrength;
-        set => _lightStrength = value;
+        set => ChangeProperty(ref _lightStrength, value);
     }
 
     private Color _color;
@@ -25,7 +25,7 @@ public abstract class LightComponent : PrimitiveComponent
     public Color Color
     {
         get => _color;
-        set =>_color = value;
+        set => ChangeProperty(ref _color, value);
     }
 
 }

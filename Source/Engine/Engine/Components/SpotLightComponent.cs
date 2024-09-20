@@ -1,4 +1,5 @@
 ﻿using Spark.Core.Actors;
+using Spark.Core.Assets;
 using Spark.Core.Render;
 using Spark.Util;
 using System.Numerics;
@@ -18,14 +19,14 @@ public class SpotLightComponent : LightComponent
     public float InnerAngle 
     {
         get => _innerAngle;
-        set =>_innerAngle = value;
+        set => ChangeProperty(ref _innerAngle, value);
     }
-    public float _outerAngle { get; set; }
+    public float _outerAngle;
 
     public float OuterAngle 
     {
         get => _outerAngle;
-        set =>_outerAngle = value;
+        set => ChangeProperty(ref _outerAngle, value);
     }
 
     public override nint GetSubComponentProperties()

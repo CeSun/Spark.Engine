@@ -17,8 +17,7 @@ public class PointLightComponent : LightComponent
     public float AttenuationRadius 
     {
         get => _attenuationRadius;
-        
-        set =>_attenuationRadius = value;
+        set => ChangeProperty(ref _attenuationRadius, value);
     }
     public override nint GetSubComponentProperties()
     {

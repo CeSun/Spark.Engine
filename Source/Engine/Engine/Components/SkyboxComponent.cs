@@ -18,7 +18,7 @@ public class SkyboxComponent : PrimitiveComponent
     public TextureCube? SkyboxCube 
     {
         get => _skyboxCube; 
-        set => _skyboxCube = value;
+        set => ChangeAssetProperty(ref _skyboxCube, value);
     }
 
     public override nint GetSubComponentProperties()

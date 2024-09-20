@@ -72,6 +72,7 @@ public partial class Engine
     {
         if (SceneRenderer != null)
         {
+            SceneRenderer.Update();
             foreach (var renderWorld in RenderWorlds)
             {
                 SceneRenderer.Render(renderWorld);

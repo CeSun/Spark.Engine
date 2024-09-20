@@ -3,6 +3,7 @@ using Spark.Core.Actors;
 using Spark.Core.Assets;
 using Spark.Core.Components;
 using Spark.Core.Render;
+using System.Linq;
 
 namespace Spark.Core;
 
@@ -56,14 +57,11 @@ public class World
         {
             foreach (var component in RenderDirtyComponent)
             {
-                if (component.ComponentState == WorldObjectState.Began || component.ComponentState == WorldObjectState.Registered)
+                var propertiesStructPointer = component.GetPrimitiveComponentProperties();
+                Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
                 {
-                    var propertiesStructPointer = component.GetPrimitiveComponentProperties();
-                    Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
-                    {
-                        RenderWorld.RenderPropertiesQueue.Enqueue(propertiesStructPointer);
-                    });
-                }
+                    RenderWorld.RenderPropertiesQueue.Add(propertiesStructPointer);
+                });
             }
             RenderDirtyComponent.Clear();
         }
@@ -85,9 +83,6 @@ public class World
     public IReadOnlySet<PrimitiveComponent> PrimitiveComponents => _primitiveComponents;
 
     private HashSet<PrimitiveComponent> _primitiveComponents = new HashSet<PrimitiveComponent>();
-
-
-
     public IReadOnlySet<Actor> Actors => _actors;
 
     private HashSet<Actor> _actors = new HashSet<Actor>();

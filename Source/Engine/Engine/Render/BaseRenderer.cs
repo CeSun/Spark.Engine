@@ -16,12 +16,14 @@ public abstract class BaseRenderer : IRenderer
 
     public virtual void Render(RenderWorld renderWorld)
     {
-        CheckNullWeakGCHandle();
+        renderWorld.UpdateComponentProxies(this);
+    }
+    public void Update()
+    {
         PreRender();
-
     }
 
-    private void PreRender()
+    public void PreRender()
     {
         var list = Actions;
         Actions = TempActions;

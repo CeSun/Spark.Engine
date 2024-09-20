@@ -4,6 +4,7 @@ using Spark.Core.Render;
 using System.Runtime.InteropServices;
 using Spark.Util;
 using System.Runtime.CompilerServices;
+using System.Drawing;
 
 namespace Spark.Core.Components;
 
@@ -18,7 +19,7 @@ public class DecalComponent : PrimitiveComponent
     public Material? Material
     {
         get => _material;
-        set => _material = value;
+        set => ChangeAssetProperty(ref _material, value);
     }
 
     public override nint GetSubComponentProperties()

@@ -21,7 +21,7 @@ public class StaticMeshComponent : PrimitiveComponent
     public StaticMesh? StaticMesh 
     {
         get => _StaticMesh;
-        set => _StaticMesh = value;
+        set => ChangeAssetProperty(ref _StaticMesh, value);
     }
 
     public override nint GetSubComponentProperties()

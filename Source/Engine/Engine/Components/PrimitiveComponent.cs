@@ -16,7 +16,6 @@ public enum AttachRelation
 }
 public partial class PrimitiveComponent
 {
-    public bool RenderPropertiesDirty { get; private set; }
     public GCHandle WeakGCHandle { get; private set; }
     public WorldObjectState ComponentState { get; private set; }
     public Engine Engine => Owner.World.Engine;
@@ -29,13 +28,13 @@ public partial class PrimitiveComponent
     public bool CastShadow 
     {
         get => _castShadow; 
-        set =>  _castShadow = value;
+        set => ChangeProperty(ref _castShadow, value);
     }
     private bool _hidden = false;
     public bool Hidden 
     {
         get => _hidden;
-        set => _hidden = value;
+        set => ChangeProperty(ref _hidden, value);
     }
 
     /// <summary>
@@ -63,18 +62,27 @@ public partial class PrimitiveComponent
         {
             Owner.World.UpdateManager.RegisterUpdate(Update);
         }
-        var getProxyDelegate = GetRenderProxyDelegate();
-        if ( getProxyDelegate != null && Engine.SceneRenderer != null && World.RenderWorld != null)
-        {
-            Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
-            {
-                var proxy = getProxyDelegate(renderer);
-                if (proxy != null)
-                {
-                    World.RenderWorld.AddPrimitiveComponentProxy(this, proxy);
-                }
-            });
-        }
+        MakeRenderDirty();
+    }
+
+    protected void ChangeProperty<T>(ref T Field, in T NewValue)
+    {
+        Field = NewValue;
+        MakeRenderDirty();
+    }
+
+    protected void ChangeAssetProperty<T>(ref T? Field, in T? NewValue) where T : AssetBase
+    {
+        if (Engine.SceneRenderer != null && NewValue != null)
+            NewValue.PostProxyToRenderer(Engine.SceneRenderer);
+        ChangeProperty(ref Field, in NewValue);
+    }
+
+    protected void MakeRenderDirty()
+    {
+        if (ComponentState != WorldObjectState.Began || ComponentState != WorldObjectState.Registered)
+            return;
+        World.AddRenderDirtyComponent(this);
     }
 
     public virtual void UnregisterFromWorld()
@@ -83,13 +91,7 @@ public partial class PrimitiveComponent
         {
             Owner.World.UpdateManager.UnregisterUpdate(Update);
         }
-        if (Engine.SceneRenderer != null && World.RenderWorld != null)
-        {
-            Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
-            {
-                World.RenderWorld.RemovePrimitiveComponentProxy(this);
-            });
-        }
+        MakeRenderDirty();
     }
     public void AttachTo(PrimitiveComponent Parent, string socket = "")
     {
@@ -159,11 +161,6 @@ public partial class PrimitiveComponent
     protected virtual void OnEndPlay()
     {
 
-    }
-
-    public virtual Func<IRenderer, PrimitiveComponentProxy>? GetRenderProxyDelegate()
-    {
-        return null;
     }
 
     /// <summary>
@@ -347,6 +344,8 @@ public partial class PrimitiveComponent
     {
         return UnsafeHelper.Malloc(new PrimitiveComponentProperties()
         {
+            ComponentWeakGChandle = WeakGCHandle,
+            ComponentState = ComponentState,
             WorldTransform = WorldTransform,
             CastShadow = _castShadow,
             Hidden = _hidden,
@@ -382,11 +381,6 @@ public partial class PrimitiveComponent
     public Vector3 _relativeScale = Vector3.One;
 
 }
-public partial class PrimitiveComponent
-{
-    public virtual RigidBody? RigidBody { get; }
-}
-
 public struct PrimitiveComponentProperties
 {
     private IntPtr Destructor;
@@ -409,6 +403,12 @@ public struct PrimitiveComponentProperties
         }
     }
 
+    public IntPtr CreateProxyObject;
+
+    public GCHandle ComponentWeakGChandle;
+
+    public WorldObjectState ComponentState;
+
     public Matrix4x4 WorldTransform;
 
     public bool CastShadow;
@@ -417,6 +417,4 @@ public struct PrimitiveComponentProperties
 
     public IntPtr CustomProperties;
 
-    public IntPtr CreateProxyObject;
-   
 }
