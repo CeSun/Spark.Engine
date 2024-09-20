@@ -47,7 +47,7 @@ public class StaticMeshComponent : PrimitiveComponent
     private static GCHandle CreateProxyObject()
     {
         var obj = new StaticMeshComponentProxy();
-        return GCHandle.Alloc(obj, GCHandleType.Pinned);
+        return GCHandle.Alloc(obj, GCHandleType.Normal);
     }
 }
 

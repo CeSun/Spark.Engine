@@ -43,7 +43,7 @@ public class World
 
     public void BeginPlay()
     {
-
+        var CameraActor = new StaticMeshActor(this);
     }
     public void Update(double deltaTime)
     {

@@ -8,7 +8,7 @@ public class SkyboxActor : Actor
     public SkyboxComponent SkyboxComponent { get; private set; }
     public SkyboxActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
-        SkyboxComponent = new SkyboxComponent(this);
+        SkyboxComponent = new SkyboxComponent(this, registorToWorld);
     }
 
     public TextureCube? SkyboxCube { get => SkyboxComponent.SkyboxCube; set => SkyboxComponent.SkyboxCube = value; }

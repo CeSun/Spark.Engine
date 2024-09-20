@@ -27,7 +27,7 @@ public abstract class BaseRenderer : IRenderer
     {
         var list = Actions;
         Actions = TempActions;
-        TempActions = Actions;
+        TempActions = list;
         foreach (var action in TempActions)
         {
             action.Invoke(this);

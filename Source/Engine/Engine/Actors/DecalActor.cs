@@ -7,7 +7,7 @@ public class DecalActor : Actor
 {
     public DecalActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
-        DecalComponent = new DecalComponent(this);
+        DecalComponent = new DecalComponent(this, registorToWorld);
     }
 
     public DecalComponent DecalComponent { get; private set; }

@@ -23,7 +23,7 @@ public class RenderWorld
         {
             var ptr = RenderPropertiesQueue[i];
             var componentProperties = UnsafeHelper.AsRef<PrimitiveComponentProperties>(ptr);
-            if (componentProperties.ComponentState != WorldObjectState.Began || componentProperties.ComponentState != WorldObjectState.Registered)
+            if (componentProperties.ComponentState != WorldObjectState.Began && componentProperties.ComponentState != WorldObjectState.Registered)
             {
                 if (_primitiveComponentProxyDictionary.TryGetValue(componentProperties.ComponentWeakGChandle, out var proxy) == true)
                 {

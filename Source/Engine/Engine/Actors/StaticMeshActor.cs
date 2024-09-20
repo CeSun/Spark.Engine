@@ -8,7 +8,7 @@ public class StaticMeshActor : Actor
     public StaticMeshComponent StaticMeshComponent { get; private set; }
     public StaticMeshActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
-        StaticMeshComponent = new StaticMeshComponent(this);
+        StaticMeshComponent = new StaticMeshComponent(this, registorToWorld);
     }
 
     public bool IsStatic

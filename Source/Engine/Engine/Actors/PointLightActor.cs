@@ -9,7 +9,7 @@ public class PointLightActor : LightActor
 
     public PointLightActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
-        PointLightComponent = new PointLightComponent(this);
+        PointLightComponent = new PointLightComponent(this, registorToWorld);
     }
 
 

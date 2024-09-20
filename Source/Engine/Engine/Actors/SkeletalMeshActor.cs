@@ -7,7 +7,7 @@ public class SkeletalMeshActor : Actor
 
     public SkeletalMeshActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
-        SkeletalMeshComponent = new SkeletalMeshComponent(this);
+        SkeletalMeshComponent = new SkeletalMeshComponent(this, registorToWorld);
     }
 
 }

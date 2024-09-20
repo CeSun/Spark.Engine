@@ -80,7 +80,7 @@ public partial class PrimitiveComponent
 
     protected void MakeRenderDirty()
     {
-        if (ComponentState != WorldObjectState.Began || ComponentState != WorldObjectState.Registered)
+        if (ComponentState != WorldObjectState.Began && ComponentState != WorldObjectState.Registered)
             return;
         World.AddRenderDirtyComponent(this);
     }

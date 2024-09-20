@@ -9,7 +9,7 @@ public class SpotLightActor : LightActor
 
     public SpotLightActor(World world, bool registorToWorld = true) : base(world, registorToWorld)
     {
-        SpotLightComponent = new SpotLightComponent(this);
+        SpotLightComponent = new SpotLightComponent(this, registorToWorld);
     }
 
     public override LightComponent LightComponent => SpotLightComponent;
