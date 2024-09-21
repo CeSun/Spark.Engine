@@ -14,6 +14,13 @@ public enum ProjectionType
     Orthographic,
     Perspective
 }
+
+public enum CameraClearFlag
+{
+    Color = (1 << 0),
+    Depth = (1 << 1),
+    Skybox = (1 <<2)
+}
 public partial class CameraComponent : PrimitiveComponent
 {
     public CameraComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
@@ -50,29 +57,29 @@ public partial class CameraComponent : PrimitiveComponent
     }
     public float FieldOfView
     {
-        get => _Fov;
-        set => ChangeProperty(ref _Fov, value);
+        get => _fieldOfView;
+        set => ChangeProperty(ref _fieldOfView, value);
     }
 
     public float FarPlaneDistance
     {
-        get => _Far;
-        set => ChangeProperty(ref _Far, value);
+        get => _farPlaneDistance;
+        set => ChangeProperty(ref _farPlaneDistance, value);
     }
 
     public float NearPlaneDistance
     {
-        get => _Near;
-        set => ChangeProperty(ref _Near, value);
+        get => _nearPlaneDistance;
+        set => ChangeProperty(ref _nearPlaneDistance, value);
     }
 
     public override nint GetSubComponentProperties()
     {
         return UnsafeHelper.Malloc(new CameraComponentProperties
         {
-            Fov = _Fov,
-            Near = _Near,
-            Far = _Far,
+            FieldOfView = _fieldOfView,
+            NearPlaneDistance = _nearPlaneDistance,
+            FarPlaneDistance = _farPlaneDistance,
             Order = Order,
             ProjectionType = ProjectionType,
             RenderTarget = RenderTarget == null? default : RenderTarget.WeakGCHandle,
@@ -84,17 +91,17 @@ public partial class CameraComponent : PrimitiveComponent
 public partial class CameraComponent : PrimitiveComponent
 {
     
-    private float _Fov;
-    private float _Near;
-    private float _Far;
+    private float _fieldOfView;
+    private float _nearPlaneDistance;
+    private float _farPlaneDistance;
 }
 
 
 public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraComponentProxy>
 {
-    public float Fov;
-    public float Near;
-    public float Far;
+    public float FieldOfView;
+    public float NearPlaneDistance;
+    public float FarPlaneDistance;
     public int Order;
     public ProjectionType ProjectionType;
     public RenderTargetProxy? RenderTarget;
@@ -148,9 +155,9 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
     {
         ref CameraComponentProperties properties = ref UnsafeHelper.AsRef<CameraComponentProperties>(pointer);
 
-        Fov = properties.Fov;
-        Near = properties.Near;
-        Far = properties.Far;
+        FieldOfView = properties.FieldOfView;
+        NearPlaneDistance = properties.NearPlaneDistance;
+        FarPlaneDistance = properties.FarPlaneDistance;
         Order = properties.Order;
         RenderTarget = renderer.GetProxy<RenderTargetProxy>(properties.RenderTarget);
         ProjectionType = properties.ProjectionType;
@@ -159,8 +166,8 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
         {
             Projection = this.ProjectionType switch
             {
-                ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(Fov.DegreeToRadians(), RenderTarget.Width / (float)RenderTarget.Height, Near, Far),
-                ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget.Width, RenderTarget.Height, Near, Far),
+                ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), RenderTarget.Width / (float)RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
+                ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget.Width, RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
                 _ => throw new NotImplementedException()
             };
             View = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, Up);
@@ -173,9 +180,9 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
 public struct CameraComponentProperties
 {
     private IntPtr Destructors;
-    public float Fov;
-    public float Near;
-    public float Far;
+    public float FieldOfView;
+    public float NearPlaneDistance;
+    public float FarPlaneDistance;
     public int Order;
     public ProjectionType ProjectionType;
     public GCHandle RenderTarget;

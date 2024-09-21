@@ -1,5 +1,6 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
+using System.Drawing;
 using System.Runtime.InteropServices;
 
 namespace Spark.Core.Render;
@@ -20,6 +21,7 @@ public abstract class BaseRenderer : IRenderer
     }
     public void Update()
     {
+        CheckNullWeakGCHandle();
         PreRender();
     }
 
