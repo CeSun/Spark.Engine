@@ -1,5 +1,6 @@
 ﻿using Spark.Core.Assets;
 using Spark.Core.Components;
+using System.Drawing;
 
 namespace Spark.Core.Actors;
 
@@ -22,4 +23,10 @@ public class CameraActor : Actor
     public float FarPlaneDistance { get => CameraComponent.FarPlaneDistance; set => CameraComponent.FarPlaneDistance = value; }
 
     public float NearPlaneDistance { get => CameraComponent.NearPlaneDistance; set => CameraComponent.NearPlaneDistance = value; }
+
+    public CameraClearFlag ClearFlag { get => CameraComponent.ClearFlag; set => CameraComponent.ClearFlag = value; }
+
+    public Color ClearColor { get => CameraComponent.ClearColor; set => CameraComponent.ClearColor = value; }
+
+    public TextureCube? SkyboxTexture { get => CameraComponent.SkyboxTexture; set => CameraComponent.SkyboxTexture = value; }
 }

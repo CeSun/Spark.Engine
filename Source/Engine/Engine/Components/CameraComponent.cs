@@ -4,8 +4,8 @@ using Spark.Core.Actors;
 using Spark.Util;
 using System.Runtime.InteropServices;
 using Spark.Core.Render;
+using System.Drawing;
 using System.Runtime.CompilerServices;
-using Jitter2.LinearMath;
 
 namespace Spark.Core.Components;
 
@@ -33,6 +33,7 @@ public partial class CameraComponent : PrimitiveComponent
         NearPlaneDistance = 10;
         FarPlaneDistance = 100;
         Order = 0;
+        ClearFlag = CameraClearFlag.Color | CameraClearFlag.Depth;
         ProjectionType = ProjectionType.Perspective;
     }
 
@@ -49,30 +50,55 @@ public partial class CameraComponent : PrimitiveComponent
         get => _order;
         set => ChangeProperty(ref _order, value);
     }
+
     public ProjectionType _projectionType;
     public ProjectionType ProjectionType 
     {
         get => _projectionType;
         set => ChangeProperty(ref _projectionType, value);
     }
+    private float _fieldOfView;
     public float FieldOfView
     {
         get => _fieldOfView;
         set => ChangeProperty(ref _fieldOfView, value);
     }
 
+    private float _farPlaneDistance;
     public float FarPlaneDistance
     {
         get => _farPlaneDistance;
         set => ChangeProperty(ref _farPlaneDistance, value);
     }
 
+    private float _nearPlaneDistance;
     public float NearPlaneDistance
     {
         get => _nearPlaneDistance;
         set => ChangeProperty(ref _nearPlaneDistance, value);
     }
 
+    public CameraClearFlag _clearFlag;
+
+    public CameraClearFlag ClearFlag
+    {
+        get => _clearFlag;
+        set => ChangeProperty(ref _clearFlag, value);
+    }
+
+    private TextureCube? _skyboxTexture;
+    public TextureCube? SkyboxTexture
+    {
+        get => _skyboxTexture;
+        set => ChangeAssetProperty(ref _skyboxTexture, value);
+    }
+
+    private Color _clearColor;
+    public Color ClearColor
+    {
+        get => _clearColor;
+        set => ChangeProperty(ref _clearColor, value);
+    }
     public override nint GetSubComponentProperties()
     {
         return UnsafeHelper.Malloc(new CameraComponentProperties
@@ -82,18 +108,25 @@ public partial class CameraComponent : PrimitiveComponent
             FarPlaneDistance = _farPlaneDistance,
             Order = Order,
             ProjectionType = ProjectionType,
-            RenderTarget = RenderTarget == null? default : RenderTarget.WeakGCHandle,
+            RenderTarget = RenderTarget == null ? default : RenderTarget.WeakGCHandle,
+            SkyboxTexture = SkyboxTexture == null ? default : SkyboxTexture.WeakGCHandle,
+            ClearFlag = ClearFlag,
+            ClearColor = new Vector3(ClearColor.R / 255f, ClearColor.G / 255f, ClearColor.B / 255f),
         });
     }
-}
 
+    public unsafe override nint GetCreateProxyObjectFunctionPointer()
+    {
+        delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
+        return (nint)p;
+    }
 
-public partial class CameraComponent : PrimitiveComponent
-{
-    
-    private float _fieldOfView;
-    private float _nearPlaneDistance;
-    private float _farPlaneDistance;
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static GCHandle CreateProxyObject()
+    {
+        var obj = new CameraComponentProxy();
+        return GCHandle.Alloc(obj, GCHandleType.Normal);
+    }
 }
 
 
@@ -105,7 +138,10 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
     public int Order;
     public ProjectionType ProjectionType;
     public RenderTargetProxy? RenderTarget;
-    
+    public CameraClearFlag ClearFlag;
+    public TextureCubeProxy? Skybox;
+    public Vector3 ClearColor;
+
     public Matrix4x4 View;
     public Matrix4x4 Projection;
     public Matrix4x4 ViewProjection;
@@ -161,6 +197,9 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
         Order = properties.Order;
         RenderTarget = renderer.GetProxy<RenderTargetProxy>(properties.RenderTarget);
         ProjectionType = properties.ProjectionType;
+        Skybox = renderer.GetProxy<TextureCubeProxy>(properties.RenderTarget);
+        ClearFlag = properties.ClearFlag;
+        ClearColor = properties.ClearColor;
 
         if (RenderTarget != null)
         {
@@ -186,4 +225,7 @@ public struct CameraComponentProperties
     public int Order;
     public ProjectionType ProjectionType;
     public GCHandle RenderTarget;
+    public CameraClearFlag ClearFlag;
+    public GCHandle SkyboxTexture;
+    public Vector3 ClearColor;
 }

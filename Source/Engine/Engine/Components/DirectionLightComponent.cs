@@ -3,6 +3,7 @@ using Spark.Core.Render;
 using Spark.Util;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core.Components;
 
@@ -16,9 +17,25 @@ public class DirectionLightComponent : LightComponent
     {
         return UnsafeHelper.Malloc(new DirectionLightComponentProperties
         {
-            LightStrength = LightStrength,
-            Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f),
+            LightBaseProperties = new LightComponentProperties
+            {
+                LightStrength = LightStrength,
+                Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f)
+            },
         });
+    }
+
+    public unsafe override nint GetCreateProxyObjectFunctionPointer()
+    {
+        delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
+        return (nint)p;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static GCHandle CreateProxyObject()
+    {
+        var obj = new DirectionLightComponentProxy();
+        return GCHandle.Alloc(obj, GCHandleType.Normal);
     }
 }
 
@@ -27,15 +44,11 @@ public class DirectionLightComponentProxy : LightComponentProxy
 {
     public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
     {
-        ref DirectionLightComponentProperties properties = ref Unsafe.AsRef<DirectionLightComponentProperties>((void*)pointer);
-        LightStrength = properties.LightStrength;
-        Color = properties.Color;
+        base.UpdateSubComponentProxy(pointer, renderer);
     }
 }
 
 public struct DirectionLightComponentProperties
 {
-    private IntPtr Destructors { get; set; }
-    public float LightStrength { get; set; }
-    public Vector3 Color { get; set; }
+    public LightComponentProperties LightBaseProperties;
 }

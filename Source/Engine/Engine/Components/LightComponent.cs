@@ -3,6 +3,7 @@ using Spark.Core.Assets;
 using Spark.Core.Render;
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Spark.Core.Components;
 
@@ -34,5 +35,19 @@ public class LightComponentProxy : PrimitiveComponentProxy
 {
     public float LightStrength { get; set; }
 
+    public Vector3 Color { get; set; }
+
+    public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    {
+        ref LightComponentProperties properties = ref Unsafe.AsRef<LightComponentProperties>((void*)pointer);
+        LightStrength = properties.LightStrength;
+        Color = properties.Color;
+    }
+}
+
+public struct LightComponentProperties 
+{
+    private IntPtr Destructors { get; set; }
+    public float LightStrength { get; set; }
     public Vector3 Color { get; set; }
 }

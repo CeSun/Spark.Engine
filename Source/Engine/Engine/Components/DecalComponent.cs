@@ -29,6 +29,19 @@ public class DecalComponent : PrimitiveComponent
             Material = Material == null ? default : Material.WeakGCHandle,
         });
     }
+
+    public unsafe override nint GetCreateProxyObjectFunctionPointer()
+    {
+        delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
+        return (nint)p;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static GCHandle CreateProxyObject()
+    {
+        var obj = new DecalComponentProxy();
+        return GCHandle.Alloc(obj, GCHandleType.Normal);
+    }
 }
 
 public class DecalComponentProxy : PrimitiveComponentProxy

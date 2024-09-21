@@ -3,6 +3,8 @@ using Spark.Core.Actors;
 using Spark.Core.Assets;
 using Spark.Core.Components;
 using Spark.Core.Render;
+using Spark.Util;
+using System.Drawing;
 using System.Linq;
 
 namespace Spark.Core;
@@ -43,8 +45,36 @@ public class World
 
     public void BeginPlay()
     {
-        var CameraActor = new StaticMeshActor(this);
+        var CameraActor = new CameraActor(this)
+        {
+            WorldLocation = new System.Numerics.Vector3(1, 22, 3),
+            WorldRotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(30f.DegreeToRadians(), 1, 1),
+            ClearColor = Color.AliceBlue
+        };
+        var DecalActor = new DecalActor(this)
+        {
+            WorldLocation = new System.Numerics.Vector3(1, 22, 3),
+        };
+        var DirectionLightActor = new DirectionLightActor(this)
+        {
+            WorldLocation = new System.Numerics.Vector3(13, 22, 3),
+        };
+        var PointLightActor = new PointLightActor(this)
+        {
+            WorldLocation = new System.Numerics.Vector3(12, 22, 33),
+        };
+        var SpotLightActor = new SpotLightActor(this)
+        {
+            WorldLocation = new System.Numerics.Vector3(21, 22, 23),
+            LightStrength = 10,
+            Color = Color.DarkBlue,
+        };
+        var StaticMeshActor = new StaticMeshActor(this)
+        {
+            WorldLocation = new System.Numerics.Vector3(1, 22, 3),
+        };
     }
+
     public void Update(double deltaTime)
     {
         UpdateManager.Update(deltaTime);

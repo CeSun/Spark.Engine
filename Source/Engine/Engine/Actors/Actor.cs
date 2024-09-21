@@ -173,6 +173,8 @@ public partial class Actor
         {
             return;
         }
+        if (RootComponent == null)
+            RootComponent = Component;
         _PrimitiveComponents.Add(Component);
         foreach (var SubComponent in Component.ChildrenComponent)
         {
@@ -195,6 +197,24 @@ public partial class Actor
             return;
         }
         _PrimitiveComponents.Remove(Component);
+        if (RootComponent != null)
+        {
+            RootComponent = null;
+            if (PrimitiveComponents.Count > 0)
+            {
+                foreach (var child in PrimitiveComponents)
+                {
+                    if (RootComponent == null)
+                    {
+                        RootComponent = child;
+                    }
+                    else
+                    {
+                        child.AttachTo(RootComponent, "", Matrix4x4.Identity, AttachRelation.KeepWorldTransform);
+                    }
+                }
+            }
+        }
         foreach (var SubComponent in Component.ChildrenComponent)
         {
             if (!PrimitiveComponents.Contains(SubComponent))

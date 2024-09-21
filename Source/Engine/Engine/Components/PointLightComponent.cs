@@ -3,6 +3,7 @@ using Spark.Core.Render;
 using Spark.Util;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core.Components;
 
@@ -23,10 +24,26 @@ public class PointLightComponent : LightComponent
     {
         return UnsafeHelper.Malloc(new PointLightComponentProperties
         {
-            LightStrength = LightStrength,
-            Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f),
+            LightBaseProperties = new LightComponentProperties
+            {
+                LightStrength = LightStrength,
+                Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f)
+            },
             AttenuationRadius = _attenuationRadius,
         });
+    }
+
+    public unsafe override nint GetCreateProxyObjectFunctionPointer()
+    {
+        delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
+        return (nint)p;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static GCHandle CreateProxyObject()
+    {
+        var obj = new PointLightComponentProxy();
+        return GCHandle.Alloc(obj, GCHandleType.Normal);
     }
 }
 
@@ -36,17 +53,16 @@ public class PointLightComponentProxy : LightComponentProxy
 
     public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
     {
+        base.UpdateSubComponentProxy(pointer, renderer);
         ref PointLightComponentProperties properties = ref Unsafe.AsRef<PointLightComponentProperties>((void*)pointer);
-        LightStrength = properties.LightStrength;
-        Color = properties.Color;
+        LightStrength = properties.LightBaseProperties.LightStrength;
+        Color = properties.LightBaseProperties.Color;
         AttenuationRadius = properties.AttenuationRadius;
     }
 }
 
 public struct PointLightComponentProperties
 {
-    private IntPtr Destructors { get; set; }
-    public float LightStrength { get; set; }
-    public Vector3 Color { get; set; }
+    public LightComponentProperties LightBaseProperties;
     public float AttenuationRadius { get; set; }
 }

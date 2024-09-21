@@ -4,6 +4,7 @@ using Spark.Core.Render;
 using Spark.Util;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core.Components;
 
@@ -16,14 +17,14 @@ public class SpotLightComponent : LightComponent
     }
 
     private float _innerAngle;
-    public float InnerAngle 
+    public float InnerAngle
     {
         get => _innerAngle;
         set => ChangeProperty(ref _innerAngle, value);
     }
     public float _outerAngle;
 
-    public float OuterAngle 
+    public float OuterAngle
     {
         get => _outerAngle;
         set => ChangeProperty(ref _outerAngle, value);
@@ -33,11 +34,27 @@ public class SpotLightComponent : LightComponent
     {
         return UnsafeHelper.Malloc(new SpotLightComponentProperties
         {
-            LightStrength = LightStrength,
-            Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f),
+            LightBaseProperties = new LightComponentProperties
+            {
+                LightStrength = LightStrength,
+                Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f)
+            },
             InnerAngle = _innerAngle,
             OuterAngle = _outerAngle,
         });
+    }
+
+    public unsafe override nint GetCreateProxyObjectFunctionPointer()
+    {
+        delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
+        return (nint)p;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static GCHandle CreateProxyObject()
+    {
+        var obj = new SpotLightComponentProxy();
+        return GCHandle.Alloc(obj, GCHandleType.Normal);
     }
 }
 
@@ -48,9 +65,8 @@ public class SpotLightComponentProxy : LightComponentProxy
 
     public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
     {
+        base.UpdateSubComponentProxy(pointer, renderer);
         ref SpotLightComponentProperties properties = ref Unsafe.AsRef<SpotLightComponentProperties>((void*)pointer);
-        LightStrength = properties.LightStrength;
-        Color = properties.Color;
         OuterAngle = properties.OuterAngle;
         InnerAngle = properties.InnerAngle;
     }
@@ -60,9 +76,7 @@ public class SpotLightComponentProxy : LightComponentProxy
 
 public struct SpotLightComponentProperties
 {
-    private IntPtr Destructors { get; set; }
-    public float LightStrength { get; set; }
-    public Vector3 Color { get; set; }
-    public float OuterAngle { get; set; }
-    public float InnerAngle { get; set; }
+    public LightComponentProperties LightBaseProperties;
+    public float OuterAngle;
+    public float InnerAngle;
 }
