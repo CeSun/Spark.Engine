@@ -42,6 +42,7 @@ public abstract class AssetBase
             {
                 var proxy = fun(render);
                 render.AddProxy(this, proxy);
+                proxy.RebuildGpuResource(renderer.gl);
             });
         }
     }

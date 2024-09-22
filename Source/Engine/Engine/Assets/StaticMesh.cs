@@ -58,13 +58,14 @@ public class StaticMeshProxy : RenderProxy
     public List<uint> ElementBufferObjectIndexes = [];
     public unsafe override void RebuildGpuResource(GL gl)
     {
+        DestoryGpuResource(gl);
         VertexArrayObjectIndexes.ForEach(gl.DeleteVertexArray);
         VertexBufferObjectIndexes.ForEach(gl.DeleteBuffer);
         ElementBufferObjectIndexes.ForEach(gl.DeleteBuffer);
 
-        VertexArrayObjectIndexes = new List<uint>(Elements.Count);
-        VertexBufferObjectIndexes = new List<uint>(Elements.Count);
-        ElementBufferObjectIndexes = new List<uint>(Elements.Count);
+        VertexArrayObjectIndexes = new List<uint>();
+        VertexBufferObjectIndexes = new List<uint>();
+        ElementBufferObjectIndexes = new List<uint>();
 
         for (var index = 0; index < Elements.Count; index++)
         {
@@ -105,9 +106,9 @@ public class StaticMeshProxy : RenderProxy
             gl.EnableVertexAttribArray(5);
             gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(5 * sizeof(Vector3)));
             gl.BindVertexArray(0);
-            VertexArrayObjectIndexes[index] = vao;
-            VertexBufferObjectIndexes[index] = vbo;
-            ElementBufferObjectIndexes[index] = ebo;
+            VertexArrayObjectIndexes.Add (vao);
+            VertexBufferObjectIndexes.Add(vbo);
+            ElementBufferObjectIndexes.Add(ebo);
         }
 
     }

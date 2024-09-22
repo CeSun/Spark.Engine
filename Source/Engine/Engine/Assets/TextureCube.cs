@@ -196,6 +196,7 @@ public class TextureCubeProxy : RenderProxy
     
     public unsafe override void RebuildGpuResource(GL gl)
     {
+        DestoryGpuResource(gl);
         TextureId = gl.GenTexture();
         gl.BindTexture(GLEnum.TextureCubeMap, TextureId);
 

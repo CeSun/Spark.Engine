@@ -18,5 +18,10 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Game\$(GameName)\$(GameName).csproj" />
-	</ItemGroup>
+		<Content Include="..\..\Game\$(GameName)\Resource\**\*">
+			<Link>Resource\%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	
+</ItemGroup>
 </Project>

@@ -130,8 +130,7 @@ public class RenderTargetProxy : RenderProxy, IDisposable
 
     public IReadOnlyList<FrameBufferConfig> Configs = [];
 
-
-    public override void RebuildGpuResource(GL gl)
+    public override void DestoryGpuResource(GL gl)
     {
         if (IsDefaultRenderTargetLast == false)
         {
@@ -147,7 +146,16 @@ public class RenderTargetProxy : RenderProxy, IDisposable
                 gl.DeleteFramebuffer(FrameBufferId);
             }
         }
+    }
+    public override void RebuildGpuResource(GL gl)
+    {
+        DestoryGpuResource(gl);
         IsDefaultRenderTargetLast = IsDefaultRenderTarget;
+        if (IsDefaultRenderTarget == true)
+        {
+            FrameBufferId = 0;
+            return;
+        }
         FrameBufferId = gl.GenFramebuffer();
         gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
         AttachmentTextureIds = new(Configs.Count); 

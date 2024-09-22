@@ -11,6 +11,6 @@ public class GameBuilder
 {
     public static IGame CreateGame()
     {
-        return new GameInstance();
+        return new HelloSparkGame();
     }
 }

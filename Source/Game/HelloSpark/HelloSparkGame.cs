@@ -1,12 +1,13 @@
 ﻿using Spark.Core;
 using Spark.Core.Actors;
 using Spark.Core.Components;
+using Spark.Importer;
 using Spark.Util;
 using System.Drawing;
 
 namespace HelloSpark;
 
-public class GameInstance : IGame
+public class HelloSparkGame : IGame
 {
     CameraActor? CameraActor;
     public void BeginPlay(World world)
@@ -19,6 +20,8 @@ public class GameInstance : IGame
             ClearFlag = CameraClearFlag.Depth | CameraClearFlag.Color,
             Order = 3
         };
+
+
 
         var DecalActor = new DecalActor(world)
         {
@@ -42,6 +45,16 @@ public class GameInstance : IGame
         {
             WorldLocation = new System.Numerics.Vector3(1, 22, 3),
         };
+
+        using (var sr = world.Engine.FileSystem.GetStream("Resource/StaticMesh/chair.glb"))
+        {
+            MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting { ImporterPhysicsAsset = false}, out var textures, out var materials, out var staticMesh);
+            StaticMeshActor.StaticMesh = staticMesh;
+        }
+        Task.Delay(1).Then(() =>
+        {
+            StaticMeshActor.StaticMesh = null;
+        });
     }
 
     public void EndPlay(World world)

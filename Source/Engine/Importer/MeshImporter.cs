@@ -21,8 +21,10 @@ public class SkeletalMeshImportSetting
 public static class MeshImporter
 {
    
-    public static void ImporterStaticMeshFromGlbStream(StreamReader streamReader, StaticMeshImportSetting staticMeshImportSetting, List<Texture> textures, List<Material> materials, out StaticMesh staticMesh)
+    public static void ImporterStaticMeshFromGlbStream(StreamReader streamReader, StaticMeshImportSetting staticMeshImportSetting, out List<Texture> textures, out List<Material> materials, out StaticMesh staticMesh)
     {
+        textures = new List<Texture>();
+        materials = new List<Material>();
         ModelRoot model = ModelRoot.ReadGLB(streamReader.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
         var sm = new StaticMesh();

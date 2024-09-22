@@ -28,17 +28,20 @@ public abstract class BaseRenderer
             {
                 if (camera.RenderTarget == null)
                     return;
-                ClearBufferMask mask = ClearBufferMask.None;
-                if ((camera.ClearFlag & CameraClearFlag.Depth) != 0)
+                using (camera.RenderTarget)
                 {
-                    mask |= ClearBufferMask.DepthBufferBit;
+                    ClearBufferMask mask = ClearBufferMask.None;
+                    if ((camera.ClearFlag & CameraClearFlag.Depth) != 0)
+                    {
+                        mask |= ClearBufferMask.DepthBufferBit;
+                    }
+                    if ((camera.ClearFlag & CameraClearFlag.Color) != 0)
+                    {
+                        mask |= ClearBufferMask.ColorBufferBit;
+                        gl.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
+                    }
+                    gl.Clear(mask);
                 }
-                if ((camera.ClearFlag & CameraClearFlag.Color) != 0)
-                {
-                    mask |= ClearBufferMask.ColorBufferBit;
-                    gl.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
-                }
-                gl.Clear(mask);
                 RendererWorld(camera);
             }
         }
@@ -46,11 +49,6 @@ public abstract class BaseRenderer
 
     public abstract void RendererWorld(CameraComponentProxy camera);
 
-    public void Update()
-    {
-        CheckNullWeakGCHandle();
-        PreRender();
-    }
 
     public void PreRender()
     {
@@ -113,7 +111,7 @@ public abstract class BaseRenderer
     {
         if (proxy == null)
             return;
-        if (NeedRebuildProxies.Contains(proxy))
+        if (NeedRebuildProxies.Contains(proxy) == false)
         {
             NeedRebuildProxies.Add(proxy);
         }

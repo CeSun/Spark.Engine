@@ -192,10 +192,7 @@ public class TextureProxy : RenderProxy
 
     public override unsafe void RebuildGpuResource(GL gl)
     {
-        if (TextureId != 0)
-        {
-            gl.DeleteTexture(TextureId);
-        }
+        DestoryGpuResource(gl);
         TextureId = gl.GenTexture();
         gl.BindTexture(GLEnum.Texture2D, TextureId);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
