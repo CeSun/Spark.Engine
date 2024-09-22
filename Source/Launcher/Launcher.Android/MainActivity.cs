@@ -41,13 +41,14 @@ public class MainActivity : SilkActivity
 
         options.ShouldSwapAutomatically = false;
 
+
+        options.API = new GraphicsAPI { API = ContextAPI.OpenGLES, Flags = ContextFlags.Default, Profile = ContextProfile.Core, Version = new APIVersion(3, 0) };
+
         var view = Silk.NET.Windowing.Window.GetView(options);
 
         view.Initialize();
 
         var gl = GL.GetApi(view);
-
-        options.API = new GraphicsAPI { API = ContextAPI.OpenGLES, Flags = ContextFlags.Default, Profile = ContextProfile.Core, Version = new APIVersion(3, 0) };
 
         var platform = new AndroidPlatform(new AndroidFileSystem(Assets!)) { View = view, GraphicsApi = gl, InputContext = view.CreateInput() };
 
