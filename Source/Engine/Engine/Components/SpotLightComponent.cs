@@ -15,6 +15,7 @@ public class SpotLightComponent : LightComponent
         InnerAngle = 12.5f;
         OuterAngle = 17.5f;
     }
+    protected override int propertiesStructSize => Marshal.SizeOf<SpotLightComponentProperties>();
 
     private float _innerAngle;
     public float InnerAngle
@@ -30,20 +31,14 @@ public class SpotLightComponent : LightComponent
         set => ChangeProperty(ref _outerAngle, value);
     }
 
-    public override nint GetSubComponentProperties()
+    public override nint GetPrimitiveComponentProperties()
     {
-        return UnsafeHelper.Malloc(new SpotLightComponentProperties
-        {
-            LightBaseProperties = new LightComponentProperties
-            {
-                LightStrength = LightStrength,
-                Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f)
-            },
-            InnerAngle = _innerAngle,
-            OuterAngle = _outerAngle,
-        });
+        var ptr =  base.GetPrimitiveComponentProperties();
+        ref var properties = ref UnsafeHelper.AsRef<SpotLightComponentProperties>(ptr);
+        properties.InnerAngle = _innerAngle;
+        properties.OuterAngle = _outerAngle;
+        return ptr;
     }
-
     public unsafe override nint GetCreateProxyObjectFunctionPointer()
     {
         delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
@@ -62,14 +57,14 @@ public class SpotLightComponentProxy : LightComponentProxy
 {
     public float OuterAngle {  get; set; }
     public float InnerAngle {  get; set; }
-
-    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
-        base.UpdateSubComponentProxy(pointer, renderer);
-        ref SpotLightComponentProperties properties = ref Unsafe.AsRef<SpotLightComponentProperties>((void*)pointer);
+        base.UpdateProperties(propertiesPtr, renderer);
+        ref var properties = ref UnsafeHelper.AsRef<SpotLightComponentProperties>(propertiesPtr);
         OuterAngle = properties.OuterAngle;
         InnerAngle = properties.InnerAngle;
     }
+
 
 }
 

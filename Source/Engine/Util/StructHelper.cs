@@ -11,22 +11,6 @@ namespace Spark.Util;
 
 public static class UnsafeHelper
 {
-    public static void Free(this ref IntPtr ptr)
-    {
-        if (ptr == IntPtr.Zero)
-            return;
-        unsafe
-        {
-            delegate* unmanaged[Cdecl]<IntPtr, void> fun = *(delegate* unmanaged[Cdecl]<IntPtr, void>*)ptr;
-            if (fun != null)
-            {
-                fun(ptr);
-            }
-        }
-        Marshal.FreeHGlobal(ptr);
-        ptr = IntPtr.Zero;
-    }
-
     public static unsafe IntPtr Malloc<T>(in T t) where T : struct
     {
         var p = Marshal.AllocHGlobal(Marshal.SizeOf<T>());

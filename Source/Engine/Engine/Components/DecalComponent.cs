@@ -15,21 +15,21 @@ public class DecalComponent : PrimitiveComponent
     {
     }
 
+    protected override int propertiesStructSize => Marshal.SizeOf<DecalComponentProperties>();
     private Material? _material;
     public Material? Material
     {
         get => _material;
         set => ChangeAssetProperty(ref _material, value);
     }
-
-    public override nint GetSubComponentProperties()
+    public override nint GetPrimitiveComponentProperties()
     {
-        return UnsafeHelper.Malloc(new DecalComponentProperties
-        {
-            Material = Material == null ? default : Material.WeakGCHandle,
-        });
+        var ptr = base.GetPrimitiveComponentProperties();
+        ref var properties = ref UnsafeHelper.AsRef<DecalComponentProperties>(ptr);
+        if (Material != null)
+            properties.Material = Material.WeakGCHandle;
+        return ptr;
     }
-
     public unsafe override nint GetCreateProxyObjectFunctionPointer()
     {
         delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
@@ -48,15 +48,16 @@ public class DecalComponentProxy : PrimitiveComponentProxy
 {
     public MaterialProxy? MaterialProxy { get; set; }
 
-    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
-        ref DecalComponentProperties properties = ref Unsafe.AsRef<DecalComponentProperties>((void*)pointer);
+        base.UpdateProperties(propertiesPtr, renderer);
+        ref var properties = ref UnsafeHelper.AsRef<DecalComponentProperties>(propertiesPtr);
         MaterialProxy = renderer.GetProxy<MaterialProxy>(properties.Material);
     }
 }
 
 public struct DecalComponentProperties
 {
-    private IntPtr Destructors { get; set; }
+    public PrimitiveComponentProperties BaseProperties;
     public GCHandle Material {  get; set; }
 }

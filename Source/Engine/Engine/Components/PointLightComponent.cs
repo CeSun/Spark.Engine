@@ -14,6 +14,7 @@ public class PointLightComponent : LightComponent
     {
         AttenuationRadius = 1f;
     }
+    protected override int propertiesStructSize => Marshal.SizeOf<PointLightComponentProperties>();
 
     private float _attenuationRadius;
     public float AttenuationRadius 
@@ -21,19 +22,14 @@ public class PointLightComponent : LightComponent
         get => _attenuationRadius;
         set => ChangeProperty(ref _attenuationRadius, value);
     }
-    public override nint GetSubComponentProperties()
+ 
+    public override nint GetPrimitiveComponentProperties()
     {
-        return UnsafeHelper.Malloc(new PointLightComponentProperties
-        {
-            LightBaseProperties = new LightComponentProperties
-            {
-                LightStrength = LightStrength,
-                Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f)
-            },
-            AttenuationRadius = _attenuationRadius,
-        });
+        var ptr = base.GetPrimitiveComponentProperties();
+        ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(ptr);
+        properties.AttenuationRadius = AttenuationRadius;
+        return ptr;
     }
-
     public unsafe override nint GetCreateProxyObjectFunctionPointer()
     {
         delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
@@ -52,15 +48,14 @@ public class PointLightComponentProxy : LightComponentProxy
 {
     public float AttenuationRadius { get; set; }
 
-    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
-        base.UpdateSubComponentProxy(pointer, renderer);
-        ref PointLightComponentProperties properties = ref Unsafe.AsRef<PointLightComponentProperties>((void*)pointer);
+        base.UpdateProperties(propertiesPtr, renderer);
+        ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(propertiesPtr);
         LightStrength = properties.LightBaseProperties.LightStrength;
         Color = properties.LightBaseProperties.Color;
         AttenuationRadius = properties.AttenuationRadius;
     }
-
     public override void ReBuild(GL gl)
     {
         base.ReBuild(gl);
@@ -74,6 +69,7 @@ public class PointLightComponentProxy : LightComponentProxy
 
 public struct PointLightComponentProperties
 {
+
     public LightComponentProperties LightBaseProperties;
     public float AttenuationRadius { get; set; }
 }

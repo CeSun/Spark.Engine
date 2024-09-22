@@ -13,17 +13,6 @@ public class DirectionLightComponent : LightComponent
     {
     }
 
-    public override nint GetSubComponentProperties()
-    {
-        return UnsafeHelper.Malloc(new DirectionLightComponentProperties
-        {
-            LightBaseProperties = new LightComponentProperties
-            {
-                LightStrength = LightStrength,
-                Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f)
-            },
-        });
-    }
 
     public unsafe override nint GetCreateProxyObjectFunctionPointer()
     {
@@ -42,10 +31,7 @@ public class DirectionLightComponent : LightComponent
 
 public class DirectionLightComponentProxy : LightComponentProxy
 {
-    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
-    {
-        base.UpdateSubComponentProxy(pointer, renderer);
-    }
+   
 }
 
 public struct DirectionLightComponentProperties

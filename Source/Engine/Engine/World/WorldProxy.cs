@@ -61,12 +61,12 @@ public class WorldProxy
                     }
                     if (proxy != null)
                     {
-                        proxy.UpdateProperties(componentProperties, renderer);
+                        proxy.UpdateProperties(ptr, renderer);
                         proxy.ReBuild(renderer.gl);
                     }
                 }
             }
-            ptr.Free();
+            Marshal.FreeHGlobal(ptr);
         }
         RenderPropertiesQueue.Clear();
         if (isAddCameraComponent)
@@ -79,8 +79,7 @@ public class WorldProxy
     {
         foreach(var item in RenderPropertiesQueue)
         {
-            var p = item;
-            p.Free();
+            Marshal.FreeHGlobal(item);
         }
         RenderPropertiesQueue.Clear();
         foreach(var (_, proxy) in _primitiveComponentProxyDictionary)
@@ -94,47 +93,5 @@ public class WorldProxy
 }
 
 
-public class PrimitiveComponentProxy
-{
-    public Vector3 Forward;
-    public Vector3 Right;
-    public Vector3 Up;
-    public Quaternion WorldRotation;
-    public Vector3 WorldLocation;
-    public Vector3 WorldScale;
-    public bool Hidden { get; set; }
-    public bool CastShadow { get; set; }
-    public Matrix4x4 Trasnform { get; set; }
-    public virtual void UpdateProperties(in PrimitiveComponentProperties properties, BaseRenderer renderer)
-    {
-        Hidden = properties.Hidden;
-        CastShadow = properties.CastShadow;
-        Trasnform = properties.WorldTransform;
 
-        WorldRotation = Trasnform.Rotation();
-        WorldLocation = Trasnform.Translation;
-        WorldScale = Trasnform.Scale();
-
-        Forward = Vector3.Transform(new Vector3(0, 0, -1), WorldRotation);
-        Right = Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
-        Up = Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
-
-        UpdateSubComponentProxy(properties.CustomProperties, renderer);
-    }
-    public virtual void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
-    {
-
-    }
-
-
-    public virtual void ReBuild(GL gl)
-    {
-
-    }
-
-    public virtual void Destory(GL gl)
-    {
-
-    }
-}
 

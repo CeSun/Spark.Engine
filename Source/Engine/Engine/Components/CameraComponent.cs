@@ -37,6 +37,8 @@ public partial class CameraComponent : PrimitiveComponent
         ProjectionType = ProjectionType.Perspective;
     }
 
+    protected override int propertiesStructSize => Marshal.SizeOf<CameraComponentProperties>();
+
     private RenderTarget? _renderTarget;
     public RenderTarget? RenderTarget 
     {
@@ -99,20 +101,20 @@ public partial class CameraComponent : PrimitiveComponent
         get => _clearColor;
         set => ChangeProperty(ref _clearColor, value);
     }
-    public override nint GetSubComponentProperties()
+    public override nint GetPrimitiveComponentProperties()
     {
-        return UnsafeHelper.Malloc(new CameraComponentProperties
-        {
-            FieldOfView = _fieldOfView,
-            NearPlaneDistance = _nearPlaneDistance,
-            FarPlaneDistance = _farPlaneDistance,
-            Order = Order,
-            ProjectionType = ProjectionType,
-            RenderTarget = RenderTarget == null ? default : RenderTarget.WeakGCHandle,
-            SkyboxTexture = SkyboxTexture == null ? default : SkyboxTexture.WeakGCHandle,
-            ClearFlag = ClearFlag,
-            ClearColor = new Vector4(ClearColor.R / 255f, ClearColor.G / 255f, ClearColor.B / 255f, 1),
-        });
+        var ptr = base.GetPrimitiveComponentProperties();
+        ref var properties = ref UnsafeHelper.AsRef<CameraComponentProperties>(ptr);
+        properties.FieldOfView = _fieldOfView;
+        properties.NearPlaneDistance = _nearPlaneDistance;
+        properties.FarPlaneDistance = _farPlaneDistance;
+        properties.Order = Order;
+        properties.ProjectionType = ProjectionType;
+        properties.RenderTarget = RenderTarget == null ? default : RenderTarget.WeakGCHandle;
+        properties.SkyboxTexture = SkyboxTexture == null ? default : SkyboxTexture.WeakGCHandle;
+        properties.ClearFlag = ClearFlag;
+        properties.ClearColor = new Vector4(ClearColor.R / 255f, ClearColor.G / 255f, ClearColor.B / 255f, 1);
+        return ptr;
     }
 
     public unsafe override nint GetCreateProxyObjectFunctionPointer()
@@ -187,10 +189,10 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
         Planes[5].D = ViewProjection[3, 3] - ViewProjection[3, 2];
     }
 
-    public override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
-        ref CameraComponentProperties properties = ref UnsafeHelper.AsRef<CameraComponentProperties>(pointer);
-
+        base.UpdateProperties(propertiesPtr, renderer);
+        ref var properties = ref UnsafeHelper.AsRef<CameraComponentProperties>(propertiesPtr);
         FieldOfView = properties.FieldOfView;
         NearPlaneDistance = properties.NearPlaneDistance;
         FarPlaneDistance = properties.FarPlaneDistance;
@@ -213,12 +215,11 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
             ViewProjection = View * Projection;
             UpdatePlanes();
         }
-
     }
 }
 public struct CameraComponentProperties
 {
-    private IntPtr Destructors;
+    public PrimitiveComponentProperties BaseProperties;
     public float FieldOfView;
     public float NearPlaneDistance;
     public float FarPlaneDistance;

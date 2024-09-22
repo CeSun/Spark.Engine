@@ -6,6 +6,7 @@ using Spark.Core.Render;
 using Spark.Core.Assets;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Silk.NET.OpenGLES;
 
 namespace Spark.Core.Components;
 
@@ -21,6 +22,7 @@ public partial class PrimitiveComponent
     public Engine Engine => Owner.World.Engine;
     public World World => Owner.World;
 
+    protected virtual int propertiesStructSize => Marshal.SizeOf<PrimitiveComponentProperties>();
     protected virtual bool ReceiveUpdate => false;
     public virtual bool IsStatic { get; set; } = false;
 
@@ -244,29 +246,20 @@ public partial class PrimitiveComponent
     public virtual Vector3 RelativeLocation
     {
         get => _relativeLocation;
-        set
-        {
-            _relativeLocation = value;
-        }
+        set => ChangeProperty(ref _relativeLocation, value);
     }
 
     public virtual Quaternion RelativeRotation
     {
 
         get => _relativeRotation;
-        set
-        {
-            _relativeRotation = value;
-        }
+        set => ChangeProperty(ref _relativeRotation, value);
     }
 
     public virtual Vector3 RelativeScale
     {
         get => _relativeScale;
-        set
-        {
-            _relativeScale = value;
-        }
+        set => ChangeProperty(ref _relativeScale, value);
     }
 
     public Matrix4x4 RelativeTransform
@@ -292,6 +285,7 @@ public partial class PrimitiveComponent
             var tmpRelativeTransform = value * InverseParentMatrix;
 
             RelativeTransform = tmpRelativeTransform;
+            MakeRenderDirty();
         }
     }
 
@@ -340,23 +334,24 @@ public partial class PrimitiveComponent
     public Vector3 UpVector => Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
 
 
-    public IntPtr GetPrimitiveComponentProperties()
+    public virtual IntPtr GetPrimitiveComponentProperties()
     {
-        return UnsafeHelper.Malloc(new PrimitiveComponentProperties()
-        {
-            ComponentWeakGChandle = WeakGCHandle,
-            ComponentState = ComponentState,
-            WorldTransform = WorldTransform,
-            CastShadow = _castShadow,
-            Hidden = _hidden,
-            CustomProperties = GetSubComponentProperties(),
-            CreateProxyObject = GetCreateProxyObjectFunctionPointer(),
-        });
+        var ptr = AllocPropertiesMemory();
+        ref var properties = ref UnsafeHelper.AsRef<PrimitiveComponentProperties>(ptr);
+        properties.ComponentWeakGChandle = WeakGCHandle;
+        properties.ComponentState = ComponentState;
+        properties.WorldTransform = WorldTransform;
+        properties.CastShadow = _castShadow;
+        properties.Hidden = _hidden;
+        properties.CreateProxyObject = GetCreateProxyObjectFunctionPointer();
+        return ptr;
     }
 
-    public virtual IntPtr GetSubComponentProperties()
+    public virtual IntPtr AllocPropertiesMemory()
     {
-        return IntPtr.Zero;
+        if (propertiesStructSize <= 0)
+            return IntPtr.Zero;
+        return Marshal.AllocHGlobal(propertiesStructSize);
     }
 
     public virtual IntPtr GetCreateProxyObjectFunctionPointer()
@@ -381,28 +376,47 @@ public partial class PrimitiveComponent
     public Vector3 _relativeScale = Vector3.One;
 
 }
+
+public class PrimitiveComponentProxy
+{
+    public Vector3 Forward;
+    public Vector3 Right;
+    public Vector3 Up;
+    public Quaternion WorldRotation;
+    public Vector3 WorldLocation;
+    public Vector3 WorldScale;
+    public bool Hidden { get; set; }
+    public bool CastShadow { get; set; }
+    public Matrix4x4 Trasnform { get; set; }
+    public virtual void UpdateProperties(IntPtr propertiesPtr, BaseRenderer renderer)
+    {
+        ref var properties = ref UnsafeHelper.AsRef<PrimitiveComponentProperties>(propertiesPtr);
+        Hidden = properties.Hidden;
+        CastShadow = properties.CastShadow;
+        Trasnform = properties.WorldTransform;
+
+        WorldRotation = Trasnform.Rotation();
+        WorldLocation = Trasnform.Translation;
+        WorldScale = Trasnform.Scale();
+
+        Forward = Vector3.Transform(new Vector3(0, 0, -1), WorldRotation);
+        Right = Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
+        Up = Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
+    }
+
+    public virtual void ReBuild(GL gl)
+    {
+
+    }
+
+    public virtual void Destory(GL gl)
+    {
+
+    }
+}
+
 public struct PrimitiveComponentProperties
 {
-    private IntPtr Destructor;
-    public PrimitiveComponentProperties()
-    {
-        unsafe
-        {
-            delegate* unmanaged[Cdecl]<IntPtr, void> p = &_destructor;
-            Destructor = (nint)p;
-        }
-    }
-
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    static void _destructor(IntPtr intptr)
-    {
-        ref var properties = ref UnsafeHelper.AsRef<PrimitiveComponentProperties>(intptr);
-        if (properties.CustomProperties != IntPtr.Zero)
-        {
-            properties.CustomProperties.Free();
-        }
-    }
-
     public IntPtr CreateProxyObject;
 
     public GCHandle ComponentWeakGChandle;
@@ -415,6 +429,5 @@ public struct PrimitiveComponentProperties
 
     public bool Hidden;
 
-    public IntPtr CustomProperties;
-
 }
+

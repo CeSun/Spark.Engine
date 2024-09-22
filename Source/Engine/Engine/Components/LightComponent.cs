@@ -1,9 +1,11 @@
 ﻿using Spark.Core.Actors;
 using Spark.Core.Assets;
 using Spark.Core.Render;
+using Spark.Util;
 using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core.Components;
 
@@ -13,6 +15,7 @@ public abstract class LightComponent : PrimitiveComponent
     {
 
     }
+    protected override int propertiesStructSize => Marshal.SizeOf<LightComponentProperties>();
 
     private float _lightStrength;
     public float LightStrength 
@@ -29,25 +32,34 @@ public abstract class LightComponent : PrimitiveComponent
         set => ChangeProperty(ref _color, value);
     }
 
+    public override nint GetPrimitiveComponentProperties()
+    {
+        var ptr = base.GetPrimitiveComponentProperties();
+        ref var properties = ref UnsafeHelper.AsRef<LightComponentProperties>(ptr);
+        properties.LightStrength = LightStrength;
+        properties.Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f);
+        return ptr;
+    }
 }
 
-public class LightComponentProxy : PrimitiveComponentProxy
+public abstract class LightComponentProxy : PrimitiveComponentProxy
 {
     public float LightStrength { get; set; }
 
     public Vector3 Color { get; set; }
 
-    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
-        ref LightComponentProperties properties = ref Unsafe.AsRef<LightComponentProperties>((void*)pointer);
+        base.UpdateProperties(propertiesPtr, renderer);
+        ref var properties = ref UnsafeHelper.AsRef<LightComponentProperties>(propertiesPtr);
         LightStrength = properties.LightStrength;
         Color = properties.Color;
     }
 }
 
-public struct LightComponentProperties 
+public struct LightComponentProperties
 {
-    private IntPtr Destructors { get; set; }
+    public PrimitiveComponentProperties BaseProperties;
     public float LightStrength { get; set; }
     public Vector3 Color { get; set; }
 }

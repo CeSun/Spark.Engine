@@ -4,6 +4,8 @@ using Spark.Core.Assets;
 using Spark.Core.Components;
 using Spark.Util;
 using System.Drawing;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core;
 
@@ -40,15 +42,15 @@ public class World
             }
         }
     }
-
+    CameraActor? CameraActor;
     public void BeginPlay()
     {
-        var CameraActor = new CameraActor(this)
+        CameraActor = new CameraActor(this)
         {
             WorldLocation = new System.Numerics.Vector3(1, 22, 3),
             WorldRotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(30f.DegreeToRadians(), 1, 1),
             ClearColor = Color.Red,
-            ClearFlag  = CameraClearFlag.Depth,
+            ClearFlag  = CameraClearFlag.Depth | CameraClearFlag.Color,
             Order = 3
         };
 
@@ -78,23 +80,30 @@ public class World
 
     public void Update(double deltaTime)
     {
+        CameraActor.WorldLocation += new System.Numerics.Vector3(0.0001f, 0, 0);
         UpdateManager.Update(deltaTime);
         UpdateRenderProperties();
     }
     
-    private void UpdateRenderProperties()
+    private unsafe void UpdateRenderProperties()
     {
         if (Engine.SceneRenderer != null && RenderWorld != null)
         {
+            var pointer = Marshal.AllocHGlobal(Unsafe.SizeOf<nint>() * RenderDirtyComponent.Count);
+            var len = RenderDirtyComponent.Count;
+            var array = new Span<nint>((void*)pointer, len);
+            int i = 0;
             foreach (var component in RenderDirtyComponent)
             {
-                var propertiesStructPointer = component.GetPrimitiveComponentProperties();
-                Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
-                {
-                    RenderWorld.RenderPropertiesQueue.Add(propertiesStructPointer);
-                });
+                array[i++] = component.GetPrimitiveComponentProperties();
             }
             RenderDirtyComponent.Clear();
+            Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+            {
+                var array = new Span<nint>((void*)pointer, len);
+                RenderWorld.RenderPropertiesQueue.AddRange(array);
+                Marshal.FreeHGlobal(pointer);
+            });
         }
     }
 

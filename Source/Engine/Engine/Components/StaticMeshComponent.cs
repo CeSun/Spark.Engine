@@ -14,6 +14,7 @@ public class StaticMeshComponent : PrimitiveComponent
 
     }
 
+    protected override int propertiesStructSize => Marshal.SizeOf<StaticMeshComponentProperties>();
     protected override bool ReceiveUpdate => false;
 
     private StaticMesh? _StaticMesh;
@@ -24,19 +25,14 @@ public class StaticMeshComponent : PrimitiveComponent
         set => ChangeAssetProperty(ref _StaticMesh, value);
     }
 
-    public override nint GetSubComponentProperties()
+    public override nint GetPrimitiveComponentProperties()
     {
-        GCHandle gchandle = default;
-        if (this.StaticMesh != null) 
-        {
-            gchandle = StaticMesh.WeakGCHandle;
-        }
-        return UnsafeHelper.Malloc(new StaticMeshComponentProperties
-        {
-            StaticMesh = gchandle
-        });
+        var ptr =  base.GetPrimitiveComponentProperties();
+        ref var properties = ref UnsafeHelper.AsRef<StaticMeshComponentProperties>(ptr);
+        if (StaticMesh != null)
+            properties.StaticMesh = StaticMesh.WeakGCHandle;
+        return ptr;
     }
-
     public unsafe override nint GetCreateProxyObjectFunctionPointer()
     {
         delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
@@ -54,20 +50,17 @@ public class StaticMeshComponent : PrimitiveComponent
 public class StaticMeshComponentProxy : PrimitiveComponentProxy
 {
     public StaticMeshProxy? StaticMeshProxy { get; set; }
-
-    public override unsafe void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
-        base.UpdateSubComponentProxy(pointer, renderer);
-        ref StaticMeshComponentProperties properties = ref Unsafe.AsRef<StaticMeshComponentProperties>((void*)pointer);
+        base.UpdateProperties(propertiesPtr, renderer);
+        ref var properties = ref UnsafeHelper.AsRef<StaticMeshComponentProperties>(propertiesPtr);
         StaticMeshProxy = renderer.GetProxy<StaticMeshProxy>(properties.StaticMesh);
     }
-
 }
 
 public struct StaticMeshComponentProperties
 {
-    private IntPtr Destructors { get; set; }
-
+    public PrimitiveComponentProperties BaseProperties;
     public GCHandle StaticMesh {  get; set; }
 
     
