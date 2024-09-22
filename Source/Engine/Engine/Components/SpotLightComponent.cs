@@ -63,7 +63,7 @@ public class SpotLightComponentProxy : LightComponentProxy
     public float OuterAngle {  get; set; }
     public float InnerAngle {  get; set; }
 
-    public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
     {
         base.UpdateSubComponentProxy(pointer, renderer);
         ref SpotLightComponentProperties properties = ref Unsafe.AsRef<SpotLightComponentProperties>((void*)pointer);

@@ -29,7 +29,7 @@ public class StaticMesh : AssetBase
         }
     }
 
-    public override void PostProxyToRenderer(IRenderer renderer)
+    public override void PostProxyToRenderer(BaseRenderer renderer)
     {
         foreach (var element in _elements)
         {
@@ -39,7 +39,7 @@ public class StaticMesh : AssetBase
         }
         base.PostProxyToRenderer(renderer);
     }
-    public override Func<IRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public override Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
     {
         var elements = Elements.ToList();
 

@@ -32,7 +32,7 @@ public partial class Engine
 
     public World MainWorld;
 
-    public IRenderer? SceneRenderer;
+    public BaseRenderer? SceneRenderer;
 
     public bool WantClose { get; private set; } = false;
     public void RequestClose()

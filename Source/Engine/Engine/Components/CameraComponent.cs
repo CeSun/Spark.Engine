@@ -187,7 +187,7 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
         Planes[5].D = ViewProjection[3, 3] - ViewProjection[3, 2];
     }
 
-    public override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    public override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
     {
         ref CameraComponentProperties properties = ref UnsafeHelper.AsRef<CameraComponentProperties>(pointer);
 

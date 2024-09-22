@@ -2,10 +2,8 @@
 using Spark.Core.Actors;
 using Spark.Core.Assets;
 using Spark.Core.Components;
-using Spark.Core.Render;
 using Spark.Util;
 using System.Drawing;
-using System.Linq;
 
 namespace Spark.Core;
 

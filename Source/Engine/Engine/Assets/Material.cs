@@ -38,7 +38,7 @@ public class Material : AssetBase
     public string GetAmbientOcclusionShaderSnippet { get; set; } = "";
     public string GetOpaqueMaskShaderSnippet { get; set; } = "";
 
-    public override void PostProxyToRenderer(IRenderer renderer)
+    public override void PostProxyToRenderer(BaseRenderer renderer)
     {
         foreach(var texture in Textures)
         {
@@ -48,7 +48,7 @@ public class Material : AssetBase
         }
         base.PostProxyToRenderer(renderer);
     }
-    public override Func<IRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public override Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
     {
         var blendMode = _blendMode;
         var textures = Textures.ToList();

@@ -152,7 +152,7 @@ public class Texture : AssetBase
         }
     }
 
-    public override Func<IRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public override Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
     {
         var isHdrTexture = IsHdrTexture;
         var width = Width;

@@ -13,24 +13,24 @@ public abstract class AssetBase
     }
 
 
-    public HashSet<IRenderer> RenderHashSet = [];
+    public HashSet<BaseRenderer> RenderHashSet = [];
 
     public void RequestRendererRebuildGpuResource()
     {
         RunOnRenderer(renderer => renderer.AddNeedRebuildRenderResourceProxy(renderer.GetProxy(this)!));
     }
-    public void RunOnRenderer(Action<IRenderer> action)
+    public void RunOnRenderer(Action<BaseRenderer> action)
     {
         foreach(var renderer in RenderHashSet)
         {
             renderer.AddRunOnRendererAction(action);
         }
     }
-    public virtual Func<IRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public virtual Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
     {
         return null ;
     }
-    public virtual void PostProxyToRenderer(IRenderer renderer)
+    public virtual void PostProxyToRenderer(BaseRenderer renderer)
     {
         var fun = GetGenerateProxyDelegate();
         if (fun == null)

@@ -48,7 +48,7 @@ public class DecalComponentProxy : PrimitiveComponentProxy
 {
     public MaterialProxy? MaterialProxy { get; set; }
 
-    public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
     {
         ref DecalComponentProperties properties = ref Unsafe.AsRef<DecalComponentProperties>((void*)pointer);
         MaterialProxy = renderer.GetProxy<MaterialProxy>(properties.Material);

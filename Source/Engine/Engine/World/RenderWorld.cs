@@ -1,12 +1,12 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Actors;
-using Spark.Core.Assets;
 using Spark.Core.Components;
+using Spark.Core.Render;
 using Spark.Util;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace Spark.Core.Render;
+namespace Spark.Core;
 
 public class RenderWorld
 {
@@ -16,7 +16,7 @@ public class RenderWorld
 
     public List<nint> RenderPropertiesQueue { get; private set; } = [];
 
-    
+
     public void UpdateComponentProxies(BaseRenderer renderer)
     {
         for (var i = 0; i < RenderPropertiesQueue.Count; i++)
@@ -37,7 +37,7 @@ public class RenderWorld
                 {
                     unsafe
                     {
-                        delegate* unmanaged[Cdecl]<GCHandle>  p = (delegate* unmanaged[Cdecl]<GCHandle>)componentProperties.CreateProxyObject;
+                        delegate* unmanaged[Cdecl]<GCHandle> p = (delegate* unmanaged[Cdecl]<GCHandle>)componentProperties.CreateProxyObject;
                         if (p != null)
                         {
                             var proxyGcHandle = p();
@@ -56,7 +56,7 @@ public class RenderWorld
                     }
                 }
             }
-            UnsafeHelper.Free(ref ptr);
+            ptr.Free();
         }
         RenderPropertiesQueue.Clear();
     }
@@ -71,10 +71,10 @@ public class PrimitiveComponentProxy
     public Quaternion WorldRotation;
     public Vector3 WorldLocation;
     public Vector3 WorldScale;
-    public bool Hidden {  get; set; }
+    public bool Hidden { get; set; }
     public bool CastShadow { get; set; }
     public Matrix4x4 Trasnform { get; set; }
-    public virtual void UpdateProperties(in PrimitiveComponentProperties properties, IRenderer renderer)
+    public virtual void UpdateProperties(in PrimitiveComponentProperties properties, BaseRenderer renderer)
     {
         Hidden = properties.Hidden;
         CastShadow = properties.CastShadow;
@@ -90,7 +90,7 @@ public class PrimitiveComponentProxy
 
         UpdateSubComponentProxy(properties.CustomProperties, renderer);
     }
-    public virtual void UpdateSubComponentProxy(IntPtr pointer, IRenderer renderer)
+    public virtual void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
     {
 
     }

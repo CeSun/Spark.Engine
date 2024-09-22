@@ -55,7 +55,7 @@ public class StaticMeshComponentProxy : PrimitiveComponentProxy
 {
     public StaticMeshProxy? StaticMeshProxy { get; set; }
 
-    public override unsafe void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    public override unsafe void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
     {
         base.UpdateSubComponentProxy(pointer, renderer);
         ref StaticMeshComponentProperties properties = ref Unsafe.AsRef<StaticMeshComponentProperties>((void*)pointer);

@@ -1,4 +1,5 @@
-﻿using Spark.Core.Actors;
+﻿using Silk.NET.OpenGLES;
+using Spark.Core.Actors;
 using Spark.Core.Render;
 using Spark.Util;
 using System.Numerics;
@@ -51,13 +52,23 @@ public class PointLightComponentProxy : LightComponentProxy
 {
     public float AttenuationRadius { get; set; }
 
-    public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
     {
         base.UpdateSubComponentProxy(pointer, renderer);
         ref PointLightComponentProperties properties = ref Unsafe.AsRef<PointLightComponentProperties>((void*)pointer);
         LightStrength = properties.LightBaseProperties.LightStrength;
         Color = properties.LightBaseProperties.Color;
         AttenuationRadius = properties.AttenuationRadius;
+    }
+
+    public override void ReBuild(GL gl)
+    {
+        base.ReBuild(gl);
+    }
+
+    public override void Destory(GL gl)
+    {
+        base.Destory(gl);
     }
 }
 

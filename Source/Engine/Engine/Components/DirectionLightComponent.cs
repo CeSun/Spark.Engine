@@ -42,7 +42,7 @@ public class DirectionLightComponent : LightComponent
 
 public class DirectionLightComponentProxy : LightComponentProxy
 {
-    public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
     {
         base.UpdateSubComponentProxy(pointer, renderer);
     }

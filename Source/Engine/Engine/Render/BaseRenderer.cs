@@ -1,11 +1,10 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
-using System.Drawing;
 using System.Runtime.InteropServices;
 
 namespace Spark.Core.Render;
 
-public abstract class BaseRenderer : IRenderer
+public abstract class BaseRenderer
 {
     public BaseRenderer(GL GraphicsApi)
     {
@@ -110,11 +109,11 @@ public abstract class BaseRenderer : IRenderer
 
     private Dictionary<GCHandle, RenderProxy> ProxyDictonary = [];
 
-    private List<Action<IRenderer>> Actions = new List<Action<IRenderer>>();
+    private List<Action<BaseRenderer>> Actions = new List<Action<BaseRenderer>>();
 
-    private List<Action<IRenderer>> TempActions = new List<Action<IRenderer>>();
+    private List<Action<BaseRenderer>> TempActions = new List<Action<BaseRenderer>>();
 
-    public void AddRunOnRendererAction(Action<IRenderer> action)
+    public void AddRunOnRendererAction(Action<BaseRenderer> action)
     {
         Actions.Add(action);
     }

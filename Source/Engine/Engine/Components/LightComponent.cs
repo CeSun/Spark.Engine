@@ -37,7 +37,7 @@ public class LightComponentProxy : PrimitiveComponentProxy
 
     public Vector3 Color { get; set; }
 
-    public unsafe override void UpdateSubComponentProxy(nint pointer, IRenderer renderer)
+    public unsafe override void UpdateSubComponentProxy(nint pointer, BaseRenderer renderer)
     {
         ref LightComponentProperties properties = ref Unsafe.AsRef<LightComponentProperties>((void*)pointer);
         LightStrength = properties.LightStrength;
