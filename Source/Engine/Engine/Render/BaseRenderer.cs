@@ -1,11 +1,15 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
+using Spark.Core.Components;
+using System.Drawing;
 using System.Runtime.InteropServices;
 
 namespace Spark.Core.Render;
 
 public abstract class BaseRenderer
 {
+    public HashSet<WorldProxy> RenderWorlds = [];
+
     public BaseRenderer(GL GraphicsApi)
     {
         gl = GraphicsApi;
@@ -13,11 +17,35 @@ public abstract class BaseRenderer
 
     public GL gl { get; set; }
 
-
-    public virtual void Render(RenderWorld renderWorld)
+    public virtual void Render()
     {
-        renderWorld.UpdateComponentProxies(this);
+        CheckNullWeakGCHandle();
+        PreRender();
+        foreach(var world in RenderWorlds)
+        {
+            world.UpdateComponentProxies(this);
+            foreach(var camera in world.CameraComponentProxies)
+            {
+                if (camera.RenderTarget == null)
+                    return;
+                ClearBufferMask mask = ClearBufferMask.None;
+                if ((camera.ClearFlag & CameraClearFlag.Depth) != 0)
+                {
+                    mask |= ClearBufferMask.DepthBufferBit;
+                }
+                if ((camera.ClearFlag & CameraClearFlag.Color) != 0)
+                {
+                    mask |= ClearBufferMask.ColorBufferBit;
+                    gl.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
+                }
+                gl.Clear(mask);
+                RendererWorld(camera);
+            }
+        }
     }
+
+    public abstract void RendererWorld(CameraComponentProxy camera);
+
     public void Update()
     {
         CheckNullWeakGCHandle();
@@ -61,7 +89,6 @@ public abstract class BaseRenderer
         }
         return null;
     }
-
 
     public RenderProxy? GetProxy(AssetBase obj)
     {

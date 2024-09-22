@@ -28,8 +28,6 @@ public partial class Engine
 
     public HashSet<World> Worlds = [];
 
-    public HashSet<RenderWorld> RenderWorlds = [];
-
     public World MainWorld;
 
     public BaseRenderer? SceneRenderer;
@@ -72,11 +70,7 @@ public partial class Engine
     {
         if (SceneRenderer != null)
         {
-            SceneRenderer.Update();
-            foreach (var renderWorld in RenderWorlds)
-            {
-                SceneRenderer.Render(renderWorld);
-            }
+            SceneRenderer.Render();
         }
     }
 

@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGLES;
+using Spark.Core.Render;
 using System.Drawing;
 
 namespace Spark.Core.Assets;
@@ -86,16 +87,32 @@ public class RenderTarget : AssetBase
         set
         {
             _configs = value;
+            var list = Configs.ToArray();
             RunOnRenderer(renderer =>
             {
                 var proxy = renderer.GetProxy<RenderTargetProxy>(this);
                 if (proxy != null)
                 {
-                    proxy.Configs = value;
+                    proxy.Configs = list;
                     RequestRendererRebuildGpuResource();
                 }
             });
         }
+    }
+
+    public override Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    {
+        var isDefaultRenderTarget = _isDefaultRenderTarget;
+        var width = _width;
+        var height = _height;
+        var list = _configs.ToList();
+        return renderer => new RenderTargetProxy 
+        {
+            IsDefaultRenderTarget = isDefaultRenderTarget,
+            Width = width,
+            Height = height,
+            Configs = list
+        };
     }
 }
 

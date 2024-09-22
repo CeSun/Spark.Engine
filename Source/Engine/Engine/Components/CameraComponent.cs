@@ -111,7 +111,7 @@ public partial class CameraComponent : PrimitiveComponent
             RenderTarget = RenderTarget == null ? default : RenderTarget.WeakGCHandle,
             SkyboxTexture = SkyboxTexture == null ? default : SkyboxTexture.WeakGCHandle,
             ClearFlag = ClearFlag,
-            ClearColor = new Vector3(ClearColor.R / 255f, ClearColor.G / 255f, ClearColor.B / 255f),
+            ClearColor = new Vector4(ClearColor.R / 255f, ClearColor.G / 255f, ClearColor.B / 255f, 1),
         });
     }
 
@@ -140,7 +140,7 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
     public RenderTargetProxy? RenderTarget;
     public CameraClearFlag ClearFlag;
     public TextureCubeProxy? Skybox;
-    public Vector3 ClearColor;
+    public Vector4 ClearColor;
 
     public Matrix4x4 View;
     public Matrix4x4 Projection;
@@ -227,5 +227,5 @@ public struct CameraComponentProperties
     public GCHandle RenderTarget;
     public CameraClearFlag ClearFlag;
     public GCHandle SkyboxTexture;
-    public Vector3 ClearColor;
+    public Vector4 ClearColor;
 }

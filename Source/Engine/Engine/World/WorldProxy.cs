@@ -8,17 +8,18 @@ using System.Runtime.InteropServices;
 
 namespace Spark.Core;
 
-public class RenderWorld
+public class WorldProxy
 {
     private Dictionary<GCHandle, PrimitiveComponentProxy> _primitiveComponentProxyDictionary = [];
-
     public IReadOnlyDictionary<GCHandle, PrimitiveComponentProxy> PrimitiveComponentProxyDictionary => _primitiveComponentProxyDictionary;
-
     public List<nint> RenderPropertiesQueue { get; private set; } = [];
 
+    private List<CameraComponentProxy> cameraComponentProxies = [];
+    public IReadOnlyList<CameraComponentProxy> CameraComponentProxies => cameraComponentProxies;
 
     public void UpdateComponentProxies(BaseRenderer renderer)
     {
+        bool isAddCameraComponent = false;
         for (var i = 0; i < RenderPropertiesQueue.Count; i++)
         {
             var ptr = RenderPropertiesQueue[i];
@@ -29,6 +30,10 @@ public class RenderWorld
                 {
                     _primitiveComponentProxyDictionary.Remove(componentProperties.ComponentWeakGChandle);
                     proxy.Destory(renderer.gl);
+                    if (proxy is CameraComponentProxy cameraComponentProxy)
+                    {
+                        cameraComponentProxies.Remove(cameraComponentProxy);
+                    }
                 }
             }
             else
@@ -46,6 +51,11 @@ public class RenderWorld
                             if (proxy != null)
                             {
                                 _primitiveComponentProxyDictionary.Add(componentProperties.ComponentWeakGChandle, proxy);
+                                if (proxy is  CameraComponentProxy cameraComponentProxy)
+                                {
+                                    cameraComponentProxies.Add(cameraComponentProxy);
+                                    isAddCameraComponent = true;
+                                }
                             }
                         }
                     }
@@ -59,6 +69,27 @@ public class RenderWorld
             ptr.Free();
         }
         RenderPropertiesQueue.Clear();
+        if (isAddCameraComponent)
+        {
+            cameraComponentProxies.Sort();
+        }
+    }
+
+    public void Destory(BaseRenderer renderer)
+    {
+        foreach(var item in RenderPropertiesQueue)
+        {
+            var p = item;
+            p.Free();
+        }
+        RenderPropertiesQueue.Clear();
+        foreach(var (_, proxy) in _primitiveComponentProxyDictionary)
+        {
+            proxy.Destory(renderer.gl);
+        }
+        _primitiveComponentProxyDictionary.Clear();
+        cameraComponentProxies.Clear();
+
     }
 }
 

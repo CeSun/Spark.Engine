@@ -13,7 +13,7 @@ public class World
     public Engine Engine { get; set; }
     public UpdateManager UpdateManager { get;  private set; } = new UpdateManager();
     public RenderTarget? WorldMainRenderTarget { get; set; }
-    public RenderWorld? RenderWorld { get; set; }
+    public WorldProxy? RenderWorld { get; set; }
 
     private HashSet<PrimitiveComponent> RenderDirtyComponent = [];
 
@@ -30,12 +30,12 @@ public class World
         WorldMainRenderTarget = new RenderTarget() { IsDefaultRenderTarget = true };
         if (GraphicsApi != null)
         {
-            RenderWorld = new RenderWorld();
+            RenderWorld = new WorldProxy();
             if (engine.SceneRenderer != null)
             {
                 engine.SceneRenderer.AddRunOnRendererAction(renderer =>
                 {
-                    engine.RenderWorlds.Add(RenderWorld);
+                    engine.SceneRenderer.RenderWorlds.Add(RenderWorld);
                 });
             }
         }
@@ -47,8 +47,11 @@ public class World
         {
             WorldLocation = new System.Numerics.Vector3(1, 22, 3),
             WorldRotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(30f.DegreeToRadians(), 1, 1),
-            ClearColor = Color.AliceBlue
+            ClearColor = Color.Red,
+            ClearFlag  = CameraClearFlag.Depth,
+            Order = 3
         };
+
         var DecalActor = new DecalActor(this)
         {
             WorldLocation = new System.Numerics.Vector3(1, 22, 3),
@@ -103,7 +106,8 @@ public class World
         {
             engine.SceneRenderer.AddRunOnRendererAction(renderer =>
             {
-                engine.RenderWorlds.Remove(renderWorld);
+                renderWorld.Destory(renderer);
+                renderer.RenderWorlds.Remove(renderWorld);
             });
         }
     }
