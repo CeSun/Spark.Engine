@@ -9,16 +9,21 @@ namespace Spark.Core;
 
 public partial class Engine
 {
-    public Engine(IPlatform platform)
+    private IGameConfig _gameConfig;
+    public Engine(IPlatform platform, IGameConfig gameConfig)
     {
         SyncContext = SingleThreadSyncContext.Initialize();
 
         Platform = platform;
 
+        _gameConfig= gameConfig;
+
         if (GraphicsApi != null)
         {
-            SceneRenderer = new DeferredRenderer(GraphicsApi);
+            SceneRenderer = _gameConfig.CreateRenderer(GraphicsApi);
         }
+
+        Game = _gameConfig.CreateGame();
 
         MainWorld = new World(this);
 

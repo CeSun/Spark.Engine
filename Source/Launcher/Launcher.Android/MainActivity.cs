@@ -50,10 +50,8 @@ public class MainActivity : SilkActivity
         var gl = GL.GetApi(view);
 
         var platform = new AndroidPlatform(new AndroidFileSystem(Assets!)) { View = view, GraphicsApi = gl, InputContext = view.CreateInput() };
-        
-        var engine = new Engine(platform);
 
-        engine.Game = GameBuilder.CreateGame();
+        var engine = new Engine(platform, new GameConfig());
 
         var app = new RenderApplication(engine);
 

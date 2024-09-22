@@ -35,9 +35,7 @@ var gl = GL.GetApi(window);
 
 var platform = new DesktopPlatform { View = window, FileSystem = new DesktopFileSystem(), GraphicsApi = gl, InputContext = window.CreateInput() };
 
-var engine = new Engine(platform);
-
-engine.Game = GameBuilder.CreateGame();
+var engine = new Engine(platform, new GameConfig());
 
 var app = new RenderApplication(engine);
 
