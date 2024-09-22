@@ -37,6 +37,8 @@ var platform = new DesktopPlatform { View = window, FileSystem = new DesktopFile
 
 var engine = new Engine(platform);
 
+engine.Game = GameBuilder.CreateGame();
+
 var app = new RenderApplication(engine);
 
 app.Run();

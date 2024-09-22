@@ -29,6 +29,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Platfrom.Android", "Source\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Platform.Avalonia", "Source\Platform\Platform.Avalonia\Platform.Avalonia.csproj", "{03A47D9B-9170-40EA-86F3-1076CAA953B0}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Game", "Game", "{21F4E146-6DDC-4231-AE10-130AE4B8DEA1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloSpark", "Source\Game\HelloSpark\HelloSpark.csproj", "{D1C8CF64-EC21-4607-B936-A64D2DC7BBB8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -77,6 +81,10 @@ Global
 		{03A47D9B-9170-40EA-86F3-1076CAA953B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{03A47D9B-9170-40EA-86F3-1076CAA953B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{03A47D9B-9170-40EA-86F3-1076CAA953B0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1C8CF64-EC21-4607-B936-A64D2DC7BBB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1C8CF64-EC21-4607-B936-A64D2DC7BBB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1C8CF64-EC21-4607-B936-A64D2DC7BBB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1C8CF64-EC21-4607-B936-A64D2DC7BBB8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -92,6 +100,7 @@ Global
 		{22F99D93-B801-42FD-9024-A7C626ADD7CC} = {435FD26B-C41A-44BE-85A2-72A1A5BD1410}
 		{78E00A35-C9D8-49CA-BC89-9789AB60279E} = {435FD26B-C41A-44BE-85A2-72A1A5BD1410}
 		{03A47D9B-9170-40EA-86F3-1076CAA953B0} = {435FD26B-C41A-44BE-85A2-72A1A5BD1410}
+		{D1C8CF64-EC21-4607-B936-A64D2DC7BBB8} = {21F4E146-6DDC-4231-AE10-130AE4B8DEA1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {42BDB398-B469-4DBF-BC12-6F17EE33C24C}

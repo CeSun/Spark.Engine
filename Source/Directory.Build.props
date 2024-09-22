@@ -4,7 +4,7 @@
   </PropertyGroup>
 
 	<PropertyGroup>
-		<SparkGameName>SparkGame</SparkGameName>
-		<SparkGamePackageId>com.sparkengine.sparkname</SparkGamePackageId>
+		<GameName>HelloSpark</GameName>
+		<GamePackageId>com.sparkengine.hellospark</GamePackageId>
 	</PropertyGroup>
 </Project>

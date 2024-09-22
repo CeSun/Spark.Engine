@@ -6,6 +6,8 @@ var platform = new DesktopPlatform { View = null, FileSystem = new DesktopFileSy
 
 var engine = new Engine(platform);
 
+engine.Game = GameBuilder.CreateGame();
+
 var app = new ConsoleApplication(engine);
 
 app.Run();

@@ -8,7 +8,7 @@
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <RootNamespace>Spark.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
-    <AssemblyName>$(SparkGameName)DS</AssemblyName>
+    <AssemblyName>$(GameName)DS</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,4 +16,7 @@
     <ProjectReference Include="..\..\Platform\Platform.Common\Platform.Common.csproj" />
   </ItemGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="..\..\Game\$(GameName)\$(GameName).csproj" />
+	</ItemGroup>
 </Project>

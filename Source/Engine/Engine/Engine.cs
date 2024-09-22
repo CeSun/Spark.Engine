@@ -24,6 +24,8 @@ public partial class Engine
 
         Worlds.Add(MainWorld);
     }
+
+    public IGame? Game;
     public SingleThreadSyncContext? SyncContext { get; private set; }
 
     public HashSet<World> Worlds = [];
@@ -46,6 +48,7 @@ public partial class Engine
         SyncContext?.Tick();
         foreach (var world in Worlds)
         {
+            Game?.Update(world, deltaTime);
             world.Update(deltaTime);
         }
     }
@@ -55,6 +58,7 @@ public partial class Engine
         foreach (var world in Worlds)
         {
             world.BeginPlay();
+            Game?.BeginPlay(world);
         }
     }
 
@@ -63,6 +67,7 @@ public partial class Engine
         foreach (var world in Worlds)
         {
             world.Destory();
+            Game?.EndPlay(world);
         }
     }
 

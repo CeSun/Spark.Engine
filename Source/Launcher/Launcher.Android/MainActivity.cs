@@ -53,6 +53,8 @@ public class MainActivity : SilkActivity
         
         var engine = new Engine(platform);
 
+        engine.Game = GameBuilder.CreateGame();
+
         var app = new RenderApplication(engine);
 
         app.Run();
