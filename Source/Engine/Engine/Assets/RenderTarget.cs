@@ -100,7 +100,7 @@ public class RenderTarget : AssetBase
         }
     }
 
-    public override Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public override Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
     {
         var isDefaultRenderTarget = _isDefaultRenderTarget;
         var width = _width;
@@ -118,7 +118,7 @@ public class RenderTarget : AssetBase
 
 
 
-public class RenderTargetProxy : RenderProxy, IDisposable
+public class RenderTargetProxy : AssetRenderProxy, IDisposable
 {
     public uint FrameBufferId { private set; get; }
     public List<uint> AttachmentTextureIds { private set; get; } = [];
@@ -158,18 +158,34 @@ public class RenderTargetProxy : RenderProxy, IDisposable
         }
         FrameBufferId = gl.GenFramebuffer();
         gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
-        AttachmentTextureIds = new(Configs.Count); 
+        AttachmentTextureIds = new(Configs.Count);
+        var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
+        if (state != GLEnum.FramebufferComplete)
+        {
+            Console.WriteLine("fbo 出错！" + state);
+        }
         for (int i = 0; i < Configs.Count; i++)
         {
             GenFrameBuffer(gl, i);
+            var state2 = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
+            if (state2 != GLEnum.FramebufferComplete)
+            {
+                Console.WriteLine("fbo 出错！" + state2);
+            }
         }
+        var attachments = Configs.Select(config => (GLEnum)config.FramebufferAttachment).Where(attachment => attachment >= GLEnum.ColorAttachment0 && attachment <= GLEnum.ColorAttachment31).ToArray();
+        gl.DrawBuffers(attachments);
 
-        gl.DrawBuffers(Configs.Select(config => (GLEnum)config.FramebufferAttachment).ToArray());
-        if (Configs.Count < 0)
+         state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
+        if (state != GLEnum.FramebufferComplete)
+        {
+            Console.WriteLine("fbo 出错！" + state);
+        }
+        if (Configs.Count <= 0)
         {
             gl.ReadBuffer(GLEnum.None);
         }
-        var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
+         state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
         if (state != GLEnum.FramebufferComplete)
         {
             Console.WriteLine("fbo 出错！" + state);
@@ -179,9 +195,12 @@ public class RenderTargetProxy : RenderProxy, IDisposable
 
     protected virtual unsafe void GenFrameBuffer(GL gl, int index)
     {
-        AttachmentTextureIds[index] = gl.GenTexture();
+        if (AttachmentTextureIds.Count <= index)
+            AttachmentTextureIds.Add(gl.GenTexture());
+        else
+            AttachmentTextureIds[index] = gl.GenTexture();
         gl.BindTexture(GLEnum.Texture2D, AttachmentTextureIds[index]);
-        gl.TexImage2D(GLEnum.Texture2D, 0, (int)Configs[index].InternalFormat, (uint)Width, (uint)Height, 0, GLEnum.Rgba, (GLEnum)Configs[index].Format, (void*)0);
+        gl.TexImage2D(GLEnum.Texture2D, 0, (int)Configs[index].InternalFormat, (uint)Width, (uint)Height, 0, (GLEnum)Configs[index].Format, (GLEnum)Configs[index].PixelType, (void*)0);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)Configs[index].MagFilter);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)Configs[index].MinFilter);
         gl.FramebufferTexture2D(GLEnum.Framebuffer, Configs[index].FramebufferAttachment, GLEnum.Texture2D, AttachmentTextureIds[index], 0);
@@ -216,6 +235,8 @@ public class FrameBufferConfig
     public TextureMinFilter MinFilter;
 
     public InternalFormat InternalFormat;
+
+    public PixelType PixelType;
 
     public FramebufferAttachment FramebufferAttachment;
 

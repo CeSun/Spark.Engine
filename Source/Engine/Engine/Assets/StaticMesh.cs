@@ -39,7 +39,7 @@ public class StaticMesh : AssetBase
         }
         base.PostProxyToRenderer(renderer);
     }
-    public override Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public override Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
     {
         var elements = Elements.ToList();
 
@@ -49,7 +49,7 @@ public class StaticMesh : AssetBase
         }; 
     }
 }
-public class StaticMeshProxy : RenderProxy
+public class StaticMeshProxy : AssetRenderProxy
 {
     public List<Element<StaticMeshVertex>> Elements = [];
 
@@ -59,14 +59,6 @@ public class StaticMeshProxy : RenderProxy
     public unsafe override void RebuildGpuResource(GL gl)
     {
         DestoryGpuResource(gl);
-        VertexArrayObjectIndexes.ForEach(gl.DeleteVertexArray);
-        VertexBufferObjectIndexes.ForEach(gl.DeleteBuffer);
-        ElementBufferObjectIndexes.ForEach(gl.DeleteBuffer);
-
-        VertexArrayObjectIndexes = new List<uint>();
-        VertexBufferObjectIndexes = new List<uint>();
-        ElementBufferObjectIndexes = new List<uint>();
-
         for (var index = 0; index < Elements.Count; index++)
         {
             uint vao = gl.GenVertexArray();
@@ -112,6 +104,17 @@ public class StaticMeshProxy : RenderProxy
         }
 
     }
+
+    public override void DestoryGpuResource(GL gl)
+    {
+        VertexArrayObjectIndexes.ForEach(gl.DeleteVertexArray);
+        VertexArrayObjectIndexes.Clear();
+        VertexBufferObjectIndexes.ForEach(gl.DeleteBuffer);
+        VertexBufferObjectIndexes.Clear();
+        ElementBufferObjectIndexes.ForEach(gl.DeleteBuffer);
+        ElementBufferObjectIndexes.Clear();
+    }
+
 }
 public class Element<T>  where T  : struct
 {

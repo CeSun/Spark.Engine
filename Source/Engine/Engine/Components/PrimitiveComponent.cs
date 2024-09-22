@@ -45,7 +45,7 @@ public partial class PrimitiveComponent
     /// <param name="actor">所属actor</param>
     public PrimitiveComponent(Actor actor, bool registerToWorld = true)
     {
-        WeakGCHandle = GCHandle.Alloc(this, GCHandleType.WeakTrackResurrection);
+        WeakGCHandle = GCHandle.Alloc(this, GCHandleType.Weak);
         _owner = actor;
         ComponentState = WorldObjectState.Invaild;
         _owner.AddComponent(this);

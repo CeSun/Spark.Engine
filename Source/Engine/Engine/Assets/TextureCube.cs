@@ -113,7 +113,7 @@ public class TextureCube : AssetBase
         }
     }
 
-    public override Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public override Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
     {
         var isHdrTexture = IsHdrTexture;
         var width = Width;
@@ -158,7 +158,7 @@ public class TextureCube : AssetBase
 }
 
 
-public class TextureCubeProxy : RenderProxy
+public class TextureCubeProxy : AssetRenderProxy
 {
 
     public uint TextureId;
@@ -222,6 +222,14 @@ public class TextureCubeProxy : RenderProxy
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+        }
+    }
+
+    public override void DestoryGpuResource(GL gl)
+    {
+        if (TextureId != 0)
+        {
+            gl.DeleteTexture(TextureId);
         }
     }
 }

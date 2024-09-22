@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
     <SilkVersion>2.21.0</SilkVersion>
+	<DotnetVersion>net9.0</DotnetVersion>
   </PropertyGroup>
 
 	<PropertyGroup>

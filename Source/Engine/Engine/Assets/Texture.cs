@@ -152,7 +152,7 @@ public class Texture : AssetBase
         }
     }
 
-    public override Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public override Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
     {
         var isHdrTexture = IsHdrTexture;
         var width = Width;
@@ -179,7 +179,7 @@ public class Texture : AssetBase
 }
 
 
-public class TextureProxy : RenderProxy
+public class TextureProxy : AssetRenderProxy
 {
     public uint TextureId { get; protected set; }
     public uint Width { get; set; }
@@ -215,7 +215,13 @@ public class TextureProxy : RenderProxy
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
     }
-
+    public override void DestoryGpuResource(GL gl)
+    {
+        if (TextureId != 0)
+        {
+            gl.DeleteTexture(TextureId);
+        }
+    }
 }
 
 public enum TexChannel

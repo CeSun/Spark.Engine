@@ -77,7 +77,7 @@ public abstract class BaseRenderer
     {
         return GetProxy(gchandle) as T;
     }
-    public RenderProxy? GetProxy(GCHandle gchandle)
+    public AssetRenderProxy? GetProxy(GCHandle gchandle)
     {
         if (gchandle == default)
             return null;
@@ -88,7 +88,7 @@ public abstract class BaseRenderer
         return null;
     }
 
-    public RenderProxy? GetProxy(AssetBase obj)
+    public AssetRenderProxy? GetProxy(AssetBase obj)
     {
         if (obj == null)
             return null;
@@ -99,7 +99,7 @@ public abstract class BaseRenderer
         return null;
     }
 
-    public void AddProxy(AssetBase obj, RenderProxy renderProxy)
+    public void AddProxy(AssetBase obj, AssetRenderProxy renderProxy)
     {
         if (obj == null)
             return;
@@ -107,7 +107,7 @@ public abstract class BaseRenderer
             return;
         ProxyDictonary.Add(obj.WeakGCHandle, renderProxy);
     }
-    public void AddNeedRebuildRenderResourceProxy(RenderProxy proxy)
+    public void AddNeedRebuildRenderResourceProxy(AssetRenderProxy proxy)
     {
         if (proxy == null)
             return;
@@ -130,9 +130,9 @@ public abstract class BaseRenderer
         GCHandles.ForEach(gchandle => ProxyDictonary.Remove(gchandle));
     }
 
-    private HashSet<RenderProxy> NeedRebuildProxies = [];
+    private HashSet<AssetRenderProxy> NeedRebuildProxies = [];
 
-    private Dictionary<GCHandle, RenderProxy> ProxyDictonary = [];
+    private Dictionary<GCHandle, AssetRenderProxy> ProxyDictonary = [];
 
     private List<Action<BaseRenderer>> Actions = new List<Action<BaseRenderer>>();
 

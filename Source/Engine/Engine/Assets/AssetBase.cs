@@ -9,7 +9,7 @@ public abstract class AssetBase
     public GCHandle WeakGCHandle { get; private set; }
     public AssetBase()
     {
-        WeakGCHandle = GCHandle.Alloc(this, GCHandleType.WeakTrackResurrection);
+        WeakGCHandle = GCHandle.Alloc(this, GCHandleType.Weak);
     }
 
 
@@ -26,7 +26,7 @@ public abstract class AssetBase
             renderer.AddRunOnRendererAction(action);
         }
     }
-    public virtual Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public virtual Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
     {
         return null ;
     }
@@ -49,9 +49,14 @@ public abstract class AssetBase
 }
 
 
-public class RenderProxy
+public class AssetRenderProxy
 {
+    public GCHandle WeakGCHandle { get; private set; }
 
+    public AssetRenderProxy()
+    {
+        WeakGCHandle = GCHandle.Alloc(this, GCHandleType.Weak);
+    }
     public virtual void RebuildGpuResource(GL gl)
     {
 

@@ -48,7 +48,7 @@ public class Material : AssetBase
         }
         base.PostProxyToRenderer(renderer);
     }
-    public override Func<BaseRenderer, RenderProxy>? GetGenerateProxyDelegate()
+    public override Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
     {
         var blendMode = _blendMode;
         var textures = Textures.ToList();
@@ -87,7 +87,7 @@ public class Material : AssetBase
     }
 }
 
-public class MaterialProxy : RenderProxy
+public class MaterialProxy : AssetRenderProxy
 {
     public BlendMode BlendMode { get; set; } = BlendMode.Opaque;
 

@@ -17,6 +17,10 @@ public class WorldProxy
     private List<CameraComponentProxy> cameraComponentProxies = [];
     public IReadOnlyList<CameraComponentProxy> CameraComponentProxies => cameraComponentProxies;
 
+    private List<StaticMeshComponentProxy> staticMeshComponentProxies = new List<StaticMeshComponentProxy>();
+
+    public List<StaticMeshComponentProxy> StaticMeshComponentProxies => staticMeshComponentProxies;
+
     public void UpdateComponentProxies(BaseRenderer renderer)
     {
         bool isAddCameraComponent = false;
@@ -33,6 +37,10 @@ public class WorldProxy
                     if (proxy is CameraComponentProxy cameraComponentProxy)
                     {
                         cameraComponentProxies.Remove(cameraComponentProxy);
+                    }
+                    else if (proxy is StaticMeshComponentProxy staticMeshComponentProxy)
+                    {
+                        staticMeshComponentProxies.Remove(staticMeshComponentProxy);
                     }
                 }
             }
@@ -55,6 +63,10 @@ public class WorldProxy
                                 {
                                     cameraComponentProxies.Add(cameraComponentProxy);
                                     isAddCameraComponent = true;
+                                }
+                                else if (proxy is StaticMeshComponentProxy staticMeshComponentProxy)
+                                {
+                                    staticMeshComponentProxies.Add(staticMeshComponentProxy);
                                 }
                             }
                         }
