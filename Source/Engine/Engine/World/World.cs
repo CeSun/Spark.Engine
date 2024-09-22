@@ -29,7 +29,14 @@ public class World
     {
         Engine = engine;
         GraphicsApi = Engine.GraphicsApi;
-        WorldMainRenderTarget = new RenderTarget() { IsDefaultRenderTarget = true };
+        var width = 0;
+        var height = 0;
+        if (engine.MainView != null)
+        {
+            width = engine.MainView.Size.X;
+            height = engine.MainView.Size.Y;
+        }
+        WorldMainRenderTarget = new RenderTarget() { IsDefaultRenderTarget = true, Width = width, Height = height };
         if (GraphicsApi != null)
         {
             RenderWorld = new WorldProxy();

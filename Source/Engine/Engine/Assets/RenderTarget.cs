@@ -156,36 +156,16 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
             FrameBufferId = 0;
             return;
         }
+
+        AttachmentTextureIds.Clear();
+
         FrameBufferId = gl.GenFramebuffer();
         gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
-        AttachmentTextureIds = new(Configs.Count);
-        var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
-        if (state != GLEnum.FramebufferComplete)
-        {
-            Console.WriteLine("fbo 出错！" + state);
-        }
         for (int i = 0; i < Configs.Count; i++)
         {
             GenFrameBuffer(gl, i);
-            var state2 = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
-            if (state2 != GLEnum.FramebufferComplete)
-            {
-                Console.WriteLine("fbo 出错！" + state2);
-            }
         }
-        var attachments = Configs.Select(config => (GLEnum)config.FramebufferAttachment).Where(attachment => attachment >= GLEnum.ColorAttachment0 && attachment <= GLEnum.ColorAttachment31).ToArray();
-        gl.DrawBuffers(attachments);
-
-         state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
-        if (state != GLEnum.FramebufferComplete)
-        {
-            Console.WriteLine("fbo 出错！" + state);
-        }
-        if (Configs.Count <= 0)
-        {
-            gl.ReadBuffer(GLEnum.None);
-        }
-         state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
+        var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
         if (state != GLEnum.FramebufferComplete)
         {
             Console.WriteLine("fbo 出错！" + state);
@@ -195,21 +175,16 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
 
     protected virtual unsafe void GenFrameBuffer(GL gl, int index)
     {
-        if (AttachmentTextureIds.Count <= index)
-            AttachmentTextureIds.Add(gl.GenTexture());
-        else
-            AttachmentTextureIds[index] = gl.GenTexture();
-        gl.BindTexture(GLEnum.Texture2D, AttachmentTextureIds[index]);
-        gl.TexImage2D(GLEnum.Texture2D, 0, (int)Configs[index].InternalFormat, (uint)Width, (uint)Height, 0, (GLEnum)Configs[index].Format, (GLEnum)Configs[index].PixelType, (void*)0);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)Configs[index].MagFilter);
-        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)Configs[index].MinFilter);
-        gl.FramebufferTexture2D(GLEnum.Framebuffer, Configs[index].FramebufferAttachment, GLEnum.Texture2D, AttachmentTextureIds[index], 0);
-
-        if (Configs[index].Format == PixelFormat.DepthComponent)
-        {
-            DepthId = AttachmentTextureIds[index];
-            gl.Enable(GLEnum.DepthTest);
-        }
+        var textureId = gl.GenTexture();
+        var config = Configs[index];
+        gl.BindTexture(GLEnum.Texture2D, textureId);
+        gl.TexImage2D(GLEnum.Texture2D, 0, (int)config.InternalFormat, (uint)Width, (uint)Height, 0, (GLEnum)config.Format, (GLEnum)config.PixelType, (void*)0);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)config.MagFilter);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)config.MinFilter);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
+        gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+        gl.FramebufferTexture2D(GLEnum.Framebuffer, config.FramebufferAttachment, GLEnum.Texture2D, textureId, 0);
+        AttachmentTextureIds.Add(textureId);
     }
 
     GL? _tmpGl;

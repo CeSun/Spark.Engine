@@ -38,9 +38,9 @@ public class DeferredRenderer : BaseRenderer
                 Width = camera.RenderTarget.Width,
                 Height = camera.RenderTarget.Height,
                 Configs = [
-                    new(){MagFilter = TextureMagFilter.Nearest,MinFilter = TextureMinFilter.Nearest, Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment0},
-                    new(){MagFilter = TextureMagFilter.Nearest,MinFilter = TextureMinFilter.Nearest, Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment1},
-                    new(){MagFilter = TextureMagFilter.Nearest,MinFilter = TextureMinFilter.Nearest, Format = PixelFormat.Rgba, InternalFormat = InternalFormat.DepthComponent, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.DepthAttachment},
+                    new(){MagFilter = TextureMagFilter.Nearest,MinFilter = TextureMinFilter.Nearest, Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba8, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment0},
+                    new(){MagFilter = TextureMagFilter.Nearest,MinFilter = TextureMinFilter.Nearest, Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba8, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment1},
+                    new(){MagFilter = TextureMagFilter.Nearest,MinFilter = TextureMinFilter.Nearest, Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment},
                 ]
             };
             gbuffer.RebuildGpuResource(gl);
