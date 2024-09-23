@@ -17,7 +17,14 @@ public partial class SkeletalMesh(bool allowMuiltUpLoad = false) : AssetBase(all
         set => ChangeProperty(ref _elements, value);
     }
     public Skeleton? Skeleton { get; set; }
-
+    public override void PostProxyToRenderer(BaseRenderer renderer)
+    {
+        foreach (var element in Elements)
+        {
+            element.Material?.PostProxyToRenderer(renderer);
+        }
+        base.PostProxyToRenderer(renderer);
+    }
     protected unsafe override int assetPropertiesSize => sizeof(SkeletalMeshProxyProperties);
     public override nint CreateProperties()
     {
@@ -75,7 +82,7 @@ public class SkeletalMeshProxy : AssetRenderProxy
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
         var gl = renderer.gl;
-        ref var properties = ref UnsafeHelper.AsRef<StaticMeshProxyProperties>(propertiesPtr);
+        ref var properties = ref UnsafeHelper.AsRef<SkeletalMeshProxyProperties>(propertiesPtr);
 
         for (var index = 0; index < properties.Elements.Count; index++)
         {

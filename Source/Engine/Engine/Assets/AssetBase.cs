@@ -20,7 +20,7 @@ public abstract class AssetBase
     }
 
 
-    public void PostProxyToRenderer(BaseRenderer renderer)
+    public virtual void PostProxyToRenderer(BaseRenderer renderer)
     {
         if (IsUploaded == true && AllowMuiltUpLoad == false)
             return;

@@ -95,14 +95,24 @@ public class TextureCube(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUp
     public unsafe override nint GetCreateProxyFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<GCHandle>)&CreateProxy;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    static GCHandle CreateProxy() => GCHandle.Alloc(new TextureProxy(), GCHandleType.Normal);
+    static GCHandle CreateProxy() => GCHandle.Alloc(new TextureCube(), GCHandleType.Normal);
     public unsafe override nint GetPropertiesDestoryFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, void>)&DestoryProperties;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     static void DestoryProperties(IntPtr ptr)
     {
-        ref var properties = ref UnsafeHelper.AsRef<TextureProxyProperties>(ptr);
+        ref var properties = ref UnsafeHelper.AsRef<TextureCubeProxyProperties>(ptr);
+        for (int i = 0; i < properties.HDRPixels.Length; i++)
+        {
+            properties.HDRPixels[i].Dispose();
+            properties.LDRPixels[i] = default;
+        }
         properties.HDRPixels.Dispose();
+        for (int i = 0; i < properties.LDRPixels.Length; i++)
+        {
+            properties.HDRPixels[i] = default;
+            properties.LDRPixels[i].Dispose();
+        }
         properties.LDRPixels.Dispose();
         Marshal.FreeHGlobal(ptr);
     }

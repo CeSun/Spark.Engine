@@ -79,10 +79,12 @@ public class Texture(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoad
         properties.IsHdrTexture = _isHdrTexture;
         if (IsHdrTexture)
         {
+            properties.HDRPixels = default;
             properties.HDRPixels = new UnmanagedArray<float>(CollectionsMarshal.AsSpan(HDRPixels));
         }
         else
         {
+            properties.HDRPixels = default;
             properties.LDRPixels = new UnmanagedArray<byte>(CollectionsMarshal.AsSpan(LDRPixels));
         }
 
@@ -92,22 +94,14 @@ public class Texture(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoad
     public unsafe override nint GetCreateProxyFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<GCHandle>)&CreateProxy;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    static GCHandle CreateProxy() => GCHandle.Alloc(new TextureCubeProxy(), GCHandleType.Normal);
+    static GCHandle CreateProxy() => GCHandle.Alloc(new TextureProxy(), GCHandleType.Normal);
     public unsafe override nint GetPropertiesDestoryFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, void>)&DestoryProperties;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     static void DestoryProperties(IntPtr ptr)
     {
-        ref var properties = ref UnsafeHelper.AsRef<TextureCubeProxyProperties>(ptr);
-        for(int i = 0; i < properties.HDRPixels.Length; i ++)
-        {
-            properties.HDRPixels[i].Dispose();
-        }
+        ref var properties = ref UnsafeHelper.AsRef<TextureProxyProperties>(ptr);
         properties.HDRPixels.Dispose();
-        for (int i = 0; i < properties.LDRPixels.Length; i++)
-        {
-            properties.LDRPixels[i].Dispose();
-        }
         properties.LDRPixels.Dispose();
         Marshal.FreeHGlobal(ptr);
     }

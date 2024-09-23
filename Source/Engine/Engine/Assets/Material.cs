@@ -14,6 +14,7 @@ public class Material(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoa
         set => ChangeProperty(ref _blendMode, value);
     }
 
+    protected override unsafe int assetPropertiesSize => sizeof(MaterialProxyProperties);
     public Texture?[] Textures = new Texture?[10];
     public Texture? BaseColor { get => Textures[0]; set => Textures[0] = value; }
     public Texture? Normal { get => Textures[1]; set => Textures[1] = value; }
@@ -28,6 +29,15 @@ public class Material(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoa
     public string GetRoughnessShaderSnippet { get; set; } = "";
     public string GetAmbientOcclusionShaderSnippet { get; set; } = "";
     public string GetOpaqueMaskShaderSnippet { get; set; } = "";
+
+    public override void PostProxyToRenderer(BaseRenderer renderer)
+    {
+        foreach(var texture in Textures)
+        {
+            texture?.PostProxyToRenderer(renderer);
+        }
+        base.PostProxyToRenderer(renderer);
+    }
 
 }
 
@@ -68,10 +78,9 @@ public enum BlendMode
 
 public struct MaterialProxyProperties
 {
+    public AssetProperties Base;
     public BlendMode BlendMode;
-
     public UnmanagedArray<GCHandle> Textures;
-
     public UnmanagedArray<char> PreShaderSnippet;
     public UnmanagedArray<char> GetBaseColorShaderSnippet;
     public UnmanagedArray<char> GetNormalShaderSnippet;

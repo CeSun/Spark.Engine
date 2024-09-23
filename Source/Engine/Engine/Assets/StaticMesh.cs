@@ -37,6 +37,14 @@ public class StaticMesh(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpL
         return ptr;
     }
 
+    public override void PostProxyToRenderer(BaseRenderer renderer)
+    {
+        foreach (var element in Elements)
+        {
+            element.Material?.PostProxyToRenderer(renderer);
+        }
+        base.PostProxyToRenderer(renderer);
+    }
     public unsafe override nint GetCreateProxyFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<GCHandle>)&CreateProxy;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
