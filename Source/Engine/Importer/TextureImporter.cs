@@ -42,7 +42,7 @@ public static class TextureImporter
             {
                 Process(imageResult.Data);
             }
-            texture.LDRPixels = imageResult.Data;
+            texture.LDRPixels = new(imageResult.Data);
             texture.IsHdrTexture = false;
             return texture;
         }
@@ -69,7 +69,7 @@ public static class TextureImporter
             {
                 Process(imageResult.Data);
             }
-            texture.LDRPixels = imageResult.Data;
+            texture.LDRPixels = new(imageResult.Data);
             texture.IsHdrTexture = false;
             return texture;
         }
@@ -99,7 +99,7 @@ public static class TextureImporter
             {
                 Process(imageResult.Data);
             }
-            texture.HDRPixels = imageResult.Data;
+            texture.HDRPixels = new(imageResult.Data);
             texture.IsHdrTexture = true;
             return texture;
         }
@@ -132,7 +132,7 @@ public static class TextureImporter
         texture.Height = (uint)height;
         texture.Width = (uint)width;
         texture.Channel = TexChannel.Rgb;
-        texture.LDRPixels = data;
+        texture.LDRPixels = new(data);
         texture.IsHdrTexture = false;
         return texture;
     }
@@ -140,7 +140,6 @@ public static class TextureImporter
 
     public static Texture MergePbrTexture(Texture? metallicRoughness, Texture? ao)
     {
-
         var main = metallicRoughness ?? ao;
         uint height = 1;
         uint width = 1;
@@ -194,7 +193,7 @@ public static class TextureImporter
             Channel = TexChannel.Rgb,
             IsHdrTexture = false,
         };
-        texture.LDRPixels = data;
+        texture.LDRPixels = new(data);
         return texture;
 
     }
