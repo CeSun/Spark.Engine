@@ -1,9 +1,6 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 using Spark.Core.Components;
-using System;
-using System.Drawing;
-using System.Runtime.InteropServices;
 
 namespace Spark.Core.Render;
 

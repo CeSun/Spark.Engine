@@ -41,7 +41,6 @@ public class MainActivity : SilkActivity
 
         options.ShouldSwapAutomatically = false;
 
-
         options.API = new GraphicsAPI { API = ContextAPI.OpenGLES, Flags = ContextFlags.Default, Profile = ContextProfile.Core, Version = new APIVersion(3, 0) };
 
         var view = Silk.NET.Windowing.Window.GetView(options);

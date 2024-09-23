@@ -20,6 +20,8 @@ public abstract class BaseRenderer
     private List<Action<BaseRenderer>> Actions = [];
 
     private List<Action<BaseRenderer>> SwapActions = [];
+
+    protected List<BasePass> RenderPass = new List<BasePass>();
     public BaseRenderer(GL GraphicsApi)
     {
         gl = GraphicsApi;

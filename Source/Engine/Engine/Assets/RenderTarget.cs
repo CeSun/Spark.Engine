@@ -76,11 +76,9 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
 {
     public uint FrameBufferId { private set; get; }
     public List<uint> AttachmentTextureIds { private set; get; } = [];
-    public uint DepthId { private set; get; }
     public bool IsDefaultRenderTarget { get; set; }
     public int Width { set; get; }
     public int Height { set; get; }
-
 
     public override void DestoryGpuResource(BaseRenderer renderer)
     {
