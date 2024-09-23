@@ -113,6 +113,10 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
         Height = properties.Height;
         IsDefaultRenderTarget = properties.IsDefaultRenderTarget;
 
+        if (IsDefaultRenderTarget == true)
+        {
+            return;
+        }
         FrameBufferId = gl.GenFramebuffer();
         gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
         for (int i = 0; i < properties.Configs.Count; i++)
