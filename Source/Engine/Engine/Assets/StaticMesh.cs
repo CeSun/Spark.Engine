@@ -1,80 +1,94 @@
 ﻿using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading.Channels;
 using Silk.NET.OpenGLES;
 using Spark.Core.Render;
+using Spark.Util;
 
 namespace Spark.Core.Assets;
 
-public class StaticMesh : AssetBase
+public class StaticMesh(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoad)
 {
 
-    private IReadOnlyList<Element<StaticMeshVertex>> _elements = [];
-    public IReadOnlyList<Element<StaticMeshVertex>> Elements 
+    private List<Element<StaticMeshVertex>> _elements = [];
+    public List<Element<StaticMeshVertex>> Elements 
     {
-        get => _elements; 
-        set
+        get => _elements;
+        set => ChangeProperty(ref _elements, value);
+    }
+
+    protected unsafe override int assetPropertiesSize => sizeof(StaticMeshProxyProperties);
+    public override nint CreateProperties()
+    {
+        var ptr = base.CreateProperties();
+        ref var properties = ref UnsafeHelper.AsRef<StaticMeshProxyProperties>(ptr);
+        properties.Elements.Resize(Elements.Count);
+        for(int i = 0; i < Elements.Count; i ++)
         {
-            _elements = value;
-            var list = _elements.ToList();
-            RunOnRenderer(renderer =>
+            properties.Elements[i] = new ElementProxyProperties<StaticMeshVertex>
             {
-                var staticMeshProxy = renderer.GetProxy<StaticMeshProxy>(this);
-                if (staticMeshProxy != null)
-                {
-                    staticMeshProxy.Elements = list;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
+                Vertices = new(Elements[i].Vertices),
+                Indices = new(Elements[i].Indices),
+                Material = Elements[i].Material == null ? default : Elements[i].Material!.WeakGCHandle
+            };
         }
+        return ptr;
     }
 
-    public override void PostProxyToRenderer(BaseRenderer renderer)
-    {
-        foreach (var element in _elements)
-        {
-            if (element.Material == null)
-                continue;
-            element.Material.PostProxyToRenderer(renderer);
-        }
-        base.PostProxyToRenderer(renderer);
-    }
-    public override Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
-    {
-        var elements = Elements.ToList();
+    public unsafe override nint GetCreateProxyFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<GCHandle>)&CreateProxy;
 
-        return renderer => new StaticMeshProxy
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static GCHandle CreateProxy() => GCHandle.Alloc(new StaticMeshProxy(), GCHandleType.Normal);
+    public unsafe override nint GetPropertiesDestoryFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, void>)&DestoryProperties;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static void DestoryProperties(IntPtr ptr)
+    {
+        ref var properties = ref UnsafeHelper.AsRef<StaticMeshProxyProperties>(ptr);
+        for (int i = 0; i < properties.Elements.Count; i++)
         {
-            Elements = elements
-        }; 
+            properties.Elements[i].Vertices.Dispose();
+            properties.Elements[i].Indices.Dispose();
+        }
+        properties.Elements.Dispose();
+        Marshal.FreeHGlobal(ptr);
     }
+
+
+    protected override void ReleaseAssetMemory()
+    {
+        base.ReleaseAssetMemory();
+        _elements = [];
+    }
+
 }
 public class StaticMeshProxy : AssetRenderProxy
 {
-    public List<Element<StaticMeshVertex>> Elements = [];
-
     public List<uint> VertexArrayObjectIndexes = [];
     public List<uint> VertexBufferObjectIndexes = [];
     public List<uint> ElementBufferObjectIndexes = [];
-    public unsafe override void RebuildGpuResource(GL gl)
+    public List<int> IndicesLengths = [];
+    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
     {
-        DestoryGpuResource(gl);
-        for (var index = 0; index < Elements.Count; index++)
+        base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
+        var gl = renderer.gl;
+        ref var properties = ref UnsafeHelper.AsRef<StaticMeshProxyProperties>(propertiesPtr);
+
+        for (var index = 0; index < properties.Elements.Length; index++)
         {
             uint vao = gl.GenVertexArray();
             uint vbo = gl.GenBuffer();
             uint ebo = gl.GenBuffer();
             gl.BindVertexArray(vao);
             gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
-            fixed (StaticMeshVertex* p = CollectionsMarshal.AsSpan(Elements[index].Vertices))
-            {
-                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Elements[index].Vertices.Count * sizeof(StaticMeshVertex)), p, GLEnum.StaticDraw);
-            }
+            gl.BufferData(GLEnum.ArrayBuffer, (nuint)(properties.Elements[index].Vertices.Length * sizeof(StaticMeshVertex)), properties.Elements[index].Vertices.Ptr, GLEnum.StaticDraw);
+        
             gl.BindBuffer(GLEnum.ElementArrayBuffer, ebo);
-            fixed (uint* p = CollectionsMarshal.AsSpan(Elements[index].Indices))
-            {
-                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(Elements[index].Indices.Count * sizeof(uint)), p, GLEnum.StaticDraw);
-            }
+            
+            gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(properties.Elements[index].Indices.Length * sizeof(uint)), properties.Elements[index].Indices.Ptr, GLEnum.StaticDraw);
+            
 
             // Location
             gl.EnableVertexAttribArray(0);
@@ -98,15 +112,20 @@ public class StaticMeshProxy : AssetRenderProxy
             gl.EnableVertexAttribArray(5);
             gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(5 * sizeof(Vector3)));
             gl.BindVertexArray(0);
-            VertexArrayObjectIndexes.Add (vao);
+
+            IndicesLengths.Add(properties.Elements[index].Indices.Length);
+            VertexArrayObjectIndexes.Add(vao);
             VertexBufferObjectIndexes.Add(vbo);
             ElementBufferObjectIndexes.Add(ebo);
         }
 
     }
 
-    public override void DestoryGpuResource(GL gl)
+
+    public override void DestoryGpuResource(BaseRenderer renderer)
     {
+        base.DestoryGpuResource(renderer);
+        var gl = renderer.gl;
         VertexArrayObjectIndexes.ForEach(gl.DeleteVertexArray);
         VertexArrayObjectIndexes.Clear();
         VertexBufferObjectIndexes.ForEach(gl.DeleteBuffer);
@@ -115,8 +134,9 @@ public class StaticMeshProxy : AssetRenderProxy
         ElementBufferObjectIndexes.Clear();
     }
 
+
 }
-public class Element<T>  where T  : struct
+public class Element<T>  where T  : unmanaged
 {
     public List<T> Vertices = [];
     public List<uint> Indices = [];
@@ -132,4 +152,17 @@ public struct StaticMeshVertex : IVertex
     public Vector3 Color { get; set; }
     public Vector2 TexCoord { get; set; }
 
+}
+
+public struct StaticMeshProxyProperties
+{
+    public AssetProperties Base;
+    public UnmanagedArray<ElementProxyProperties<StaticMeshVertex>> Elements;
+}
+
+public struct ElementProxyProperties<T> where T : unmanaged
+{
+    public UnmanagedArray<T> Vertices;
+    public UnmanagedArray<uint> Indices;
+    public GCHandle Material;
 }

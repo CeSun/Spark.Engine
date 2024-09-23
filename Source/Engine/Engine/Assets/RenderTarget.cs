@@ -1,119 +1,74 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Render;
+using Spark.Util;
 using System.Drawing;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core.Assets;
 
-public class RenderTarget : AssetBase
+public class RenderTarget() : AssetBase(true)
 {
     private bool _isDefaultRenderTarget;
 
     public bool IsDefaultRenderTarget
     {
         get => _isDefaultRenderTarget;
-        set
-        {
-            _isDefaultRenderTarget = value;
-            RunOnRenderer(renderer =>
-            {
-                var proxy = renderer.GetProxy<RenderTargetProxy>(this);
-                if (proxy != null)
-                {
-                    proxy.IsDefaultRenderTarget = value;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
+        set => ChangeProperty(ref _isDefaultRenderTarget, value);
 
-        }
     }
     private int _width;
     public int Width 
     {
         get => _width;
-        set
-        {
-            _width = value;
-            RunOnRenderer(renderer =>
-            {
-                var proxy = renderer.GetProxy<RenderTargetProxy>(this);
-                if (proxy != null)
-                {
-                    proxy.Width = value;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
-        }
+        set => ChangeProperty(ref _width, value);
     }
 
     private int _height;
     public int Height
     {
         get => _height;
-        set
-        {
-            _height = value;
-            RunOnRenderer(renderer =>
-            {
-                var proxy = renderer.GetProxy<RenderTargetProxy>(this);
-                if (proxy != null)
-                {
-                    proxy.Height = value;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
-        }
+        set => ChangeProperty(ref _height, value);
     }
 
     public void Resize(int width, int height)
     {
-        _height = height;
-        _width = width;
-        RunOnRenderer(renderer =>
-        {
-            var proxy = renderer.GetProxy<RenderTargetProxy>(this);
-            if (proxy != null)
-            {
-                proxy.Height = _height;
-                proxy.Width = _width;
-                RequestRendererRebuildGpuResource();
-            }
-        });
+        Height = height;
+        Width = width;
     }
 
     private IReadOnlyList<FrameBufferConfig> _configs = [];
     public IReadOnlyList<FrameBufferConfig> Configs
     {
         get => _configs;
-        set
-        {
-            _configs = value;
-            var list = Configs.ToArray();
-            RunOnRenderer(renderer =>
-            {
-                var proxy = renderer.GetProxy<RenderTargetProxy>(this);
-                if (proxy != null)
-                {
-                    proxy.Configs = list;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
-        }
+        set => ChangeProperty(ref _configs, value);
+    }
+    protected unsafe override int assetPropertiesSize => sizeof(RenderTargetProxyProperties); 
+    public override nint CreateProperties()
+    {
+        var ptr = base.CreateProperties();
+        ref var properties = ref UnsafeHelper.AsRef<RenderTargetProxyProperties>(ptr);
+        properties.Width = _width;
+        properties.Height = _height;
+        properties.IsDefaultRenderTarget = IsDefaultRenderTarget;
+        properties.Configs = new(Configs);
+
+        return ptr;
+    }
+    public unsafe override nint GetCreateProxyFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<GCHandle>)&CreateProxy;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static GCHandle CreateProxy() => GCHandle.Alloc(new RenderTargetProxy(), GCHandleType.Normal);
+    public unsafe override nint GetPropertiesDestoryFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, void>)&DestoryProperties;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static void DestoryProperties(IntPtr ptr)
+    {
+        ref var properties = ref UnsafeHelper.AsRef<RenderTargetProxyProperties>(ptr);
+        properties.Configs.Dispose();
+        Marshal.FreeHGlobal(ptr);
     }
 
-    public override Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
-    {
-        var isDefaultRenderTarget = _isDefaultRenderTarget;
-        var width = _width;
-        var height = _height;
-        var list = _configs.ToList();
-        return renderer => new RenderTargetProxy 
-        {
-            IsDefaultRenderTarget = isDefaultRenderTarget,
-            Width = width,
-            Height = height,
-            Configs = list
-        };
-    }
 }
 
 
@@ -124,15 +79,15 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
     public List<uint> AttachmentTextureIds { private set; get; } = [];
     public uint DepthId { private set; get; }
     public bool IsDefaultRenderTarget { get; set; }
-    private bool IsDefaultRenderTargetLast { get; set; }
     public int Width { set; get; }
     public int Height { set; get; }
 
-    public IReadOnlyList<FrameBufferConfig> Configs = [];
 
-    public override void DestoryGpuResource(GL gl)
+    public override void DestoryGpuResource(BaseRenderer renderer)
     {
-        if (IsDefaultRenderTargetLast == false)
+        base.DestoryGpuResource(renderer);
+        var gl = renderer.gl;
+        if (IsDefaultRenderTarget == false)
         {
             foreach (var id in AttachmentTextureIds)
             {
@@ -145,25 +100,24 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
             {
                 gl.DeleteFramebuffer(FrameBufferId);
             }
+            AttachmentTextureIds.Clear();
         }
     }
-    public override void RebuildGpuResource(GL gl)
-    {
-        DestoryGpuResource(gl);
-        IsDefaultRenderTargetLast = IsDefaultRenderTarget;
-        if (IsDefaultRenderTarget == true)
-        {
-            FrameBufferId = 0;
-            return;
-        }
 
-        AttachmentTextureIds.Clear();
+    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
+    {
+        base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
+        var gl = renderer.gl;
+        ref var properties = ref UnsafeHelper.AsRef<RenderTargetProxyProperties>(propertiesPtr);
+        Width = properties.Width;
+        Height = properties.Height;
+        IsDefaultRenderTarget = properties.IsDefaultRenderTarget;
 
         FrameBufferId = gl.GenFramebuffer();
         gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
-        for (int i = 0; i < Configs.Count; i++)
+        for (int i = 0; i < properties.Configs.Count; i++)
         {
-            GenFrameBuffer(gl, i);
+            GenFrameBuffer(gl,properties.Configs[i], i);
         }
         var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
         if (state != GLEnum.FramebufferComplete)
@@ -173,10 +127,9 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
     }
 
-    protected virtual unsafe void GenFrameBuffer(GL gl, int index)
+    protected virtual unsafe void GenFrameBuffer(GL gl, in FrameBufferConfig config, int index)
     {
         var textureId = gl.GenTexture();
-        var config = Configs[index];
         gl.BindTexture(GLEnum.Texture2D, textureId);
         gl.TexImage2D(GLEnum.Texture2D, 0, (int)config.InternalFormat, (uint)Width, (uint)Height, 0, (GLEnum)config.Format, (GLEnum)config.PixelType, (void*)0);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)config.MagFilter);
@@ -203,7 +156,7 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
 }
 
 
-public class FrameBufferConfig
+public struct FrameBufferConfig
 {
     public TextureMagFilter MagFilter;
 
@@ -216,4 +169,17 @@ public class FrameBufferConfig
     public FramebufferAttachment FramebufferAttachment;
 
     public PixelFormat Format;
+}
+
+public struct RenderTargetProxyProperties
+{
+    public AssetProperties Base;
+
+    public bool IsDefaultRenderTarget;
+
+    public int Width;
+
+    public int Height;
+
+    public UnmanagedArray<FrameBufferConfig> Configs;
 }

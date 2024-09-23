@@ -2,11 +2,8 @@
 
 namespace Spark.Core.Assets;
 
-public class Skeleton : AssetBase
+public class Skeleton() : AssetBase(true)
 {
-    public Skeleton()
-    {
-    }
     public List<BoneNode> BoneList
     {
         get => _BoneList;

@@ -3,15 +3,10 @@ using System.Numerics;
 
 namespace Spark.Core.Assets;
 
-public class AnimSequence : AnimBase
+public class AnimSequence() : AssetBase(true)
 {
     public Skeleton? Skeleton { get; set; }
-    public AnimSequence()
-    {
-        ChannelsTransform = [];
-        Channels = [];
-    }
-    public AnimSequence (string animName, float duration, Skeleton skeleton,Dictionary<int, BoneChannel> boneChannels)
+    public AnimSequence (string animName, float duration, Skeleton skeleton,Dictionary<int, BoneChannel> boneChannels) : this()
     {
         this.AnimName = animName;
         this.Duration = duration;
@@ -43,8 +38,8 @@ public class AnimSequence : AnimBase
 
     public double Duration { private set; get; }
     public string AnimName = string.Empty;
-    public Dictionary<int, BoneChannel> Channels;
-    public Dictionary<int, BoneTransform> ChannelsTransform;
+    public Dictionary<int, BoneChannel> Channels = [];
+    public Dictionary<int, BoneTransform> ChannelsTransform = [];
 }
 
 public class BoneTransform

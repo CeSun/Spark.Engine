@@ -56,14 +56,14 @@ public class PointLightComponentProxy : LightComponentProxy
         Color = properties.LightBaseProperties.Color;
         AttenuationRadius = properties.AttenuationRadius;
     }
-    public override void ReBuild(GL gl)
+    public override void RebuildGpuResource(GL gl)
     {
-        base.ReBuild(gl);
+        base.RebuildGpuResource(gl);
     }
 
-    public override void Destory(GL gl)
+    public override void DestoryGpuResource(GL gl)
     {
-        base.Destory(gl);
+        base.DestoryGpuResource(gl);
     }
 }
 

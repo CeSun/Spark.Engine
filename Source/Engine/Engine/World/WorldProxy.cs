@@ -12,7 +12,7 @@ public class WorldProxy
 {
     private Dictionary<GCHandle, PrimitiveComponentProxy> _primitiveComponentProxyDictionary = [];
     public IReadOnlyDictionary<GCHandle, PrimitiveComponentProxy> PrimitiveComponentProxyDictionary => _primitiveComponentProxyDictionary;
-    public List<nint> RenderPropertiesQueue { get; private set; } = [];
+    public List<nint> AddRenderPropertiesList { get; private set; } = [];
 
     private List<CameraComponentProxy> cameraComponentProxies = [];
     public IReadOnlyList<CameraComponentProxy> CameraComponentProxies => cameraComponentProxies;
@@ -24,16 +24,16 @@ public class WorldProxy
     public void UpdateComponentProxies(BaseRenderer renderer)
     {
         bool isAddCameraComponent = false;
-        for (var i = 0; i < RenderPropertiesQueue.Count; i++)
+        for (var i = 0; i < AddRenderPropertiesList.Count; i++)
         {
-            var ptr = RenderPropertiesQueue[i];
+            var ptr = AddRenderPropertiesList[i];
             var componentProperties = UnsafeHelper.AsRef<PrimitiveComponentProperties>(ptr);
             if (componentProperties.ComponentState != WorldObjectState.Began && componentProperties.ComponentState != WorldObjectState.Registered)
             {
                 if (_primitiveComponentProxyDictionary.TryGetValue(componentProperties.ComponentWeakGChandle, out var proxy) == true)
                 {
                     _primitiveComponentProxyDictionary.Remove(componentProperties.ComponentWeakGChandle);
-                    proxy.Destory(renderer.gl);
+                    proxy.DestoryGpuResource(renderer.gl);
                     if (proxy is CameraComponentProxy cameraComponentProxy)
                     {
                         cameraComponentProxies.Remove(cameraComponentProxy);
@@ -74,13 +74,13 @@ public class WorldProxy
                     if (proxy != null)
                     {
                         proxy.UpdateProperties(ptr, renderer);
-                        proxy.ReBuild(renderer.gl);
+                        proxy.RebuildGpuResource(renderer.gl);
                     }
                 }
             }
             Marshal.FreeHGlobal(ptr);
         }
-        RenderPropertiesQueue.Clear();
+        AddRenderPropertiesList.Clear();
         if (isAddCameraComponent)
         {
             cameraComponentProxies.Sort();
@@ -89,18 +89,17 @@ public class WorldProxy
 
     public void Destory(BaseRenderer renderer)
     {
-        foreach(var item in RenderPropertiesQueue)
+        foreach(var item in AddRenderPropertiesList)
         {
             Marshal.FreeHGlobal(item);
         }
-        RenderPropertiesQueue.Clear();
+        AddRenderPropertiesList.Clear();
         foreach(var (_, proxy) in _primitiveComponentProxyDictionary)
         {
-            proxy.Destory(renderer.gl);
+            proxy.DestoryGpuResource(renderer.gl);
         }
         _primitiveComponentProxyDictionary.Clear();
         cameraComponentProxies.Clear();
-
     }
 }
 

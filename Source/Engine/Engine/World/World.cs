@@ -76,7 +76,7 @@ public class World
             Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
             {
                 var array = new Span<nint>((void*)pointer, len);
-                RenderWorld.RenderPropertiesQueue.AddRange(array);
+                RenderWorld.AddRenderPropertiesList.AddRange(array);
                 Marshal.FreeHGlobal(pointer);
             });
         }

@@ -1,6 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 using Spark.Core.Components;
+using Spark.Util;
 using System.Drawing;
 using System.Runtime.InteropServices;
 
@@ -8,14 +9,46 @@ namespace Spark.Core.Render;
 
 public abstract class BaseRenderer
 {
-    public HashSet<WorldProxy> RenderWorlds = [];
+    public GL gl { get; set; }
 
+    public HashSet<WorldProxy> RenderWorlds = [];
+    public Dictionary<GCHandle, nint> AddRenderPropertiesDictionary { get; private set; } = [];
+    public Dictionary<GCHandle, nint> SwapAddRenderPropertiesDictionary { get; private set; } = [];
+
+    private Dictionary<GCHandle, AssetRenderProxy> ProxyDictonary = [];
+
+    private List<Action<BaseRenderer>> Actions = [];
+
+    private List<Action<BaseRenderer>> SwapActions = [];
     public BaseRenderer(GL GraphicsApi)
     {
         gl = GraphicsApi;
     }
 
-    public GL gl { get; set; }
+    public void UpdateAssetProxy(IntPtr ptr)
+    {
+        ref var properties = ref  UnsafeHelper.AsRef<AssetProperties>(ptr);
+        lock(AddRenderPropertiesDictionary)
+        {
+            if (AddRenderPropertiesDictionary.TryGetValue(properties.AssetWeakGCHandle, out var oldPtr))
+            {
+                ref var oldProperties = ref UnsafeHelper.AsRef<AssetProperties>(oldPtr);
+                if (oldProperties.DestoryPointer == IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(oldPtr);
+                }
+                else
+                {
+                    unsafe
+                    {
+                        delegate* unmanaged[Cdecl]<IntPtr, void> P = (delegate* unmanaged[Cdecl]<nint, void>)oldProperties.DestoryPointer;
+                        P(oldPtr);
+                    }
+                }
+            }
+            AddRenderPropertiesDictionary[properties.AssetWeakGCHandle] = ptr;
+        }
+    }
 
     public virtual void Render()
     {
@@ -49,71 +82,63 @@ public abstract class BaseRenderer
 
     public abstract void RendererWorld(CameraComponentProxy camera);
 
-
     public void PreRender()
     {
-        var list = Actions;
-        Actions = TempActions;
-        TempActions = list;
-        foreach (var action in TempActions)
+        lock (AddRenderPropertiesDictionary)
         {
-            action.Invoke(this);
+            (AddRenderPropertiesDictionary, SwapAddRenderPropertiesDictionary) = (SwapAddRenderPropertiesDictionary, AddRenderPropertiesDictionary);
         }
-        TempActions.Clear();
-        foreach (var proxy in NeedRebuildProxies)
+        foreach (var (gchandle, ptr) in SwapAddRenderPropertiesDictionary)
         {
-            proxy.RebuildGpuResource(gl);
+            ref var properties = ref UnsafeHelper.AsRef<AssetProperties>(ptr);
+            if (GetProxy<AssetRenderProxy>(properties.AssetWeakGCHandle) == null)
+            {
+                if (properties.CreateProxyPointer == IntPtr.Zero)
+                {
+                    continue;
+                }
+                unsafe
+                {
+                    var proxyGCHandle = ((delegate* unmanaged[Cdecl]<GCHandle>)properties.CreateProxyPointer)();
+                    var proxy = proxyGCHandle.Target;
+                    proxyGCHandle.Free();
+                    if (proxy is AssetRenderProxy assetRenderProxy)
+                    {
+                        ProxyDictonary.Add(properties.AssetWeakGCHandle, assetRenderProxy);
+                    }
+                }
+            }
+
         }
-        NeedRebuildProxies.Clear();
-    }
-
-
-    public T? GetProxy<T>(AssetBase obj) where T : class
-    {
-        return GetProxy(obj) as T;
-    }
-
-    public T? GetProxy<T>(GCHandle gchandle) where T : class
-    {
-        return GetProxy(gchandle) as T;
-    }
-    public AssetRenderProxy? GetProxy(GCHandle gchandle)
-    {
-        if (gchandle == default)
-            return null;
-        if (ProxyDictonary.TryGetValue(gchandle, out var proxy))
+        foreach (var (gchandle, ptr) in SwapAddRenderPropertiesDictionary)
         {
-            return proxy;
+            UpdatePropertiesToProxy(ptr);
         }
-        return null;
-    }
 
-    public AssetRenderProxy? GetProxy(AssetBase obj)
-    {
-        if (obj == null)
-            return null;
-        if (ProxyDictonary.TryGetValue(obj.WeakGCHandle, out var proxy))
+        SwapAddRenderPropertiesDictionary.Clear();
+        lock (Actions)
         {
-            return proxy;
+            (Actions, SwapActions) = (SwapActions, Actions);
         }
-        return null;
+        foreach (var action in SwapActions)
+        {
+            action(this);
+        }
+        SwapActions.Clear();
     }
-
-    public void AddProxy(AssetBase obj, AssetRenderProxy renderProxy)
+    private void UpdatePropertiesToProxy(IntPtr ptr)
     {
-        if (obj == null)
-            return;
-        if (ProxyDictonary.ContainsKey(obj.WeakGCHandle))
-            return;
-        ProxyDictonary.Add(obj.WeakGCHandle, renderProxy);
-    }
-    public void AddNeedRebuildRenderResourceProxy(AssetRenderProxy proxy)
-    {
+        ref var  properties = ref UnsafeHelper.AsRef<AssetProperties>(ptr);
+        var proxy = GetProxy<AssetRenderProxy>(properties.AssetWeakGCHandle);
         if (proxy == null)
             return;
-        if (NeedRebuildProxies.Contains(proxy) == false)
+        proxy.DestoryGpuResource(this);
+        proxy.UpdatePropertiesAndRebuildGPUResource(this, ptr);
+        if (properties.DestoryPointer == IntPtr.Zero) 
+            Marshal.FreeHGlobal(ptr);
+        unsafe
         {
-            NeedRebuildProxies.Add(proxy);
+            ((delegate* unmanaged[Cdecl]<IntPtr, void>)properties.DestoryPointer)(ptr);
         }
     }
 
@@ -125,29 +150,35 @@ public abstract class BaseRenderer
             if (gchandle.Target != null)
                 continue;
             GCHandles.Add(gchandle);
-            proxy.DestoryGpuResource(gl);
+            proxy.DestoryGpuResource(this);
         }
         GCHandles.ForEach(gchandle => ProxyDictonary.Remove(gchandle));
     }
 
-    private HashSet<AssetRenderProxy> NeedRebuildProxies = [];
-
-    private Dictionary<GCHandle, AssetRenderProxy> ProxyDictonary = [];
-
-    private List<Action<BaseRenderer>> Actions = new List<Action<BaseRenderer>>();
-
-    private List<Action<BaseRenderer>> TempActions = new List<Action<BaseRenderer>>();
+    public T? GetProxy<T>(GCHandle gchandle) where T : class
+    {
+        if (gchandle == default)
+            return null;
+        if (ProxyDictonary.TryGetValue(gchandle, out var proxy))
+        {
+            return proxy as T;
+        }
+        return null;
+    }
 
     public void AddRunOnRendererAction(Action<BaseRenderer> action)
     {
-        Actions.Add(action);
+        lock (Actions)
+        {
+            Actions.Add(action);
+        }
     }
 
     public void Destory()
     {
         foreach (var (gchandle, proxy) in ProxyDictonary)
         {
-            proxy.DestoryGpuResource(gl);
+            proxy.DestoryGpuResource(this);
         }
         ProxyDictonary.Clear();
     }

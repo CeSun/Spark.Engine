@@ -1,5 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Render;
+using Spark.Util;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spark.Core.Assets;
@@ -7,63 +9,104 @@ namespace Spark.Core.Assets;
 public abstract class AssetBase
 {
     public GCHandle WeakGCHandle { get; private set; }
-    public AssetBase()
+    public bool IsUploaded { get; private set; } = false;
+    public bool AllowMuiltUpLoad { get; private set; }
+    protected virtual unsafe int assetPropertiesSize => sizeof(AssetProperties);
+    public HashSet<BaseRenderer> Renderers { get; private set; } = [];
+    public AssetBase(bool allowMuiltUpLoad = false)
     {
         WeakGCHandle = GCHandle.Alloc(this, GCHandleType.Weak);
+        AllowMuiltUpLoad = allowMuiltUpLoad;
     }
 
 
-    public HashSet<BaseRenderer> RenderHashSet = [];
-
-    public void RequestRendererRebuildGpuResource()
+    public void PostProxyToRenderer(BaseRenderer renderer)
     {
-        RunOnRenderer(renderer => renderer.AddNeedRebuildRenderResourceProxy(renderer.GetProxy(this)!));
-    }
-    public void RunOnRenderer(Action<BaseRenderer> action)
-    {
-        foreach(var renderer in RenderHashSet)
-        {
-            renderer.AddRunOnRendererAction(action);
-        }
-    }
-    public virtual Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
-    {
-        return null ;
-    }
-    public virtual void PostProxyToRenderer(BaseRenderer renderer)
-    {
-        var fun = GetGenerateProxyDelegate();
-        if (fun == null)
+        if (IsUploaded == true && AllowMuiltUpLoad == false)
             return;
-        if (RenderHashSet.Contains(renderer) == false)
+        var ptr = CreateProperties();
+        renderer.UpdateAssetProxy(ptr);
+        if (Renderers.Contains(renderer) == false)
+            Renderers.Add(renderer);
+        IsUploaded = true;
+        if (AllowMuiltUpLoad == false)
         {
-            RenderHashSet.Add(renderer);
-            RunOnRenderer(render =>
-            {
-                var proxy = fun(render);
-                render.AddProxy(this, proxy);
-                proxy.RebuildGpuResource(renderer.gl);
-            });
+            ReleaseAssetMemory();
         }
     }
+
+
+
+    public void ChangeProperty<T>(ref T property, in T newValue)
+    {
+        if (IsUploaded == true && AllowMuiltUpLoad == false)
+            throw new Exception();
+        property = newValue;
+        if (IsUploaded == true)
+        {
+            foreach (var renderer in Renderers)
+            {
+                PostProxyToRenderer(renderer);
+            }
+        }
+    }
+
+
+    protected virtual void ReleaseAssetMemory()
+    {
+
+    }
+    public virtual IntPtr CreateProperties()
+    {
+        var ptr = Marshal.AllocHGlobal(assetPropertiesSize);
+        ref var properties = ref UnsafeHelper.AsRef<AssetProperties>(ptr);
+        properties.AssetWeakGCHandle = WeakGCHandle;
+        properties.CreateProxyPointer = GetCreateProxyFunctionPointer();
+        properties.DestoryPointer = GetPropertiesDestoryFunctionPointer();
+        return ptr;
+    }
+
+    public unsafe virtual IntPtr GetCreateProxyFunctionPointer()
+    {
+        delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxy;
+        return (nint)p;
+    }
+
+    public unsafe virtual IntPtr GetPropertiesDestoryFunctionPointer()
+    {
+        return IntPtr.Zero;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static GCHandle CreateProxy()
+    {
+        return GCHandle.Alloc(new AssetProperties(), GCHandleType.Normal);
+    }
+
 }
 
 
 public class AssetRenderProxy
 {
-    public GCHandle WeakGCHandle { get; private set; }
-
     public AssetRenderProxy()
     {
-        WeakGCHandle = GCHandle.Alloc(this, GCHandleType.Weak);
     }
-    public virtual void RebuildGpuResource(GL gl)
+
+    public virtual void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
     {
-
     }
 
 
-    public virtual void DestoryGpuResource(GL gl) 
+    public virtual void DestoryGpuResource(BaseRenderer renderer) 
     { 
     }
+}
+
+public struct AssetProperties
+{
+    public GCHandle AssetWeakGCHandle;
+
+    public IntPtr CreateProxyPointer;
+
+    public IntPtr DestoryPointer;
 }

@@ -1,72 +1,36 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Render;
+using Spark.Util;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spark.Core.Assets;
 
-public class TextureCube : AssetBase
+public class TextureCube(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoad)
 {
-    public IReadOnlyList<float>[] _hdrPixels = [[], [], [], [], [], []];
+    public List<float>[] _hdrPixels = [[], [], [], [], [], []];
 
-    public IReadOnlyList<byte>[] _ldrPixels = [[], [], [], [], [], []];
+    public List<byte>[] _ldrPixels = [[], [], [], [], [], []];
 
     private uint _width;
     public uint Width
     {
         get => _width;
-        set
-        {
-            _width = value;
-            RunOnRenderer(render =>
-            {
-                var proxy = render.GetProxy<TextureCubeProxy>(this);
-                if (proxy != null)
-                {
-                    proxy.Width = value;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
-        }
+        set => ChangeProperty(ref _width, value);
     }
-
 
     private uint _height;
     public uint Height
     {
         get => _height;
-        set
-        {
-            _height = value;
-            RunOnRenderer(render =>
-            {
-                var proxy = render.GetProxy<TextureCubeProxy>(this);
-                if (proxy != null)
-                {
-                    proxy.Height = value;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
-        }
+        set => ChangeProperty(ref _height, value);
     }
-
 
     private TexChannel _channel;
     public TexChannel Channel
     {
         get => _channel;
-        set
-        {
-            _channel = value;
-            RunOnRenderer(renderer =>
-            {
-                var proxy = renderer.GetProxy<TextureCubeProxy>(this);
-                if (proxy != null)
-                {
-                    proxy.Channel = value;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
-        }
+        set => ChangeProperty(ref _channel, value);
     }
 
 
@@ -74,87 +38,81 @@ public class TextureCube : AssetBase
     public TexFilter Filter
     {
         get => _filter;
-        set
-        {
-            _filter = value;
-            RunOnRenderer(render =>
-            {
-                var proxy = render.GetProxy<TextureCubeProxy>(this);
-                if (proxy != null)
-                {
-                    proxy.Filter = value;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
-        }
+        set => ChangeProperty(ref _filter, value);
     }
 
-
     private bool _isHdrTexture = false;
+    public bool IsHdrTexture
+    {
+        get => _isHdrTexture;
+        set => ChangeProperty(ref _isHdrTexture, value);
+    }
     public bool IsLdrTexture
     {
         get => !IsHdrTexture;
         set => IsHdrTexture = !value;
     }
-    public bool IsHdrTexture
+
+    protected unsafe override int assetPropertiesSize => sizeof(TextureCubeProxyProperties);
+    public override nint CreateProperties()
     {
-        get => _isHdrTexture;
-        set
+        var ptr = base.CreateProperties();
+        ref var properties = ref UnsafeHelper.AsRef<TextureCubeProxyProperties>(ptr);
+        properties.Width = _width;
+        properties.Height = _height;
+        properties.Channel = _channel;
+        properties.Filter = _filter;
+        properties.IsHdrTexture = _isHdrTexture;
+        for( var i = 0; i < 6; i++)
         {
-            RunOnRenderer(render =>
+            if (IsHdrTexture)
             {
-                var proxy = render.GetProxy<TextureCubeProxy>(this);
-                if (proxy != null)
-                {
-                    proxy.IsHdrTexture = value;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
+                properties.HDRPixels = new UnmanagedArray<UnmanagedArray<float>>([
+                    new UnmanagedArray<float>(CollectionsMarshal.AsSpan(_hdrPixels[0])),
+                    new UnmanagedArray<float>(CollectionsMarshal.AsSpan(_hdrPixels[1])),
+                    new UnmanagedArray<float>(CollectionsMarshal.AsSpan(_hdrPixels[2])),
+                    new UnmanagedArray<float>(CollectionsMarshal.AsSpan(_hdrPixels[3])),
+                    new UnmanagedArray<float>(CollectionsMarshal.AsSpan(_hdrPixels[4])),
+                    new UnmanagedArray<float>(CollectionsMarshal.AsSpan(_hdrPixels[5])),
+                ]);
+            }
+            else
+            {
+                properties.LDRPixels = new UnmanagedArray<UnmanagedArray<byte>>([
+                    new UnmanagedArray<byte>(CollectionsMarshal.AsSpan(_ldrPixels[0])),
+                    new UnmanagedArray<byte>(CollectionsMarshal.AsSpan(_ldrPixels[1])),
+                    new UnmanagedArray<byte>(CollectionsMarshal.AsSpan(_ldrPixels[2])),
+                    new UnmanagedArray<byte>(CollectionsMarshal.AsSpan(_ldrPixels[3])),
+                    new UnmanagedArray<byte>(CollectionsMarshal.AsSpan(_ldrPixels[4])),
+                    new UnmanagedArray<byte>(CollectionsMarshal.AsSpan(_ldrPixels[5])),
+                ]);
+            }
         }
+
+        return ptr;
     }
 
-    public override Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
+    public unsafe override nint GetCreateProxyFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<GCHandle>)&CreateProxy;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static GCHandle CreateProxy() => GCHandle.Alloc(new TextureProxy(), GCHandleType.Normal);
+    public unsafe override nint GetPropertiesDestoryFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, void>)&DestoryProperties;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static void DestoryProperties(IntPtr ptr)
     {
-        var isHdrTexture = IsHdrTexture;
-        var width = Width;
-        var height = Height;
-        var channel = Channel;
-        var filter = Filter;
-        List<float>[] hdrPixels = 
-        [
-            _hdrPixels[0].ToList(),
-            _hdrPixels[1].ToList(),
-            _hdrPixels[2].ToList(),
-            _hdrPixels[3].ToList(),
-            _hdrPixels[4].ToList(),
-            _hdrPixels[5].ToList(),
-        ];
-        List<byte>[] ldrPixels =
-        [
-            _ldrPixels[0].ToList(),
-            _ldrPixels[1].ToList(),
-            _ldrPixels[2].ToList(),
-            _ldrPixels[3].ToList(),
-            _ldrPixels[4].ToList(),
-            _ldrPixels[5].ToList(),
-        ];
-
-        return renderer =>
-        {
-            return new TextureCubeProxy
-            {
-                Width = width,
-                Height = height,
-                Channel = channel,
-                Filter = filter,
-                IsHdrTexture = isHdrTexture,
-                HDRPixels = hdrPixels,
-                LDRPixels = ldrPixels,
-            };
-        };
+        ref var properties = ref UnsafeHelper.AsRef<TextureProxyProperties>(ptr);
+        properties.HDRPixels.Dispose();
+        properties.LDRPixels.Dispose();
+        Marshal.FreeHGlobal(ptr);
     }
 
-
+    protected override void ReleaseAssetMemory()
+    {
+        base.ReleaseAssetMemory();
+        _hdrPixels = [[], [], [], [], [], []];
+        _ldrPixels = [[], [], [], [], [], []];
+    }
 }
 
 
@@ -187,16 +145,22 @@ public class TextureCubeProxy : AssetRenderProxy
     public uint Width { get; set; }
     public uint Height { get; set; }
     public TexChannel Channel { get; set; }
-    public TexFilter Filter { get; set; } = TexFilter.Liner;
+    public TexFilter Filter { get; set; }
     public bool IsHdrTexture { get; set; }
 
-    public List<float>[] HDRPixels = [[], [], [], [], [], []];
-
-    public List<byte>[] LDRPixels = [[], [], [], [], [], []];
     
-    public unsafe override void RebuildGpuResource(GL gl)
+    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
     {
-        DestoryGpuResource(gl);
+        base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
+        var gl = renderer.gl;
+        ref var properties = ref UnsafeHelper.AsRef<TextureCubeProxyProperties>(propertiesPtr);
+        Width = properties.Width;
+        Height = properties.Height;
+        Channel = properties.Channel;
+        Filter = properties.Filter;
+        IsHdrTexture = properties.IsHdrTexture;
+
+
         TextureId = gl.GenTexture();
         gl.BindTexture(GLEnum.TextureCubeMap, TextureId);
 
@@ -204,18 +168,11 @@ public class TextureCubeProxy : AssetRenderProxy
         {
             if (IsHdrTexture == true)
             {
-                fixed (void* data = CollectionsMarshal.AsSpan(HDRPixels[i]))
-                {
-                    gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlHdrEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, data);
-                }
-
+                gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlHdrEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, properties.HDRPixels[i].Ptr);
             }
             else 
             {
-                fixed (void* data = CollectionsMarshal.AsSpan(LDRPixels[i]))
-                {
-                    gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, data);
-                }
+                gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, properties.LDRPixels[i].Ptr);
             }
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
@@ -225,11 +182,25 @@ public class TextureCubeProxy : AssetRenderProxy
         }
     }
 
-    public override void DestoryGpuResource(GL gl)
+    public override void DestoryGpuResource(BaseRenderer renderer)
     {
+        base.DestoryGpuResource(renderer);
+        var gl = renderer.gl;
         if (TextureId != 0)
         {
             gl.DeleteTexture(TextureId);
         }
     }
+}
+
+public struct TextureCubeProxyProperties
+{
+    public AssetProperties Base;
+    public uint Width;
+    public uint Height;
+    public TexChannel Channel;
+    public TexFilter Filter;
+    public bool IsHdrTexture;
+    public UnmanagedArray<UnmanagedArray<float>> HDRPixels;
+    public UnmanagedArray<UnmanagedArray<byte>> LDRPixels;
 }

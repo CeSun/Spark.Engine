@@ -2,82 +2,93 @@
 using Silk.NET.OpenGLES;
 using System.Runtime.InteropServices;
 using Spark.Core.Render;
+using Spark.Util;
+using System.Runtime.CompilerServices;
 
 
 namespace Spark.Core.Assets;
 
-public partial class SkeletalMesh : AssetBase
+public partial class SkeletalMesh(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoad)
 {
     public IReadOnlyList<Element<SkeletalMeshVertex>> _elements = [];
     public IReadOnlyList<Element<SkeletalMeshVertex>> Elements 
     {
         get => _elements;
-        set
-        {
-            _elements = value;
-            var list = _elements.ToList();
-            RunOnRenderer(renderer =>
-            {
-                var staticMeshProxy = renderer.GetProxy<SkeletalMeshProxy>(this);
-                if (staticMeshProxy != null)
-                {
-                    staticMeshProxy.Elements = list;
-                    RequestRendererRebuildGpuResource();
-                }
-            });
-
-        }
+        set => ChangeProperty(ref _elements, value);
     }
     public Skeleton? Skeleton { get; set; }
 
-    public override void PostProxyToRenderer(BaseRenderer renderer)
+    protected unsafe override int assetPropertiesSize => sizeof(SkeletalMeshProxyProperties);
+    public override nint CreateProperties()
     {
-        foreach (var element in _elements)
+        var ptr = base.CreateProperties();
+        ref var properties = ref UnsafeHelper.AsRef<SkeletalMeshProxyProperties>(ptr);
+        properties.Elements.Resize(Elements.Count);
+        for (int i = 0; i < Elements.Count; i++)
         {
-            if (element.Material == null)
-                continue;
-            element.Material.PostProxyToRenderer(renderer);
+            properties.Elements[i] = new ElementProxyProperties<SkeletalMeshVertex>
+            {
+                Vertices = new(Elements[i].Vertices),
+                Indices = new(Elements[i].Indices),
+                Material = Elements[i].Material == null ? default : Elements[i].Material!.WeakGCHandle
+            };
         }
-        base.PostProxyToRenderer(renderer);
+        return ptr;
     }
-    public override Func<BaseRenderer, AssetRenderProxy>? GetGenerateProxyDelegate()
-    {
-        var elements = Elements.ToList();
 
-        return renderer => new SkeletalMeshProxy
+    public unsafe override nint GetCreateProxyFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<GCHandle>)&CreateProxy;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static GCHandle CreateProxy() => GCHandle.Alloc(new SkeletalMeshProxy(), GCHandleType.Normal);
+    public unsafe override nint GetPropertiesDestoryFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, void>)&DestoryProperties;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static void DestoryProperties(IntPtr ptr)
+    {
+        ref var properties = ref UnsafeHelper.AsRef<SkeletalMeshProxyProperties>(ptr);
+        for (int i = 0; i < properties.Elements.Count; i++)
         {
-            Elements = elements
-        };
+            properties.Elements[i].Vertices.Dispose();
+            properties.Elements[i].Indices.Dispose();
+        }
+        properties.Elements.Dispose();
+        Marshal.FreeHGlobal(ptr);
+    }
+    protected override void ReleaseAssetMemory()
+    {
+        base.ReleaseAssetMemory();
+        _elements = [];
     }
 }
 
 public class SkeletalMeshProxy : AssetRenderProxy
 {
-    public List<Element<SkeletalMeshVertex>> Elements = [];
-
     public List<uint> VertexArrayObjectIndexes = [];
+
     public List<uint> VertexBufferObjectIndexes = [];
+
     public List<uint> ElementBufferObjectIndexes = [];
 
-    public unsafe override void RebuildGpuResource(GL gl)
+    public List<int> IndicesLengths = [];
+
+    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
     {
-        DestoryGpuResource(gl);
-        for (var index = 0; index < Elements.Count; index++)
+        base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
+        var gl = renderer.gl;
+        ref var properties = ref UnsafeHelper.AsRef<StaticMeshProxyProperties>(propertiesPtr);
+
+        for (var index = 0; index < properties.Elements.Count; index++)
         {
             uint vao = gl.GenVertexArray();
             uint vbo = gl.GenBuffer();
             uint ebo = gl.GenBuffer();
             gl.BindVertexArray(vao);
+            
             gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
-            fixed (SkeletalMeshVertex* p = CollectionsMarshal.AsSpan(Elements[index].Vertices))
-            {
-                gl.BufferData(GLEnum.ArrayBuffer, (nuint)(Elements[index].Vertices.Count * sizeof(SkeletalMeshVertex)), p, GLEnum.StaticDraw);
-            }
+            gl.BufferData(GLEnum.ArrayBuffer, (nuint)(properties.Elements[index].Vertices.Count * sizeof(SkeletalMeshVertex)), properties.Elements[index].Vertices.Ptr, GLEnum.StaticDraw);
+            
             gl.BindBuffer(GLEnum.ElementArrayBuffer, ebo);
-            fixed (uint* p = CollectionsMarshal.AsSpan(Elements[index].Indices))
-            {
-                gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(Elements[index].Indices.Count * sizeof(uint)), p, GLEnum.StaticDraw);
-            }
+            gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(properties.Elements[index].Indices.Count * sizeof(uint)), properties.Elements[index].Indices.Ptr, GLEnum.StaticDraw);
 
             // Location
             gl.EnableVertexAttribArray(0);
@@ -107,6 +118,7 @@ public class SkeletalMeshProxy : AssetRenderProxy
             gl.EnableVertexAttribArray(7);
             gl.VertexAttribPointer(7, 4, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(5 * sizeof(Vector3) + sizeof(Vector2) + sizeof(Vector4)));
             gl.BindVertexArray(0);
+            IndicesLengths.Add(properties.Elements[index].Indices.Length);
             VertexArrayObjectIndexes.Add(vao);
             VertexBufferObjectIndexes.Add(vbo);
             ElementBufferObjectIndexes.Add(ebo);
@@ -114,8 +126,11 @@ public class SkeletalMeshProxy : AssetRenderProxy
     }
 
 
-    public override void DestoryGpuResource(GL gl)
+
+    public override void DestoryGpuResource(BaseRenderer renderer)
     {
+        base.DestoryGpuResource(renderer);
+        var gl = renderer.gl;
         VertexArrayObjectIndexes.ForEach(gl.DeleteVertexArray);
         VertexArrayObjectIndexes.Clear();
         VertexBufferObjectIndexes.ForEach(gl.DeleteBuffer);
@@ -150,4 +165,10 @@ public struct SkeletalMeshVertex : IVertex
     public Vector4 BoneIds;
 
     public Vector4 BoneWeights;
+}
+
+public struct SkeletalMeshProxyProperties
+{
+    public AssetProperties Base;
+    public UnmanagedArray<ElementProxyProperties<SkeletalMeshVertex>> Elements;
 }
