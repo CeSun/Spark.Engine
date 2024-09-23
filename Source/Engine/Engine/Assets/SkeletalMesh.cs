@@ -59,7 +59,6 @@ public partial class SkeletalMesh(bool allowMuiltUpLoad = false) : AssetBase(all
             properties.Elements[i].Indices.Dispose();
         }
         properties.Elements.Dispose();
-        Marshal.FreeHGlobal(ptr);
     }
     protected override void ReleaseAssetMemory()
     {

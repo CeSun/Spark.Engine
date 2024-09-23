@@ -33,18 +33,14 @@ public abstract class BaseRenderer
             if (AddRenderPropertiesDictionary.TryGetValue(properties.AssetWeakGCHandle, out var oldPtr))
             {
                 ref var oldProperties = ref UnsafeHelper.AsRef<AssetProperties>(oldPtr);
-                if (oldProperties.DestoryPointer == IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(oldPtr);
-                }
-                else
+                if (oldProperties.DestoryPointer != IntPtr.Zero)
                 {
                     unsafe
                     {
-                        delegate* unmanaged[Cdecl]<IntPtr, void> P = (delegate* unmanaged[Cdecl]<nint, void>)oldProperties.DestoryPointer;
-                        P(oldPtr);
+                        ((delegate* unmanaged[Cdecl]<nint, void>)oldProperties.DestoryPointer)(oldPtr);
                     }
                 }
+                Marshal.FreeHGlobal(oldPtr);
             }
             AddRenderPropertiesDictionary[properties.AssetWeakGCHandle] = ptr;
         }

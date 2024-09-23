@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using Spark.Core.Render;
 using System.Drawing;
 using System.Runtime.CompilerServices;
+using Silk.NET.OpenGLES;
 
 namespace Spark.Core.Components;
 
@@ -147,6 +148,9 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
     public Matrix4x4 View;
     public Matrix4x4 Projection;
     public Matrix4x4 ViewProjection;
+
+    public List<RenderTargetProxy> RenderTargets = [];
+
     public Plane[] Planes = new Plane[6];
     public int CompareTo(CameraComponentProxy? other)
     {
@@ -215,6 +219,16 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
             ViewProjection = View * Projection;
             UpdatePlanes();
         }
+    }
+
+    public override void DestoryGpuResource(BaseRenderer renderer)
+    {
+        base.DestoryGpuResource(renderer);
+        foreach(var proxy in RenderTargets)
+        {
+            proxy.DestoryGpuResource(renderer);
+        }
+        RenderTargets.Clear();
     }
 }
 public struct CameraComponentProperties

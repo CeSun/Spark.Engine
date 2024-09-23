@@ -61,7 +61,6 @@ public class StaticMesh(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpL
             properties.Elements[i].Indices.Dispose();
         }
         properties.Elements.Dispose();
-        Marshal.FreeHGlobal(ptr);
     }
 
 

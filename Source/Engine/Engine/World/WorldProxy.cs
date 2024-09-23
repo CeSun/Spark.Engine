@@ -33,7 +33,7 @@ public class WorldProxy
                 if (_primitiveComponentProxyDictionary.TryGetValue(componentProperties.ComponentWeakGChandle, out var proxy) == true)
                 {
                     _primitiveComponentProxyDictionary.Remove(componentProperties.ComponentWeakGChandle);
-                    proxy.DestoryGpuResource(renderer.gl);
+                    proxy.DestoryGpuResource(renderer);
                     if (proxy is CameraComponentProxy cameraComponentProxy)
                     {
                         cameraComponentProxies.Remove(cameraComponentProxy);
@@ -74,7 +74,7 @@ public class WorldProxy
                     if (proxy != null)
                     {
                         proxy.UpdateProperties(ptr, renderer);
-                        proxy.RebuildGpuResource(renderer.gl);
+                        proxy.RebuildGpuResource(renderer);
                     }
                 }
             }
@@ -96,7 +96,7 @@ public class WorldProxy
         AddRenderPropertiesList.Clear();
         foreach(var (_, proxy) in _primitiveComponentProxyDictionary)
         {
-            proxy.DestoryGpuResource(renderer.gl);
+            proxy.DestoryGpuResource(renderer);
         }
         _primitiveComponentProxyDictionary.Clear();
         cameraComponentProxies.Clear();

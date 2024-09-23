@@ -103,7 +103,6 @@ public class Texture(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoad
         ref var properties = ref UnsafeHelper.AsRef<TextureProxyProperties>(ptr);
         properties.HDRPixels.Dispose();
         properties.LDRPixels.Dispose();
-        Marshal.FreeHGlobal(ptr);
     }
     protected override void ReleaseAssetMemory()
     {

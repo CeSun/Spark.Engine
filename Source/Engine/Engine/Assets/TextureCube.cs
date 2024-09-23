@@ -114,7 +114,6 @@ public class TextureCube(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUp
             properties.LDRPixels[i].Dispose();
         }
         properties.LDRPixels.Dispose();
-        Marshal.FreeHGlobal(ptr);
     }
 
     protected override void ReleaseAssetMemory()

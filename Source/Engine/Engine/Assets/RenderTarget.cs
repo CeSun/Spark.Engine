@@ -66,7 +66,6 @@ public class RenderTarget() : AssetBase(true)
     {
         ref var properties = ref UnsafeHelper.AsRef<RenderTargetProxyProperties>(ptr);
         properties.Configs.Dispose();
-        Marshal.FreeHGlobal(ptr);
     }
 
 }
@@ -103,12 +102,9 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
             AttachmentTextureIds.Clear();
         }
     }
-
-    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
+    public unsafe void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, in RenderTargetProxyProperties properties)
     {
-        base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
         var gl = renderer.gl;
-        ref var properties = ref UnsafeHelper.AsRef<RenderTargetProxyProperties>(propertiesPtr);
         Width = properties.Width;
         Height = properties.Height;
         IsDefaultRenderTarget = properties.IsDefaultRenderTarget;
@@ -121,7 +117,7 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
         gl.BindFramebuffer(GLEnum.Framebuffer, FrameBufferId);
         for (int i = 0; i < properties.Configs.Count; i++)
         {
-            GenFrameBuffer(gl,properties.Configs[i], i);
+            GenFrameBuffer(gl, properties.Configs[i], i);
         }
         var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
         if (state != GLEnum.FramebufferComplete)
@@ -129,6 +125,12 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
             Console.WriteLine("fbo 出错！" + state);
         }
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
+    }
+    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
+    {
+        base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
+        ref var properties = ref UnsafeHelper.AsRef<RenderTargetProxyProperties>(propertiesPtr);
+        UpdatePropertiesAndRebuildGPUResource(renderer, properties);
     }
 
     protected virtual unsafe void GenFrameBuffer(GL gl, in FrameBufferConfig config, int index)
