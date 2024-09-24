@@ -121,7 +121,7 @@ public class Material(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoa
 
 public class MaterialProxy : AssetRenderProxy
 {
-
+    
     public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
@@ -145,6 +145,7 @@ public class MaterialProxy : AssetRenderProxy
     public BlendMode BlendMode { get; set; } = BlendMode.Opaque;
 
     public Dictionary<string, TextureProxy> Textures = new Dictionary<string, TextureProxy>();
+    public ShaderTemplate? ShaderTemplate { get; private set; }
 }
 
 
