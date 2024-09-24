@@ -1,69 +1,14 @@
 ﻿using System.Numerics;
 using Silk.NET.OpenGLES;
+using Spark.Core.Assets;
 
 namespace Spark.Core.Render;
 
 public class Shader
 {
     public uint ProgramId;
-    public string VertShaderSource;
-    public string FragShaderSource;
-    public GL gl;
-    List<string> Macros;
 
-    public string? Path;
-    
-    public Shader (string vertShaderSource, string fragShaderSource, List<string> Macros, GL GL)
-    {
-        this.VertShaderSource = vertShaderSource;
-        this.FragShaderSource = fragShaderSource;
-        this.Macros = Macros;
-        this.gl = GL;
-        InitRender();
-    }
-
-    public void InitRender()
-    {
-        VertShaderSource = AddMacros(VertShaderSource, Macros);
-        FragShaderSource = AddMacros(FragShaderSource, Macros);
-        var vert = gl.CreateShader(GLEnum.VertexShader);
-        gl.ShaderSource(vert, VertShaderSource);
-        gl.CompileShader(vert);
-        gl.GetShader(vert, GLEnum.CompileStatus, out int code);
-        if (code == 0)
-        {
-            var info = gl.GetShaderInfoLog(vert);
-            Console.WriteLine(VertShaderSource);
-            throw new Exception(info);
-        }
-        var frag = gl.CreateShader(GLEnum.FragmentShader);
-        gl.ShaderSource(frag, FragShaderSource);
-        gl.CompileShader(frag);
-        gl.GetShader(frag, GLEnum.CompileStatus, out code);
-        if (code == 0)
-        {
-            gl.DeleteShader(vert);
-            var info = gl.GetShaderInfoLog(frag);
-            Console.WriteLine(FragShaderSource);
-            throw new Exception(info);
-        }
-     
-        ProgramId = gl.CreateProgram();
-        gl.AttachShader(ProgramId, vert);
-        gl.AttachShader(ProgramId, frag);
-        gl.LinkProgram(ProgramId);
-        gl.GetProgram(ProgramId, GLEnum.LinkStatus, out code);
-        if (code == 0)
-        {
-            gl.DeleteShader(vert);
-            gl.DeleteShader(frag);
-
-            var info = gl.GetProgramInfoLog(ProgramId);
-            throw new Exception(info);
-        }
-        gl.DeleteShader(vert);
-        gl.DeleteShader(frag);
-    }
+    public required GL gl;
   
     public void SetInt(string name, int value)
     {
@@ -78,7 +23,6 @@ public class Shader
             Console.WriteLine("Not Found Location: " + name);
             Console.WriteLine(stackInfo);
         }
-
 #else
         if (location < 0)
         {
@@ -192,23 +136,51 @@ public class Shader
             return;
         gl.UseProgram(0);
     }
+}
 
-    public string AddMacros(string source, List<string> Macros)
+
+public static class ShaderHelper
+{
+    public static Shader CreateShader(this GL gl, string VertShaderSource, string FragShaderSource)
     {
-        var lines = source.Split("\n").ToList();
-        int i = 0;
-        for (; i < lines.Count; i++)
+        var vert = gl.CreateShader(GLEnum.VertexShader);
+        gl.ShaderSource(vert, VertShaderSource);
+        gl.CompileShader(vert);
+        gl.GetShader(vert, GLEnum.CompileStatus, out int code);
+        if (code == 0)
         {
-            if (lines[i].Trim().IndexOf("#version") != 0)
-                continue;
-            break;
+            var info = gl.GetShaderInfoLog(vert);
+            Console.WriteLine(VertShaderSource);
+            throw new Exception(info);
         }
-        foreach (var macros in Macros)
+        var frag = gl.CreateShader(GLEnum.FragmentShader);
+        gl.ShaderSource(frag, FragShaderSource);
+        gl.CompileShader(frag);
+        gl.GetShader(frag, GLEnum.CompileStatus, out code);
+        if (code == 0)
         {
-            lines.Insert(i + 1, "#define " + macros);
+            gl.DeleteShader(vert);
+            var info = gl.GetShaderInfoLog(frag);
+            Console.WriteLine(FragShaderSource);
+            throw new Exception(info);
         }
-        return string.Join("\n", lines);
+
+        var ProgramId = gl.CreateProgram();
+        gl.AttachShader(ProgramId, vert);
+        gl.AttachShader(ProgramId, frag);
+        gl.LinkProgram(ProgramId);
+        gl.GetProgram(ProgramId, GLEnum.LinkStatus, out code);
+        if (code == 0)
+        {
+            gl.DeleteShader(vert);
+            gl.DeleteShader(frag);
+
+            var info = gl.GetProgramInfoLog(ProgramId);
+            throw new Exception(info);
+        }
+        gl.DeleteShader(vert);
+        gl.DeleteShader(frag);
+
+        return new Shader() { ProgramId = ProgramId, gl = gl };
     }
-
-
 }

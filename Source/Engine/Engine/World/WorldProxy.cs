@@ -1,9 +1,7 @@
-﻿using Silk.NET.OpenGLES;
-using Spark.Core.Actors;
+﻿using Spark.Core.Actors;
 using Spark.Core.Components;
 using Spark.Core.Render;
 using Spark.Util;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Spark.Core;
@@ -42,13 +40,23 @@ public class WorldProxy
                 {
                     _primitiveComponentProxyDictionary.Remove(componentProperties.ComponentWeakGChandle);
                     proxy.DestoryGpuResource(renderer);
-                    if (proxy is CameraComponentProxy cameraComponentProxy)
+                    switch (proxy)
                     {
-                        cameraComponentProxies.Remove(cameraComponentProxy);
-                    }
-                    else if (proxy is StaticMeshComponentProxy staticMeshComponentProxy)
-                    {
-                        staticMeshComponentProxies.Remove(staticMeshComponentProxy);
+                        case CameraComponentProxy cameraComponentProxy:
+                            cameraComponentProxies.Remove(cameraComponentProxy);
+                            isAddCameraComponent = true;
+                            break;
+                        case StaticMeshComponentProxy staticMeshComponentProxy:
+                            staticMeshComponentProxies.Remove(staticMeshComponentProxy);
+                            break;
+                        case DirectionalLightComponentProxy directionalLightComponentProxy:
+                            directionalLightComponentProxies.Remove(directionalLightComponentProxy);
+                            break;
+                        case PointLightComponentProxy pointLightComponentProxy:
+                            pointLightComponentProxies.Remove(pointLightComponentProxy);
+                            break;
+                        default:
+                            break;
                     }
                 }
             }
@@ -67,14 +75,23 @@ public class WorldProxy
                             if (proxy != null)
                             {
                                 _primitiveComponentProxyDictionary.Add(componentProperties.ComponentWeakGChandle, proxy);
-                                if (proxy is  CameraComponentProxy cameraComponentProxy)
+                                switch (proxy)
                                 {
-                                    cameraComponentProxies.Add(cameraComponentProxy);
-                                    isAddCameraComponent = true;
-                                }
-                                else if (proxy is StaticMeshComponentProxy staticMeshComponentProxy)
-                                {
-                                    staticMeshComponentProxies.Add(staticMeshComponentProxy);
+                                    case CameraComponentProxy cameraComponentProxy:
+                                        cameraComponentProxies.Add(cameraComponentProxy);
+                                        isAddCameraComponent = true;
+                                        break;
+                                    case StaticMeshComponentProxy staticMeshComponentProxy:
+                                        staticMeshComponentProxies.Add(staticMeshComponentProxy);
+                                        break;
+                                    case DirectionalLightComponentProxy directionalLightComponentProxy:
+                                        directionalLightComponentProxies.Add(directionalLightComponentProxy);
+                                        break;
+                                    case PointLightComponentProxy pointLightComponentProxy:
+                                        pointLightComponentProxies.Add(pointLightComponentProxy);
+                                        break;
+                                    default:
+                                        break;
                                 }
                             }
                         }

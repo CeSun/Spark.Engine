@@ -18,6 +18,7 @@ public class DeferredRenderer : BaseRenderer
     Pass SpotLightShadingPass = new SpotLightShadingPass();
     public DeferredRenderer(GL GraphicsApi) : base(GraphicsApi)
     {
+
     }
 
     public override void RendererWorld(WorldProxy world)
