@@ -1,12 +1,8 @@
 ﻿{
   "name": "BasePassShader",
-  "micro": [
-    "STATICMESH",
-    "SKELETALMESH",
-    "DEPTHONLY",
-    "MASKED",
-    ""
-  ],
+  "include": [
+    "common.glsl"
+  ]
   "vertex": "vs.glsl",
   "fragment": "fs.glsl"
 }

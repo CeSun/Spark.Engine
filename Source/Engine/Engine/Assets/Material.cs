@@ -1,6 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Render;
 using Spark.Util;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spark.Core.Assets;
@@ -14,29 +15,106 @@ public class Material(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoa
         set => ChangeProperty(ref _blendMode, value);
     }
 
-    protected override unsafe int assetPropertiesSize => sizeof(MaterialProxyProperties);
-    public Texture?[] Textures = new Texture?[10];
-    public Texture? BaseColor { get => Textures[0]; set => Textures[0] = value; }
-    public Texture? Normal { get => Textures[1]; set => Textures[1] = value; }
-    public Texture? MetallicRoughness { get => Textures[2]; set => Textures[2] = value; }
-    public Texture? AmbientOcclusion { get => Textures[3]; set => Textures[3] = value; }
-    public Texture? Parallax { get => Textures[4]; set => Textures[4] = value; }
+    private string _shaderPath = string.Empty;
+    public string ShaderPath
+    {
+        get => _shaderPath;
+        set => ChangeProperty(ref _shaderPath, value);
+    }
 
-    public string PreShaderSnippet { get; set; } = "";
-    public string GetBaseColorShaderSnippet { get; set; } = "";
-    public string GetNormalShaderSnippet { get; set; } = "";
-    public string GetMetallicShaderSnippet { get; set; } = "";
-    public string GetRoughnessShaderSnippet { get; set; } = "";
-    public string GetAmbientOcclusionShaderSnippet { get; set; } = "";
-    public string GetOpaqueMaskShaderSnippet { get; set; } = "";
+    Dictionary<string, Texture> _textures { get; set; } = new Dictionary<string, Texture>();
+
+    public IReadOnlyDictionary<string, Texture> Textures => _textures;
+
+    public void AddTexture(string name, Texture texture)
+    {
+        if (IsUploaded == true && AllowMuiltUpLoad == false)
+            throw new Exception();
+        _textures.Add(name, texture);
+        if (IsUploaded == true)
+        {
+            foreach (var renderer in Renderers)
+            {
+                PostProxyToRenderer(renderer);
+            }
+        }
+    }
+
+    public void ClearTextures()
+    {
+        if (IsUploaded == true && AllowMuiltUpLoad == false)
+            throw new Exception();
+        _textures.Clear(); 
+        if (IsUploaded == true)
+        {
+            foreach (var renderer in Renderers)
+            {
+                PostProxyToRenderer(renderer);
+            }
+        }
+    }
+
+    public void SetTexture(string name, Texture texture)
+    {
+        if (IsUploaded == true && AllowMuiltUpLoad == false)
+            throw new Exception();
+        _textures[name] = texture;
+        if (IsUploaded == true)
+        {
+            foreach (var renderer in Renderers)
+            {
+                PostProxyToRenderer(renderer);
+            }
+        }
+
+    }
+
+    protected override unsafe int assetPropertiesSize => sizeof(MaterialProxyProperties);
 
     public override void PostProxyToRenderer(BaseRenderer renderer)
     {
-        foreach(var texture in Textures)
+        foreach(var (name, texture) in _textures)
         {
-            texture?.PostProxyToRenderer(renderer);
+            texture.PostProxyToRenderer(renderer);
         }
         base.PostProxyToRenderer(renderer);
+    }
+
+    public override nint CreateProperties()
+    {
+        var ptr = base.CreateProperties();
+        ref var properties = ref UnsafeHelper.AsRef<MaterialProxyProperties>(ptr);
+        properties.BlendMode = BlendMode;
+        Span<GCHandle> names = stackalloc GCHandle[this._textures.Count];
+        Span<GCHandle> textures = stackalloc GCHandle[_textures.Count];
+        int i = 0;
+        foreach (var (name, texture) in this._textures)
+        {
+            names[i] = GCHandle.Alloc(name, GCHandleType.Normal);
+            textures[i] = texture.WeakGCHandle;
+        }
+        properties.TextureNames = new UnmanagedArray<GCHandle>(names);
+        properties.Textures = new UnmanagedArray<GCHandle>(textures);
+        properties.ShaderName = GCHandle.Alloc(ShaderPath, GCHandleType.Normal);
+        return ptr;
+    }
+    public unsafe override nint GetCreateProxyFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<GCHandle>)&CreateProxy;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static GCHandle CreateProxy() => GCHandle.Alloc(new MaterialProxy(), GCHandleType.Normal);
+    public unsafe override nint GetPropertiesDestoryFunctionPointer() => (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, void>)&DestoryProperties;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    static void DestoryProperties(IntPtr ptr)
+    {
+        ref var properties = ref UnsafeHelper.AsRef<MaterialProxyProperties>(ptr);
+        for(int i = 0; i < properties.TextureNames.Count; i++)
+        {
+            properties.TextureNames[i].Free();
+        }
+        properties.TextureNames.Dispose();
+        properties.Textures.Dispose();
+        properties.ShaderName.Free();
     }
 
 }
@@ -49,12 +127,14 @@ public class MaterialProxy : AssetRenderProxy
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
         ref var properties = ref UnsafeHelper.AsRef<MaterialProxyProperties>(propertiesPtr);
         BlendMode = properties.BlendMode;
-        for (int i = 0; i < properties.Textures.Count; i++)
+        for (int i = 0; i < properties.Textures.Length; i++)
         {
-            if (properties.Textures[i] == default)
-                Textures[i] = default;
-            Textures[i] = renderer.GetProxy<TextureProxy>(properties.Textures[i]);
-
+            if (properties.TextureNames[i].Target is not string name)
+                continue;
+            var proxy = renderer.GetProxy<TextureProxy>(properties.Textures[i]);
+            if (proxy == null)
+                continue;
+            Textures.Add(name, proxy);
         }
     }
 
@@ -64,7 +144,7 @@ public class MaterialProxy : AssetRenderProxy
     }
     public BlendMode BlendMode { get; set; } = BlendMode.Opaque;
 
-    public TextureProxy?[] Textures = new TextureProxy?[10];
+    public Dictionary<string, TextureProxy> Textures = new Dictionary<string, TextureProxy>();
 }
 
 
@@ -81,12 +161,6 @@ public struct MaterialProxyProperties
     public AssetProperties Base;
     public BlendMode BlendMode;
     public UnmanagedArray<GCHandle> Textures;
-    public UnmanagedArray<char> PreShaderSnippet;
-    public UnmanagedArray<char> GetBaseColorShaderSnippet;
-    public UnmanagedArray<char> GetNormalShaderSnippet;
-    public UnmanagedArray<char> GetMetallicShaderSnippet;
-    public UnmanagedArray<char> GetRoughnessShaderSnippet;
-    public UnmanagedArray<char> GetAmbientOcclusionShaderSnippet;
-    public UnmanagedArray<char> GetOpaqueMaskShaderSnippet;
-
+    public UnmanagedArray<GCHandle> TextureNames;
+    public GCHandle ShaderName;
 }
