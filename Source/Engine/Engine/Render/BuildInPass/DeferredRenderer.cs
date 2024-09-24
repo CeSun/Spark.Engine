@@ -6,14 +6,42 @@ namespace Spark.Core.Render;
 
 public class DeferredRenderer : BaseRenderer
 {
+    Pass DirectionLightShadowMapPass = new DirectionLightShadowMapPass();
+    Pass PointLightShadowMapPass = new PointLightShadowMapPass();
+    Pass SpotLightShadowMapPass = new SpotLightShadowMapPass();
+
+    Pass PrezPass = new PrezPass();
+    Pass BasePass = new BasePass();
+
+    Pass DirectionLightShadingPass = new DirectionLightShadingPass();
+    Pass PointLightShadingPass = new PointLightShadingPass();
+    Pass SpotLightShadingPass = new SpotLightShadingPass();
     public DeferredRenderer(GL GraphicsApi) : base(GraphicsApi)
     {
     }
 
-    public override void RendererWorld(CameraComponentProxy camera)
+    public override void RendererWorld(WorldProxy world)
     {
-        CheckGbufffer(camera);
-
+        foreach(var directionLight in world.DirectionalLightComponentProxies)
+        {
+            DirectionLightShadowMapPass.Render(this, world, directionLight);
+        }
+        foreach (var pointLight in world.PointLightComponentProxies)
+        {
+            PointLightShadowMapPass.Render(this, world, pointLight);
+        }
+        foreach (var spotLight in world.SpotLightComponentProxies)
+        {
+            SpotLightShadowMapPass.Render(this, world, spotLight);
+        }
+        foreach(var camera in world.CameraComponentProxies)
+        {
+            PrezPass.Render(this, world, camera);
+            BasePass.Render(this, world, camera);
+            DirectionLightShadingPass.Render(this, world, camera);
+            PointLightShadingPass.Render(this, world, camera);
+            SpotLightShadingPass.Render(this, world, camera);
+        }
     }
 
     private void CheckGbufffer(CameraComponentProxy camera)
@@ -46,10 +74,6 @@ public class DeferredRenderer : BaseRenderer
         }
     }
 
-    public void BasePass(CameraComponentProxy camera)
-    {
-
-    }
 
 
 }

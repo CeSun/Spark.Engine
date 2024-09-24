@@ -244,3 +244,12 @@ public struct CameraComponentProperties
     public GCHandle SkyboxTexture;
     public Vector4 ClearColor;
 }
+
+
+public interface ICameraProxy 
+{
+    public RenderTargetProxy? RenderTarget { get; }
+    public Matrix4x4 View { get; }
+    public Matrix4x4 Projection { get; }
+    public Matrix4x4 ViewProjection { get; }
+}

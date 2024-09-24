@@ -18,8 +18,16 @@ public class WorldProxy
     public IReadOnlyList<CameraComponentProxy> CameraComponentProxies => cameraComponentProxies;
 
     private List<StaticMeshComponentProxy> staticMeshComponentProxies = new List<StaticMeshComponentProxy>();
-
     public List<StaticMeshComponentProxy> StaticMeshComponentProxies => staticMeshComponentProxies;
+
+    private List<DirectionalLightComponentProxy> directionalLightComponentProxies = new List<DirectionalLightComponentProxy>();
+    public IReadOnlyList<DirectionalLightComponentProxy> DirectionalLightComponentProxies => directionalLightComponentProxies;
+
+    private List<PointLightComponentProxy> pointLightComponentProxies = new List<PointLightComponentProxy>();
+    public IReadOnlyList<PointLightComponentProxy> PointLightComponentProxies => pointLightComponentProxies;
+
+    private List<SpotLightComponentProxy> spotLightComponentProxies = new List<SpotLightComponentProxy>();
+    public IReadOnlyList<SpotLightComponentProxy> SpotLightComponentProxies => spotLightComponentProxies;
 
     public void UpdateComponentProxies(BaseRenderer renderer)
     {

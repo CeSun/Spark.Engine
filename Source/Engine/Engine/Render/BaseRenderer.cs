@@ -21,7 +21,7 @@ public abstract class BaseRenderer
 
     private List<Action<BaseRenderer>> SwapActions = [];
 
-    protected List<BasePass> RenderPass = new List<BasePass>();
+    protected List<Pass> RenderPass = new List<Pass>();
     public BaseRenderer(GL GraphicsApi)
     {
         gl = GraphicsApi;
@@ -55,30 +55,11 @@ public abstract class BaseRenderer
         foreach(var world in RenderWorlds)
         {
             world.UpdateComponentProxies(this);
-            foreach(var camera in world.CameraComponentProxies)
-            {
-                if (camera.RenderTarget == null)
-                    return;
-                using (camera.RenderTarget)
-                {
-                    ClearBufferMask mask = ClearBufferMask.None;
-                    if ((camera.ClearFlag & CameraClearFlag.Depth) != 0)
-                    {
-                        mask |= ClearBufferMask.DepthBufferBit;
-                    }
-                    if ((camera.ClearFlag & CameraClearFlag.Color) != 0)
-                    {
-                        mask |= ClearBufferMask.ColorBufferBit;
-                        gl.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
-                    }
-                    gl.Clear(mask);
-                }
-                RendererWorld(camera);
-            }
+            RendererWorld(world);
         }
     }
 
-    public abstract void RendererWorld(CameraComponentProxy camera);
+    public abstract void RendererWorld(WorldProxy camera);
 
     public void PreRender()
     {

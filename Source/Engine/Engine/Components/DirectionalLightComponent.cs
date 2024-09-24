@@ -7,9 +7,9 @@ using System.Runtime.InteropServices;
 
 namespace Spark.Core.Components;
 
-public class DirectionLightComponent : LightComponent
+public class DirectionalLightComponent : LightComponent
 {
-    public DirectionLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
+    public DirectionalLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
     }
 
@@ -23,18 +23,18 @@ public class DirectionLightComponent : LightComponent
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static GCHandle CreateProxyObject()
     {
-        var obj = new DirectionLightComponentProxy();
+        var obj = new DirectionalLightComponentProxy();
         return GCHandle.Alloc(obj, GCHandleType.Normal);
     }
 }
 
 
-public class DirectionLightComponentProxy : LightComponentProxy
+public class DirectionalLightComponentProxy : LightComponentProxy
 {
    
 }
 
-public struct DirectionLightComponentProperties
+public struct DirectionalLightComponentProperties
 {
     public LightComponentProperties LightBaseProperties;
 }
