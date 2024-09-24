@@ -1,4 +1,5 @@
 ﻿using Spark.Core.Actors;
+using Spark.Core.Assets;
 using Spark.Core.Render;
 using Spark.Util;
 using System.Numerics;
@@ -31,7 +32,7 @@ public class DirectionalLightComponent : LightComponent
 
 public class DirectionalLightComponentProxy : LightComponentProxy
 {
-   
+    public RenderTargetProxy? ShadowMapRenderTarget { get; set; }
 }
 
 public struct DirectionalLightComponentProperties

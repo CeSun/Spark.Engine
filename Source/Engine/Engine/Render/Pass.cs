@@ -10,7 +10,8 @@ public abstract class Pass
     {
         ShaderTemplate = new ShaderTemplate("");
     }
-    public virtual bool DepthTest => false;
+    public virtual bool ZTest => false;
+    public virtual bool ZWrite => true;
     public virtual bool CullFace => false;
     public virtual TriangleFace CullTriangleFace => TriangleFace.Back;
 
@@ -31,7 +32,7 @@ public abstract class Pass
             return;
         using (rt.Begin(Context.gl))
         {
-            if (DepthTest)
+            if (ZTest)
                 Context.gl.Enable(GLEnum.DepthTest);
             else 
                 Context.gl.Disable(GLEnum.DepthTest);

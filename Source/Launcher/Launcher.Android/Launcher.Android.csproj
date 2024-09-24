@@ -30,5 +30,9 @@
 			<Link>Resource\%(RecursiveDir)%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</AndroidAsset>
+		<AndroidAsset Include="..\..\Engine\Engine\Resource\**\*">
+			<Link>Resource\%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</AndroidAsset>
     </ItemGroup>
 </Project>

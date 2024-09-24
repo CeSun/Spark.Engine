@@ -14,14 +14,16 @@
   <ItemGroup>
 	<ProjectReference Include="..\..\Platform\Platform.Desktop\Platform.Desktop.csproj" />
     <ProjectReference Include="..\..\Platform\Platform.Common\Platform.Common.csproj" />
+	  <ProjectReference Include="..\..\Game\$(GameName)\$(GameName).csproj" />
   </ItemGroup>
-
 	<ItemGroup>
-		<ProjectReference Include="..\..\Game\$(GameName)\$(GameName).csproj" />
 		<Content Include="..\..\Game\$(GameName)\Resource\**\*">
 			<Link>Resource\%(RecursiveDir)%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
-	
-</ItemGroup>
+		<Content Include="..\..\Engine\Engine\Resource\**\*">
+			<Link>Resource\%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 </Project>

@@ -73,10 +73,7 @@ public class StaticMesh(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpL
 }
 public class StaticMeshProxy : AssetRenderProxy
 {
-    public List<uint> VertexArrayObjectIndexes = [];
-    public List<uint> VertexBufferObjectIndexes = [];
-    public List<uint> ElementBufferObjectIndexes = [];
-    public List<int> IndicesLengths = [];
+    public List<ElementProxy> Elements = [];
     public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
@@ -120,10 +117,14 @@ public class StaticMeshProxy : AssetRenderProxy
             gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(5 * sizeof(Vector3)));
             gl.BindVertexArray(0);
 
-            IndicesLengths.Add(properties.Elements[index].Indices.Length);
-            VertexArrayObjectIndexes.Add(vao);
-            VertexBufferObjectIndexes.Add(vbo);
-            ElementBufferObjectIndexes.Add(ebo);
+            Elements.Add(new ElementProxy
+            {
+                VertexArrayObjectIndex = vao,
+                VertexBufferObjectIndex = vbo,
+                ElementBufferObjectIndex = ebo,
+                IndicesLength = properties.Elements[index].Indices.Length,
+                Material = renderer.GetProxy<MaterialProxy>(properties.Elements[index].Material)
+            });
         }
 
     }
@@ -133,15 +134,25 @@ public class StaticMeshProxy : AssetRenderProxy
     {
         base.DestoryGpuResource(renderer);
         var gl = renderer.gl;
-        VertexArrayObjectIndexes.ForEach(gl.DeleteVertexArray);
-        VertexArrayObjectIndexes.Clear();
-        VertexBufferObjectIndexes.ForEach(gl.DeleteBuffer);
-        VertexBufferObjectIndexes.Clear();
-        ElementBufferObjectIndexes.ForEach(gl.DeleteBuffer);
-        ElementBufferObjectIndexes.Clear();
+        Elements.ForEach(element =>
+        {
+            gl.DeleteBuffer(element.VertexBufferObjectIndex);
+            gl.DeleteBuffer(element.ElementBufferObjectIndex);
+            gl.DeleteVertexArray(element.VertexArrayObjectIndex);
+        });
+        Elements.Clear();
     }
 
 
+}
+
+public class ElementProxy
+{
+    public uint VertexArrayObjectIndex;
+    public uint VertexBufferObjectIndex;
+    public uint ElementBufferObjectIndex;
+    public int IndicesLength;
+    public MaterialProxy? Material;
 }
 public class Element<T>  where T  : unmanaged
 {
