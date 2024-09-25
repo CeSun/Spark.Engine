@@ -12,6 +12,20 @@ public abstract class BaseRenderer
     public GL gl => Engine.GraphicsApi!;
     public Engine Engine { get; private set; }
 
+    public ShaderTemplate? GetShaderTemplate(string path)
+    {
+        if (_shaderCacheDictonary.TryGetValue(path, out var shaderTemplate))
+            return shaderTemplate;
+        return null;
+    }
+
+    public void SetShaderTemplate(string path, ShaderTemplate shaderTemplate)
+    {
+        _shaderCacheDictonary[path] = shaderTemplate;
+    }
+
+    private Dictionary<string, ShaderTemplate> _shaderCacheDictonary = [];
+
     public HashSet<WorldProxy> RenderWorlds = [];
     public Dictionary<GCHandle, nint> AddRenderPropertiesDictionary { get; private set; } = [];
     public Dictionary<GCHandle, nint> SwapAddRenderPropertiesDictionary { get; private set; } = [];

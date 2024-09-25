@@ -155,15 +155,36 @@ public interface IVertex
 }
 public struct SkeletalMeshVertex : IVertex
 {
-    public Vector3 Location { get; set; }
-    public Vector3 Normal { get; set; }
-    public Vector3 Tangent { get; set; }
-    public Vector3 BitTangent { get; set; }
-    public Vector2 TexCoord { get; set; }
+    public StaticMeshVertex Base;
 
     public Vector4 BoneIds;
 
     public Vector4 BoneWeights;
+    public Vector3 Location
+    {
+        get => Base.Location;
+        set => Base.Location = value;
+    }
+    public Vector3 Normal
+    {
+        get => Base.Normal;
+        set => Base.Normal = value;
+    }
+    public Vector3 Tangent
+    {
+        get => Base.Tangent;
+        set => Base.Tangent = value;
+    }
+    public Vector3 BitTangent
+    {
+        get => Base.BitTangent;
+        set => Base.BitTangent = value;
+    }
+    public Vector2 TexCoord
+    {
+        get => Base.TexCoord;
+        set => Base.TexCoord = value;
+    }
 }
 
 public struct SkeletalMeshProxyProperties

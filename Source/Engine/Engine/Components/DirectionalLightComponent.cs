@@ -57,11 +57,19 @@ public class DirectionalLightComponent : LightComponent
 
 public class DirectionalLightComponentProxy : LightComponentProxy
 {
+
+    public Matrix4x4 View { get; private set; }
+
+    public Matrix4x4 Projection { get; private set; }
+
     public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
         base.UpdateProperties(propertiesPtr, renderer);
         ref var properties = ref UnsafeHelper.AsRef<DirectionalLightComponentProperties>(propertiesPtr);
         ShadowMapRenderTarget = renderer.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
+
+        View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
+        Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
     }
     public RenderTargetProxy? ShadowMapRenderTarget { get; set; }
 }

@@ -1,9 +1,10 @@
-﻿using System.Numerics;
+﻿#define TraceShaderUniformError
+using System.Diagnostics;
+using System.Numerics;
 using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 
 namespace Spark.Core.Render;
-
 public class Shader
 {
     public uint ProgramId;
@@ -123,6 +124,14 @@ public class Shader
 #endif
         gl.UniformMatrix4(location, 1, false, (float*)&value);
     }
+
+    public void SetTexture(string name, int offset, TextureProxy texture)
+    {
+        SetInt(name, offset);
+        gl.ActiveTexture(GLEnum.Texture0 + offset);
+        gl.BindTexture(GLEnum.Texture2D, texture.TextureId);
+    }
+
     public void Use()
     {
         if (gl == null)

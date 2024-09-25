@@ -143,7 +143,7 @@ public class MaterialProxy : AssetRenderProxy
         var shaderName = obj as string;
         if (shaderName != null)
         {
-            ShaderTemplate = renderer.Engine.ReadShaderTemplate(shaderName);
+            ShaderTemplate = renderer.ReadShaderTemplate(shaderName);
         }
     }
 
@@ -175,16 +175,19 @@ public class ShaderJson
 
 public static class ShaderTemplateHelper
 {
-    public static ShaderTemplate? ReadShaderTemplate(this Engine engine, string shaderName)
+    public static ShaderTemplate? ReadShaderTemplate(this BaseRenderer renderer, string shaderName)
     {
+        var shaderTemplate = renderer.GetShaderTemplate(shaderName);
+        if (shaderTemplate != null)
+            return shaderTemplate;
         ShaderJson? shaderObject = null;
-
+        var engine = renderer.Engine;
         using var stream = engine.FileSystem.GetStream(shaderName);
         shaderObject = JsonSerializer.Deserialize(stream.BaseStream, ShaderJsonContext.Default.ShaderJson);
 
         if (shaderObject == null)
             return null;
-        var shaderTemplate = new ShaderTemplate
+        shaderTemplate = new ShaderTemplate
         {
             Name = shaderObject.Name,
         };
@@ -199,7 +202,7 @@ public static class ShaderTemplateHelper
 
         shaderTemplate.VertexShaderSource = engine.FileSystem.GetStream(shaderObject.Vertex).ReadToEnd();
         shaderTemplate.FragmentShaderSource = engine.FileSystem.GetStream(shaderObject.Fragment).ReadToEnd();
-
+        renderer.SetShaderTemplate(shaderName, shaderTemplate);
         return shaderTemplate;
     }
 }

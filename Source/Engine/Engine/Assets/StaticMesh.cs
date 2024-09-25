@@ -90,7 +90,6 @@ public class StaticMeshProxy : AssetRenderProxy
             gl.BufferData(GLEnum.ArrayBuffer, (nuint)(properties.Elements[index].Vertices.Length * sizeof(StaticMeshVertex)), properties.Elements[index].Vertices.Ptr, GLEnum.StaticDraw);
         
             gl.BindBuffer(GLEnum.ElementArrayBuffer, ebo);
-            
             gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(properties.Elements[index].Indices.Length * sizeof(uint)), properties.Elements[index].Indices.Ptr, GLEnum.StaticDraw);
             
 
@@ -101,14 +100,12 @@ public class StaticMeshProxy : AssetRenderProxy
             gl.EnableVertexAttribArray(1);
             gl.VertexAttribPointer(1, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)sizeof(Vector3));
 
-
             gl.EnableVertexAttribArray(2);
             gl.VertexAttribPointer(2, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(2 * sizeof(Vector3)));
 
-
             gl.EnableVertexAttribArray(3);
             gl.VertexAttribPointer(3, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(3 * sizeof(Vector3)));
-            // TexCoord
+            
             gl.EnableVertexAttribArray(4);
             gl.VertexAttribPointer(4, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(4 * sizeof(Vector3)));
             gl.BindVertexArray(0);
@@ -159,12 +156,37 @@ public class Element<T>  where T  : unmanaged
 
 public struct StaticMeshVertex : IVertex
 {
-    public Vector3 Location { get; set; }
-    public Vector3 Normal { get; set; }
-    public Vector3 Tangent { get; set; }
-    public Vector3 BitTangent { get; set; }
-    public Vector2 TexCoord { get; set; }
+    public Vector3 _location;
+    public Vector3 _normal;
+    public Vector3 _tangent;
+    public Vector3 _bitTangent;
+    public Vector2 _texCoord;
 
+    public Vector3 Location
+    {
+        get => _location;
+        set => _location = value;
+    }
+    public Vector3 Normal
+    {
+        get => _normal;
+        set => _normal = value;
+    }
+    public Vector3 Tangent
+    {
+        get => _tangent;
+        set => _tangent = value;
+    }
+    public Vector3 BitTangent
+    {
+        get => _bitTangent;
+        set => _bitTangent = value;
+    }
+    public Vector2 TexCoord
+    {
+        get => _texCoord;
+        set => _texCoord = value;
+    }
 }
 
 public struct StaticMeshProxyProperties

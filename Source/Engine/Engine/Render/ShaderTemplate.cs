@@ -1,4 +1,6 @@
 ﻿using Silk.NET.OpenGLES;
+using Spark.Core.Assets;
+using System.Numerics;
 
 namespace Spark.Core.Render;
 
@@ -39,4 +41,17 @@ public class ShaderTemplate : IDisposable
         currentShader?.UnUse();
         currentShader = null;
     }
+
+
+    public void SetInt(string name, int value) => currentShader?.SetInt(name, value);
+
+    public void SetFloat(string name, float value) => currentShader?.SetFloat(name, value);
+
+    public void SetVector2(string name, Vector2 value) => currentShader?.SetVector2(name, value);
+
+    public void SetVector3(string name, Vector3 value) => currentShader?.SetVector3(name, value);
+
+    public void SetMatrix(string name, Matrix4x4 value) => currentShader?.SetMatrix(name, value);
+
+    public void SetTexture(string name, int offset, TextureProxy texture) => currentShader?.SetTexture(name, offset, texture);
 }

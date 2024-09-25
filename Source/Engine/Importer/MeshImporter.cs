@@ -101,7 +101,18 @@ public static class MeshImporter
                         }
                     }
                     List<uint> indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
-                    var material = new Material() { ShaderPath = "Engine/Shader/BasePassShader/BasePassShader.json" };
+                    var material = new Material() 
+                    { 
+                        ShaderPath = "Engine/Shader/BasePassShader/BasePassShader.json" ,
+                        BlendMode = glPrimitive.Material.Alpha switch
+                        {
+                            AlphaMode.OPAQUE => BlendMode.Opaque,
+                            AlphaMode.MASK => BlendMode.Masked,
+                            AlphaMode.BLEND => BlendMode.Translucent,
+                            _ => BlendMode.Opaque
+                        }
+                    };
+                    
                     foreach (var glChannel in glPrimitive.Material.Channels)
                     {
                         if (glChannel.Texture == null)
@@ -370,7 +381,17 @@ public static class MeshImporter
                     }
                 }
                 var indices = glPrimitive.IndexAccessor.AsIndicesArray().ToList();
-                var material = new Material() { ShaderPath = "Engine/Shader/BasePassShader/BasePassShader.json" };
+                var material = new Material()
+                {
+                    ShaderPath = "Engine/Shader/BasePassShader/BasePassShader.json",
+                    BlendMode = glPrimitive.Material.Alpha switch
+                    {
+                        AlphaMode.OPAQUE => BlendMode.Opaque,
+                        AlphaMode.MASK => BlendMode.Masked,
+                        AlphaMode.BLEND => BlendMode.Translucent,
+                        _ => BlendMode.Opaque
+                    }
+                };
                 foreach (var glChannel in glPrimitive.Material.Channels)
                 {
                     if (glChannel.Texture == null)
