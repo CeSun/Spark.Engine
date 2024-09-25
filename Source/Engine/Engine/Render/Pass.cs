@@ -1,6 +1,7 @@
 using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 using Spark.Core.Components;
+using System.Drawing;
 using System.Numerics;
 namespace Spark.Core.Render;
 
@@ -10,37 +11,39 @@ public abstract class Pass
     public virtual bool ZWrite => true;
     public virtual bool CullFace => false;
     public virtual TriangleFace CullTriangleFace => TriangleFace.Back;
+    public virtual ClearBufferMask ClearBufferFlag => ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit;
+    public virtual Color ClearColor => Color.White;
+    public virtual float ClearDepth => 1.0f;
+    public virtual int ClearStencil => 1;
 
 
-    public virtual RenderTargetProxy? GetRenderTargetProxy(PrimitiveComponentProxy primitiveComponentProxy)
+    public void ResetPassState(BaseRenderer Context)
     {
-        if (primitiveComponentProxy is CameraComponentProxy cameraComponentProxy)
+        if (ZTest)
         {
-            return cameraComponentProxy.RenderTarget;
+            Context.gl.Enable(GLEnum.DepthTest);
         }
-        return null;
-    }
-    public void Render(BaseRenderer Context, WorldProxy world, PrimitiveComponentProxy proxy)
-    {
-        var rt = GetRenderTargetProxy(proxy);
-        if (rt == null)
-            return;
-        using (rt.Begin(Context.gl))
+        else
         {
-            if (ZTest)
-                Context.gl.Enable(GLEnum.DepthTest);
-            else 
-                Context.gl.Disable(GLEnum.DepthTest);
-            if (CullFace)
-            {
-                Context.gl.Enable(GLEnum.CullFace);
-                Context.gl.CullFace(CullTriangleFace);
-            }
-            else
-                Context.gl.Enable(GLEnum.CullFace);
-            OnRender(Context, world, proxy);
+            Context.gl.Disable(GLEnum.DepthTest);
         }
-    }
+        if (CullFace)
+        {
+            Context.gl.Enable(GLEnum.CullFace);
+            Context.gl.CullFace(CullTriangleFace);
+        }
+        else
+        {
+            Context.gl.Enable(GLEnum.CullFace);
+        }
 
-    public abstract void OnRender(BaseRenderer Context, WorldProxy world, PrimitiveComponentProxy proxy);
+        if ((ClearBufferFlag & ClearBufferMask.ColorBufferBit) > 0)
+            Context.gl.ClearColor(ClearColor);
+        if ((ClearBufferFlag & ClearBufferMask.DepthBufferBit) > 0)
+            Context.gl.ClearDepth(ClearDepth);
+        if ((ClearBufferFlag & ClearBufferMask.StencilBufferBit) > 0)
+            Context.gl.ClearStencil(ClearStencil);
+        Context.gl.Clear(ClearBufferFlag);
+    }
+  
 }

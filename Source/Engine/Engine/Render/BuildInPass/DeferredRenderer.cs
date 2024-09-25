@@ -6,16 +6,16 @@ namespace Spark.Core.Render;
 
 public class DeferredRenderer : BaseRenderer
 {
-    Pass DirectionLightShadowMapPass = new DirectionLightShadowMapPass();
-    Pass PointLightShadowMapPass = new PointLightShadowMapPass();
-    Pass SpotLightShadowMapPass = new SpotLightShadowMapPass();
+    DirectionLightShadowMapPass DirectionLightShadowMapPass = new DirectionLightShadowMapPass();
+    PointLightShadowMapPass PointLightShadowMapPass = new PointLightShadowMapPass();
+    SpotLightShadowMapPass SpotLightShadowMapPass = new SpotLightShadowMapPass();
 
-    Pass PrezPass = new PrezPass();
-    Pass BasePass = new BasePass();
+    PrezPass PrezPass = new PrezPass();
+    BasePass BasePass = new BasePass();
 
-    Pass DirectionLightShadingPass = new DirectionLightShadingPass();
-    Pass PointLightShadingPass = new PointLightShadingPass();
-    Pass SpotLightShadingPass = new SpotLightShadingPass();
+    DirectionLightShadingPass DirectionLightShadingPass = new DirectionLightShadingPass();
+    PointLightShadingPass PointLightShadingPass = new PointLightShadingPass();
+    SpotLightShadingPass SpotLightShadingPass = new SpotLightShadingPass();
     public DeferredRenderer(Engine engine) : base(engine)
     {
 
