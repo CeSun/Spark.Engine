@@ -188,9 +188,12 @@ public static class MeshImporter
     }
 
     public static void ImporterSkeletalMeshFromGlbStream(StreamReader streamReader,
-        SkeletalMeshImportSetting skeletalMeshImportSetting, List<Texture> textures, List<Material> materials, List<AnimSequence> animSequences, out Skeleton skeleton, out SkeletalMesh skeletalMesh)
+        SkeletalMeshImportSetting skeletalMeshImportSetting, out List<Texture> textures, out List<Material> materials, out List<AnimSequence> animSequences, out Skeleton skeleton, out SkeletalMesh skeletalMesh)
 
     {
+        textures = new();
+        materials = new();
+        animSequences = new();
         Skeleton? tmpSkeleton = null;
         if (string.IsNullOrEmpty(skeletalMeshImportSetting.SkeletonAssetPath) == false)
         {

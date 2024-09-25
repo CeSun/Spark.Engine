@@ -18,6 +18,9 @@ public class WorldProxy
     private List<StaticMeshComponentProxy> staticMeshComponentProxies = new List<StaticMeshComponentProxy>();
     public List<StaticMeshComponentProxy> StaticMeshComponentProxies => staticMeshComponentProxies;
 
+    private List<SkeletalMeshComponentProxy> skeletalMeshComponentProxies = new List<SkeletalMeshComponentProxy>();
+    public List<SkeletalMeshComponentProxy> SkeletalComponentProxies => skeletalMeshComponentProxies;
+
     private List<DirectionalLightComponentProxy> directionalLightComponentProxies = new List<DirectionalLightComponentProxy>();
     public IReadOnlyList<DirectionalLightComponentProxy> DirectionalLightComponentProxies => directionalLightComponentProxies;
 
@@ -49,11 +52,17 @@ public class WorldProxy
                         case StaticMeshComponentProxy staticMeshComponentProxy:
                             staticMeshComponentProxies.Remove(staticMeshComponentProxy);
                             break;
+                        case SkeletalMeshComponentProxy skeletalMeshComponentProxy:
+                            skeletalMeshComponentProxies.Remove(skeletalMeshComponentProxy);
+                            break;
                         case DirectionalLightComponentProxy directionalLightComponentProxy:
                             directionalLightComponentProxies.Remove(directionalLightComponentProxy);
                             break;
                         case PointLightComponentProxy pointLightComponentProxy:
                             pointLightComponentProxies.Remove(pointLightComponentProxy);
+                            break;
+                        case SpotLightComponentProxy spotLightComponentProxy:
+                            spotLightComponentProxies.Remove(spotLightComponentProxy);
                             break;
                         default:
                             break;
@@ -84,11 +93,17 @@ public class WorldProxy
                                     case StaticMeshComponentProxy staticMeshComponentProxy:
                                         staticMeshComponentProxies.Add(staticMeshComponentProxy);
                                         break;
+                                    case SkeletalMeshComponentProxy skeletalMeshComponentProxy:
+                                        skeletalMeshComponentProxies.Add(skeletalMeshComponentProxy);
+                                        break;
                                     case DirectionalLightComponentProxy directionalLightComponentProxy:
                                         directionalLightComponentProxies.Add(directionalLightComponentProxy);
                                         break;
                                     case PointLightComponentProxy pointLightComponentProxy:
                                         pointLightComponentProxies.Add(pointLightComponentProxy);
+                                        break;
+                                    case SpotLightComponentProxy spotLightComponentProxy:
+                                        spotLightComponentProxies.Add(spotLightComponentProxy);
                                         break;
                                     default:
                                         break;
@@ -96,10 +111,10 @@ public class WorldProxy
                             }
                         }
                     }
-                    if (proxy != null)
-                    {
-                        proxy.UpdateProperties(ptr, renderer);
-                    }
+                }
+                if (proxy != null)
+                {
+                    proxy.UpdateProperties(ptr, renderer);
                 }
             }
             Marshal.FreeHGlobal(ptr);

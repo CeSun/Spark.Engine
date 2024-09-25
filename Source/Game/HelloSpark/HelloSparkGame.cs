@@ -1,4 +1,5 @@
-﻿using Spark.Core;
+﻿using Silk.NET.Input;
+using Spark.Core;
 using Spark.Core.Actors;
 using Spark.Core.Components;
 using Spark.Importer;
@@ -48,12 +49,19 @@ public class HelloSparkGame : IGame
             WorldLocation = new System.Numerics.Vector3(1, 22, 3),
         };
 
-        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/grass.glb"))
+        var skeletalMesh = new SkeletalMeshActor(world)
         {
-            MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting { ImporterPhysicsAsset = false}, out var textures, out var materials, out var staticMesh);
-            StaticMeshActor.StaticMesh = staticMesh;
+            WorldLocation = new System.Numerics.Vector3(1, 22, 3),
+        };
+
+        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/Soldier.glb"))
+        {
+            MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting {}, out var textures, out var materials, out var anims, out var sk, out var sm);
+            skeletalMesh.SkeletalMeshComponent.SkeletalMesh = sm; 
+            skeletalMesh.SkeletalMeshComponent.AnimSequence = anims[0];
         }
-     
+
+
     }
 
     public void EndPlay(World world)

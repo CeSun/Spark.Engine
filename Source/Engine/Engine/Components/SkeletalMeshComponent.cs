@@ -1,6 +1,11 @@
-﻿using Spark.Core.Actors;
+﻿using Jitter2.Dynamics.Constraints;
+using Spark.Core.Actors;
 using Spark.Core.Assets;
+using Spark.Core.Render;
+using Spark.Util;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core.Components;
 
@@ -10,17 +15,17 @@ public class SkeletalMeshComponent : PrimitiveComponent
     {
         for (var i = 0; i < 100; i++)
         {
-            AnimBuffer.Add(Matrix4x4.Identity);
+            AnimBuffer[i] = Matrix4x4.Identity;
         }
     }
 
-    public List<Matrix4x4> AnimBuffer = new List<Matrix4x4>(100);
+    public Matrix4x4[] AnimBuffer = new Matrix4x4[100];
     protected override bool ReceiveUpdate => true;
 
     public SkeletalMesh? SkeletalMesh 
     { 
         get => _SkeletalMesh;
-        set => ChangeProperty(ref _SkeletalMesh, value);
+        set => ChangeAssetProperty(ref _SkeletalMesh, value);
     }
 
     private SkeletalMesh? _SkeletalMesh;
@@ -57,8 +62,9 @@ public class SkeletalMeshComponent : PrimitiveComponent
 
             foreach (var bone in SkeletalMesh.Skeleton.BoneList)
             {
-                AnimBuffer[bone.BoneId] = AnimBuffer[bone.BoneId] * SkeletalMesh.Skeleton.RootParentMatrix;
+                AnimBuffer[bone.BoneId] = bone.WorldToLocalTransform * AnimBuffer[bone.BoneId] * SkeletalMesh.Skeleton.RootParentMatrix;
             }
+            MakeRenderDirty();
         }
     }
 
@@ -90,4 +96,65 @@ public class SkeletalMeshComponent : PrimitiveComponent
             ProcessNode(child);
         }
     }
+    protected unsafe override int propertiesStructSize => sizeof(SkeletalMeshComponentProperties);
+    public unsafe override nint GetPrimitiveComponentProperties()
+    {
+        var ptr = base.GetPrimitiveComponentProperties();
+        ref var properties = ref UnsafeHelper.AsRef<SkeletalMeshComponentProperties>(ptr);
+        if (SkeletalMesh != null)
+            properties.SkeletalMesh = SkeletalMesh.WeakGCHandle;
+
+        fixed (void* s = AnimBuffer)
+        {
+            fixed (void* d = properties.AnimBuffer)
+            {
+                Unsafe.CopyBlock(d, s, (uint)(sizeof(Matrix4x4) * AnimBuffer.Length));
+            }
+        }
+        return ptr;
+    }
+    public unsafe override nint GetCreateProxyObjectFunctionPointer()
+    {
+        delegate* unmanaged[Cdecl]<GCHandle> p = &CreateProxyObject;
+        return (nint)p;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static GCHandle CreateProxyObject()
+    {
+        var obj = new SkeletalMeshComponentProxy();
+        return GCHandle.Alloc(obj, GCHandleType.Normal);
+    }
+}
+
+
+public class SkeletalMeshComponentProxy : PrimitiveComponentProxy
+{
+    public SkeletalMeshProxy? SkeletalMeshProxy { get; set; }
+    public Matrix4x4[] AnimBuffer = new Matrix4x4[100];
+    public unsafe override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
+    {
+        base.UpdateProperties(propertiesPtr, renderer);
+        ref var properties = ref UnsafeHelper.AsRef<SkeletalMeshComponentProperties>(propertiesPtr);
+        SkeletalMeshProxy = renderer.GetProxy<SkeletalMeshProxy>(properties.SkeletalMesh);
+        fixed(void* d = AnimBuffer)
+        {
+            fixed (void* s = properties.AnimBuffer)
+            {
+                Unsafe.CopyBlock(d, s, (uint)(sizeof(Matrix4x4) * AnimBuffer.Length));
+            }
+        }
+    }
+
+    public override void DestoryGpuResource(BaseRenderer renderer)
+    {
+        base.DestoryGpuResource(renderer);
+    }
+}
+
+public unsafe struct SkeletalMeshComponentProperties
+{
+    public PrimitiveComponentProperties BaseProperties;
+    public GCHandle SkeletalMesh;
+    public fixed float AnimBuffer[100 * 4 * 4];
 }

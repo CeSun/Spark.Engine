@@ -1,6 +1,8 @@
-﻿using Silk.NET.OpenGLES;
+﻿using Jitter2;
+using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 using Spark.Core.Components;
+using System.Numerics;
 
 namespace Spark.Core.Render;
 
@@ -74,7 +76,79 @@ public class DeferredRenderer : BaseRenderer
             properties.Configs.Dispose();
         }
     }
+    public void BatchDrawStaticMeshDepth(Span<StaticMeshComponentProxy> staticMeshComponentProxies, Matrix4x4 View, Matrix4x4 Projection)
+    {
+        foreach (var staticmesh in staticMeshComponentProxies)
+        {
+            if (staticmesh.StaticMeshProxy == null)
+                continue;
+            if (staticmesh.Hidden)
+                continue;
+            foreach (var mesh in staticmesh.StaticMeshProxy.Elements)
+            {
+                if (mesh.Material == null)
+                    continue;
+                if (mesh.Material.ShaderTemplate == null)
+                    continue;
+                var shader = mesh.Material.ShaderTemplate;
+                if (mesh.Material.BlendMode == BlendMode.Opaque)
+                    shader.Use(gl, "_DEPTH_ONLY_");
+                else
+                    shader.Use(gl, "_DEPTH_ONLY_", "_BLENDMODE_MASKED_");
+                DrawElementDepth(shader, mesh, staticmesh.Trasnform, View, Projection);
+                shader.Dispose();
+            }
+        }
+    }
 
+    public void BatchDrawSkeletalMeshDepth(Span<SkeletalMeshComponentProxy> skeletalMeshComponentProxes, Matrix4x4 View, Matrix4x4 Projection)
+    {
+        foreach (var skeletalMesh in skeletalMeshComponentProxes)
+        {
+            if (skeletalMesh.SkeletalMeshProxy == null)
+                continue;
+            if (skeletalMesh.Hidden)
+                continue;
+            foreach (var mesh in skeletalMesh.SkeletalMeshProxy.Elements)
+            {
+                if (mesh.Material == null)
+                    continue;
+                if (mesh.Material.ShaderTemplate == null)
+                    continue;
+                var shader = mesh.Material.ShaderTemplate;
+                if (mesh.Material.BlendMode == BlendMode.Opaque)
+                    shader.Use(gl, "_DEPTH_ONLY_", "_SKELETAL_MESH_");
+                else
+                    shader.Use(gl, "_DEPTH_ONLY_", "_SKELETAL_MESH_", "_BLENDMODE_MASKED_"); 
+                for (int i = 0; i < 100; i++)
+                {
+                    shader.SetMatrix($"animTransform[{i}]", skeletalMesh.AnimBuffer[i]);
+                }
+                DrawElementDepth(shader, mesh, skeletalMesh.Trasnform, View, Projection);
+                shader.Dispose();
+            }
+        }
+    }
 
+    public void DrawElementDepth(ShaderTemplate shader, ElementProxy element, Matrix4x4 Model, Matrix4x4 View, Matrix4x4 Projection)
+    {
+        if (element.Material == null)
+            return;
+        shader.SetMatrix("model", Model);
+        shader.SetMatrix("view", View);
+        shader.SetMatrix("projection", Projection);
+        if (element.Material.BlendMode == BlendMode.Masked)
+        {
+            int offset = 0;
+            if (element.Material.Textures.TryGetValue("BaseColor", out var texture))
+            {
+                shader.SetTexture("Texture_BaseColor", offset, texture);
+            }
+            else
+            {
+            }
+        }
+        this.Draw(element);
+    }
 
 }

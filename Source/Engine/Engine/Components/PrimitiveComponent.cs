@@ -171,6 +171,11 @@ public partial class PrimitiveComponent
     /// <param name="DeltaTime"></param>
     public void Update(double DeltaTime)
     {
+        if (ComponentState == WorldObjectState.Registered)
+        {
+            BeginPlay();
+            return;
+        }
         if (ComponentState != WorldObjectState.Began)
             return;
         OnUpdate(DeltaTime);
