@@ -20,7 +20,7 @@ public partial class Engine
 
         if (GraphicsApi != null)
         {
-            SceneRenderer = _gameConfig.CreateRenderer(GraphicsApi);
+            SceneRenderer = _gameConfig.CreateRenderer(this);
         }
 
         Game = _gameConfig.CreateGame();

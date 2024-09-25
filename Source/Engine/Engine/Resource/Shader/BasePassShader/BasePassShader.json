@@ -1,8 +1,8 @@
 ﻿{
   "name": "BasePassShader",
   "include": [
-    "common.glsl"
-  ]
-  "vertex": "vs.glsl",
-  "fragment": "fs.glsl"
+    "Engine/Shader/Common/common.glsl"
+  ],
+  "vertex": "Engine/Shader/BasePassShader/vs.glsl",
+  "fragment": "Engine/Shader/BasePassShader/fs.glsl"
 }

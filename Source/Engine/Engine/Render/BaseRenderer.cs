@@ -9,7 +9,8 @@ namespace Spark.Core.Render;
 
 public abstract class BaseRenderer
 {
-    public GL gl { get; set; }
+    public GL gl => Engine.GraphicsApi!;
+    public Engine Engine { get; private set; }
 
     public HashSet<WorldProxy> RenderWorlds = [];
     public Dictionary<GCHandle, nint> AddRenderPropertiesDictionary { get; private set; } = [];
@@ -22,9 +23,9 @@ public abstract class BaseRenderer
     private List<Action<BaseRenderer>> SwapActions = [];
 
     protected List<Pass> RenderPass = new List<Pass>();
-    public BaseRenderer(GL GraphicsApi)
+    public BaseRenderer(Engine engine)
     {
-        gl = GraphicsApi;
+        Engine = engine;
     }
 
     public void UpdateAssetProxy(IntPtr ptr)

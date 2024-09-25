@@ -16,7 +16,7 @@ public class DeferredRenderer : BaseRenderer
     Pass DirectionLightShadingPass = new DirectionLightShadingPass();
     Pass PointLightShadingPass = new PointLightShadingPass();
     Pass SpotLightShadingPass = new SpotLightShadingPass();
-    public DeferredRenderer(GL GraphicsApi) : base(GraphicsApi)
+    public DeferredRenderer(Engine engine) : base(engine)
     {
 
     }

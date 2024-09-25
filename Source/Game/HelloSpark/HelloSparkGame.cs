@@ -9,6 +9,8 @@ namespace HelloSpark;
 
 public class HelloSparkGame : IGame
 {
+    public string Name => "HelloSpark";
+
     CameraActor? CameraActor;
     public void BeginPlay(World world)
     {
@@ -46,7 +48,7 @@ public class HelloSparkGame : IGame
             WorldLocation = new System.Numerics.Vector3(1, 22, 3),
         };
 
-        using (var sr = world.Engine.FileSystem.GetStream("Resource/StaticMesh/chair.glb"))
+        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/chair.glb"))
         {
             MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting { ImporterPhysicsAsset = false}, out var textures, out var materials, out var staticMesh);
             StaticMeshActor.StaticMesh = staticMesh;

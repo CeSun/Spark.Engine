@@ -3,6 +3,8 @@ using Spark.Core.Render;
 using Spark.Util;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Spark.Core.Assets;
 
@@ -92,6 +94,7 @@ public class Material(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoa
         {
             names[i] = GCHandle.Alloc(name, GCHandleType.Normal);
             textures[i] = texture.WeakGCHandle;
+            i++;
         }
         properties.TextureNames = new UnmanagedArray<GCHandle>(names);
         properties.Textures = new UnmanagedArray<GCHandle>(textures);
@@ -136,6 +139,12 @@ public class MaterialProxy : AssetRenderProxy
                 continue;
             Textures.Add(name, proxy);
         }
+        var obj = properties.ShaderName.Target;
+        var shaderName = obj as string;
+        if (shaderName != null)
+        {
+            ShaderTemplate = renderer.Engine.ReadShaderTemplate(shaderName);
+        }
     }
 
     public override void DestoryGpuResource(BaseRenderer renderer)
@@ -148,6 +157,56 @@ public class MaterialProxy : AssetRenderProxy
     public ShaderTemplate? ShaderTemplate { get; private set; }
 }
 
+public class ShaderJson
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("include")]
+    public List<string> Include { get; set; } = [];
+
+    [JsonPropertyName("vertex")]
+    public string Vertex { get; set; } = string.Empty;
+
+    [JsonPropertyName("fragment")]
+    public string Fragment { get; set; } = string.Empty;
+
+}
+
+public static class ShaderTemplateHelper
+{
+    public static ShaderTemplate? ReadShaderTemplate(this Engine engine, string shaderName)
+    {
+        ShaderJson? shaderObject = null;
+
+        using var stream = engine.FileSystem.GetStream(shaderName);
+        shaderObject = JsonSerializer.Deserialize(stream.BaseStream, ShaderJsonContext.Default.ShaderJson);
+
+        if (shaderObject == null)
+            return null;
+        var shaderTemplate = new ShaderTemplate
+        {
+            Name = shaderObject.Name,
+        };
+
+        foreach (var includePath in shaderObject.Include)
+        {
+            using(var sr = engine.FileSystem.GetStream(includePath))
+            {
+                shaderTemplate.IncludeSource.Add(sr.ReadToEnd());
+            }
+        }
+
+        shaderTemplate.VertexShaderSource = engine.FileSystem.GetStream(shaderObject.Vertex).ReadToEnd();
+        shaderTemplate.FragmentShaderSource = engine.FileSystem.GetStream(shaderObject.Fragment).ReadToEnd();
+
+        return shaderTemplate;
+    }
+}
+[JsonSerializable(typeof(ShaderJson))]
+internal partial class ShaderJsonContext : JsonSerializerContext
+{
+}
 
 public enum BlendMode
 {

@@ -10,6 +10,7 @@ namespace Spark.Core;
 
 public interface IGame
 {
+    public string Name { get; }
     public void BeginPlay(World world);
     public void Update(World world, double deltaTime);
 
@@ -20,5 +21,5 @@ public interface IGameConfig
 {
     public IGame CreateGame();
 
-    public BaseRenderer CreateRenderer(GL gl);
+    public BaseRenderer CreateRenderer(Engine engine);
 }

@@ -11,8 +11,8 @@ public class GameConfig : IGameConfig
         return new HelloSparkGame();
     }
 
-    public BaseRenderer CreateRenderer(GL gl)
+    public BaseRenderer CreateRenderer(Engine engine)
     {
-        return new DeferredRenderer(gl);
+        return new DeferredRenderer(engine);
     }
 }

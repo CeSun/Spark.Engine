@@ -27,11 +27,11 @@
     <ItemGroup>
 	    <ProjectReference Include="..\..\Game\$(GameName)\$(GameName).csproj" />
 		<AndroidAsset Include="..\..\Game\$(GameName)\Resource\**\*">
-			<Link>Resource\%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<Link>Resource\$(GameName)\%(RecursiveDir)%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</AndroidAsset>
 		<AndroidAsset Include="..\..\Engine\Engine\Resource\**\*">
-			<Link>Resource\%(RecursiveDir)%(Filename)%(Extension)</Link>
+			<Link>Resource\Engine\%(RecursiveDir)%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</AndroidAsset>
     </ItemGroup>

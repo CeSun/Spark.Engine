@@ -101,7 +101,7 @@ public static class MeshImporter
                         }
                     }
                     List<uint> indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
-                    var material = new Material();
+                    var material = new Material() { ShaderPath = "Engine/Shader/BasePassShader" };
                     foreach (var glChannel in glPrimitive.Material.Channels)
                     {
                         if (glChannel.Texture == null)
@@ -370,7 +370,7 @@ public static class MeshImporter
                     }
                 }
                 var indices = glPrimitive.IndexAccessor.AsIndicesArray().ToList();
-                var material = new Material();
+                var material = new Material() { ShaderPath = "Engine/Shader/BasePassShader" };
                 foreach (var glChannel in glPrimitive.Material.Channels)
                 {
                     if (glChannel.Texture == null)
