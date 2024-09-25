@@ -62,6 +62,4 @@ public struct StaticMeshComponentProperties
 {
     public PrimitiveComponentProperties BaseProperties;
     public GCHandle StaticMesh {  get; set; }
-
-    
 }

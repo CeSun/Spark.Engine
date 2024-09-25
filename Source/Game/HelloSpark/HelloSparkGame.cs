@@ -53,10 +53,7 @@ public class HelloSparkGame : IGame
             MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting { ImporterPhysicsAsset = false}, out var textures, out var materials, out var staticMesh);
             StaticMeshActor.StaticMesh = staticMesh;
         }
-        Task.Delay(1).Then(() =>
-        {
-            StaticMeshActor.StaticMesh = null;
-        });
+     
     }
 
     public void EndPlay(World world)

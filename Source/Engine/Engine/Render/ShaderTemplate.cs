@@ -1,10 +1,8 @@
-﻿
-
-using Silk.NET.OpenGLES;
+﻿using Silk.NET.OpenGLES;
 
 namespace Spark.Core.Render;
 
-public class ShaderTemplate
+public class ShaderTemplate : IDisposable
 {
     public string Name = "";
     public string VertexShaderSource = "";
@@ -12,30 +10,33 @@ public class ShaderTemplate
     public List<string> IncludeSource = [];
     public Dictionary<string, Shader> ShaderMap = new Dictionary<string, Shader>();
 
-    private string? vertexShaderSource;
-    private string? fragmentShaderSource;
-    public void Use(GL gl, params List<string> macros)
+    private Shader? currentShader;
+    public ShaderTemplate Use(GL gl, params List<string> macros)
     {
         var key = string.Join("_", macros!);
-        if (ShaderMap.TryGetValue(key, out var shader) == false)
+        if (ShaderMap.TryGetValue(key, out currentShader) == false)
         {
-            if (vertexShaderSource == null )
-            {
-                var macroCode = string.Join("\n", (from m in macros select "#define " + macros).ToList());
-                vertexShaderSource = VertexShaderSource.Replace("#version 300 es", "#version 300 es").Replace("//{MacroSourceCode}", macroCode).Replace("//{IncludeSourceCode}", string.Join("\n", IncludeSource));
-            }
-            if (fragmentShaderSource == null)
-            {
-                var macroCode = string.Join("\n", (from m in macros select "#define " + macros).ToList());
-                fragmentShaderSource = FragmentShaderSource.Replace("#version 300 es", "#version 300 es").Replace("//{MacroSourceCode}", macroCode).Replace("//{IncludeSourceCode}", string.Join("\n", IncludeSource));
-            }
-            shader = gl.CreateShader(vertexShaderSource, fragmentShaderSource);
-            ShaderMap.Add(key, shader);
+            var vertexShaderSource = PreProcessShaderSource(VertexShaderSource, macros);
+            var fragmentShaderSource = PreProcessShaderSource(FragmentShaderSource, macros);
+            // todo cache
+            currentShader = gl.CreateShader(vertexShaderSource, fragmentShaderSource);
+            ShaderMap.Add(key, currentShader);
         }
-        shader.Use();
+        currentShader.Use();
+        return this;
     }
 
-    
+    public string PreProcessShaderSource(string shaderSource, List<string> macros)
+    {
+        var macroCode = string.Join("\n", (from macro in macros select "#define " + macro).ToList());
+        return shaderSource.Replace("#version 300 es", "#version 300 es").
+            Replace("//{MacroSourceCode}", macroCode).
+            Replace("//{IncludeSourceCode}", string.Join("\n", IncludeSource));
+    }
 
-
+    public void Dispose()
+    {
+        currentShader?.UnUse();
+        currentShader = null;
+    }
 }

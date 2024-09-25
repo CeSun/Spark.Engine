@@ -6,16 +6,11 @@ namespace Spark.Core.Render;
 
 public abstract class Pass
 {
-    public Pass()
-    {
-        ShaderTemplate = new ShaderTemplate("");
-    }
     public virtual bool ZTest => false;
     public virtual bool ZWrite => true;
     public virtual bool CullFace => false;
     public virtual TriangleFace CullTriangleFace => TriangleFace.Back;
 
-    public ShaderTemplate ShaderTemplate;
 
     public virtual RenderTargetProxy? GetRenderTargetProxy(PrimitiveComponentProxy primitiveComponentProxy)
     {

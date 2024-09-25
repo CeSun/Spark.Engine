@@ -108,13 +108,9 @@ public class StaticMeshProxy : AssetRenderProxy
 
             gl.EnableVertexAttribArray(3);
             gl.VertexAttribPointer(3, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(3 * sizeof(Vector3)));
-
-            // Color
-            gl.EnableVertexAttribArray(4);
-            gl.VertexAttribPointer(4, 3, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(4 * sizeof(Vector3)));
             // TexCoord
-            gl.EnableVertexAttribArray(5);
-            gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(5 * sizeof(Vector3)));
+            gl.EnableVertexAttribArray(4);
+            gl.VertexAttribPointer(4, 2, GLEnum.Float, false, (uint)sizeof(StaticMeshVertex), (void*)(4 * sizeof(Vector3)));
             gl.BindVertexArray(0);
 
             Elements.Add(new ElementProxy
@@ -167,7 +163,6 @@ public struct StaticMeshVertex : IVertex
     public Vector3 Normal { get; set; }
     public Vector3 Tangent { get; set; }
     public Vector3 BitTangent { get; set; }
-    public Vector3 Color { get; set; }
     public Vector2 TexCoord { get; set; }
 
 }

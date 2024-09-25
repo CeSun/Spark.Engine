@@ -403,12 +403,6 @@ public class PrimitiveComponentProxy
         Right = Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
         Up = Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
     }
-
-    public virtual void RebuildGpuResource(BaseRenderer renderer)
-    {
-
-    }
-
     public virtual void DestoryGpuResource(BaseRenderer renderer)
     {
 

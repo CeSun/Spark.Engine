@@ -17,7 +17,14 @@ public class DirectionLightShadowMapPass : Pass
                 continue;
             foreach (var mesh in staticmesh.StaticMeshProxy.Elements)
             {
-                Context.Draw(mesh);
+                if (mesh.Material == null)
+                    continue;
+                if (mesh.Material.ShaderTemplate == null)
+                    continue;
+                using (mesh.Material.ShaderTemplate.Use(Context.gl, "_DEPTH_ONLY_"))
+                {
+                    Context.Draw(mesh);
+                }
             }
         }
     }

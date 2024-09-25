@@ -99,7 +99,6 @@ public class WorldProxy
                     if (proxy != null)
                     {
                         proxy.UpdateProperties(ptr, renderer);
-                        proxy.RebuildGpuResource(renderer);
                     }
                 }
             }

@@ -170,6 +170,7 @@ public static class RendererHelper
 {
     public static unsafe void Draw(this BaseRenderer renderer, ElementProxy element)
     {
+        renderer.gl.BindVertexArray(element.VertexArrayObjectIndex);
         renderer.gl.DrawElements(PrimitiveType.Triangles, (uint)element.IndicesLength, DrawElementsType.UnsignedByte, (void*)0);
     }
 }

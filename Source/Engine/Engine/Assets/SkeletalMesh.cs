@@ -110,19 +110,15 @@ public class SkeletalMeshProxy : AssetRenderProxy
 
             gl.EnableVertexAttribArray(3);
             gl.VertexAttribPointer(3, 3, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(3 * sizeof(Vector3)));
-
-            // Color
-            gl.EnableVertexAttribArray(4);
-            gl.VertexAttribPointer(4, 3, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(4 * sizeof(Vector3)));
             // TexCoord
-            gl.EnableVertexAttribArray(5);
-            gl.VertexAttribPointer(5, 2, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(5 * sizeof(Vector3)));
+            gl.EnableVertexAttribArray(4);
+            gl.VertexAttribPointer(4, 2, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(4 * sizeof(Vector3)));
             // BoneId
-            gl.EnableVertexAttribArray(6);
-            gl.VertexAttribPointer(6, 4, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(5 * sizeof(Vector3) + sizeof(Vector2)));
+            gl.EnableVertexAttribArray(5);
+            gl.VertexAttribPointer(5, 4, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(4 * sizeof(Vector3) + sizeof(Vector2)));
             // BoneWeight
-            gl.EnableVertexAttribArray(7);
-            gl.VertexAttribPointer(7, 4, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(5 * sizeof(Vector3) + sizeof(Vector2) + sizeof(Vector4)));
+            gl.EnableVertexAttribArray(6);
+            gl.VertexAttribPointer(6, 4, GLEnum.Float, false, (uint)sizeof(SkeletalMeshVertex), (void*)(4 * sizeof(Vector3) + sizeof(Vector2) + sizeof(Vector4)));
             gl.BindVertexArray(0);
             IndicesLengths.Add(properties.Elements[index].Indices.Length);
             VertexArrayObjectIndexes.Add(vao);
@@ -155,8 +151,6 @@ public interface IVertex
 
     public Vector3 BitTangent { get; set; }
 
-    public Vector3 Color { get; set; }
-
     public Vector2 TexCoord { get; set; }
 }
 public struct SkeletalMeshVertex : IVertex
@@ -165,7 +159,6 @@ public struct SkeletalMeshVertex : IVertex
     public Vector3 Normal { get; set; }
     public Vector3 Tangent { get; set; }
     public Vector3 BitTangent { get; set; }
-    public Vector3 Color { get; set; }
     public Vector2 TexCoord { get; set; }
 
     public Vector4 BoneIds;
