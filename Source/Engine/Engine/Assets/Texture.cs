@@ -166,6 +166,7 @@ public enum TexChannel
 {
     Rgb,
     Rgba,
+    Grey
 }
 
 public enum TexFilter

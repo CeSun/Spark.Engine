@@ -13,7 +13,7 @@ public class ShaderTemplate : IDisposable
     public Dictionary<string, Shader> ShaderMap = new Dictionary<string, Shader>();
 
     private Shader? currentShader;
-    public ShaderTemplate Use(GL gl, params List<string> macros)
+    public ShaderTemplate Use(GL gl, params ReadOnlySpan<string> macros)
     {
         var key = string.Join("_", macros!);
         if (ShaderMap.TryGetValue(key, out currentShader) == false)
@@ -28,9 +28,9 @@ public class ShaderTemplate : IDisposable
         return this;
     }
 
-    public string PreProcessShaderSource(string shaderSource, List<string> macros)
+    public string PreProcessShaderSource(string shaderSource, ReadOnlySpan<string> macros)
     {
-        var macroCode = string.Join("\n", (from macro in macros select "#define " + macro).ToList());
+        var macroCode = string.Join("\n", (from macro in macros.ToArray() select "#define " + macro).ToList());
         return shaderSource.Replace("#version 300 es", "#version 300 es").
             Replace("//{MacroSourceCode}", macroCode).
             Replace("//{IncludeSourceCode}", string.Join("\n", IncludeSource));

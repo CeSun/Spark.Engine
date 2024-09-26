@@ -15,53 +15,15 @@ public class HelloSparkGame : IGame
     CameraActor? CameraActor;
     public void BeginPlay(World world)
     {
-        CameraActor = new CameraActor(world)
+        CameraActor = new CameraActor(world);
+        CameraActor.WorldLocation = CameraActor.WorldLocation + CameraActor.ForwardVector * -5;
+        
+        var staticmesh = new StaticMeshActor(world);
+        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/chair.glb"))
         {
-            WorldLocation = new System.Numerics.Vector3(1, 22, 3),
-            WorldRotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(30f.DegreeToRadians(), 1, 1),
-            ClearColor = Color.Red,
-            ClearFlag = CameraClearFlag.Depth | CameraClearFlag.Color,
-            Order = 3
-        };
-
-
-
-        var DecalActor = new DecalActor(world)
-        {
-            WorldLocation = new System.Numerics.Vector3(1, 22, 3),
-        };
-        var DirectionLightActor = new DirectionLightActor(world)
-        {
-            WorldLocation = new System.Numerics.Vector3(13, 22, 3),
-        };
-        var PointLightActor = new PointLightActor(world)
-        {
-            WorldLocation = new System.Numerics.Vector3(12, 22, 33),
-        };
-        var SpotLightActor = new SpotLightActor(world)
-        {
-            WorldLocation = new System.Numerics.Vector3(21, 22, 23),
-            LightStrength = 10,
-            Color = Color.DarkBlue,
-        };
-        var StaticMeshActor = new StaticMeshActor(world)
-        {
-            WorldLocation = new System.Numerics.Vector3(1, 22, 3),
-        };
-
-        var skeletalMesh = new SkeletalMeshActor(world)
-        {
-            WorldLocation = new System.Numerics.Vector3(1, 22, 3),
-        };
-
-        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/Soldier.glb"))
-        {
-            MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting {}, out var textures, out var materials, out var anims, out var sk, out var sm);
-            skeletalMesh.SkeletalMeshComponent.SkeletalMesh = sm; 
-            skeletalMesh.SkeletalMeshComponent.AnimSequence = anims[0];
+            MeshImporter.ImporterStaticMeshFromGlbStream(sr,new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
+            staticmesh.StaticMesh = sm;
         }
-
-
     }
 
     public void EndPlay(World world)
@@ -72,7 +34,7 @@ public class HelloSparkGame : IGame
     {
         if (CameraActor != null)
         {
-            CameraActor.WorldLocation += new System.Numerics.Vector3(0.0001f, 0, 0);
+            // CameraActor.WorldLocation += new System.Numerics.Vector3(0.0001f, 0, 0);
         }
     }
 }

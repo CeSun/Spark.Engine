@@ -12,7 +12,7 @@ uniform sampler2D Texture_BaseColor;
 uniform sampler2D Texture_Normal;
 uniform sampler2D Texture_Metalness;
 uniform sampler2D Texture_Roughness;
-uniform sampler2D Texture_AO;
+uniform sampler2D Texture_AmbientOcclusion;
 #endif
 
 in vec2 texcoord;
@@ -34,7 +34,7 @@ void main()
 	vec3 Normal = texture(Texture_Normal, texcoord).xyz;
 	float Metalness = texture(Texture_Metalness, texcoord).x;
 	float Roughness = texture(Texture_Roughness, texcoord).x;
-	float AO = texture(Texture_AO, texcoord).x;
+	float AO = texture(Texture_AmbientOcclusion, texcoord).x;
 	
 	Normal = normalize(Normal * 2.0 - 1.0); 
 	vec3 WorldNormal = normalize(TBNTransform * Normal);

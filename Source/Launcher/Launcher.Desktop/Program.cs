@@ -6,6 +6,16 @@ using Silk.NET.OpenGLES;
 using Silk.NET.Windowing;
 using Silk.NET.Windowing.Sdl;
 using Silk.NET.Input.Sdl;
+using System.Diagnostics;
+
+
+if (args.Contains("-AttachDebug"))
+{
+    while(Debugger.IsAttached == false)
+    {
+        Thread.Sleep(10);
+    }
+}
 
 SdlWindowing.RegisterPlatform();
 

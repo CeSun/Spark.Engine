@@ -29,7 +29,7 @@ public partial class Actor
 
     public virtual void RegisterToWorld()
     {
-        if (ActorState == WorldObjectState.Invaild)
+        if (ActorState != WorldObjectState.Invaild)
             return;
         ActorState = WorldObjectState.Registered;
         World.AddActor(this);

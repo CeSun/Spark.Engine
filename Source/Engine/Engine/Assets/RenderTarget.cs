@@ -2,6 +2,7 @@
 using Spark.Core.Render;
 using Spark.Util;
 using System.Drawing;
+using System.Net.Mail;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -117,6 +118,16 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
         {
             GenFrameBuffer(gl, properties.Configs[i], i);
         }
+        var Attachments = new List<DrawBufferMode>();
+        for (int i = 0; i < properties.Configs.Count; i++)
+        {
+            var attachmenet = properties.Configs[i].FramebufferAttachment;
+            if (attachmenet >= FramebufferAttachment.ColorAttachment0 && attachmenet <= FramebufferAttachment.ColorAttachment31)
+            {
+                Attachments.Add((DrawBufferMode)attachmenet);
+            }
+        }
+        gl.DrawBuffers(CollectionsMarshal.AsSpan(Attachments));
         var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
         if (state != GLEnum.FramebufferComplete)
         {

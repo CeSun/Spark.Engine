@@ -1,10 +1,24 @@
-﻿using Spark.Core.Components;
+﻿using Silk.NET.OpenGLES;
+using Spark.Core.Components;
+using System.Drawing;
+using System.Runtime.InteropServices;
 
 namespace Spark.Core.Render;
 
 public class BasePass : Pass
 {
-    public void Render(BaseRenderer Context, WorldProxy world, PrimitiveComponentProxy proxy)
+    public override ClearBufferMask ClearBufferFlag => ClearBufferMask.ColorBufferBit;
+    public override Color ClearColor => Color.GreenYellow;
+    public override bool ZTest => true;
+    public override bool ZWrite => false;
+    public override bool CullFace => true;
+    public override TriangleFace CullTriangleFace => TriangleFace.Back;
+
+    public override DepthFunction DepthFunction => DepthFunction.Equal;
+    public void Render(DeferredRenderer Context, WorldProxy world, CameraComponentProxy camera)
     {
+        ResetPassState(Context);
+        Context.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), camera.View, camera.Projection, false);
+        Context.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), camera.View, camera.Projection, false);
     }
 }

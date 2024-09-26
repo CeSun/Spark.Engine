@@ -12,6 +12,7 @@ public partial class Engine
     private IGameConfig _gameConfig;
     public Engine(IPlatform platform, IGameConfig gameConfig)
     {
+        
         SyncContext = SingleThreadSyncContext.Initialize();
 
         Platform = platform;

@@ -9,6 +9,8 @@ public abstract class Pass
 {
     public virtual bool ZTest => false;
     public virtual bool ZWrite => true;
+
+    public virtual DepthFunction DepthFunction => DepthFunction.Less;
     public virtual bool CullFace => false;
     public virtual TriangleFace CullTriangleFace => TriangleFace.Back;
     public virtual ClearBufferMask ClearBufferFlag => ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit;
@@ -22,6 +24,7 @@ public abstract class Pass
         if (ZTest)
         {
             Context.gl.Enable(GLEnum.DepthTest);
+            Context.gl.DepthFunc(DepthFunction);
         }
         else
         {

@@ -22,8 +22,8 @@ public class DirectionLightShadowMapPass : Pass
         using (dirctionalLightComponent.ShadowMapRenderTarget.Begin(Context.gl))
         {
             ResetPassState(Context);
-            Context.BatchDrawStaticMeshDepth(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection);
-            Context.BatchDrawSkeletalMeshDepth(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection);
+            Context.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection, true);
+            Context.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection, true);
         }
     }
 }

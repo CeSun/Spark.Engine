@@ -198,6 +198,48 @@ public static class TextureImporter
 
     }
 
+
+    public static (Texture Metalness, Texture Roughness) SplitMetallicRoughnessPbrTexture(Texture metallicRoughness)
+    {
+        var metalness = new Texture
+        {
+            Width = metallicRoughness.Width,
+            Height = metallicRoughness.Height,
+            Channel = TexChannel.Rgb,
+            IsHdrTexture = false,
+            LDRPixels = new List<byte>()
+        };
+        var roughness = new Texture 
+        { 
+            Width = metalness.Width, 
+            Height = metalness.Height,
+            Channel = TexChannel.Rgb,
+            IsHdrTexture = false,
+            LDRPixels = new List<byte>()
+        };
+
+        int offset = metallicRoughness.Channel switch
+        {
+            TexChannel.Rgba => 4,
+            TexChannel.Rgb => 3,
+            _ => 1
+        };
+        for(int i = 0; i < metallicRoughness.Width * metallicRoughness.Height; i++)
+        {
+            metalness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset]);
+            metalness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset]);
+            metalness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset]);
+
+
+            roughness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset + 1]);
+            roughness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset + 1]);
+            roughness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset + 1]);
+        }
+       
+
+        return (metalness, roughness);
+    }
+
     private static void Process(byte[] data)
     {
         for (int i = 0; i < data.Length; i++)

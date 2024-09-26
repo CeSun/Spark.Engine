@@ -1,8 +1,6 @@
-﻿using System;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading.Channels;
 using Silk.NET.OpenGLES;
 using Spark.Core.Render;
 using Spark.Util;
@@ -67,7 +65,11 @@ public class StaticMesh(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpL
     protected override void ReleaseAssetMemory()
     {
         base.ReleaseAssetMemory();
-        _elements = [];
+        foreach(var element in _elements)
+        {
+            element.Vertices = [];
+            element.Indices = [];
+        }
     }
 
 }
@@ -86,6 +88,8 @@ public class StaticMeshProxy : AssetRenderProxy
             uint vbo = gl.GenBuffer();
             uint ebo = gl.GenBuffer();
             gl.BindVertexArray(vao);
+            Span<StaticMeshVertex> test = new Span<StaticMeshVertex>(properties.Elements[index].Vertices.Ptr, properties.Elements[index].Vertices.Length);
+            Span<uint> test2 = new Span<uint>(properties.Elements[index].Indices.Ptr, properties.Elements[index].Indices.Length);
             gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
             gl.BufferData(GLEnum.ArrayBuffer, (nuint)(properties.Elements[index].Vertices.Length * sizeof(StaticMeshVertex)), properties.Elements[index].Vertices.Ptr, GLEnum.StaticDraw);
         

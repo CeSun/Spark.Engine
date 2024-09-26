@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Jitter2.LinearMath;
 using SharpGLTF.Schema2;
+using Spark.Core;
 using Spark.Core.Assets;
 using Spark.Util;
 using Material = Spark.Core.Assets.Material;
@@ -33,147 +34,119 @@ public static class MeshImporter
         {
             if (glMesh == null)
                 continue;
-            if (glMesh.Name.IndexOf("Physics_", StringComparison.CurrentCultureIgnoreCase) < 0)
+            foreach (var glPrimitive in glMesh.Primitives)
             {
-                foreach (var glPrimitive in glMesh.Primitives)
+                List<StaticMeshVertex> staticMeshVertices = new List<StaticMeshVertex>();
+                foreach (var kv in glPrimitive.VertexAccessors)
                 {
-                    List<StaticMeshVertex> staticMeshVertices = new List<StaticMeshVertex>();
-                    foreach (var kv in glPrimitive.VertexAccessors)
+                    int index = 0;
+                    if (kv.Key == "POSITION")
                     {
-                        int index = 0;
-                        if (kv.Key == "POSITION")
+                        foreach (var v in kv.Value.AsVector3Array())
                         {
-                            foreach (var v in kv.Value.AsVector3Array())
+                            var vertex = new StaticMeshVertex();
+                            if (staticMeshVertices.Count > index)
                             {
-                                var vertex = new StaticMeshVertex();
-                                if (staticMeshVertices.Count > index)
-                                {
-                                    vertex = staticMeshVertices[index];
-                                }
-                                else
-                                {
-                                    staticMeshVertices.Add(vertex);
-                                }
-                                vertex.Location = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
-                                if (staticMeshVertices.Count > index)
-                                {
-                                }
-                                staticMeshVertices[index] = vertex;
-                                index++;
+                                vertex = staticMeshVertices[index];
                             }
-                        }
-                        if (kv.Key == "NORMAL")
-                        {
-                            foreach (var v in kv.Value.AsVector3Array())
+                            else
                             {
-                                var vertex = new StaticMeshVertex();
-                                if (staticMeshVertices.Count > index)
-                                {
-                                    vertex = staticMeshVertices[index];
-                                }
-                                else
-                                {
-                                    staticMeshVertices.Add(vertex);
-                                }
-                                vertex.Normal = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
-                                staticMeshVertices[index] = vertex;
-                                index++;
+                                staticMeshVertices.Add(vertex);
                             }
-                        }
-                        if (kv.Key == "TEXCOORD_0")
-                        {
-                            foreach (var v in kv.Value.AsVector2Array())
+                            vertex.Location = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
+                            if (staticMeshVertices.Count > index)
                             {
-
-                                var vertex = new StaticMeshVertex();
-                                if (staticMeshVertices.Count > index)
-                                {
-                                    vertex = staticMeshVertices[index];
-                                }
-                                else
-                                {
-                                    staticMeshVertices.Add(vertex);
-                                }
-                                vertex.TexCoord = new Vector2 { X = v.X, Y = v.Y };
-                                staticMeshVertices[index] = vertex;
-                                index++;
                             }
+                            staticMeshVertices[index] = vertex;
+                            index++;
                         }
                     }
-                    List<uint> indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
-                    var material = new Material() 
-                    { 
-                        ShaderPath = "Engine/Shader/BasePassShader/BasePassShader.json" ,
-                        BlendMode = glPrimitive.Material.Alpha switch
+                    if (kv.Key == "NORMAL")
+                    {
+                        foreach (var v in kv.Value.AsVector3Array())
                         {
-                            AlphaMode.OPAQUE => BlendMode.Opaque,
-                            AlphaMode.MASK => BlendMode.Masked,
-                            AlphaMode.BLEND => BlendMode.Translucent,
-                            _ => BlendMode.Opaque
+                            var vertex = new StaticMeshVertex();
+                            if (staticMeshVertices.Count > index)
+                            {
+                                vertex = staticMeshVertices[index];
+                            }
+                            else
+                            {
+                                staticMeshVertices.Add(vertex);
+                            }
+                            vertex.Normal = new Vector3 { X = v.X, Y = v.Y, Z = v.Z };
+                            staticMeshVertices[index] = vertex;
+                            index++;
                         }
-                    };
+                    }
+                    if (kv.Key == "TEXCOORD_0")
+                    {
+                        foreach (var v in kv.Value.AsVector2Array())
+                        {
+
+                            var vertex = new StaticMeshVertex();
+                            if (staticMeshVertices.Count > index)
+                            {
+                                vertex = staticMeshVertices[index];
+                            }
+                            else
+                            {
+                                staticMeshVertices.Add(vertex);
+                            }
+                            vertex.TexCoord = new Vector2 { X = v.X, Y = v.Y };
+                            staticMeshVertices[index] = vertex;
+                            index++;
+                        }
+                    }
+                }
+                List<uint> indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
+                var material = new Material() 
+                { 
+                    ShaderPath = "Engine/Shader/BasePassShader/BasePassShader.json" ,
+                    BlendMode = glPrimitive.Material.Alpha switch
+                    {
+                        AlphaMode.OPAQUE => BlendMode.Opaque,
+                        AlphaMode.MASK => BlendMode.Masked,
+                        AlphaMode.BLEND => BlendMode.Translucent,
+                        _ => BlendMode.Opaque
+                    }
+                };
                     
-                    foreach (var glChannel in glPrimitive.Material.Channels)
-                    {
-                        if (glChannel.Texture == null)
-                            continue;
-                        switch (glChannel.Key)
-                        {
-                            case "BaseColor":
-                            case "Diffuse":
-                                material.AddTexture("BaseColor", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new() { IsGammaSpace = true }));
-                                break;
-                            default:
-                                material.AddTexture(glChannel.Key, TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
-                                break;
-                        }
-                    }
-                    InitMeshTbn(staticMeshVertices, indices);
-                    elements.Add(new Element<StaticMeshVertex>
-                    {
-                        Vertices = staticMeshVertices,
-                        Material = material,
-                        Indices = indices,
-                    });
-                }
-            }
-            else if (staticMeshImportSetting.ImporterPhysicsAsset)
-            {
-                foreach (var glPrimitive in glMesh.Primitives)
+                foreach (var glChannel in glPrimitive.Material.Channels)
                 {
-                    List<JTriangle> shapeSource = new List<JTriangle>();
-                    var locations = glPrimitive.GetVertices("POSITION").AsVector3Array();
-                    for (int i = 0; i < glPrimitive.GetIndices().Count; i += 3)
+                    if (glChannel.Texture == null)
+                        continue;
+                    switch (glChannel.Key)
                     {
-                        var index1 = (int)glPrimitive.GetIndices()[i];
-                        var index2 = (int)glPrimitive.GetIndices()[i + 1];
-                        var index3 = (int)glPrimitive.GetIndices()[i + 2];
-
-                        JTriangle tri = new JTriangle
-                        {
-                            V0 = new JVector
-                            {
-                                X = locations[index1].X,
-                                Y = locations[index1].Y,
-                                Z = locations[index1].Z
-                            },
-                            V1 = new JVector
-                            {
-                                X = locations[index2].X,
-                                Y = locations[index2].Y,
-                                Z = locations[index2].Z
-                            },
-                            V2 = new JVector
-                            {
-                                X = locations[index3].X,
-                                Y = locations[index3].Y,
-                                Z = locations[index3].Z
-                            },
-                        };
-                        shapeSource.Add(tri);
+                        case "BaseColor":
+                        case "Diffuse":
+                            material.AddTexture("BaseColor", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new() { IsGammaSpace = true }));
+                            break;
+                        case "Normal":
+                            material.AddTexture("Normal", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
+                            break;
+                        case "MetallicRoughness":
+                            var metallicRoughness = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                            var (metalness, roughness) = TextureImporter.SplitMetallicRoughnessPbrTexture(metallicRoughness);
+                            material.AddTexture("Metalness", metalness);
+                            material.AddTexture("Roughness", roughness);
+                            break;
+                        case "AmbientOcclusion":
+                            material.AddTexture("AmbientOcclusion", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
+                            break;
+                        default:
+                            break;
                     }
                 }
+                InitMeshTbn(staticMeshVertices, indices);
+                elements.Add(new Element<StaticMeshVertex>
+                {
+                    Vertices = staticMeshVertices,
+                    Material = material,
+                    Indices = indices,
+                });
             }
+            
         }
         staticMesh = sm;
         staticMesh.Elements = elements;
@@ -405,8 +378,19 @@ public static class MeshImporter
                         case "Diffuse":
                             material.AddTexture("BaseColor", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new() { IsGammaSpace = true }));
                             break;
+                        case "Normal":
+                            material.AddTexture("Normal", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
+                            break;
+                        case "MetallicRoughness":
+                            var metallicRoughness = TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new());
+                            var (metalness, roughness) = TextureImporter.SplitMetallicRoughnessPbrTexture(metallicRoughness);
+                            material.AddTexture("Metalness", metalness);
+                            material.AddTexture("Roughness", roughness);
+                            break;
+                        case "AmbientOcclusion":
+                            material.AddTexture("AmbientOcclusion", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
+                            break;
                         default:
-                            material.AddTexture(glChannel.Key, TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
                             break;
                     }
                 }

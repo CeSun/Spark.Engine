@@ -63,7 +63,11 @@ public partial class SkeletalMesh(bool allowMuiltUpLoad = false) : AssetBase(all
     protected override void ReleaseAssetMemory()
     {
         base.ReleaseAssetMemory();
-        _elements = [];
+        foreach (var element in _elements)
+        {
+            element.Vertices = [];
+            element.Indices = [];
+        }
     }
 }
 

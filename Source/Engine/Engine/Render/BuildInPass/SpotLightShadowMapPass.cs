@@ -20,8 +20,8 @@ public class SpotLightShadowMapPass : Pass
         using (spotLightComponentProxy.ShadowMapRenderTarget.Begin(Context.gl))
         {
             ResetPassState(Context);
-            Context.BatchDrawStaticMeshDepth(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), spotLightComponentProxy.View, spotLightComponentProxy.Projection);
-            Context.BatchDrawSkeletalMeshDepth(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), spotLightComponentProxy.View, spotLightComponentProxy.Projection);
+            Context.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), spotLightComponentProxy.View, spotLightComponentProxy.Projection, true);
+            Context.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), spotLightComponentProxy.View, spotLightComponentProxy.Projection, true);
         }
     }
 }
