@@ -124,18 +124,20 @@ public class AnimSampler
                     if (first == second)
                     {
                         transform = MatrixHelper.CreateTransform(channel.Translation[first].Item2, channel.Rotation[first].Item2, channel.Scale[first].Item2);
-                        continue;
                     }
-                    var transform1 = MatrixHelper.CreateTransform(channel.Translation[first].Item2, channel.Rotation[first].Item2, channel.Scale[first].Item2);
-                    var transform2 = MatrixHelper.CreateTransform(channel.Translation[second].Item2, channel.Rotation[second].Item2, channel.Scale[second].Item2);
-                    var len = channel.Translation[second].Item1 - channel.Translation[first].Item1;
-                    var dt = (float)_speedTime - channel.Translation[first].Item1;
-                    var p = dt / len;
-                    if (dt < 0)
+                    else
                     {
-                        p = 0;
+                        var transform1 = MatrixHelper.CreateTransform(channel.Translation[first].Item2, channel.Rotation[first].Item2, channel.Scale[first].Item2);
+                        var transform2 = MatrixHelper.CreateTransform(channel.Translation[second].Item2, channel.Rotation[second].Item2, channel.Scale[second].Item2);
+                        var len = channel.Translation[second].Item1 - channel.Translation[first].Item1;
+                        var dt = (float)_speedTime - channel.Translation[first].Item1;
+                        var p = dt / len;
+                        if (dt < 0)
+                        {
+                            p = 0;
+                        }
+                        transform = Matrix4x4.Lerp(transform1, transform2, p);
                     }
-                    transform = Matrix4x4.Lerp(transform1, transform2, p);
                 }
 
             }

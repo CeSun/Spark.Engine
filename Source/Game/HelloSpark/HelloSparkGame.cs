@@ -26,10 +26,16 @@ public class HelloSparkGame : IGame
         }
 
         var skeletalMesh = new SkeletalMeshActor(world);
+        skeletalMesh.WorldScale = new System.Numerics.Vector3(0.1f, 0.1f, 0.1f);
         using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/Jason.glb"))
         {
             MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
             skeletalMesh.SkeletalMeshComponent.SkeletalMesh = mesh;
+        }
+        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/AK47_Player_3P_Anim.glb"))
+        {
+            MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
+            skeletalMesh.SkeletalMeshComponent.AnimSequence = anim[0];
         }
     }
 
