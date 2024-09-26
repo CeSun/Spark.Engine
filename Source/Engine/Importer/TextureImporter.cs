@@ -15,8 +15,10 @@ public static class TextureImporter
     {
         return colorComponents switch
         {
-            ColorComponents.RedGreenBlueAlpha => TexChannel.Rgba,
+            ColorComponents.Grey => TexChannel.Grey,
+            ColorComponents.GreyAlpha => TexChannel.GreyAlpha,
             ColorComponents.RedGreenBlue => TexChannel.Rgb,
+            ColorComponents.RedGreenBlueAlpha => TexChannel.Rgba,
             _ => throw new NotImplementedException()
         };
     }
@@ -205,7 +207,7 @@ public static class TextureImporter
         {
             Width = metallicRoughness.Width,
             Height = metallicRoughness.Height,
-            Channel = TexChannel.Rgb,
+            Channel = TexChannel.Grey,
             IsHdrTexture = false,
             LDRPixels = new List<byte>()
         };
@@ -213,7 +215,7 @@ public static class TextureImporter
         { 
             Width = metalness.Width, 
             Height = metalness.Height,
-            Channel = TexChannel.Rgb,
+            Channel = TexChannel.Grey,
             IsHdrTexture = false,
             LDRPixels = new List<byte>()
         };
@@ -222,21 +224,14 @@ public static class TextureImporter
         {
             TexChannel.Rgba => 4,
             TexChannel.Rgb => 3,
-            _ => 1
+            TexChannel.GreyAlpha => 2,
+            _ => throw new NotSupportedException()
         };
         for(int i = 0; i < metallicRoughness.Width * metallicRoughness.Height; i++)
         {
             metalness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset]);
-            metalness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset]);
-            metalness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset]);
-
-
-            roughness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset + 1]);
-            roughness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset + 1]);
             roughness.LDRPixels.Add(metallicRoughness.LDRPixels[i * offset + 1]);
         }
-       
-
         return (metalness, roughness);
     }
 

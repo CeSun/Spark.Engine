@@ -24,6 +24,13 @@ public class HelloSparkGame : IGame
             MeshImporter.ImporterStaticMeshFromGlbStream(sr,new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
             staticmesh.StaticMesh = sm;
         }
+
+        var skeletalMesh = new SkeletalMeshActor(world);
+        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/Jason.glb"))
+        {
+            MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
+            skeletalMesh.SkeletalMeshComponent.SkeletalMesh = mesh;
+        }
     }
 
     public void EndPlay(World world)

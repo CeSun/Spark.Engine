@@ -132,7 +132,6 @@ public class TextureProxy : AssetRenderProxy
         Channel = properties.Channel;
         Filter = properties.Filter;
         IsHdrTexture = properties.IsHdrTexture;
-
         TextureId = gl.GenTexture();
         gl.BindTexture(GLEnum.Texture2D, TextureId);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
@@ -141,11 +140,11 @@ public class TextureProxy : AssetRenderProxy
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)Filter.ToGlFilter());
         if (IsHdrTexture)
         {
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgb16f, Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, properties.HDRPixels.Ptr);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToInternalFormat(IsHdrTexture), Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, properties.HDRPixels.Ptr);
         }
         else
         {
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToGlEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, properties.LDRPixels.Ptr);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToInternalFormat(IsHdrTexture), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, properties.LDRPixels.Ptr);
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
     }
@@ -164,9 +163,10 @@ public class TextureProxy : AssetRenderProxy
 
 public enum TexChannel
 {
+    Grey,
+    GreyAlpha,
     Rgb,
     Rgba,
-    Grey
 }
 
 public enum TexFilter
@@ -176,10 +176,39 @@ public enum TexFilter
 }
 public static class ChannelHelper
 {
+
+    public static GLEnum ToInternalFormat(this TexChannel channel, bool isHdrTexture)
+    {
+        if (isHdrTexture)
+        {
+            return channel switch
+            {
+                TexChannel.Rgb => GLEnum.Rgb16f,
+                TexChannel.Rgba => GLEnum.Rgba16f,
+                TexChannel.Grey => GLEnum.R16f,
+                TexChannel.GreyAlpha => GLEnum.RG16f,
+                _ => throw new NotImplementedException()
+            };
+        }
+        else
+        {
+            return channel switch
+            {
+                TexChannel.Grey => GLEnum.R8,
+                TexChannel.GreyAlpha => GLEnum.RG8,
+                TexChannel.Rgb => GLEnum.Rgb8,
+                TexChannel.Rgba => GLEnum.Rgba8,
+                _ => throw new NotImplementedException()
+            };
+        }
+
+    }
     public static GLEnum ToGlEnum(this TexChannel channel)
     {
         return channel switch
         {
+            TexChannel.Grey => GLEnum.Red,
+            TexChannel.GreyAlpha => GLEnum.RG,
             TexChannel.Rgb => GLEnum.Rgb,
             TexChannel.Rgba => GLEnum.Rgba,
             _ => throw new NotImplementedException()
