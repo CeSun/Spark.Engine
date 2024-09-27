@@ -1,0 +1,8 @@
+﻿{
+  "name": "PbrDirectLight",
+  "include": [
+    "Engine/Shader/Common/common.glsl"
+  ],
+  "vertex": "Engine/Shader/PbrDirectLight/vs.glsl",
+  "fragment": "Engine/Shader/PbrDirectLight/fs.glsl"
+}

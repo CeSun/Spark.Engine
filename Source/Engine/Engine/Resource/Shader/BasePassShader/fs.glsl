@@ -40,6 +40,6 @@ void main()
 	vec3 WorldNormal = normalize(TBNTransform * Normal);
 
 	Buffer_BaseColor_AO = vec4(BaseColor.xyz, AO);
-	Buffer_Normal_Metalness_Roughness = vec4(Normal3Dto2D(WorldNormal), Metalness, Roughness);
+	Buffer_Normal_Metalness_Roughness = vec4(Normal3Dto2D(WorldNormal) * 0.5 + 0.5, Metalness, Roughness);
 #endif
 }
