@@ -17,13 +17,6 @@ public abstract class LightComponent : PrimitiveComponent
     }
     protected override int propertiesStructSize => Marshal.SizeOf<LightComponentProperties>();
 
-    private float _lightStrength;
-    public float LightStrength 
-    {
-        get => _lightStrength;
-        set => ChangeProperty(ref _lightStrength, value);
-    }
-
     private Color _color;
 
     public Color Color
@@ -32,34 +25,39 @@ public abstract class LightComponent : PrimitiveComponent
         set => ChangeProperty(ref _color, value);
     }
 
+    private float _lightStrength;
+    public float LightStrength
+    {
+        get => _lightStrength;
+        set => ChangeProperty(ref _lightStrength, value);
+    }
     public override nint GetPrimitiveComponentProperties()
     {
         var ptr = base.GetPrimitiveComponentProperties();
         ref var properties = ref UnsafeHelper.AsRef<LightComponentProperties>(ptr);
-        properties.LightStrength = LightStrength;
         properties.Color = new Vector3(Color.R / 255f, Color.G / 255f, Color.B / 255f);
+        properties.LightStrength = LightStrength;
         return ptr;
     }
 }
 
 public abstract class LightComponentProxy : PrimitiveComponentProxy
 {
-    public float LightStrength { get; set; }
-
     public Vector3 Color { get; set; }
+    public float LightStrength { get; set; }
 
     public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
         base.UpdateProperties(propertiesPtr, renderer);
         ref var properties = ref UnsafeHelper.AsRef<LightComponentProperties>(propertiesPtr);
-        LightStrength = properties.LightStrength;
         Color = properties.Color;
+        LightStrength = properties.LightStrength;
     }
 }
 
 public struct LightComponentProperties
 {
     public PrimitiveComponentProperties BaseProperties;
-    public float LightStrength { get; set; }
     public Vector3 Color { get; set; }
+    public float LightStrength;
 }

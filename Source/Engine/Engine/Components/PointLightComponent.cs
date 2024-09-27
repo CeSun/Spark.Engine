@@ -22,12 +22,11 @@ public class PointLightComponent : LightComponent
         get => _attenuationRadius;
         set => ChangeProperty(ref _attenuationRadius, value);
     }
- 
     public override nint GetPrimitiveComponentProperties()
     {
         var ptr = base.GetPrimitiveComponentProperties();
         ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(ptr);
-        properties.AttenuationRadius = AttenuationRadius;
+        properties.LightStrength = LightStrength;
         return ptr;
     }
     public unsafe override nint GetCreateProxyObjectFunctionPointer()
@@ -46,15 +45,11 @@ public class PointLightComponent : LightComponent
 
 public class PointLightComponentProxy : LightComponentProxy
 {
-    public float AttenuationRadius { get; set; }
-
     public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
         base.UpdateProperties(propertiesPtr, renderer);
         ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(propertiesPtr);
-        LightStrength = properties.LightBaseProperties.LightStrength;
         Color = properties.LightBaseProperties.Color;
-        AttenuationRadius = properties.AttenuationRadius;
     }
 }
 
@@ -62,5 +57,5 @@ public struct PointLightComponentProperties
 {
 
     public LightComponentProperties LightBaseProperties;
-    public float AttenuationRadius { get; set; }
+    public float LightStrength { get; set; }
 }
