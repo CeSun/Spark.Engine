@@ -13,12 +13,12 @@ public class BasePass : Pass
     public override bool ZWrite => false;
     public override bool CullFace => true;
     public override TriangleFace CullTriangleFace => TriangleFace.Back;
+    public override DepthFunction ZTestFunction => DepthFunction.Equal;
 
-    public override DepthFunction DepthFunction => DepthFunction.Equal;
     public void Render(DeferredRenderer Context, WorldProxy world, CameraComponentProxy camera)
     {
         ResetPassState(Context);
-        Context.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), camera.View, camera.Projection, false);
-        Context.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), camera.View, camera.Projection, false);
+        Context.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), camera.View, camera.Projection, false, true);
+        Context.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), camera.View, camera.Projection, false, true);
     }
 }

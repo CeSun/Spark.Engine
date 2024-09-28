@@ -28,19 +28,15 @@ public class DeferredRenderer : BaseRenderer
         RendererLightShadowMap(world);
         foreach (var camera in world.CameraComponentProxies)
         {
-            var gbuffer = CheckGbufffer(camera);
-            if (gbuffer == null)
-                continue;
-            using (gbuffer.Begin(gl))
+            CheckGbufffer(camera);
+            using (camera.RenderTargets[0].Begin(gl))
             {
                 PrezPass.Render(this, world, camera);
                 BasePass.Render(this, world, camera);
             }
-            using (camera.RenderTarget?.Begin(gl))
+            using (camera.RenderTargets[1].Begin(gl))
             {
-                DirectionLightShadingPass.Render(this, world, camera);
-                PointLightShadingPass.Render(this, world, camera);
-                SpotLightShadingPass.Render(this, world, camera);
+                RendererLight(world);
             }
         }
     }
@@ -72,13 +68,43 @@ public class DeferredRenderer : BaseRenderer
             SpotLightShadowMapPass.Render(this, world, spotLight);
         }
     }
-    private RenderTargetProxy? CheckGbufffer(CameraComponentProxy camera)
+
+    private void RendererLight(WorldProxy world)
+    {
+        foreach (var directionLight in world.DirectionalLightComponentProxies)
+        {
+            if (directionLight.Hidden == true)
+                continue;
+            if (directionLight.CastShadow == false)
+                continue;
+            DirectionLightShadingPass.Render(this, world, directionLight);
+        }
+        foreach (var pointLight in world.PointLightComponentProxies)
+        {
+            if (pointLight.Hidden == true)
+                continue;
+            if (pointLight.CastShadow == false)
+                continue;
+            PointLightShadingPass.Render(this, world, pointLight);
+        }
+        foreach (var spotLight in world.SpotLightComponentProxies)
+        {
+            if (spotLight.Hidden == true)
+                continue;
+            if (spotLight.CastShadow == false)
+                continue;
+            SpotLightShadingPass.Render(this, world, spotLight);
+        }
+    }
+
+    private void CheckGbufffer(CameraComponentProxy camera)
     {
 
         if (camera.RenderTarget == null)
-            return null;
+            return;
         if (camera.RenderTargets.Count == 0)
         {
+            camera.RenderTargets.Add(new RenderTargetProxy());
             camera.RenderTargets.Add(new RenderTargetProxy());
         }
         if (camera.RenderTargets[0].Width != camera.RenderTarget.Width || camera.RenderTargets[0].Height != camera.RenderTarget.Height)
@@ -100,10 +126,26 @@ public class DeferredRenderer : BaseRenderer
             }
             properties.Configs.Dispose();
         }
-
-        return camera.RenderTargets[0];
+        if (camera.RenderTargets[1].Width != camera.RenderTarget.Width || camera.RenderTargets[1].Height != camera.RenderTarget.Height)
+        {
+            RenderTargetProxyProperties properties = new RenderTargetProxyProperties()
+            {
+                IsDefaultRenderTarget = false,
+                Width = camera.RenderTarget.Width,
+                Height = camera.RenderTarget.Height,
+                Configs = new UnmanagedArray<FrameBufferConfig>([
+                    new FrameBufferConfig{Format = PixelFormat.Rgb, InternalFormat = InternalFormat.Rgb32f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
+                    new FrameBufferConfig{Format = PixelFormat.DepthStencil, InternalFormat = InternalFormat.Depth24Stencil8, PixelType= PixelType.UnsignedInt, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
+                ])
+            };
+            unsafe
+            {
+                camera.RenderTargets[1].UpdatePropertiesAndRebuildGPUResource(this, properties);
+            }
+            properties.Configs.Dispose();
+        }
     }
-    public void BatchDrawStaticMesh(Span<StaticMeshComponentProxy> staticMeshComponentProxies, Matrix4x4 View, Matrix4x4 Projection, bool OnlyDepth)
+    public void BatchDrawStaticMesh(Span<StaticMeshComponentProxy> staticMeshComponentProxies, Matrix4x4 View, Matrix4x4 Projection, bool OnlyDepth, bool ingoreMasked = false)
     {
         Span<string> Macros = ["_NOTHING_"];
         Span<string> MaskedMacros = ["_BLENDMODE_MASKED_"];
@@ -126,10 +168,10 @@ public class DeferredRenderer : BaseRenderer
                 if (mesh.Material.ShaderTemplate == null)
                     continue;
                 var shader = mesh.Material.ShaderTemplate;
-                if (mesh.Material.BlendMode == BlendMode.Opaque)
-                    shader.Use(gl, Macros);
-                else
+                if (ingoreMasked == false && mesh.Material.BlendMode == BlendMode.Masked)
                     shader.Use(gl, MaskedMacros);
+                else
+                    shader.Use(gl, Macros);
                 if (OnlyDepth)
                     DrawElementDepth(shader, mesh, staticmesh.Trasnform, View, Projection);
                 else
@@ -139,7 +181,7 @@ public class DeferredRenderer : BaseRenderer
         }
     }
 
-    public void BatchDrawSkeletalMesh(Span<SkeletalMeshComponentProxy> skeletalMeshComponentProxes, Matrix4x4 View, Matrix4x4 Projection, bool OnlyDepth)
+    public void BatchDrawSkeletalMesh(Span<SkeletalMeshComponentProxy> skeletalMeshComponentProxes, Matrix4x4 View, Matrix4x4 Projection, bool OnlyDepth, bool ingoreMasked = false)
     {
         Span<string> Macros = ["_SKELETAL_MESH_"];
         Span<string> MaskedMacros = ["_BLENDMODE_MASKED_", .. Macros];
@@ -162,10 +204,10 @@ public class DeferredRenderer : BaseRenderer
                 if (mesh.Material.ShaderTemplate == null)
                     continue;
                 var shader = mesh.Material.ShaderTemplate;
-                if (mesh.Material.BlendMode == BlendMode.Opaque)
-                    shader.Use(gl, Macros);
+                if (ingoreMasked == false && mesh.Material.BlendMode == BlendMode.Masked)
+                    shader.Use(gl, MaskedMacros);
                 else
-                    shader.Use(gl, MaskedMacros); 
+                    shader.Use(gl, Macros);
                 for (int i = 0; i < 100; i++)
                 {
                     shader.SetMatrix($"animTransform[{i}]", skeletalMesh.AnimBuffer[i]);
