@@ -1,6 +1,7 @@
 ﻿#define TraceShaderUniformError
 using System.Diagnostics;
 using System.Numerics;
+using System.Text.RegularExpressions;
 using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 
@@ -150,8 +151,17 @@ public class Shader
 
 public static class ShaderHelper
 {
+
+
+    static string RemoveNonAsciiCharacters(string input)
+    {
+        // 使用正则表达式匹配非ASCII字符并替换为空字符串
+        return Regex.Replace(input, @"[^\x00-\x7F]", string.Empty);
+    }
     public static Shader CreateShader(this GL gl, string VertShaderSource, string FragShaderSource)
     {
+        VertShaderSource = RemoveNonAsciiCharacters(VertShaderSource);
+        FragShaderSource = RemoveNonAsciiCharacters(FragShaderSource);
         var vert = gl.CreateShader(GLEnum.VertexShader);
         gl.ShaderSource(vert, VertShaderSource);
         gl.CompileShader(vert);

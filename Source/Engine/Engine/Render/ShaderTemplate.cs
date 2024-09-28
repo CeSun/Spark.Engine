@@ -1,6 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 using System.Numerics;
+using System.Text.RegularExpressions;
 
 namespace Spark.Core.Render;
 
@@ -55,3 +56,6 @@ public class ShaderTemplate : IDisposable
 
     public void SetTexture(string name, int offset, TextureProxy texture) => currentShader?.SetTexture(name, offset, texture);
 }
+
+
+

@@ -8,9 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-	  <PackageReference Include="StbImageSharp" Version="2.27.14" />
+	  <PackageReference Include="StbImageSharp" Version="2.30.15" />
 	  <ProjectReference Include="..\Engine\Engine.csproj" />
-	  <PackageReference Include="SharpGLTF.Core" Version="1.0.1" />
+	  <PackageReference Include="SharpGLTF.Core" Version="1.0.2" />
   </ItemGroup>
 
 </Project>

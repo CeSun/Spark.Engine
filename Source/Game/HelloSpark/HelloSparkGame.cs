@@ -37,6 +37,8 @@ public class HelloSparkGame : IGame
             MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
             skeletalMesh.SkeletalMeshComponent.AnimSequence = anim[0];
         }
+
+
     }
 
     public void EndPlay(World world)
