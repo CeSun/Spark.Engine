@@ -16,9 +16,11 @@ public class DeferredRenderer : BaseRenderer
     BasePass BasePass = new BasePass();
 
     LighingtShadingPass LightingShadingPass = new LighingtShadingPass();
+
+    ShaderTemplate shaderTemplate;
     public DeferredRenderer(Engine engine) : base(engine)
     {
-
+        shaderTemplate = ShaderTemplateHelper.ReadShaderTemplate(this, "Engine/Shader/RenderToCamera/RenderToCamera.json")!;
     }
 
     public override void RendererWorld(WorldProxy world)
@@ -35,6 +37,27 @@ public class DeferredRenderer : BaseRenderer
             using (camera.RenderTargets[1].Begin(gl))
             {
                 LightingShadingPass.Render(this, world, camera);
+            }
+
+            if (camera.RenderTarget != null)
+            {
+                using (camera.RenderTarget.Begin(gl))
+                {
+                    if (camera.ClearFlag == CameraClearFlag.Color)
+                    {
+                        gl.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
+                        gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+                    }
+                    using (shaderTemplate.Use(gl))
+                    {
+                        shaderTemplate.SetInt("Buffer_FinalColor", 0);
+                        gl.ActiveTexture(GLEnum.Texture0);
+                        gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[1].AttachmentTextureIds[0]);
+
+                        RectangleMesh.Draw(this);
+                    }
+                }
+
             }
         }
     }
@@ -88,7 +111,7 @@ public class DeferredRenderer : BaseRenderer
                 Configs = new UnmanagedArray<FrameBufferConfig>([
                     new FrameBufferConfig{Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba8, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
                     new FrameBufferConfig{Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba8, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment1, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
-                    new FrameBufferConfig{Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
+                    new FrameBufferConfig{Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent24, PixelType= PixelType.UnsignedInt, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
                 ])
             };
             unsafe

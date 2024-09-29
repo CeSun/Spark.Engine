@@ -19,7 +19,6 @@ public enum ProjectionType
 public enum CameraClearFlag
 {
     Color = (1 << 0),
-    Depth = (1 << 1),
     Skybox = (1 <<2)
 }
 public partial class CameraComponent : PrimitiveComponent
@@ -34,7 +33,7 @@ public partial class CameraComponent : PrimitiveComponent
         NearPlaneDistance = 10;
         FarPlaneDistance = 100;
         Order = 0;
-        ClearFlag = CameraClearFlag.Color | CameraClearFlag.Depth;
+        ClearFlag = CameraClearFlag.Color;
         ProjectionType = ProjectionType.Perspective;
     }
 

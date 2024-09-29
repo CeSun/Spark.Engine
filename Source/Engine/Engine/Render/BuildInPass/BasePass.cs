@@ -13,7 +13,7 @@ public class BasePass : Pass
     public override bool ZWrite => false;
     public override bool CullFace => true;
     public override TriangleFace CullTriangleFace => TriangleFace.Back;
-    public override DepthFunction ZTestFunction => DepthFunction.Less;
+    public override DepthFunction ZTestFunction => DepthFunction.Equal;
 
     public void Render(DeferredRenderer Context, WorldProxy world, CameraComponentProxy camera)
     {

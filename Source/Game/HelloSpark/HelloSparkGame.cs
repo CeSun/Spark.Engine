@@ -17,7 +17,7 @@ public class HelloSparkGame : IGame
     public async void BeginPlay(World world)
     {
         DirectionLightActor light = new DirectionLightActor(world);
-        light.Color = Color.White;
+        light.Color = Color.Pink;
         light.LightComponent.LightStrength = 1;
 
         CameraActor = new CameraActor(world);

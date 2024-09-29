@@ -1,0 +1,5 @@
+{
+  "name": "RenderToCamera",
+  "vertex": "Engine/Shader/RenderToCamera/vs.glsl",
+  "fragment": "Engine/Shader/RenderToCamera/fs.glsl"
+}
