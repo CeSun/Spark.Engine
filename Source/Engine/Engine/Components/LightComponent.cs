@@ -13,7 +13,8 @@ public abstract class LightComponent : PrimitiveComponent
 {
     public LightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
-
+        LightStrength = 1.0f;
+        Color = Color.White;
     }
     protected override int propertiesStructSize => Marshal.SizeOf<LightComponentProperties>();
 
@@ -58,6 +59,6 @@ public abstract class LightComponentProxy : PrimitiveComponentProxy
 public struct LightComponentProperties
 {
     public PrimitiveComponentProperties BaseProperties;
-    public Vector3 Color { get; set; }
+    public Vector3 Color;
     public float LightStrength;
 }

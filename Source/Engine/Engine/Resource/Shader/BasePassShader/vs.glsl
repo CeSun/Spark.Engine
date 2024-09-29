@@ -17,9 +17,6 @@ uniform mat4 model, view, projection;
 #ifdef _SKELETAL_MESH_
 uniform mat4 animTransform[100];
 #endif
-#ifndef _DEPTH_ONLY_
-uniform mat4 NormalTransform;
-#endif
 
 out vec2 texcoord;
 #ifndef _DEPTH_ONLY_
@@ -28,9 +25,11 @@ out mat3 TBNTransform;
 void main()
 {
 #ifndef _DEPTH_ONLY_
-    vec3 T = normalize(mat3(NormalTransform) * Tangent);
-    vec3 B = normalize(mat3(NormalTransform) * BitTangent);
-    vec3 N = normalize(mat3(NormalTransform) * Normal);
+    mat3 normalMatrix = transpose(inverse(mat3(model)));
+    vec3 T = normalize(mat3(normalMatrix) * Tangent);
+    vec3 N = normalize(mat3(normalMatrix) * Normal);
+    T = normalize(T - dot(T, N) * N);
+    vec3 B = cross(T, N);
     TBNTransform = mat3(T, B, N);
 #endif
 

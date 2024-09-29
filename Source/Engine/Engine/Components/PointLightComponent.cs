@@ -13,6 +13,7 @@ public class PointLightComponent : LightComponent
     public PointLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
         AttenuationRadius = 1f;
+        FalloffRadius = 1f;
     }
     protected override int propertiesStructSize => Marshal.SizeOf<PointLightComponentProperties>();
 
@@ -22,11 +23,19 @@ public class PointLightComponent : LightComponent
         get => _attenuationRadius;
         set => ChangeProperty(ref _attenuationRadius, value);
     }
+    
+    private float _falloffRadius;
+    public float FalloffRadius
+    {
+        get => _falloffRadius;
+        set => ChangeProperty(ref _falloffRadius, value);
+    }
+
     public override nint GetPrimitiveComponentProperties()
     {
         var ptr = base.GetPrimitiveComponentProperties();
         ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(ptr);
-        properties.LightStrength = LightStrength;
+        properties.FalloffRadius = FalloffRadius;
         return ptr;
     }
     public unsafe override nint GetCreateProxyObjectFunctionPointer()
@@ -45,17 +54,18 @@ public class PointLightComponent : LightComponent
 
 public class PointLightComponentProxy : LightComponentProxy
 {
+    public float FalloffRadius { get; set; }
     public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
         base.UpdateProperties(propertiesPtr, renderer);
         ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(propertiesPtr);
         Color = properties.LightBaseProperties.Color;
+        FalloffRadius = properties.FalloffRadius;
     }
 }
 
 public struct PointLightComponentProperties
 {
-
     public LightComponentProperties LightBaseProperties;
-    public float LightStrength { get; set; }
+    public float FalloffRadius;
 }

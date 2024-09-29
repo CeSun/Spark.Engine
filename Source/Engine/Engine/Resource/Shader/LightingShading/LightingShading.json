@@ -1,0 +1,8 @@
+﻿{
+  "name": "LightingShading",
+  "include": [
+    "Engine/Shader/Common/common.glsl"
+  ],
+  "vertex": "Engine/Shader/LightingShading/vs.glsl",
+  "fragment": "Engine/Shader/LightingShading/fs.glsl"
+}

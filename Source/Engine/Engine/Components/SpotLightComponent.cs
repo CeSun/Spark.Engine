@@ -14,7 +14,8 @@ public class SpotLightComponent : LightComponent
     public SpotLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
         InnerAngle = 12.5f;
-        OuterAngle = 17.5f; 
+        OuterAngle = 17.5f;
+        FalloffRadius = 1f;
         ShadowMapRenderTarget = new RenderTarget()
         {
             IsDefaultRenderTarget = false,
@@ -47,6 +48,12 @@ public class SpotLightComponent : LightComponent
         set => ChangeProperty(ref _outerAngle, value);
     }
 
+    private float _falloffRadius;
+    public float FalloffRadius
+    {
+        get => _falloffRadius;
+        set => ChangeProperty(ref _falloffRadius, value);
+    }
     public override nint GetPrimitiveComponentProperties()
     {
         var ptr =  base.GetPrimitiveComponentProperties();
@@ -54,6 +61,7 @@ public class SpotLightComponent : LightComponent
         properties.InnerAngle = _innerAngle;
         properties.OuterAngle = _outerAngle;
         properties.ShadowMapRenderTarget = ShadowMapRenderTarget == null ? default : ShadowMapRenderTarget.WeakGCHandle;
+        properties.FalloffRadius = FalloffRadius;
         return ptr;
     }
     public unsafe override nint GetCreateProxyObjectFunctionPointer()
@@ -78,6 +86,7 @@ public class SpotLightComponentProxy : LightComponentProxy
     public RenderTargetProxy? ShadowMapRenderTarget { get; set; }
     public float OuterAngle {  get; set; }
     public float InnerAngle {  get; set; }
+    public float FalloffRadius { get; set; }
     public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
     {
         base.UpdateProperties(propertiesPtr, renderer);
@@ -87,6 +96,7 @@ public class SpotLightComponentProxy : LightComponentProxy
         ShadowMapRenderTarget = renderer.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
         View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
         Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians(), 1, 1F, 100);
+        FalloffRadius = properties.FalloffRadius;
     }
 
 
@@ -99,4 +109,5 @@ public struct SpotLightComponentProperties
     public GCHandle ShadowMapRenderTarget;
     public float OuterAngle;
     public float InnerAngle;
+    public float FalloffRadius;
 }

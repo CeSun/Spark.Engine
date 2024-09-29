@@ -390,6 +390,7 @@ public class PrimitiveComponentProxy
     public Quaternion WorldRotation;
     public Vector3 WorldLocation;
     public Vector3 WorldScale;
+    public Matrix4x4 NormalTransform;
     public bool Hidden { get; set; }
     public bool CastShadow { get; set; }
     public Matrix4x4 Trasnform { get; set; }
@@ -407,6 +408,19 @@ public class PrimitiveComponentProxy
         Forward = Vector3.Transform(new Vector3(0, 0, -1), WorldRotation);
         Right = Vector3.Transform(new Vector3(1, 0, 0), WorldRotation);
         Up = Vector3.Transform(new Vector3(0, 1, 0), WorldRotation);
+
+        var m = Trasnform with
+        {
+            M14 = 0,
+            M24 = 0,
+            M34 = 0,
+            M41 = 0,
+            M42 = 0,
+            M43 = 0,
+            M44 = 1
+        };
+        Matrix4x4.Invert(m, out NormalTransform);
+        NormalTransform = Matrix4x4.Transpose(NormalTransform);
     }
     public virtual void DestoryGpuResource(BaseRenderer renderer)
     {
