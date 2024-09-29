@@ -10,7 +10,7 @@ public class BasePass : Pass
     public override ClearBufferMask ClearBufferFlag => ClearBufferMask.ColorBufferBit;
     public override Color ClearColor => Color.Black;
     public override bool ZTest => true;
-    public override bool ZWrite => false;
+    public override bool ZWrite => true;
     public override bool CullFace => true;
     public override TriangleFace CullTriangleFace => TriangleFace.Back;
     public override DepthFunction ZTestFunction => DepthFunction.Equal;

@@ -43,6 +43,9 @@ public class DeferredRenderer : BaseRenderer
             {
                 using (camera.RenderTarget.Begin(gl))
                 {
+                    gl.Enable(GLEnum.Blend);
+                    gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                    gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
                     if (camera.ClearFlag == CameraClearFlag.Color)
                     {
                         gl.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);

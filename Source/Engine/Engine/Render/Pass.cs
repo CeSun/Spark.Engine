@@ -18,7 +18,7 @@ public abstract class Pass
     public virtual float ClearDepth => 1.0f;
     public virtual int ClearStencil => 1;
     public virtual bool AlphaBlend => false;
-    public virtual (BlendingFactor source, BlendingFactor destination) AlphaBlendFactors => (BlendingFactor.SrcAlpha, BlendingFactor.OneMinusDstAlpha);
+    public virtual (BlendingFactor source, BlendingFactor destination) AlphaBlendFactors => (BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
     public virtual BlendEquationModeEXT AlphaEquation => BlendEquationModeEXT.FuncAdd;
     public void ResetPassState(BaseRenderer Context)
     {
@@ -26,6 +26,14 @@ public abstract class Pass
         {
             Context.gl.Enable(GLEnum.DepthTest);
             Context.gl.DepthFunc(ZTestFunction);
+            if (ZWrite)
+            {
+                Context.gl.DepthMask(true);
+            }
+            else
+            {
+                Context.gl.DepthMask(false);
+            }
         }
         else
         {

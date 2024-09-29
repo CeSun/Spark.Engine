@@ -17,16 +17,18 @@ public class HelloSparkGame : IGame
     public async void BeginPlay(World world)
     {
         DirectionLightActor light = new DirectionLightActor(world);
-        light.Color = Color.Pink;
-        light.LightComponent.LightStrength = 1;
+        light.Color = Color.White;
+        light.LightComponent.LightStrength = 3f;
 
         CameraActor = new CameraActor(world);
-        CameraActor.WorldLocation = CameraActor.WorldLocation + CameraActor.ForwardVector * -6;
-        
+        CameraActor.WorldLocation = CameraActor.WorldLocation + CameraActor.ForwardVector * -10 + CameraActor.UpVector * 4;
+        CameraActor.ClearColor = Color.White;
+
+
         var staticmesh = new StaticMeshActor(world);
         var sm = await Task.Run(() =>
         {
-            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/chair.glb"))
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/WoodenCrate.glb"))
             {
                 MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
 
@@ -35,11 +37,16 @@ public class HelloSparkGame : IGame
         });
         staticmesh.StaticMesh = sm;
 
+        staticmesh.WorldLocation += staticmesh.RightVector * 5;
 
-        staticmesh.WorldRotation = Quaternion.CreateFromYawPitchRoll(10f.RadiansToDegree(), 30f.RadiansToDegree(), 150f.RadiansToDegree());
+        staticmesh.WorldRotation = Quaternion.CreateFromYawPitchRoll(135f.RadiansToDegree(),0, 0);
+        staticmesh.WorldScale = new Vector3(1);
+
 
         var skeletalMesh = new SkeletalMeshActor(world);
         skeletalMesh.WorldScale = new Vector3(0.1f, 0.1f, 0.1f);
+        skeletalMesh.WorldRotation = Quaternion.CreateFromYawPitchRoll(-90f.RadiansToDegree(), 0, 0);
+        skeletalMesh.WorldLocation -= skeletalMesh.ForwardVector * 1;
         var mesh = await Task.Run(() =>
         {
 

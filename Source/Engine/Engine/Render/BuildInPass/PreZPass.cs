@@ -10,6 +10,9 @@ public class PrezPass : Pass
     public override float ClearDepth => 1.0f;
     public override bool ZTest => true;
     public override bool ZWrite => true;
+    public override DepthFunction ZTestFunction => DepthFunction.Less;
+    public override bool CullFace => true;
+    public override TriangleFace CullTriangleFace => TriangleFace.Back;
     public void Render(DeferredRenderer Context, WorldProxy world, CameraComponentProxy camera)
     {
         ResetPassState(Context);
