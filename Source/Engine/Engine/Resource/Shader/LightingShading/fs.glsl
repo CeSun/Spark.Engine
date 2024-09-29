@@ -72,6 +72,6 @@ void main()
 
 	vec3 Lo = CalculatePbrLighting(BaseColor, Metalness, Roughness, Normal, attenuation, LightColor, lightDirection, cameraDirection);
 
-	Buffer_Color = vec4(Lo, 1.0f);
+	Buffer_Color = vec4(Lo * LightStrength, 1.0f);
 }
 

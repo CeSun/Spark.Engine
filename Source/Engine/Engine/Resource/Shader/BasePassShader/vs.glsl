@@ -27,9 +27,8 @@ void main()
 #ifndef _DEPTH_ONLY_
     mat3 normalMatrix = transpose(inverse(mat3(model)));
     vec3 T = normalize(mat3(normalMatrix) * Tangent);
+    vec3 B = normalize(mat3(normalMatrix) * BitTangent);
     vec3 N = normalize(mat3(normalMatrix) * Normal);
-    T = normalize(T - dot(T, N) * N);
-    vec3 B = cross(T, N);
     TBNTransform = mat3(T, B, N);
 #endif
 

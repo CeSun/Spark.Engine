@@ -36,7 +36,7 @@ void main()
 	float Roughness = texture(Texture_Roughness, texcoord).x;
 	float AO = texture(Texture_AmbientOcclusion, texcoord).x;
 	
-	Normal = normalize(Normal * 2.0 - 1.0); 
+	Normal = normalize(Normal* 2.0 - 1.0); 
 	vec3 WorldNormal = normalize(TBNTransform * Normal);
 
 	Buffer_BaseColor_AO = vec4(BaseColor.xyz, AO);

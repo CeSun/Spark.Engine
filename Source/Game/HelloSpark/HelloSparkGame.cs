@@ -5,6 +5,7 @@ using Spark.Core.Components;
 using Spark.Importer;
 using Spark.Util;
 using System.Drawing;
+using System.Numerics;
 
 namespace HelloSpark;
 
@@ -13,31 +14,54 @@ public class HelloSparkGame : IGame
     public string Name => "HelloSpark";
 
     CameraActor? CameraActor;
-    public void BeginPlay(World world)
+    public async void BeginPlay(World world)
     {
+        DirectionLightActor light = new DirectionLightActor(world);
+        light.Color = Color.White;
+        light.LightComponent.LightStrength = 1;
+
         CameraActor = new CameraActor(world);
-        CameraActor.WorldLocation = CameraActor.WorldLocation + CameraActor.ForwardVector * -5;
+        CameraActor.WorldLocation = CameraActor.WorldLocation + CameraActor.ForwardVector * -6;
         
         var staticmesh = new StaticMeshActor(world);
-        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/chair.glb"))
+        var sm = await Task.Run(() =>
         {
-            MeshImporter.ImporterStaticMeshFromGlbStream(sr,new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
-            staticmesh.StaticMesh = sm;
-        }
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/chair.glb"))
+            {
+                MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
+
+                return sm;
+            }
+        });
+        staticmesh.StaticMesh = sm;
+
+
+        staticmesh.WorldRotation = Quaternion.CreateFromYawPitchRoll(10f.RadiansToDegree(), 30f.RadiansToDegree(), 150f.RadiansToDegree());
 
         var skeletalMesh = new SkeletalMeshActor(world);
-        skeletalMesh.WorldScale = new System.Numerics.Vector3(0.1f, 0.1f, 0.1f);
-        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/Jason.glb"))
+        skeletalMesh.WorldScale = new Vector3(0.1f, 0.1f, 0.1f);
+        var mesh = await Task.Run(() =>
         {
-            MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
-            skeletalMesh.SkeletalMeshComponent.SkeletalMesh = mesh;
-        }
-        using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/AK47_Player_3P_Anim.glb"))
-        {
-            MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
-            skeletalMesh.SkeletalMeshComponent.AnimSequence = anim[0];
-        }
 
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/Jason.glb"))
+            {
+                MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
+                
+                return mesh;
+            }
+        });
+        skeletalMesh.SkeletalMeshComponent.SkeletalMesh = mesh;
+        var anim = await Task.Run(() =>
+        {
+
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/AK47_Player_3P_Anim.glb"))
+            {
+                MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
+                return anim[0];
+            }
+
+        });
+        skeletalMesh.SkeletalMeshComponent.AnimSequence = anim;
 
     }
 

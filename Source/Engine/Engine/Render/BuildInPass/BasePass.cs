@@ -8,12 +8,12 @@ namespace Spark.Core.Render;
 public class BasePass : Pass
 {
     public override ClearBufferMask ClearBufferFlag => ClearBufferMask.ColorBufferBit;
-    public override Color ClearColor => Color.GreenYellow;
+    public override Color ClearColor => Color.Black;
     public override bool ZTest => true;
     public override bool ZWrite => false;
     public override bool CullFace => true;
     public override TriangleFace CullTriangleFace => TriangleFace.Back;
-    public override DepthFunction ZTestFunction => DepthFunction.Equal;
+    public override DepthFunction ZTestFunction => DepthFunction.Less;
 
     public void Render(DeferredRenderer Context, WorldProxy world, CameraComponentProxy camera)
     {

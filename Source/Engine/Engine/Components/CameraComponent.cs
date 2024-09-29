@@ -148,6 +148,7 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
     public Matrix4x4 View;
     public Matrix4x4 Projection;
     public Matrix4x4 ViewProjection;
+    public Matrix4x4 ViewProjectionInverse;
 
     public List<RenderTargetProxy> RenderTargets = [];
 
@@ -217,6 +218,7 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
             };
             View = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, Up);
             ViewProjection = View * Projection;
+            Matrix4x4.Invert(ViewProjection, out ViewProjectionInverse);
             UpdatePlanes();
         }
     }

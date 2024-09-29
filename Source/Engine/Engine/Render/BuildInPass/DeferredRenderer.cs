@@ -15,9 +15,7 @@ public class DeferredRenderer : BaseRenderer
     PrezPass PrezPass = new PrezPass();
     BasePass BasePass = new BasePass();
 
-    DirectionLightShadingPass DirectionLightShadingPass = new DirectionLightShadingPass();
-    PointLightShadingPass PointLightShadingPass = new PointLightShadingPass();
-    SpotLightShadingPass SpotLightShadingPass = new SpotLightShadingPass();
+    LighingtShadingPass LightingShadingPass = new LighingtShadingPass();
     public DeferredRenderer(Engine engine) : base(engine)
     {
 
@@ -36,7 +34,7 @@ public class DeferredRenderer : BaseRenderer
             }
             using (camera.RenderTargets[1].Begin(gl))
             {
-                RendererLight(world);
+                LightingShadingPass.Render(this, world, camera);
             }
         }
     }
@@ -69,34 +67,7 @@ public class DeferredRenderer : BaseRenderer
         }
     }
 
-    private void RendererLight(WorldProxy world)
-    {
-        foreach (var directionLight in world.DirectionalLightComponentProxies)
-        {
-            if (directionLight.Hidden == true)
-                continue;
-            if (directionLight.CastShadow == false)
-                continue;
-            DirectionLightShadingPass.Render(this, world, directionLight);
-        }
-        foreach (var pointLight in world.PointLightComponentProxies)
-        {
-            if (pointLight.Hidden == true)
-                continue;
-            if (pointLight.CastShadow == false)
-                continue;
-            PointLightShadingPass.Render(this, world, pointLight);
-        }
-        foreach (var spotLight in world.SpotLightComponentProxies)
-        {
-            if (spotLight.Hidden == true)
-                continue;
-            if (spotLight.CastShadow == false)
-                continue;
-            SpotLightShadingPass.Render(this, world, spotLight);
-        }
-    }
-
+   
     private void CheckGbufffer(CameraComponentProxy camera)
     {
 
@@ -134,8 +105,8 @@ public class DeferredRenderer : BaseRenderer
                 Width = camera.RenderTarget.Width,
                 Height = camera.RenderTarget.Height,
                 Configs = new UnmanagedArray<FrameBufferConfig>([
-                    new FrameBufferConfig{Format = PixelFormat.Rgb, InternalFormat = InternalFormat.Rgb32f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
-                    new FrameBufferConfig{Format = PixelFormat.DepthStencil, InternalFormat = InternalFormat.Depth24Stencil8, PixelType= PixelType.UnsignedInt, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
+                    new FrameBufferConfig{Format = PixelFormat.Rgb, InternalFormat = InternalFormat.Rgb16f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
+                    new FrameBufferConfig{Format = PixelFormat.DepthStencil, InternalFormat = InternalFormat.Depth24Stencil8, PixelType= PixelType.UnsignedInt248, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
                 ])
             };
             unsafe
