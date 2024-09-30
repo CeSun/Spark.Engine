@@ -29,7 +29,7 @@ public class HelloSparkGame : IGame
         var staticmesh = new StaticMeshActor(world);
         var sm = await Task.Run(() =>
         {
-            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/WoodenCrate.glb"))
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/sofa.glb"))
             {
                 MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
 
@@ -41,7 +41,7 @@ public class HelloSparkGame : IGame
         staticmesh.WorldLocation += staticmesh.RightVector * 5;
 
         staticmesh.WorldRotation = Quaternion.CreateFromYawPitchRoll(135f.RadiansToDegree(),0, 0);
-        staticmesh.WorldScale = new Vector3(1);
+        staticmesh.WorldScale = new Vector3(5);
 
 
         var skeletalMesh = new SkeletalMeshActor(world);

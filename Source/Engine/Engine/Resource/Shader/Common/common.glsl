@@ -17,7 +17,7 @@ vec2 Normal3Dto2D(vec3 Normal)
         Normal.xy = ( 1.0f - abs(Normal.yx) ) * add ;
     }
     return Normal.xy;
-} 
+}
 // 2d法线转换3d法线
 vec3 Normal2DTo3D(vec2 Oct)
 {
@@ -108,10 +108,60 @@ vec3 CalculatePbrLighting(vec3 baseColor, float metalness,float roughness, vec3 
     return (kD * baseColor / PI + specular) * radiance * NdotL;
 }
 
+
+vec3 CalculateBlinnPhongLighting(vec3 baseColor, float metalness,float roughness, vec3 normal,  float lightAttenuation, vec3 lightColor, vec3 lightDirection, vec3 cameraDirection)
+{
+	float ambientStrength = 0.1;
+    vec3 ambient = ambientStrength * lightColor;
+	
+    vec3 lightDir = -1.0 * lightDirection;
+    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 diffuse = diff * lightColor;
+	
+	float specularStrength = 0.5;
+    vec3 viewDir = -1.0 * cameraDirection;
+     vec3 halfwayDir = normalize(lightDir + viewDir);  
+     float spec = pow(max(dot(normal, halfwayDir), 0.0), 16.0);
+
+    vec3 specular = specularStrength * spec * lightColor;  
+	return (ambient + diffuse + specular) * baseColor;
+}
+
 // 裁剪空间[-1, 1] 转换到 世界空间
 vec3 calculateWorldPosition(vec3 clipSpacePosition, mat4 viewProjectionInverseMatrix)
 {
     vec4 viewSpacePosition = viewProjectionInverseMatrix * vec4(clipSpacePosition, 1.0);
     viewSpacePosition /= viewSpacePosition.w; 
     return vec3(viewSpacePosition);
+}
+
+
+// 自定义 saturate 函数
+float saturate(float value) {
+    return clamp(value, 0.0, 1.0);
+}
+
+vec3 saturate(vec3 value) {
+    return clamp(value, vec3(0.0), vec3(1.0));
+}
+
+vec4 saturate(vec4 value) {
+    return clamp(value, vec4(0.0), vec4(1.0));
+}
+
+// ACES色调映射函数
+vec3 ACESFilmToneMapping(vec3 color)
+{
+    // ACES色调映射公式
+    float A = 2.51;
+    float B = 0.03;
+    float C = 2.43;
+    float D = 0.59;
+    float E = 0.14;
+
+    // 计算色调映射
+    vec3 mappedColor = (color * (A * color + B)) / (color * (C * color + D) + E);
+    
+    // 确保颜色在[0, 1]范围内
+    return saturate(mappedColor);
 }

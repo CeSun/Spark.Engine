@@ -33,6 +33,7 @@ uniform float OuterCosine;
 vec3 Normal2DTo3D(vec2 Oct);
 vec3 calculateWorldPosition(vec3 clipSpacePosition, mat4 viewProjectionInverseMatrix);
 vec3 CalculatePbrLighting(vec3 baseColor, float metalness,float roughness, vec3 normal,  float lightAttenuation, vec3 lightColor, vec3 lightDirection, vec3 cameraDirection);
+vec3 CalculateBlinnPhongLighting(vec3 baseColor, float metalness,float roughness, vec3 normal,  float lightAttenuation, vec3 lightColor, vec3 lightDirection, vec3 cameraDirection);
 
 void main()
 {
@@ -73,6 +74,6 @@ void main()
 
 	vec3 Lo = CalculatePbrLighting(BaseColor, Metalness, Roughness, Normal, attenuation, LightColor, lightDirection, cameraDirection);
 
-	Buffer_Color = vec4(Lo * LightStrength, 1.0f);
+	Buffer_Color = vec4(0.03 * BaseColor +  Lo * LightStrength , 1.0f);
 }
 

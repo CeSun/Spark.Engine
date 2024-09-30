@@ -66,6 +66,14 @@ public class Texture(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoad
         get => !IsHdrTexture;
         set => IsHdrTexture = !value;
     }
+
+    private bool _isGammaSpace = false;
+    public bool IsGammaSpace
+    {
+        get => !_isGammaSpace;
+        set => ChangeProperty(ref _isGammaSpace, value);
+    }
+
     protected unsafe override int assetPropertiesSize => sizeof(TextureProxyProperties);
 
     public override nint CreateProperties()
@@ -77,6 +85,7 @@ public class Texture(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoad
         properties.Channel = _channel;
         properties.Filter = _filter;
         properties.IsHdrTexture = _isHdrTexture;
+        properties.IsGammaSpace = _isGammaSpace;
         if (IsHdrTexture)
         {
             properties.HDRPixels = default;
@@ -122,6 +131,7 @@ public class TextureProxy : AssetRenderProxy
     public TexChannel Channel { get; set; }
     public TexFilter Filter { get; set; } = TexFilter.Liner;
     public bool IsHdrTexture { get; set; }
+    public bool IsGammaSpace { get; set; }
     public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
@@ -132,6 +142,7 @@ public class TextureProxy : AssetRenderProxy
         Channel = properties.Channel;
         Filter = properties.Filter;
         IsHdrTexture = properties.IsHdrTexture;
+        IsGammaSpace = properties.IsGammaSpace;
         TextureId = gl.GenTexture();
         gl.BindTexture(GLEnum.Texture2D, TextureId);
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
@@ -140,11 +151,11 @@ public class TextureProxy : AssetRenderProxy
         gl.TexParameter(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)Filter.ToGlFilter());
         if (IsHdrTexture)
         {
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToInternalFormat(IsHdrTexture), Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, properties.HDRPixels.Ptr);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToInternalFormat(IsHdrTexture, IsGammaSpace), Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, properties.HDRPixels.Ptr);
         }
         else
         {
-            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToInternalFormat(IsHdrTexture), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, properties.LDRPixels.Ptr);
+            gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToInternalFormat(IsHdrTexture, IsGammaSpace), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, properties.LDRPixels.Ptr);
         }
         gl.BindTexture(GLEnum.Texture2D, 0);
     }
@@ -177,7 +188,7 @@ public enum TexFilter
 public static class ChannelHelper
 {
 
-    public static GLEnum ToInternalFormat(this TexChannel channel, bool isHdrTexture)
+    public static GLEnum ToInternalFormat(this TexChannel channel, bool isHdrTexture, bool isGammaSpace)
     {
         if (isHdrTexture)
         {
@@ -196,8 +207,8 @@ public static class ChannelHelper
             {
                 TexChannel.Grey => GLEnum.R8,
                 TexChannel.GreyAlpha => GLEnum.RG8,
-                TexChannel.Rgb => GLEnum.Rgb8,
-                TexChannel.Rgba => GLEnum.Rgba8,
+                TexChannel.Rgb => isGammaSpace ? GLEnum.Srgb8 : GLEnum.Rgb8,
+                TexChannel.Rgba => isGammaSpace ? GLEnum.Srgb8Alpha8 : GLEnum.Rgba8,
                 _ => throw new NotImplementedException()
             };
         }
@@ -211,15 +222,6 @@ public static class ChannelHelper
             TexChannel.GreyAlpha => GLEnum.RG,
             TexChannel.Rgb => GLEnum.Rgb,
             TexChannel.Rgba => GLEnum.Rgba,
-            _ => throw new NotImplementedException()
-        };
-    }
-    public static GLEnum ToGlHdrEnum(this TexChannel channel)
-    {
-        return channel switch
-        {
-            TexChannel.Rgb => GLEnum.Rgb16f,
-            TexChannel.Rgba => GLEnum.Rgba16f,
             _ => throw new NotImplementedException()
         };
     }
@@ -244,6 +246,7 @@ public struct TextureProxyProperties
     public TexChannel Channel;
     public TexFilter Filter;
     public bool IsHdrTexture;
+    public bool IsGammaSpace;
     public UnmanagedArray<float> HDRPixels;
     public UnmanagedArray<byte> LDRPixels;
 }

@@ -40,10 +40,7 @@ public static class TextureImporter
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
-            if (setting.IsGammaSpace)
-            {
-                Process(imageResult.Data);
-            }
+            texture.IsGammaSpace = setting.IsGammaSpace;
             texture.LDRPixels = new(imageResult.Data);
             texture.IsHdrTexture = false;
             return texture;
@@ -67,10 +64,7 @@ public static class TextureImporter
             texture.Width = (uint)imageResult.Width;
             texture.Height = (uint)imageResult.Height;
             texture.Channel = imageResult.Comp.ToTexChannel();
-            if (setting.IsGammaSpace)
-            {
-                Process(imageResult.Data);
-            }
+            texture.IsGammaSpace = setting.IsGammaSpace;
             texture.LDRPixels = new(imageResult.Data);
             texture.IsHdrTexture = false;
             return texture;
@@ -97,10 +91,7 @@ public static class TextureImporter
                 Height = (uint)imageResult.Height,
                 Channel = imageResult.Comp.ToTexChannel()
             };
-            if (setting.IsGammaSpace)
-            {
-                Process(imageResult.Data);
-            }
+            texture.IsGammaSpace = setting.IsGammaSpace;
             texture.HDRPixels = new(imageResult.Data);
             texture.IsHdrTexture = true;
             return texture;
@@ -239,7 +230,7 @@ public static class TextureImporter
     {
         for (int i = 0; i < data.Length; i++)
         {
-            data[i] = (byte)(Math.Pow(data[i] / 255.0f, 1.0f / 2.2f) * 255);
+            data[i] = (byte)(Math.Pow(data[i] / 255.0f, 2.2f) * 255);
         }
     }
 
@@ -247,7 +238,7 @@ public static class TextureImporter
     {
         for (int i = 0; i < data.Length; i++)
         {
-            data[i] = MathF.Pow(data[i], 1.0f / 2.2f);
+            data[i] = MathF.Pow(data[i], 2.2f);
         }
     }
 
