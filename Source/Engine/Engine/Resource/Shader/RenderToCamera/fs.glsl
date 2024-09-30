@@ -15,6 +15,8 @@ vec3 ACESFilmToneMapping(vec3 color);
 void main()
 {
 	vec4 finalColor = texture(Buffer_FinalColor, texCoord);
-    vec3 ldrColor = ACESFilmToneMapping(finalColor.xyz);
-	Buffer_Color = vec4(ldrColor.xyz, finalColor.w);
+
+	// vec3 ldrColor = finalColor.xyz / (finalColor.xyz + vec3(1.0));
+    // vec3 ldrColor = ACESFilmToneMapping(finalColor.xyz);
+	Buffer_Color = finalColor;//vec4(pow(finalColor.xyz, vec3(1.0/ 2.2)), finalColor.w);
 }

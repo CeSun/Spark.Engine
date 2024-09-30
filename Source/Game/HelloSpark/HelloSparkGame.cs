@@ -17,8 +17,9 @@ public class HelloSparkGame : IGame
     public async void BeginPlay(World world)
     {
         DirectionLightActor light = new DirectionLightActor(world);
-        light.Color = Color.White;
-        light.LightComponent.LightStrength = 3f;
+        light.Color = Color.Red;
+        light.LightComponent.LightStrength = 0.4f;
+        light.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -30f.DegreeToRadians(), 0);
 
         CameraActor = new CameraActor(world);
         CameraActor.WorldLocation = CameraActor.WorldLocation + CameraActor.ForwardVector * -10 + CameraActor.UpVector * 4;
@@ -28,7 +29,7 @@ public class HelloSparkGame : IGame
         var staticmesh = new StaticMeshActor(world);
         var sm = await Task.Run(() =>
         {
-            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/WoodenCrate.glb"))
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/sofa.glb"))
             {
                 MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
 
@@ -40,7 +41,7 @@ public class HelloSparkGame : IGame
         staticmesh.WorldLocation += staticmesh.RightVector * 5;
 
         staticmesh.WorldRotation = Quaternion.CreateFromYawPitchRoll(135f.RadiansToDegree(),0, 0);
-        staticmesh.WorldScale = new Vector3(1);
+        staticmesh.WorldScale = new Vector3(5);
 
 
         var skeletalMesh = new SkeletalMeshActor(world);
