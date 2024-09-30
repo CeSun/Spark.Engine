@@ -49,6 +49,35 @@ public class LighingtShadingPass : Pass
                 Context.RectangleMesh.Draw(Context);
             }
         }
+
+        using (shader.Use(Context.gl, "_POINT_LIGHT_"))
+        {
+            shader.SetVector3("CameraPosition", camera.WorldLocation);
+            shader.SetMatrix("ViewProjectionInverse", camera.ViewProjectionInverse);
+            foreach (var pointLight in world.PointLightComponentProxies)
+            {
+                shader.SetVector3("LightColor", pointLight.Color);
+                shader.SetFloat("LightStrength", pointLight.LightStrength);
+
+                shader.SetVector3("LightPosition", pointLight.WorldLocation);
+                shader.SetFloat("LightFalloffRadius", pointLight.FalloffRadius);
+
+                shader.SetInt("Buffer_BaseColor_AO", 0);
+                Context.gl.ActiveTexture(GLEnum.Texture0);
+                Context.gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[0].AttachmentTextureIds[0]);
+
+                shader.SetInt("Buffer_Normal_Metalness_Roughness", 1);
+                Context.gl.ActiveTexture(GLEnum.Texture1);
+                Context.gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[0].AttachmentTextureIds[1]);
+
+                shader.SetInt("Buffer_Depth", 2);
+                Context.gl.ActiveTexture(GLEnum.Texture2);
+                Context.gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[0].AttachmentTextureIds[2]);
+
+                Context.RectangleMesh.Draw(Context);
+            }
+        }
+
     }
 
     private ShaderTemplate Check(BaseRenderer renderer)

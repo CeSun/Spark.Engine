@@ -56,6 +56,7 @@ void main()
 	
 	// 摄像机方向
 #if defined  _POINT_LIGHT_ || defined _SPOT_LIGHT_
+    float distance = length(worldPosition - LightPosition);
     float attenuation = 1.0 / (distance * (1.0/LightFalloffRadius) * distance* (1.0/LightFalloffRadius));
 #else
 	float attenuation = 1.0;

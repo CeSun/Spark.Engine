@@ -16,9 +16,10 @@ public class HelloSparkGame : IGame
     CameraActor? CameraActor;
     public async void BeginPlay(World world)
     {
-        DirectionLightActor light = new DirectionLightActor(world);
+        PointLightActor light = new PointLightActor(world);
         light.Color = Color.White;
         light.LightComponent.LightStrength = 3f;
+        light.PointLightComponent.FalloffRadius = 10;
 
         CameraActor = new CameraActor(world);
         CameraActor.WorldLocation = CameraActor.WorldLocation + CameraActor.ForwardVector * -10 + CameraActor.UpVector * 4;
