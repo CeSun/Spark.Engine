@@ -230,7 +230,7 @@ public static class TextureImporter
     {
         for (int i = 0; i < data.Length; i++)
         {
-            data[i] = (byte)(Math.Pow(data[i] / 255.0f, 1.0f / 2.2f) * 255);
+            data[i] = (byte)(Math.Pow(data[i] / 255.0f, 2.2f) * 255);
         }
     }
 
@@ -238,7 +238,7 @@ public static class TextureImporter
     {
         for (int i = 0; i < data.Length; i++)
         {
-            data[i] = MathF.Pow(data[i], 1.0f / 2.2f);
+            data[i] = MathF.Pow(data[i], 2.2f);
         }
     }
 
