@@ -71,7 +71,7 @@ void main()
 	vec3 lightDirection = vec3(1.0);
 #endif
 
-	vec3 Lo = CalculateBlinnPhongLighting(BaseColor, Metalness, Roughness, Normal, attenuation, LightColor, lightDirection, cameraDirection);
+	vec3 Lo = CalculatePbrLighting(BaseColor, Metalness, Roughness, Normal, attenuation, LightColor, lightDirection, cameraDirection);
 
 	Buffer_Color = vec4(0.03 * BaseColor +  Lo * LightStrength , 1.0f);
 }
