@@ -53,6 +53,12 @@ public class TextureCube(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUp
         set => IsHdrTexture = !value;
     }
 
+    private bool _isGammaSpace = false;
+    public bool IsGammaSpace
+    {
+        get => !_isGammaSpace;
+        set => ChangeProperty(ref _isGammaSpace, value);
+    }
     protected unsafe override int assetPropertiesSize => sizeof(TextureCubeProxyProperties);
     public override nint CreateProperties()
     {
@@ -63,6 +69,7 @@ public class TextureCube(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUp
         properties.Channel = _channel;
         properties.Filter = _filter;
         properties.IsHdrTexture = _isHdrTexture;
+        properties.IsGammaSpace = _isGammaSpace;
         for( var i = 0; i < 6; i++)
         {
             if (IsHdrTexture)
@@ -157,7 +164,9 @@ public class TextureCubeProxy : AssetRenderProxy
     public TexFilter Filter { get; set; }
     public bool IsHdrTexture { get; set; }
 
-    
+    public bool IsGammaSpace { get; set; }
+
+
     public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
@@ -167,6 +176,7 @@ public class TextureCubeProxy : AssetRenderProxy
         Height = properties.Height;
         Channel = properties.Channel;
         Filter = properties.Filter;
+        IsGammaSpace = properties.IsGammaSpace;
         IsHdrTexture = properties.IsHdrTexture;
 
 
@@ -177,11 +187,11 @@ public class TextureCubeProxy : AssetRenderProxy
         {
             if (IsHdrTexture == true)
             {
-                gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlHdrEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, properties.HDRPixels[i].Ptr);
+                gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToInternalFormat(IsHdrTexture, IsGammaSpace), Width, Height, 0, Channel.ToGlEnum(), GLEnum.Float, properties.HDRPixels[i].Ptr);
             }
             else 
             {
-                gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToGlEnum(), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, properties.LDRPixels[i].Ptr);
+                gl.TexImage2D(TexTargets[i], 0, (int)Channel.ToInternalFormat(IsHdrTexture, IsGammaSpace), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, properties.LDRPixels[i].Ptr);
             }
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Linear);
             gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Linear);
@@ -210,6 +220,7 @@ public struct TextureCubeProxyProperties
     public TexChannel Channel;
     public TexFilter Filter;
     public bool IsHdrTexture;
+    public bool IsGammaSpace;
     public UnmanagedArray<UnmanagedArray<float>> HDRPixels;
     public UnmanagedArray<UnmanagedArray<byte>> LDRPixels;
 }
