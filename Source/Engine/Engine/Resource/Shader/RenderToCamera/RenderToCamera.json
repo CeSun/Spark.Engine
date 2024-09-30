@@ -1,5 +1,8 @@
 {
   "name": "RenderToCamera",
+  "include": [
+    "Engine/Shader/Common/common.glsl"
+  ],
   "vertex": "Engine/Shader/RenderToCamera/vs.glsl",
   "fragment": "Engine/Shader/RenderToCamera/fs.glsl"
 }
