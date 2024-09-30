@@ -58,7 +58,7 @@ void main()
 	// 摄像机方向
 #if defined  _POINT_LIGHT_ || defined _SPOT_LIGHT_
     float distance = length(worldPosition - LightPosition);
-    float attenuation = 1.0 / (distance * (1.0/LightFalloffRadius) * distance* (1.0/LightFalloffRadius));
+    float attenuation = 1.0 / pow(distance/LightFalloffRadius, 2.0);
 #else
 	float attenuation = 1.0;
 #endif
@@ -74,6 +74,6 @@ void main()
 
 	vec3 Lo = CalculatePbrLighting(BaseColor, Metalness, Roughness, Normal, attenuation, LightColor, lightDirection, cameraDirection);
 
-	Buffer_Color = vec4(0.03 * BaseColor +  Lo * LightStrength , 1.0f);
+	Buffer_Color = vec4(Lo * LightStrength , 1.0f);
 }
 
