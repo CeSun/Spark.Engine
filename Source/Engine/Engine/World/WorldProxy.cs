@@ -8,6 +8,9 @@ namespace Spark.Core;
 
 public class WorldProxy
 {
+    DirectionLightShadowMapPass DirectionLightShadowMapPass = new DirectionLightShadowMapPass();
+    PointLightShadowMapPass PointLightShadowMapPass = new PointLightShadowMapPass();
+    SpotLightShadowMapPass SpotLightShadowMapPass = new SpotLightShadowMapPass();
     private Dictionary<GCHandle, PrimitiveComponentProxy> _primitiveComponentProxyDictionary = [];
     public IReadOnlyDictionary<GCHandle, PrimitiveComponentProxy> PrimitiveComponentProxyDictionary => _primitiveComponentProxyDictionary;
     public List<nint> AddRenderPropertiesList { get; private set; } = [];
@@ -30,7 +33,45 @@ public class WorldProxy
     private List<SpotLightComponentProxy> spotLightComponentProxies = new List<SpotLightComponentProxy>();
     public IReadOnlyList<SpotLightComponentProxy> SpotLightComponentProxies => spotLightComponentProxies;
 
-    public void UpdateComponentProxies(BaseRenderer renderer)
+    public void Render(RenderDevice renderDeivce)
+    {
+        RendererLightShadowMap(renderDeivce);
+        foreach(var camera in cameraComponentProxies)
+        {
+            camera.Renderer?.Render();
+        }
+    }
+
+    private void RendererLightShadowMap(RenderDevice renderDeivce)
+    {
+        foreach (var directionLight in DirectionalLightComponentProxies)
+        {
+            if (directionLight.Hidden == true)
+                continue;
+            if (directionLight.CastShadow == false)
+                continue;
+            DirectionLightShadowMapPass.Render(renderDeivce, this, directionLight);
+        }
+        foreach (var pointLight in PointLightComponentProxies)
+        {
+            if (pointLight.Hidden == true)
+                continue;
+            if (pointLight.CastShadow == false)
+                continue;
+            PointLightShadowMapPass.Render(renderDeivce, this, pointLight);
+        }
+        foreach (var spotLight in SpotLightComponentProxies)
+        {
+            if (spotLight.Hidden == true)
+                continue;
+            if (spotLight.CastShadow == false)
+                continue;
+            SpotLightShadowMapPass.Render(renderDeivce, this, spotLight);
+        }
+    }
+
+
+    public void UpdateComponentProxies(RenderDevice renderer)
     {
         bool isAddCameraComponent = false;
         for (var i = 0; i < AddRenderPropertiesList.Count; i++)
@@ -83,6 +124,7 @@ public class WorldProxy
                             proxyGcHandle.Free();
                             if (proxy != null)
                             {
+                                proxy.World = this;
                                 _primitiveComponentProxyDictionary.Add(componentProperties.ComponentWeakGChandle, proxy);
                                 switch (proxy)
                                 {
@@ -126,7 +168,7 @@ public class WorldProxy
         }
     }
 
-    public void Destory(BaseRenderer renderer)
+    public void Destory(RenderDevice renderer)
     {
         foreach(var item in AddRenderPropertiesList)
         {

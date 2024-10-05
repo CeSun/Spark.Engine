@@ -55,9 +55,9 @@ public class PointLightComponent : LightComponent
 public class PointLightComponentProxy : LightComponentProxy
 {
     public float FalloffRadius { get; set; }
-    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
-        base.UpdateProperties(propertiesPtr, renderer);
+        base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(propertiesPtr);
         Color = properties.LightBaseProperties.Color;
         FalloffRadius = properties.FalloffRadius;

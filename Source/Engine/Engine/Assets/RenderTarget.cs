@@ -81,7 +81,7 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
     public int Width { set; get; }
     public int Height { set; get; }
 
-    public override void DestoryGpuResource(BaseRenderer renderer)
+    public override void DestoryGpuResource(RenderDevice renderer)
     {
         base.DestoryGpuResource(renderer);
         var gl = renderer.gl;
@@ -101,7 +101,7 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
             AttachmentTextureIds.Clear();
         }
     }
-    public unsafe void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, in RenderTargetProxyProperties properties)
+    public unsafe void UpdatePropertiesAndRebuildGPUResource(RenderDevice renderer, in RenderTargetProxyProperties properties)
     {
         var gl = renderer.gl;
         Width = properties.Width;
@@ -135,7 +135,7 @@ public class RenderTargetProxy : AssetRenderProxy, IDisposable
         }
         gl.BindFramebuffer(GLEnum.Framebuffer, 0);
     }
-    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
+    public unsafe override void UpdatePropertiesAndRebuildGPUResource(RenderDevice renderer, IntPtr propertiesPtr)
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
         ref var properties = ref UnsafeHelper.AsRef<RenderTargetProxyProperties>(propertiesPtr);

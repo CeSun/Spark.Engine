@@ -1,5 +1,7 @@
 ﻿using HelloSpark;
+using SharpGLTF.Schema2;
 using Silk.NET.OpenGLES;
+using Spark.Core.Components;
 using Spark.Core.Render;
 
 namespace Spark.Core;
@@ -11,8 +13,8 @@ public class GameConfig : IGameConfig
         return new HelloSparkGame();
     }
 
-    public BaseRenderer CreateRenderer(Engine engine)
+    public Renderer CreateRenderer(RenderDevice renderDevice, CameraComponentProxy camera)
     {
-        return new DeferredRenderer(engine);
+        return new DeferredRenderer(camera, renderDevice);
     }
 }

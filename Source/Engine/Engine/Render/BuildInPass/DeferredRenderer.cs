@@ -6,111 +6,71 @@ using System.Numerics;
 
 namespace Spark.Core.Render;
 
-public class DeferredRenderer : BaseRenderer
+public class DeferredRenderer : Renderer
 {
-    DirectionLightShadowMapPass DirectionLightShadowMapPass = new DirectionLightShadowMapPass();
-    PointLightShadowMapPass PointLightShadowMapPass = new PointLightShadowMapPass();
-    SpotLightShadowMapPass SpotLightShadowMapPass = new SpotLightShadowMapPass();
 
-    PrezPass PrezPass = new PrezPass();
-    BasePass BasePass = new BasePass();
+    PrezPass _prezPass = new PrezPass();
+    BasePass _basePass = new BasePass();
+    LighingtShadingPass _lightingShadingPass = new LighingtShadingPass();
 
-    LighingtShadingPass LightingShadingPass = new LighingtShadingPass();
 
-    ShaderTemplate shaderTemplate;
-    public DeferredRenderer(Engine engine) : base(engine)
+    ShaderTemplate _renderToCameraShader;
+
+    public RenderTargetProxy GBufferRenderTarget = new RenderTargetProxy();
+    public RenderTargetProxy LightShadingRenderTarget = new RenderTargetProxy();
+
+    public DeferredRenderer(CameraComponentProxy camera, RenderDevice renderDevice) : base(camera, renderDevice)
     {
-        shaderTemplate = ShaderTemplateHelper.ReadShaderTemplate(this, "Engine/Shader/RenderToCamera/RenderToCamera.json")!;
+        _renderToCameraShader = ShaderTemplateHelper.ReadShaderTemplate(renderDevice, "Engine/Shader/RenderToCamera/RenderToCamera.json")!;
     }
 
-    public override void RendererWorld(WorldProxy world)
+    public override void Render()
     {
-        RendererLightShadowMap(world);
-        foreach (var camera in world.CameraComponentProxies)
-        {
-            CheckGbufffer(camera);
-            using (camera.RenderTargets[0].Begin(gl))
-            {
-                PrezPass.Render(this, world, camera);
-                BasePass.Render(this, world, camera);
-            }
-            using (camera.RenderTargets[1].Begin(gl))
-            {
-                LightingShadingPass.Render(this, world, camera);
-            }
-
-            if (camera.RenderTarget != null)
-            {
-                using (camera.RenderTarget.Begin(gl))
-                {
-                    gl.Enable(GLEnum.Blend);
-                    gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-                    gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
-                    if (camera.ClearFlag == CameraClearFlag.Color)
-                    {
-                        gl.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
-                        gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-                    }
-                    using (shaderTemplate.Use(gl))
-                    {
-                        shaderTemplate.SetInt("Buffer_FinalColor", 0);
-                        gl.ActiveTexture(GLEnum.Texture0);
-                        gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[1].AttachmentTextureIds[0]);
-
-                        RectangleMesh.Draw(this);
-                    }
-                }
-
-            }
-        }
-    }
-
-    private void RendererLightShadowMap(WorldProxy world)
-    {
-        foreach (var directionLight in world.DirectionalLightComponentProxies)
-        {
-            if (directionLight.Hidden == true)
-                continue;
-            if (directionLight.CastShadow == false)
-                continue;
-            DirectionLightShadowMapPass.Render(this, world, directionLight);
-        }
-        foreach (var pointLight in world.PointLightComponentProxies)
-        {
-            if (pointLight.Hidden == true)
-                continue;
-            if (pointLight.CastShadow == false)
-                continue;
-            PointLightShadowMapPass.Render(this, world, pointLight);
-        }
-        foreach (var spotLight in world.SpotLightComponentProxies)
-        {
-            if (spotLight.Hidden == true)
-                continue;
-            if (spotLight.CastShadow == false)
-                continue;
-            SpotLightShadowMapPass.Render(this, world, spotLight);
-        }
-    }
-
-   
-    private void CheckGbufffer(CameraComponentProxy camera)
-    {
-
-        if (camera.RenderTarget == null)
+        if (Camera.World == null)
             return;
-        if (camera.RenderTargets.Count == 0)
+        CheckGbufffer();
+        using (GBufferRenderTarget.Begin(gl))
         {
-            camera.RenderTargets.Add(new RenderTargetProxy());
-            camera.RenderTargets.Add(new RenderTargetProxy());
+            _prezPass.Render(this, Camera.World, Camera);
+            _basePass.Render(this, Camera.World, Camera);
         }
-        if (camera.RenderTargets[0].Width != camera.RenderTarget.Width || camera.RenderTargets[0].Height != camera.RenderTarget.Height)
+        using (LightShadingRenderTarget.Begin(gl))
+        {
+            _lightingShadingPass.Render(this, Camera.World, Camera);
+        }
+
+        if (Camera.RenderTarget != null)
+        {
+            using (Camera.RenderTarget.Begin(gl))
+            {
+                gl.Enable(GLEnum.Blend);
+                gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
+                if (Camera.ClearFlag == CameraClearFlag.Color)
+                {
+                    gl.ClearColor(Camera.ClearColor.X, Camera.ClearColor.Y, Camera.ClearColor.Z, Camera.ClearColor.W);
+                    gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+                }
+                using (_renderToCameraShader.Use(gl))
+                {
+                    _renderToCameraShader.SetInt("Buffer_FinalColor", 0);
+                    gl.ActiveTexture(GLEnum.Texture0);
+                    gl.BindTexture(GLEnum.Texture2D, LightShadingRenderTarget.AttachmentTextureIds[0]);
+
+                    gl.Draw(RenderDevice.RectangleMesh);
+                }
+            }
+        }
+    }
+    private void CheckGbufffer()
+    {
+        if (GBufferRenderTarget.Width != Camera.RenderTarget!.Width || GBufferRenderTarget.Height != Camera.RenderTarget.Height)
         {
             RenderTargetProxyProperties properties = new RenderTargetProxyProperties()
             {
                 IsDefaultRenderTarget = false,
-                Width = camera.RenderTarget.Width,
-                Height = camera.RenderTarget.Height,
+                Width = Camera.RenderTarget.Width,
+                Height = Camera.RenderTarget.Height,
                 Configs = new UnmanagedArray<FrameBufferConfig>([
                     new FrameBufferConfig{Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba8, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
                     new FrameBufferConfig{Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba8, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment1, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
@@ -119,17 +79,17 @@ public class DeferredRenderer : BaseRenderer
             };
             unsafe
             {
-                camera.RenderTargets[0].UpdatePropertiesAndRebuildGPUResource(this, properties);
+                GBufferRenderTarget.UpdatePropertiesAndRebuildGPUResource(RenderDevice, properties);
             }
             properties.Configs.Dispose();
         }
-        if (camera.RenderTargets[1].Width != camera.RenderTarget.Width || camera.RenderTargets[1].Height != camera.RenderTarget.Height)
+        if (LightShadingRenderTarget.Width != Camera.RenderTarget.Width || LightShadingRenderTarget.Height != Camera.RenderTarget.Height)
         {
             RenderTargetProxyProperties properties = new RenderTargetProxyProperties()
             {
                 IsDefaultRenderTarget = false,
-                Width = camera.RenderTarget.Width,
-                Height = camera.RenderTarget.Height,
+                Width = Camera.RenderTarget.Width,
+                Height = Camera.RenderTarget.Height,
                 Configs = new UnmanagedArray<FrameBufferConfig>([
                     new FrameBufferConfig{Format = PixelFormat.Rgb, InternalFormat = InternalFormat.Rgb16f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
                     new FrameBufferConfig{Format = PixelFormat.DepthStencil, InternalFormat = InternalFormat.Depth24Stencil8, PixelType= PixelType.UnsignedInt248, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
@@ -137,118 +97,11 @@ public class DeferredRenderer : BaseRenderer
             };
             unsafe
             {
-                camera.RenderTargets[1].UpdatePropertiesAndRebuildGPUResource(this, properties);
+                LightShadingRenderTarget.UpdatePropertiesAndRebuildGPUResource(RenderDevice, properties);
             }
             properties.Configs.Dispose();
         }
     }
-    public void BatchDrawStaticMesh(Span<StaticMeshComponentProxy> staticMeshComponentProxies, Matrix4x4 View, Matrix4x4 Projection, bool OnlyDepth, bool ingoreMasked = false)
-    {
-        Span<string> Macros = ["_NOTHING_"];
-        Span<string> MaskedMacros = ["_BLENDMODE_MASKED_"];
-        if (OnlyDepth)
-        {
-            MaskedMacros = [.. MaskedMacros, "_DEPTH_ONLY_"];
-            Macros = ["_DEPTH_ONLY_"];
-        }
-
-        foreach (var staticmesh in staticMeshComponentProxies)
-        {
-            if (staticmesh.StaticMeshProxy == null)
-                continue;
-            if (staticmesh.Hidden)
-                continue;
-            foreach (var mesh in staticmesh.StaticMeshProxy.Elements)
-            {
-                if (mesh.Material == null)
-                    continue;
-                if (mesh.Material.ShaderTemplate == null)
-                    continue;
-                var shader = mesh.Material.ShaderTemplate;
-                if (ingoreMasked == false && mesh.Material.BlendMode == BlendMode.Masked)
-                    shader.Use(gl, MaskedMacros);
-                else
-                    shader.Use(gl, Macros);
-                if (OnlyDepth)
-                    DrawElementDepth(shader, mesh, staticmesh.Trasnform, View, Projection);
-                else
-                    DrawElement(shader, mesh, staticmesh.Trasnform, View, Projection);
-                shader.Dispose();
-            }
-        }
-    }
-
-    public void BatchDrawSkeletalMesh(Span<SkeletalMeshComponentProxy> skeletalMeshComponentProxes, Matrix4x4 View, Matrix4x4 Projection, bool OnlyDepth, bool ingoreMasked = false)
-    {
-        Span<string> Macros = ["_SKELETAL_MESH_"];
-        Span<string> MaskedMacros = ["_BLENDMODE_MASKED_", .. Macros];
-        if (OnlyDepth)
-        {
-            MaskedMacros = [.. MaskedMacros, "_DEPTH_ONLY_"];
-            Macros = [.. Macros, "_DEPTH_ONLY_"];
-        }
-
-        foreach (var skeletalMesh in skeletalMeshComponentProxes)
-        {
-            if (skeletalMesh.SkeletalMeshProxy == null)
-                continue;
-            if (skeletalMesh.Hidden)
-                continue;
-            foreach (var mesh in skeletalMesh.SkeletalMeshProxy.Elements)
-            {
-                if (mesh.Material == null)
-                    continue;
-                if (mesh.Material.ShaderTemplate == null)
-                    continue;
-                var shader = mesh.Material.ShaderTemplate;
-                if (ingoreMasked == false && mesh.Material.BlendMode == BlendMode.Masked)
-                    shader.Use(gl, MaskedMacros);
-                else
-                    shader.Use(gl, Macros);
-                for (int i = 0; i < 100; i++)
-                {
-                    shader.SetMatrix($"animTransform[{i}]", skeletalMesh.AnimBuffer[i]);
-                }
-                if (OnlyDepth)
-                    DrawElementDepth(shader, mesh, skeletalMesh.Trasnform, View, Projection);
-                else
-                    DrawElement(shader, mesh, skeletalMesh.Trasnform, View, Projection);
-                shader.Dispose();
-            }
-        }
-    }
-
-    public void DrawElement(ShaderTemplate shader, ElementProxy element, Matrix4x4 Model, Matrix4x4 View, Matrix4x4 Projection)
-    {
-        if (element.Material == null)
-            return;
-        shader.SetMatrix("model", Model);
-        shader.SetMatrix("view", View);
-        shader.SetMatrix("projection", Projection);
-        if (element.Material.Textures.TryGetValue("BaseColor", out var textureBaseColor))
-            shader.SetTexture("Texture_BaseColor", 1, textureBaseColor);
-        if (element.Material.Textures.TryGetValue("Normal", out var textureNormal))
-            shader.SetTexture("Texture_Normal", 2, textureNormal);
-        if (element.Material.Textures.TryGetValue("Metalness", out var textureMetalness))
-            shader.SetTexture("Texture_Metalness", 3, textureMetalness);
-        if (element.Material.Textures.TryGetValue("Roughness", out var textureRoughness))
-            shader.SetTexture("Texture_Roughness", 4, textureRoughness);
-        this.Draw(element);
-    }
-
-    public void DrawElementDepth(ShaderTemplate shader, ElementProxy element, Matrix4x4 Model, Matrix4x4 View, Matrix4x4 Projection)
-    {
-        if (element.Material == null)
-            return;
-        shader.SetMatrix("model", Model);
-        shader.SetMatrix("view", View);
-        shader.SetMatrix("projection", Projection);
-        if (element.Material.BlendMode == BlendMode.Masked)
-        {
-            if (element.Material.Textures.TryGetValue("BaseColor", out var texture))
-                shader.SetTexture("Texture_BaseColor", 1, texture);
-        }
-        this.Draw(element);
-    }
+    
 
 }

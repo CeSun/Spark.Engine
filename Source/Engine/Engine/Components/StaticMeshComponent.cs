@@ -50,11 +50,11 @@ public class StaticMeshComponent : PrimitiveComponent
 public class StaticMeshComponentProxy : PrimitiveComponentProxy
 {
     public StaticMeshProxy? StaticMeshProxy { get; set; }
-    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
-        base.UpdateProperties(propertiesPtr, renderer);
+        base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<StaticMeshComponentProperties>(propertiesPtr);
-        StaticMeshProxy = renderer.GetProxy<StaticMeshProxy>(properties.StaticMesh);
+        StaticMeshProxy = renderDevice.GetProxy<StaticMeshProxy>(properties.StaticMesh);
     }
 }
 

@@ -75,8 +75,8 @@ public partial class PrimitiveComponent
 
     protected void ChangeAssetProperty<T>(ref T? Field, in T? NewValue) where T : AssetBase
     {
-        if (Engine.SceneRenderer != null && NewValue != null)
-            NewValue.PostProxyToRenderer(Engine.SceneRenderer);
+        if (Engine.RenderDevice != null && NewValue != null)
+            NewValue.PostProxyToRenderer(Engine.RenderDevice);
         ChangeProperty(ref Field, in NewValue);
     }
 
@@ -391,10 +391,11 @@ public class PrimitiveComponentProxy
     public Vector3 WorldLocation;
     public Vector3 WorldScale;
     public Matrix4x4 NormalTransform;
+    public WorldProxy? World;
     public bool Hidden { get; set; }
     public bool CastShadow { get; set; }
     public Matrix4x4 Trasnform { get; set; }
-    public virtual void UpdateProperties(IntPtr propertiesPtr, BaseRenderer renderer)
+    public virtual void UpdateProperties(IntPtr propertiesPtr, RenderDevice renderDevice)
     {
         ref var properties = ref UnsafeHelper.AsRef<PrimitiveComponentProperties>(propertiesPtr);
         Hidden = properties.Hidden;
@@ -422,7 +423,7 @@ public class PrimitiveComponentProxy
         Matrix4x4.Invert(m, out NormalTransform);
         NormalTransform = Matrix4x4.Transpose(NormalTransform);
     }
-    public virtual void DestoryGpuResource(BaseRenderer renderer)
+    public virtual void DestoryGpuResource(RenderDevice renderer)
     {
 
     }

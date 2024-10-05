@@ -149,9 +149,9 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
     public Matrix4x4 ViewProjection;
     public Matrix4x4 ViewProjectionInverse;
 
-    public List<RenderTargetProxy> RenderTargets = [];
-
     public Plane[] Planes = new Plane[6];
+
+    public Renderer? Renderer;
     public int CompareTo(CameraComponentProxy? other)
     {
         if (other == null)
@@ -193,17 +193,17 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
         Planes[5].D = ViewProjection[3, 3] - ViewProjection[3, 2];
     }
 
-    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
-        base.UpdateProperties(propertiesPtr, renderer);
+        base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<CameraComponentProperties>(propertiesPtr);
         FieldOfView = properties.FieldOfView;
         NearPlaneDistance = properties.NearPlaneDistance;
         FarPlaneDistance = properties.FarPlaneDistance;
         Order = properties.Order;
-        RenderTarget = renderer.GetProxy<RenderTargetProxy>(properties.RenderTarget);
+        RenderTarget = renderDevice.GetProxy<RenderTargetProxy>(properties.RenderTarget);
         ProjectionType = properties.ProjectionType;
-        Skybox = renderer.GetProxy<TextureCubeProxy>(properties.RenderTarget);
+        Skybox = renderDevice.GetProxy<TextureCubeProxy>(properties.RenderTarget);
         ClearFlag = properties.ClearFlag;
         ClearColor = properties.ClearColor;
 
@@ -220,16 +220,16 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
             Matrix4x4.Invert(ViewProjection, out ViewProjectionInverse);
             UpdatePlanes();
         }
+
+        if (Renderer == null || Renderer.RenderDevice != renderDevice)
+        {
+            Renderer = renderDevice.Engine.GameConfig.CreateRenderer(renderDevice, this);
+        }
     }
 
-    public override void DestoryGpuResource(BaseRenderer renderer)
+    public override void DestoryGpuResource(RenderDevice renderDevice)
     {
-        base.DestoryGpuResource(renderer);
-        foreach(var proxy in RenderTargets)
-        {
-            proxy.DestoryGpuResource(renderer);
-        }
-        RenderTargets.Clear();
+        base.DestoryGpuResource(renderDevice);
     }
 }
 public struct CameraComponentProperties

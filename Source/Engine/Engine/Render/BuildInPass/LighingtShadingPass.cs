@@ -20,11 +20,11 @@ public class LighingtShadingPass : Pass
 
 
     ShaderTemplate? ShaderTemplate;
-    public void Render(BaseRenderer Context, WorldProxy world, CameraComponentProxy camera)
+    public void Render(DeferredRenderer renderer, WorldProxy world, CameraComponentProxy camera)
     {
-        ResetPassState(Context);
-        var shader = Check(Context);
-        using (shader.Use(Context.gl, "_DIRECTIONAL_LIGHT_"))
+        renderer.gl.ResetPassState(this);
+        var shader = Check(renderer.RenderDevice);
+        using (shader.Use(renderer.gl, "_DIRECTIONAL_LIGHT_"))
         {
             shader.SetVector3("CameraPosition", camera.WorldLocation);
             shader.SetMatrix("ViewProjectionInverse", camera.ViewProjectionInverse);
@@ -35,22 +35,22 @@ public class LighingtShadingPass : Pass
                 shader.SetVector3("LightDirection", directionalLight.Forward);
 
                 shader.SetInt("Buffer_BaseColor_AO", 0);
-                Context.gl.ActiveTexture(GLEnum.Texture0);
-                Context.gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[0].AttachmentTextureIds[0]);
+                renderer.gl.ActiveTexture(GLEnum.Texture0);
+                renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[0]);
 
                 shader.SetInt("Buffer_Normal_Metalness_Roughness", 1);
-                Context.gl.ActiveTexture(GLEnum.Texture1);
-                Context.gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[0].AttachmentTextureIds[1]);
+                renderer.gl.ActiveTexture(GLEnum.Texture1);
+                renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[1]);
 
                 shader.SetInt("Buffer_Depth", 2);
-                Context.gl.ActiveTexture(GLEnum.Texture2);
-                Context.gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[0].AttachmentTextureIds[2]);
+                renderer.gl.ActiveTexture(GLEnum.Texture2);
+                renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[2]);
 
-                Context.RectangleMesh.Draw(Context);
+                renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);
             }
         }
 
-        using (shader.Use(Context.gl, "_POINT_LIGHT_"))
+        using (shader.Use(renderer.gl, "_POINT_LIGHT_"))
         {
             shader.SetVector3("CameraPosition", camera.WorldLocation);
             shader.SetMatrix("ViewProjectionInverse", camera.ViewProjectionInverse);
@@ -63,24 +63,24 @@ public class LighingtShadingPass : Pass
                 shader.SetFloat("LightFalloffRadius", pointLight.FalloffRadius);
 
                 shader.SetInt("Buffer_BaseColor_AO", 0);
-                Context.gl.ActiveTexture(GLEnum.Texture0);
-                Context.gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[0].AttachmentTextureIds[0]);
+                renderer.gl.ActiveTexture(GLEnum.Texture0);
+                renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[0]);
 
                 shader.SetInt("Buffer_Normal_Metalness_Roughness", 1);
-                Context.gl.ActiveTexture(GLEnum.Texture1);
-                Context.gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[0].AttachmentTextureIds[1]);
+                renderer.gl.ActiveTexture(GLEnum.Texture1);
+                renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[1]);
 
                 shader.SetInt("Buffer_Depth", 2);
-                Context.gl.ActiveTexture(GLEnum.Texture2);
-                Context.gl.BindTexture(GLEnum.Texture2D, camera.RenderTargets[0].AttachmentTextureIds[2]);
+                renderer.gl.ActiveTexture(GLEnum.Texture2);
+                renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[2]);
 
-                Context.RectangleMesh.Draw(Context);
+                renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);
             }
         }
 
     }
 
-    private ShaderTemplate Check(BaseRenderer renderer)
+    private ShaderTemplate Check(RenderDevice renderer)
     {
         if (ShaderTemplate != null)
             return ShaderTemplate;

@@ -35,7 +35,7 @@ public class StaticMesh(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpL
         return ptr;
     }
 
-    public override void PostProxyToRenderer(BaseRenderer renderer)
+    public override void PostProxyToRenderer(RenderDevice renderer)
     {
         foreach (var element in Elements)
         {
@@ -76,7 +76,7 @@ public class StaticMesh(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpL
 public class StaticMeshProxy : AssetRenderProxy
 {
     public List<ElementProxy> Elements = [];
-    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
+    public unsafe override void UpdatePropertiesAndRebuildGPUResource(RenderDevice renderer, IntPtr propertiesPtr)
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
         var gl = renderer.gl;
@@ -127,7 +127,7 @@ public class StaticMeshProxy : AssetRenderProxy
     }
 
 
-    public override void DestoryGpuResource(BaseRenderer renderer)
+    public override void DestoryGpuResource(RenderDevice renderer)
     {
         base.DestoryGpuResource(renderer);
         var gl = renderer.gl;

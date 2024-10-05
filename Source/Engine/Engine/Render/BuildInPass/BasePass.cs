@@ -15,10 +15,10 @@ public class BasePass : Pass
     public override TriangleFace CullTriangleFace => TriangleFace.Back;
     public override DepthFunction ZTestFunction => DepthFunction.Equal;
 
-    public void Render(DeferredRenderer Context, WorldProxy world, CameraComponentProxy camera)
+    public void Render(Renderer renderer, WorldProxy world, CameraComponentProxy camera)
     {
-        ResetPassState(Context);
-        Context.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), camera.View, camera.Projection, false, true);
-        Context.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), camera.View, camera.Projection, false, true);
+        renderer.gl.ResetPassState(this);
+        renderer.gl.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), camera.View, camera.Projection, false, true);
+        renderer.gl.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), camera.View, camera.Projection, false, true);
     }
 }

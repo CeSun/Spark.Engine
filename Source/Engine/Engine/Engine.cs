@@ -9,7 +9,7 @@ namespace Spark.Core;
 
 public partial class Engine
 {
-    private IGameConfig _gameConfig;
+    public IGameConfig GameConfig { get; private set; }
     public Engine(IPlatform platform, IGameConfig gameConfig)
     {
         
@@ -17,14 +17,14 @@ public partial class Engine
 
         Platform = platform;
 
-        _gameConfig= gameConfig;
+        GameConfig= gameConfig;
 
         if (GraphicsApi != null)
         {
-            SceneRenderer = _gameConfig.CreateRenderer(this);
+            RenderDevice = new RenderDevice(this);
         }
 
-        Game = _gameConfig.CreateGame();
+        Game = GameConfig.CreateGame();
 
         MainWorld = new World(this);
 
@@ -38,7 +38,7 @@ public partial class Engine
 
     public World MainWorld;
 
-    public BaseRenderer? SceneRenderer;
+    public RenderDevice? RenderDevice;
 
     public bool WantClose { get; private set; } = false;
     public void RequestClose()
@@ -79,17 +79,17 @@ public partial class Engine
 
     public void Render()
     {
-        if (SceneRenderer != null)
+        if (RenderDevice != null)
         {
-            SceneRenderer.Render();
+            RenderDevice.Render();
         }
     }
 
     public void RenderDestory()
     {
-        if (SceneRenderer != null)
+        if (RenderDevice != null)
         {
-            SceneRenderer.Destory();
+            RenderDevice.Destory();
         }
     }
 

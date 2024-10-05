@@ -20,49 +20,5 @@ public abstract class Pass
     public virtual bool AlphaBlend => false;
     public virtual (BlendingFactor source, BlendingFactor destination) AlphaBlendFactors => (BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
     public virtual BlendEquationModeEXT AlphaEquation => BlendEquationModeEXT.FuncAdd;
-    public void ResetPassState(BaseRenderer Context)
-    {
-        if (ZTest)
-        {
-            Context.gl.Enable(GLEnum.DepthTest);
-            Context.gl.DepthFunc(ZTestFunction);
-            if (ZWrite)
-            {
-                Context.gl.DepthMask(true);
-            }
-            else
-            {
-                Context.gl.DepthMask(false);
-            }
-        }
-        else
-        {
-            Context.gl.Disable(GLEnum.DepthTest);
-        }
-        if (CullFace)
-        {
-            Context.gl.Enable(GLEnum.CullFace);
-            Context.gl.CullFace(CullTriangleFace);
-        }
-        else
-        {
-            Context.gl.Enable(GLEnum.CullFace);
-        }
-        if (AlphaBlend)
-        {
-            Context.gl.Enable(GLEnum.Blend);
-            Context.gl.BlendFunc(AlphaBlendFactors.source, AlphaBlendFactors.destination);
-            Context.gl.BlendEquation(AlphaEquation);
-        }
-        else
-            Context.gl.Disable(GLEnum.Blend);
-        if ((ClearBufferFlag & ClearBufferMask.ColorBufferBit) > 0)
-            Context.gl.ClearColor(ClearColor);
-        if ((ClearBufferFlag & ClearBufferMask.DepthBufferBit) > 0)
-            Context.gl.ClearDepth(ClearDepth);
-        if ((ClearBufferFlag & ClearBufferMask.StencilBufferBit) > 0)
-            Context.gl.ClearStencil(ClearStencil);
-        Context.gl.Clear(ClearBufferFlag);
-    }
   
 }

@@ -87,13 +87,13 @@ public class SpotLightComponentProxy : LightComponentProxy
     public float OuterAngle {  get; set; }
     public float InnerAngle {  get; set; }
     public float FalloffRadius { get; set; }
-    public override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
+    public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
-        base.UpdateProperties(propertiesPtr, renderer);
+        base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<SpotLightComponentProperties>(propertiesPtr);
         OuterAngle = properties.OuterAngle;
         InnerAngle = properties.InnerAngle;
-        ShadowMapRenderTarget = renderer.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
+        ShadowMapRenderTarget = renderDevice.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
         View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
         Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians(), 1, 1F, 100);
         FalloffRadius = properties.FalloffRadius;

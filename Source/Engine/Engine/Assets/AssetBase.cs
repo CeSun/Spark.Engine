@@ -12,7 +12,7 @@ public abstract class AssetBase
     public bool IsUploaded { get; private set; } = false;
     public bool AllowMuiltUpLoad { get; private set; }
     protected virtual unsafe int assetPropertiesSize => sizeof(AssetProperties);
-    public HashSet<BaseRenderer> Renderers { get; private set; } = [];
+    public HashSet<RenderDevice> Renderers { get; private set; } = [];
     public AssetBase(bool allowMuiltUpLoad = false)
     {
         WeakGCHandle = GCHandle.Alloc(this, GCHandleType.Weak);
@@ -20,7 +20,7 @@ public abstract class AssetBase
     }
 
 
-    public virtual void PostProxyToRenderer(BaseRenderer renderer)
+    public virtual void PostProxyToRenderer(RenderDevice renderer)
     {
         if (IsUploaded == true && AllowMuiltUpLoad == false)
             return;
@@ -92,12 +92,12 @@ public class AssetRenderProxy
     {
     }
 
-    public virtual void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
+    public virtual void UpdatePropertiesAndRebuildGPUResource(RenderDevice renderer, IntPtr propertiesPtr)
     {
     }
 
 
-    public virtual void DestoryGpuResource(BaseRenderer renderer) 
+    public virtual void DestoryGpuResource(RenderDevice renderer) 
     { 
     }
 }

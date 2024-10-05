@@ -132,7 +132,7 @@ public class TextureProxy : AssetRenderProxy
     public TexFilter Filter { get; set; } = TexFilter.Liner;
     public bool IsHdrTexture { get; set; }
     public bool IsGammaSpace { get; set; }
-    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
+    public unsafe override void UpdatePropertiesAndRebuildGPUResource(RenderDevice renderer, IntPtr propertiesPtr)
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
         var gl = renderer.gl;
@@ -160,7 +160,7 @@ public class TextureProxy : AssetRenderProxy
         gl.BindTexture(GLEnum.Texture2D, 0);
     }
 
-    public override void DestoryGpuResource(BaseRenderer renderer)
+    public override void DestoryGpuResource(RenderDevice renderer)
     {
         base.DestoryGpuResource(renderer);
         var gl = renderer.gl;

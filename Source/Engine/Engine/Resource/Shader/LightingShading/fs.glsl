@@ -26,6 +26,7 @@ uniform float LightFalloffRadius;
 #endif
 
 #ifdef _SPOT_LIGHT_
+uniform vec3 LightDirection;
 uniform float InnerCosine;
 uniform float OuterCosine;
 #endif
@@ -74,6 +75,12 @@ void main()
 
 	vec3 Lo = CalculatePbrLighting(BaseColor, Metalness, Roughness, Normal, attenuation, LightColor, lightDirection, cameraDirection);
 
+#ifdef _SPOT_LIGHT_
+	float theta = dot(-1.0 * lightDirection, normalize(-1.0 * LightDirection)); 
+    float epsilon = (InnerCosine - OuterCosine);
+    float intensity = clamp((theta - OuterCosine) / epsilon, 0.0, 1.0);
+	Lo *= intensity;
+#endif
 	Buffer_Color = vec4(Lo * LightStrength , 1.0f);
 }
 

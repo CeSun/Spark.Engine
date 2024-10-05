@@ -1,4 +1,5 @@
 ﻿using Silk.NET.OpenGLES;
+using Spark.Core.Components;
 using Spark.Core.Render;
 using System;
 using System.Collections.Generic;
@@ -21,5 +22,5 @@ public interface IGameConfig
 {
     public IGame CreateGame();
 
-    public BaseRenderer CreateRenderer(Engine engine);
+    public Renderer CreateRenderer(RenderDevice renderDevice, CameraComponentProxy camera);
 }

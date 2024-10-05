@@ -73,7 +73,7 @@ public class Material(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoa
 
     protected override unsafe int assetPropertiesSize => sizeof(MaterialProxyProperties);
 
-    public override void PostProxyToRenderer(BaseRenderer renderer)
+    public override void PostProxyToRenderer(RenderDevice renderer)
     {
         foreach(var (name, texture) in _textures)
         {
@@ -125,7 +125,7 @@ public class Material(bool allowMuiltUpLoad = false) : AssetBase(allowMuiltUpLoa
 public class MaterialProxy : AssetRenderProxy
 {
     
-    public unsafe override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, IntPtr propertiesPtr)
+    public unsafe override void UpdatePropertiesAndRebuildGPUResource(RenderDevice renderer, IntPtr propertiesPtr)
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
         ref var properties = ref UnsafeHelper.AsRef<MaterialProxyProperties>(propertiesPtr);
@@ -147,7 +147,7 @@ public class MaterialProxy : AssetRenderProxy
         }
     }
 
-    public override void DestoryGpuResource(BaseRenderer renderer)
+    public override void DestoryGpuResource(RenderDevice renderer)
     {
         base.DestoryGpuResource(renderer);
     }
@@ -175,7 +175,7 @@ public class ShaderJson
 
 public static class ShaderTemplateHelper
 {
-    public static ShaderTemplate? ReadShaderTemplate(this BaseRenderer renderer, string shaderName)
+    public static ShaderTemplate? ReadShaderTemplate(this RenderDevice renderer, string shaderName)
     {
         var shaderTemplate = renderer.GetShaderTemplate(shaderName);
         if (shaderTemplate != null)

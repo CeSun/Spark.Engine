@@ -132,11 +132,11 @@ public class SkeletalMeshComponentProxy : PrimitiveComponentProxy
 {
     public SkeletalMeshProxy? SkeletalMeshProxy { get; set; }
     public Matrix4x4[] AnimBuffer = new Matrix4x4[100];
-    public unsafe override void UpdateProperties(nint propertiesPtr, BaseRenderer renderer)
+    public unsafe override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
-        base.UpdateProperties(propertiesPtr, renderer);
+        base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<SkeletalMeshComponentProperties>(propertiesPtr);
-        SkeletalMeshProxy = renderer.GetProxy<SkeletalMeshProxy>(properties.SkeletalMesh);
+        SkeletalMeshProxy = renderDevice.GetProxy<SkeletalMeshProxy>(properties.SkeletalMesh);
         fixed(void* d = AnimBuffer)
         {
             fixed (void* s = properties.AnimBuffer)
@@ -146,7 +146,7 @@ public class SkeletalMeshComponentProxy : PrimitiveComponentProxy
         }
     }
 
-    public override void DestoryGpuResource(BaseRenderer renderer)
+    public override void DestoryGpuResource(RenderDevice renderer)
     {
         base.DestoryGpuResource(renderer);
     }

@@ -13,15 +13,15 @@ public class SpotLightShadowMapPass : Pass
     public override ClearBufferMask ClearBufferFlag => ClearBufferMask.DepthBufferBit;
     public override float ClearDepth => 1.0f;
 
-    public void Render(DeferredRenderer Context, WorldProxy world, SpotLightComponentProxy spotLightComponentProxy)
+    public void Render(RenderDevice device, WorldProxy world, SpotLightComponentProxy spotLightComponentProxy)
     {
         if (spotLightComponentProxy.ShadowMapRenderTarget == null)
             return;
-        using (spotLightComponentProxy.ShadowMapRenderTarget.Begin(Context.gl))
+        using (spotLightComponentProxy.ShadowMapRenderTarget.Begin(device.gl))
         {
-            ResetPassState(Context);
-            Context.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), spotLightComponentProxy.View, spotLightComponentProxy.Projection, true);
-            Context.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), spotLightComponentProxy.View, spotLightComponentProxy.Projection, true);
+            device.gl.ResetPassState(this);
+            device.gl.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), spotLightComponentProxy.View, spotLightComponentProxy.Projection, true);
+            device.gl.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), spotLightComponentProxy.View, spotLightComponentProxy.Projection, true);
         }
     }
 }

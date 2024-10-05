@@ -39,12 +39,12 @@ public class World
         WorldMainRenderTarget = new RenderTarget() { IsDefaultRenderTarget = true, Width = width, Height = height };
         if (GraphicsApi != null)
         {
-            RenderWorld = new WorldProxy();
-            if (engine.SceneRenderer != null)
+            if (engine.RenderDevice != null)
             {
-                engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+                RenderWorld = new WorldProxy();
+                engine.RenderDevice.AddRunOnRendererAction(renderer =>
                 {
-                    engine.SceneRenderer.RenderWorlds.Add(RenderWorld);
+                    engine.RenderDevice.RenderWorlds.Add(RenderWorld);
                 });
             }
         }
@@ -62,7 +62,7 @@ public class World
     
     private unsafe void UpdateRenderProperties()
     {
-        if (Engine.SceneRenderer != null && RenderWorld != null)
+        if (Engine.RenderDevice != null && RenderWorld != null)
         {
             var pointer = Marshal.AllocHGlobal(Unsafe.SizeOf<nint>() * RenderDirtyComponent.Count);
             var len = RenderDirtyComponent.Count;
@@ -73,7 +73,7 @@ public class World
                 array[i++] = component.GetPrimitiveComponentProperties();
             }
             RenderDirtyComponent.Clear();
-            Engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+            Engine.RenderDevice.AddRunOnRendererAction(renderer =>
             {
                 var array = new Span<nint>((void*)pointer, len);
                 RenderWorld.AddRenderPropertiesList.AddRange(array);
@@ -86,9 +86,9 @@ public class World
     {
         var engine = Engine;
         var renderWorld = this.RenderWorld;
-        if (engine.SceneRenderer != null && renderWorld != null)
+        if (engine.RenderDevice != null && renderWorld != null)
         {
-            engine.SceneRenderer.AddRunOnRendererAction(renderer =>
+            engine.RenderDevice.AddRunOnRendererAction(renderer =>
             {
                 renderWorld.Destory(renderer);
                 renderer.RenderWorlds.Remove(renderWorld);

@@ -20,7 +20,7 @@ public class RenderTargetCube : RenderTarget
 
 public class RenderTargetCubeProxy : RenderTargetProxy
 {
-    public override void UpdatePropertiesAndRebuildGPUResource(BaseRenderer renderer, nint propertiesPtr)
+    public override void UpdatePropertiesAndRebuildGPUResource(RenderDevice renderer, nint propertiesPtr)
     {
         base.UpdatePropertiesAndRebuildGPUResource(renderer, propertiesPtr);
 

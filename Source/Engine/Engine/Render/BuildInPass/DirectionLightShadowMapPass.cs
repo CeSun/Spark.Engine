@@ -15,15 +15,15 @@ public class DirectionLightShadowMapPass : Pass
     public override ClearBufferMask ClearBufferFlag => ClearBufferMask.DepthBufferBit;
     public override float ClearDepth => 1.0f;
 
-    public void Render(DeferredRenderer Context, WorldProxy world, DirectionalLightComponentProxy dirctionalLightComponent)
+    public void Render(RenderDevice device, WorldProxy world, DirectionalLightComponentProxy dirctionalLightComponent)
     {
         if (dirctionalLightComponent.ShadowMapRenderTarget == null)
             return;
-        using (dirctionalLightComponent.ShadowMapRenderTarget.Begin(Context.gl))
+        using (dirctionalLightComponent.ShadowMapRenderTarget.Begin(device.gl))
         {
-            ResetPassState(Context);
-            Context.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection, true);
-            Context.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection, true);
+            device.gl.ResetPassState(this);
+            device.gl.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection, true);
+            device.gl.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection, true);
         }
     }
 }

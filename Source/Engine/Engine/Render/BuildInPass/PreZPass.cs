@@ -13,10 +13,10 @@ public class PrezPass : Pass
     public override DepthFunction ZTestFunction => DepthFunction.Less;
     public override bool CullFace => true;
     public override TriangleFace CullTriangleFace => TriangleFace.Back;
-    public void Render(DeferredRenderer Context, WorldProxy world, CameraComponentProxy camera)
+    public void Render(DeferredRenderer renderer, WorldProxy world, CameraComponentProxy camera)
     {
-        ResetPassState(Context);
-        Context.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), camera.View, camera.Projection, true);
-        Context.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), camera.View, camera.Projection, true);
+        renderer.gl.ResetPassState(this);
+        renderer.gl.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), camera.View, camera.Projection, true);
+        renderer.gl.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), camera.View, camera.Projection, true);
     }
 }
