@@ -1,8 +1,6 @@
-﻿using Silk.NET.OpenGLES;
-using Spark.Core.Actors;
+﻿using Spark.Core.Actors;
 using Spark.Core.Render;
 using Spark.Util;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -12,18 +10,10 @@ public class PointLightComponent : LightComponent
 {
     public PointLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
-        AttenuationRadius = 1f;
         FalloffRadius = 1f;
     }
     protected override int propertiesStructSize => Marshal.SizeOf<PointLightComponentProperties>();
 
-    private float _attenuationRadius;
-    public float AttenuationRadius 
-    {
-        get => _attenuationRadius;
-        set => ChangeProperty(ref _attenuationRadius, value);
-    }
-    
     private float _falloffRadius;
     public float FalloffRadius
     {

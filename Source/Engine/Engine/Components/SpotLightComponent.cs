@@ -73,7 +73,7 @@ public class SpotLightComponent : LightComponent
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static GCHandle CreateProxyObject()
     {
-        var obj = new DirectionalLightComponentProxy();
+        var obj = new SpotLightComponentProxy();
         return GCHandle.Alloc(obj, GCHandleType.Normal);
     }
 }
@@ -84,15 +84,20 @@ public class SpotLightComponentProxy : LightComponentProxy
 
     public Matrix4x4 Projection { get; private set; }
     public RenderTargetProxy? ShadowMapRenderTarget { get; set; }
-    public float OuterAngle {  get; set; }
-    public float InnerAngle {  get; set; }
     public float FalloffRadius { get; set; }
+    public float OuterAngle { get; set; }
+    public float InnerAngle { get; set; }
+
+    public float OuterCosine { get; set; }
+    public float InnerCosine { get; set; }
     public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
         base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<SpotLightComponentProperties>(propertiesPtr);
         OuterAngle = properties.OuterAngle;
+        OuterCosine = MathF.Cos(OuterAngle.DegreeToRadians());
         InnerAngle = properties.InnerAngle;
+        InnerCosine = MathF.Cos(InnerAngle.DegreeToRadians());
         ShadowMapRenderTarget = renderDevice.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
         View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
         Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians(), 1, 1F, 100);

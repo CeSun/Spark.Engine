@@ -6,6 +6,7 @@ using Spark.Importer;
 using Spark.Util;
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.Intrinsics.X86;
 
 namespace HelloSpark;
 
@@ -14,75 +15,68 @@ public class HelloSparkGame : IGame
     public string Name => "HelloSpark";
 
     CameraActor? CameraActor;
+    SpotLightActor? SpotLightActor;
     public async void BeginPlay(World world)
     {
-        PointLightActor light = new PointLightActor(world);
+        SpotLightActor light = new SpotLightActor(world);
         light.Color = Color.White;
-        light.LightComponent.LightStrength = 3f;
-        light.PointLightComponent.FalloffRadius = 10;
+        light.LightStrength = 1f;
+        light.InnerAngle = 20;
+        light.OuterAngle = 30;
+        light.FalloffRadius = 100;
+        SpotLightActor = light;
 
         CameraActor = new CameraActor(world);
-        CameraActor.WorldLocation = CameraActor.WorldLocation + CameraActor.ForwardVector * -10 + CameraActor.UpVector * 4;
         CameraActor.ClearColor = Color.White;
 
-
         var staticmesh = new StaticMeshActor(world);
-        var sm = await Task.Run(() =>
+        staticmesh.StaticMesh = await Task.Run(() =>
         {
-            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/sofa.glb"))
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/Jason.glb"))
             {
                 MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
 
                 return sm;
             }
         });
-        staticmesh.StaticMesh = sm;
 
-        staticmesh.WorldLocation += staticmesh.RightVector * 5;
-
-        staticmesh.WorldRotation = Quaternion.CreateFromYawPitchRoll(135f.RadiansToDegree(),0, 0);
-        staticmesh.WorldScale = new Vector3(5);
+        staticmesh.WorldLocation = CameraActor.ForwardVector * 50 + CameraActor.UpVector * -50;
 
 
-        var skeletalMesh = new SkeletalMeshActor(world);
-        skeletalMesh.WorldScale = new Vector3(0.1f, 0.1f, 0.1f);
-        skeletalMesh.WorldRotation = Quaternion.CreateFromYawPitchRoll(-90f.RadiansToDegree(), 0, 0);
-        skeletalMesh.WorldLocation -= skeletalMesh.ForwardVector * 1;
-        var mesh = await Task.Run(() =>
+        if (world.Engine.MainMouse != null)
         {
-
-            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/Jason.glb"))
+            world.Engine.MainMouse.MouseMove += (mouse, mousePos) =>
             {
-                MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
-                
-                return mesh;
-            }
-        });
-        skeletalMesh.SkeletalMeshComponent.SkeletalMesh = mesh;
-        var anim = await Task.Run(() =>
-        {
+                if (LastFramePos.X < 0 || mousePos.Y < 0)
+                    LastFramePos = mousePos;
+                Euler.X += (mousePos - LastFramePos).X * 0.03f;
+                Euler.Y += (mousePos - LastFramePos).Y * 0.03f;
 
-            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/AK47_Player_3P_Anim.glb"))
-            {
-                MeshImporter.ImporterSkeletalMeshFromGlbStream(sr, new SkeletalMeshImportSetting(), out var textures, out var materials, out var anim, out var skeletal, out var mesh);
-                return anim[0];
-            }
+                if (Euler.Y > 89.0)
+                    Euler.Y = 89;
+                if (Euler.Y < -89.0)
+                    Euler.Y = -89;
 
-        });
-        skeletalMesh.SkeletalMeshComponent.AnimSequence = anim;
+                LastFramePos = mousePos;
 
+            };
+        }
     }
 
+
+    public Vector2 Euler;
+
+    public Vector2 LastFramePos = new (-1, -1);
     public void EndPlay(World world)
     {
     }
 
+    float yaw = 0;
     public void Update(World world, double deltaTime)
     {
-        if (CameraActor != null)
-        {
-            // CameraActor.WorldLocation += new System.Numerics.Vector3(0.0001f, 0, 0);
-        }
+        CameraActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
+        SpotLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
+
     }
 }
 

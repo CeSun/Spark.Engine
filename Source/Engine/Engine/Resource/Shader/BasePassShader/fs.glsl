@@ -4,6 +4,7 @@ precision highp float;
 #ifndef _DEPTH_ONLY_
 layout (location = 0) out vec4 Buffer_BaseColor_AO;
 layout (location = 1) out vec4 Buffer_Normal_Metalness_Roughness;
+layout (location = 2) out vec3 Buffer_WorldPosition;
 #endif
 
 //{IncludeSourceCode}
@@ -20,6 +21,7 @@ in vec2 texcoord;
 in mat3 TBNTransform;
 #endif
 
+in vec3 outPos;
 
 vec2 Normal3Dto2D(vec3 Normal);
 
@@ -39,7 +41,8 @@ void main()
 	Normal = normalize(Normal* 2.0 - 1.0); 
 	vec3 WorldNormal = normalize(TBNTransform * Normal);
 
-	Buffer_BaseColor_AO = vec4(BaseColor.xyz, AO);
+	Buffer_BaseColor_AO = vec4(BaseColor.xyz, AO * 0.0);
 	Buffer_Normal_Metalness_Roughness = vec4(Normal3Dto2D(WorldNormal) * 0.5 + 0.5, Metalness, Roughness);
+	Buffer_WorldPosition = outPos;
 #endif
 }

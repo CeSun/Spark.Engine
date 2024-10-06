@@ -16,8 +16,8 @@ uniform mat4 ViewProjectionInverse;
 uniform vec3 LightColor;
 uniform float LightStrength;
 
-#ifdef _DIRECTIONAL_LIGHT_
-uniform vec3 LightDirection;
+#if defined  _DIRECTIONAL_LIGHT_ || defined _SPOT_LIGHT_
+uniform vec3 LightForwardDirection;
 #endif
 
 #if defined  _POINT_LIGHT_ || defined _SPOT_LIGHT_
@@ -26,7 +26,6 @@ uniform float LightFalloffRadius;
 #endif
 
 #ifdef _SPOT_LIGHT_
-uniform vec3 LightDirection;
 uniform float InnerCosine;
 uniform float OuterCosine;
 #endif
@@ -52,8 +51,8 @@ void main()
 	float Metalness = Normal_Metalness_Roughness.z;
 	float Roughness = Normal_Metalness_Roughness.w;
 	float AO = BaseColor_AO.w;
-
-	vec3 worldPosition = calculateWorldPosition(vec3(texCoord, depth), ViewProjectionInverse);
+	
+	vec3 worldPosition = calculateWorldPosition(vec3(texCoord * 2.0 - 1.0, depth* 2.0 - 1.0), ViewProjectionInverse);
 	vec3 cameraDirection = normalize(worldPosition - CameraPosition);
 	
 	// 摄像机方向
@@ -68,7 +67,7 @@ void main()
 #if defined  _POINT_LIGHT_ || defined _SPOT_LIGHT_
 	vec3 lightDirection = normalize(worldPosition - LightPosition);
 #elif defined _DIRECTIONAL_LIGHT_
-	vec3 lightDirection = LightDirection;
+	vec3 lightDirection = LightForwardDirection;
 #else
 	vec3 lightDirection = vec3(1.0);
 #endif
@@ -76,11 +75,12 @@ void main()
 	vec3 Lo = CalculatePbrLighting(BaseColor, Metalness, Roughness, Normal, attenuation, LightColor, lightDirection, cameraDirection);
 
 #ifdef _SPOT_LIGHT_
-	float theta = dot(-1.0 * lightDirection, normalize(-1.0 * LightDirection)); 
+	float theta = dot(-1.0 * lightDirection, -1.0 * LightForwardDirection); 
     float epsilon = (InnerCosine - OuterCosine);
     float intensity = clamp((theta - OuterCosine) / epsilon, 0.0, 1.0);
 	Lo *= intensity;
 #endif
+
 	Buffer_Color = vec4(Lo * LightStrength , 1.0f);
 }
 

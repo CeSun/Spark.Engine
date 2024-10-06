@@ -74,11 +74,13 @@ public class DeferredRenderer : Renderer
                 Configs = new UnmanagedArray<FrameBufferConfig>([
                     new FrameBufferConfig{Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba8, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
                     new FrameBufferConfig{Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba8, PixelType= PixelType.UnsignedByte, FramebufferAttachment = FramebufferAttachment.ColorAttachment1, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
-                    new FrameBufferConfig{Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent24, PixelType= PixelType.UnsignedInt, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
+                    new FrameBufferConfig{Format = PixelFormat.Rgb, InternalFormat = InternalFormat.Rgb16f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.ColorAttachment2, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
+                    new FrameBufferConfig{Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent24, PixelType= PixelType.UnsignedInt, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
                 ])
             };
             unsafe
             {
+                GBufferRenderTarget.DestoryGpuResource(RenderDevice);
                 GBufferRenderTarget.UpdatePropertiesAndRebuildGPUResource(RenderDevice, properties);
             }
             properties.Configs.Dispose();
@@ -97,6 +99,7 @@ public class DeferredRenderer : Renderer
             };
             unsafe
             {
+                LightShadingRenderTarget.DestoryGpuResource(RenderDevice);
                 LightShadingRenderTarget.UpdatePropertiesAndRebuildGPUResource(RenderDevice, properties);
             }
             properties.Configs.Dispose();

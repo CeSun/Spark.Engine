@@ -145,9 +145,23 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
     public Vector4 ClearColor;
 
     public Matrix4x4 View;
-    public Matrix4x4 Projection;
+    public Matrix4x4 Projection => this.ProjectionType switch
+    {
+        ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), RenderTarget!.Width / (float)RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
+        ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget!.Width, RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
+        _ => throw new NotImplementedException()
+    };
     public Matrix4x4 ViewProjection;
-    public Matrix4x4 ViewProjectionInverse;
+    public Matrix4x4 ViewProjectionInverse
+    {
+        get
+        {
+            var matrix4X4 = new Matrix4x4();
+            ViewProjection = View * Projection;
+            Matrix4x4.Invert(ViewProjection, out matrix4X4);
+            return matrix4X4;
+        }
+    }
 
     public Plane[] Planes = new Plane[6];
 
@@ -209,15 +223,15 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
 
         if (RenderTarget != null)
         {
-            Projection = this.ProjectionType switch
+            /* Projection = this.ProjectionType switch
             {
                 ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), RenderTarget.Width / (float)RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
                 ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget.Width, RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
                 _ => throw new NotImplementedException()
             };
+            */
             View = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, Up);
-            ViewProjection = View * Projection;
-            Matrix4x4.Invert(ViewProjection, out ViewProjectionInverse);
+           
             UpdatePlanes();
         }
 

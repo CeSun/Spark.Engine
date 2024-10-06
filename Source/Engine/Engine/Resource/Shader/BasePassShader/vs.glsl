@@ -22,6 +22,7 @@ out vec2 texcoord;
 #ifndef _DEPTH_ONLY_
 out mat3 TBNTransform;
 #endif
+out vec3 outPos;
 void main()
 {
 #ifndef _DEPTH_ONLY_
@@ -48,4 +49,10 @@ texcoord = TexCoord;
     AnimMatrix *
 #endif
     vec4(Position, 1.0);
+
+    outPos = (model *
+#ifdef _SKELETAL_MESH_
+    AnimMatrix *
+#endif
+    vec4(Position, 1.0)).xyz;
 }

@@ -111,9 +111,6 @@ vec3 CalculatePbrLighting(vec3 baseColor, float metalness,float roughness, vec3 
 
 vec3 CalculateBlinnPhongLighting(vec3 baseColor, float metalness,float roughness, vec3 normal,  float lightAttenuation, vec3 lightColor, vec3 lightDirection, vec3 cameraDirection)
 {
-	float ambientStrength = 0.1;
-    vec3 ambient = ambientStrength * lightColor;
-	
     vec3 lightDir = -1.0 * lightDirection;
     float diff = max(dot(normal, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
@@ -124,7 +121,7 @@ vec3 CalculateBlinnPhongLighting(vec3 baseColor, float metalness,float roughness
      float spec = pow(max(dot(normal, halfwayDir), 0.0), 16.0);
 
     vec3 specular = specularStrength * spec * lightColor;  
-	return (ambient + diffuse + specular) * baseColor;
+	return (diffuse + specular) * lightAttenuation * baseColor;
 }
 
 // 裁剪空间[-1, 1] 转换到 世界空间
