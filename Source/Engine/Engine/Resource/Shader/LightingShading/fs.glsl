@@ -30,6 +30,15 @@ uniform float InnerCosine;
 uniform float OuterCosine;
 #endif
 
+#ifdef _WITH_SHADOW_
+
+#if defined  _DIRECTIONAL_LIGHT_ || defined _SPOT_LIGHT_
+uniform sampler2D Buffer_ShadowMap;
+uniform mat4 LightViewProjection;
+#endif
+
+#endif
+
 vec3 Normal2DTo3D(vec2 Oct);
 vec3 calculateWorldPosition(vec3 clipSpacePosition, mat4 viewProjectionInverseMatrix);
 vec3 CalculatePbrLighting(vec3 baseColor, float metalness,float roughness, vec3 normal,  float lightAttenuation, vec3 lightColor, vec3 lightDirection, vec3 cameraDirection);
@@ -39,8 +48,6 @@ void main()
 {
 	// 先对深度进行采样
 	float depth = texture(Buffer_Depth, texCoord).x;
-	if (depth >= 1.0f)
-		discard;
 
 	vec4 BaseColor_AO = texture(Buffer_BaseColor_AO, texCoord);
 	vec4 Normal_Metalness_Roughness = texture(Buffer_Normal_Metalness_Roughness, texCoord);
@@ -80,6 +87,24 @@ void main()
     float intensity = clamp((theta - OuterCosine) / epsilon, 0.0, 1.0);
 	Lo *= intensity;
 #endif
+
+#ifdef _WITH_SHADOW_
+
+#if defined  _DIRECTIONAL_LIGHT_ || defined _SPOT_LIGHT_
+	 vec4 lightSpacePosition = LightViewProjection * vec4(worldPosition, 1.0);
+	 lightSpacePosition = lightSpacePosition / lightSpacePosition.w;
+	
+	 vec2 lightTextureUV = lightSpacePosition.xy / 2.0 + 0.5;
+	 float currectShadowSpaceDepth = lightSpacePosition.z / 2.0 + 0.5;
+	 float shadowMapDepth = texture(Buffer_ShadowMap, lightTextureUV).x;
+	 if (shadowMapDepth <= currectShadowSpaceDepth)
+		Lo *= 0.0;
+	else
+		Lo = Lo;
+#endif
+
+#endif
+
 
 	Buffer_Color = vec4(Lo * LightStrength , 1.0f);
 }

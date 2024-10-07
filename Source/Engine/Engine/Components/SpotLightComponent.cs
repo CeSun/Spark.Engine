@@ -19,8 +19,8 @@ public class SpotLightComponent : LightComponent
         ShadowMapRenderTarget = new RenderTarget()
         {
             IsDefaultRenderTarget = false,
-            Width = 100,
-            Height = 100,
+            Width = 1024,
+            Height = 1024,
             Configs = [
                new FrameBufferConfig{Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
             ]
@@ -83,11 +83,12 @@ public class SpotLightComponentProxy : LightComponentProxy
     public Matrix4x4 View { get; private set; }
 
     public Matrix4x4 Projection { get; private set; }
+
+    public Matrix4x4 LightViewProjection;
     public RenderTargetProxy? ShadowMapRenderTarget { get; set; }
     public float FalloffRadius { get; set; }
     public float OuterAngle { get; set; }
     public float InnerAngle { get; set; }
-
     public float OuterCosine { get; set; }
     public float InnerCosine { get; set; }
     public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
@@ -99,9 +100,10 @@ public class SpotLightComponentProxy : LightComponentProxy
         InnerAngle = properties.InnerAngle;
         InnerCosine = MathF.Cos(InnerAngle.DegreeToRadians());
         ShadowMapRenderTarget = renderDevice.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
-        View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
-        Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians(), 1, 1F, 100);
         FalloffRadius = properties.FalloffRadius;
+        View = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, Up);
+        Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians(), 1, 1F, FalloffRadius * 2.0f);
+        LightViewProjection = View * Projection;
     }
 
 

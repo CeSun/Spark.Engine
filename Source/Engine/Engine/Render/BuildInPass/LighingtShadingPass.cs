@@ -77,12 +77,18 @@ public class LighingtShadingPass : Pass
                 renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);
             }
         }
-        using (shader.Use(renderer.gl, "_SPOT_LIGHT_"))
+        foreach (var spotLight in world.SpotLightComponentProxies)
         {
-            shader.SetVector3("CameraPosition", camera.WorldLocation);
-            shader.SetMatrix("ViewProjectionInverse", camera.ViewProjectionInverse);
-            foreach(var spotLight in world.SpotLightComponentProxies)
-            {
+            ShaderTemplate = shader;
+            if (spotLight.CastShadow == true)
+                shader.Use(renderer.gl, "_SPOT_LIGHT_", "_WITH_SHADOW_");
+            else
+                shader.Use(renderer.gl, "_SPOT_LIGHT_");
+
+            using(shader)
+            { 
+                shader.SetVector3("CameraPosition", camera.WorldLocation);
+                shader.SetMatrix("ViewProjectionInverse", camera.ViewProjectionInverse);
                 shader.SetVector3("LightColor", spotLight.Color);
                 shader.SetFloat("LightStrength", spotLight.LightStrength);
 
@@ -93,6 +99,7 @@ public class LighingtShadingPass : Pass
                 shader.SetFloat("OuterCosine", spotLight.OuterCosine);
                 shader.SetFloat("InnerCosine", spotLight.InnerCosine);
                 shader.SetVector3("LightForwardDirection", spotLight.Forward);
+
 
                 shader.SetInt("Buffer_BaseColor_AO", 0);
                 renderer.gl.ActiveTexture(GLEnum.Texture0);
@@ -105,6 +112,14 @@ public class LighingtShadingPass : Pass
                 shader.SetInt("Buffer_Depth", 2);
                 renderer.gl.ActiveTexture(GLEnum.Texture2);
                 renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds.Last());
+
+                if (spotLight.CastShadow && spotLight.ShadowMapRenderTarget != null)
+                {
+                    shader.SetMatrix("LightViewProjection", spotLight.LightViewProjection);
+                    shader.SetInt("Buffer_ShadowMap", 3);
+                    renderer.gl.ActiveTexture(GLEnum.Texture2);
+                    renderer.gl.BindTexture(GLEnum.Texture2D, spotLight.ShadowMapRenderTarget.AttachmentTextureIds[0]);
+                }
 
                 renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);
 
