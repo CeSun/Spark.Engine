@@ -131,8 +131,8 @@ public static class MeshImporter
                             material.AddTexture("Metalness", metalness);
                             material.AddTexture("Roughness", roughness);
                             break;
-                        case "AmbientOcclusion":
-                            material.AddTexture("AmbientOcclusion", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
+                        case "Occlusion":
+                            material.AddTexture("Occlusion", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
                             break;
                         default:
                             break;
@@ -387,8 +387,8 @@ public static class MeshImporter
                             material.AddTexture("Metalness", metalness);
                             material.AddTexture("Roughness", roughness);
                             break;
-                        case "AmbientOcclusion":
-                            material.AddTexture("AmbientOcclusion", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
+                        case "Occlusion":
+                            material.AddTexture("Occlusion", TextureImporter.ImportTextureFromMemory(glChannel.Texture.PrimaryImage.Content.Content.ToArray(), new()));
                             break;
                         default:
                             break;

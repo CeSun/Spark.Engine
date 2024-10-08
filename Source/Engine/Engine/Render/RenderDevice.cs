@@ -264,6 +264,9 @@ public static class DrawMeshHelper
             shader.SetTexture("Texture_Metalness", 3, textureMetalness);
         if (element.Material.Textures.TryGetValue("Roughness", out var textureRoughness))
             shader.SetTexture("Texture_Roughness", 4, textureRoughness);
+
+        if (element.Material.Textures.TryGetValue("Occlusion", out var textureOcclusion))
+            shader.SetTexture("Texture_Occlusion", 5, textureOcclusion);
         gl.Draw(element);
     }
 

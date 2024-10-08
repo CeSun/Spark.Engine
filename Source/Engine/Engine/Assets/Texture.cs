@@ -157,6 +157,7 @@ public class TextureProxy : AssetRenderProxy
         {
             gl.TexImage2D(GLEnum.Texture2D, 0, (int)Channel.ToInternalFormat(IsHdrTexture, IsGammaSpace), Width, Height, 0, Channel.ToGlEnum(), GLEnum.UnsignedByte, properties.LDRPixels.Ptr);
         }
+        gl.GenerateMipmap(GLEnum.Texture2D);
         gl.BindTexture(GLEnum.Texture2D, 0);
     }
 

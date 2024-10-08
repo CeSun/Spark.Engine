@@ -38,11 +38,12 @@ public class WorldProxy
         RendererLightShadowMap(renderDeivce);
         foreach(var camera in cameraComponentProxies)
         {
+            DirectionLightShadowMap(renderDeivce, camera);
             camera.Renderer?.Render();
         }
     }
 
-    private void RendererLightShadowMap(RenderDevice renderDeivce)
+    private void DirectionLightShadowMap(RenderDevice renderDeivce, CameraComponentProxy Camera)
     {
         foreach (var directionLight in DirectionalLightComponentProxies)
         {
@@ -50,8 +51,12 @@ public class WorldProxy
                 continue;
             if (directionLight.CastShadow == false)
                 continue;
-            DirectionLightShadowMapPass.Render(renderDeivce, this, directionLight);
+            DirectionLightShadowMapPass.Render(renderDeivce, this, directionLight, Camera);
         }
+    }
+    private void RendererLightShadowMap(RenderDevice renderDeivce)
+    {
+        
         foreach (var pointLight in PointLightComponentProxies)
         {
             if (pointLight.Hidden == true)

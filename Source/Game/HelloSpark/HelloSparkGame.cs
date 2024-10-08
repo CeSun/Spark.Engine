@@ -21,18 +21,24 @@ public class HelloSparkGame : IGame
         SpotLightActor light = new SpotLightActor(world);
         light.Color = Color.White;
         light.LightStrength = 1f;
-        light.InnerAngle = 20;
-        light.OuterAngle = 30;
-        light.FalloffRadius = 100;
+        light.InnerAngle = 15f;
+        light.OuterAngle = 20f;
+        light.FalloffRadius = 50;
         SpotLightActor = light;
 
-        CameraActor = new CameraActor(world);
-        CameraActor.ClearColor = Color.White;
 
+        DirectionalLightActor directionalLightActor = new DirectionalLightActor(world);
+        directionalLightActor.Color = Color.White;
+        directionalLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -120f.DegreeToRadians(), 0);
+        directionalLightActor.LightStrength = 10f;
+
+        CameraActor = new CameraActor(world);
+        CameraActor.ClearColor = Color.Red;
+       
         var staticmesh = new StaticMeshActor(world);
         staticmesh.StaticMesh = await Task.Run(() =>
         {
-            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/Jason.glb"))
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/tree_stump.glb"))
             {
                 MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
 
@@ -40,9 +46,8 @@ public class HelloSparkGame : IGame
             }
         });
 
-        staticmesh.WorldLocation = CameraActor.ForwardVector * 50 + CameraActor.UpVector * -50;
-
-
+        staticmesh.WorldScale = new Vector3(10f);
+        staticmesh.WorldLocation = staticmesh.ForwardVector * 20 - staticmesh.UpVector * 1;
         if (world.Engine.MainMouse != null)
         {
             world.Engine.MainMouse.MouseMove += (mouse, mousePos) =>

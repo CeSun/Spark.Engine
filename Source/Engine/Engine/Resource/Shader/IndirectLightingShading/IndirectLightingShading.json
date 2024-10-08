@@ -1,0 +1,8 @@
+{
+  "name": "IndirectLightingShading",
+  "include": [
+    "Engine/Shader/Common/common.glsl"
+  ],
+  "vertex": "Engine/Shader/LightingShading/vs.glsl",
+  "fragment": "Engine/Shader/IndirectLightingShading/fs.glsl"
+}

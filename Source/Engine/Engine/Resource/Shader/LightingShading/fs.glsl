@@ -48,7 +48,9 @@ void main()
 {
 	// 先对深度进行采样
 	float depth = texture(Buffer_Depth, texCoord).x;
-
+	
+	if (depth >= 1.0)
+		discard;
 	vec4 BaseColor_AO = texture(Buffer_BaseColor_AO, texCoord);
 	vec4 Normal_Metalness_Roughness = texture(Buffer_Normal_Metalness_Roughness, texCoord);
 
@@ -99,7 +101,7 @@ void main()
 	 float shadowMapDepth = texture(Buffer_ShadowMap, lightTextureUV).x * 2.0 - 1.0;
 	 
 
-	 if (shadowMapDepth <= currectShadowSpaceDepth)
+	 if (shadowMapDepth + 0.005 <= currectShadowSpaceDepth)
 		Lo = vec3(0.0);
 	else
 		Lo = Lo;

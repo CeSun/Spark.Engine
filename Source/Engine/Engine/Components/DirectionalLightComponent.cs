@@ -16,8 +16,8 @@ public class DirectionalLightComponent : LightComponent
         ShadowMapRenderTarget = new RenderTarget() 
         { 
             IsDefaultRenderTarget = false, 
-            Width = 100, 
-            Height = 100, 
+            Width = 1024, 
+            Height = 1024, 
             Configs = [
                new FrameBufferConfig{Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
             ] 
@@ -58,10 +58,12 @@ public class DirectionalLightComponent : LightComponent
 public class DirectionalLightComponentProxy : LightComponentProxy
 {
 
-    public Matrix4x4 View { get; private set; }
+    public Matrix4x4 View;
 
-    public Matrix4x4 Projection { get; private set; }
+    public Matrix4x4 Projection;
+    public RenderTargetProxy? ShadowMapRenderTarget { get; set; }
 
+    public Matrix4x4 LightViewProjection;
     public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
         base.UpdateProperties(propertiesPtr, renderDevice);
@@ -70,8 +72,8 @@ public class DirectionalLightComponentProxy : LightComponentProxy
 
         View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
         Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
+        LightViewProjection = View * Projection;
     }
-    public RenderTargetProxy? ShadowMapRenderTarget { get; set; }
 }
 
 public struct DirectionalLightComponentProperties
