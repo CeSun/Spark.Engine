@@ -25,6 +25,7 @@ public class SpotLightComponent : LightComponent
                new FrameBufferConfig{Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
             ]
         };
+        
     }
     private RenderTarget? _shadowMapRenderTarget;
     public RenderTarget? ShadowMapRenderTarget
@@ -102,7 +103,7 @@ public class SpotLightComponentProxy : LightComponentProxy
         ShadowMapRenderTarget = renderDevice.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
         FalloffRadius = properties.FalloffRadius;
         View = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, Up);
-        Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians(), 1, 1F, FalloffRadius * 2.0f);
+        Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians(), 1, 1F, FalloffRadius);
         LightViewProjection = View * Projection;
     }
 

@@ -117,7 +117,7 @@ public class LighingtShadingPass : Pass
                 {
                     shader.SetMatrix("LightViewProjection", spotLight.LightViewProjection);
                     shader.SetInt("Buffer_ShadowMap", 3);
-                    renderer.gl.ActiveTexture(GLEnum.Texture2);
+                    renderer.gl.ActiveTexture(GLEnum.Texture3);
                     renderer.gl.BindTexture(GLEnum.Texture2D, spotLight.ShadowMapRenderTarget.AttachmentTextureIds[0]);
                 }
 

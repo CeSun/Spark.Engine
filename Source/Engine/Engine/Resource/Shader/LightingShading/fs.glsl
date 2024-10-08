@@ -95,10 +95,12 @@ void main()
 	 lightSpacePosition = lightSpacePosition / lightSpacePosition.w;
 	
 	 vec2 lightTextureUV = lightSpacePosition.xy / 2.0 + 0.5;
-	 float currectShadowSpaceDepth = lightSpacePosition.z / 2.0 + 0.5;
-	 float shadowMapDepth = texture(Buffer_ShadowMap, lightTextureUV).x;
+	 float currectShadowSpaceDepth = lightSpacePosition.z;
+	 float shadowMapDepth = texture(Buffer_ShadowMap, lightTextureUV).x * 2.0 - 1.0;
+	 
+
 	 if (shadowMapDepth <= currectShadowSpaceDepth)
-		Lo *= 0.0;
+		Lo = vec3(0.0);
 	else
 		Lo = Lo;
 #endif
