@@ -29,12 +29,12 @@ public class HelloSparkGame : IGame
 
         DirectionalLightActor directionalLightActor = new DirectionalLightActor(world);
         directionalLightActor.Color = Color.White;
-        directionalLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(0, -120f.DegreeToRadians(), 0);
+        directionalLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(-90f.DegreeToRadians(), -120f.DegreeToRadians(), 0);
         directionalLightActor.LightStrength = 10f;
 
         CameraActor = new CameraActor(world);
         CameraActor.ClearColor = Color.Red;
-       
+        CameraActor.NearPlaneDistance = 1;
         var staticmesh = new StaticMeshActor(world);
         staticmesh.StaticMesh = await Task.Run(() =>
         {
@@ -48,10 +48,46 @@ public class HelloSparkGame : IGame
 
         staticmesh.WorldScale = new Vector3(10f);
         staticmesh.WorldLocation = staticmesh.ForwardVector * 20 - staticmesh.UpVector * 1;
+
+        var staticmesh2 = new StaticMeshActor(world);
+        staticmesh2.StaticMesh = await Task.Run(() =>
+        {
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/brass_vase.glb"))
+            {
+                MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
+
+                return sm;
+            }
+        });
+
+        staticmesh2.WorldScale = new Vector3(50f);
+        staticmesh2.WorldLocation = staticmesh.ForwardVector * 5 + staticmesh.RightVector * 15 - staticmesh.UpVector * 1;
+
+
+
+        var staticmesh3 = new StaticMeshActor(world);
+        staticmesh3.StaticMesh = await Task.Run(() =>
+        {
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/namaqualand_boulder.glb"))
+            {
+                MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
+
+                return sm;
+            }
+        });
+
+        staticmesh3.WorldScale = new Vector3(10f);
+        staticmesh3.WorldLocation = staticmesh.ForwardVector * 5 - staticmesh.RightVector * 20 - staticmesh.UpVector * 1;
+
+
         if (world.Engine.MainMouse != null)
         {
             world.Engine.MainMouse.MouseMove += (mouse, mousePos) =>
             {
+                if (mouse.IsButtonPressed(MouseButton.Left) == false)
+                {
+                    return;
+                }
                 if (LastFramePos.X < 0 || mousePos.Y < 0)
                     LastFramePos = mousePos;
                 Euler.X += (mousePos - LastFramePos).X * 0.03f;
@@ -64,6 +100,13 @@ public class HelloSparkGame : IGame
 
                 LastFramePos = mousePos;
 
+            };
+            world.Engine.MainMouse.MouseDown += (mouse, Button) =>
+            {
+                if (mouse.IsButtonPressed(MouseButton.Left))
+                {
+                    LastFramePos = mouse.Position;
+                }
             };
         }
     }

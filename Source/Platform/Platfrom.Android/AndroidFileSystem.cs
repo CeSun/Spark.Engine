@@ -27,7 +27,7 @@ public class AndroidFileSystem(AssetManager assetManager): IFileSystem
 
     public StreamReader GetStream(string Path)
     {
-        return new StreamReader(_assetManager.Open(Path));
+        return new StreamReader(_assetManager.Open($"Resource/{Path}"));
     }
 
     public bool Exists(string ModuleName, string Path)

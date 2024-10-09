@@ -29,7 +29,7 @@ public partial class CameraComponent : PrimitiveComponent
         {
             RenderTarget = World.WorldMainRenderTarget;
         }
-        FieldOfView = 90;
+        FieldOfView = 110;
         NearPlaneDistance = 10;
         FarPlaneDistance = 100;
         Order = 0;
