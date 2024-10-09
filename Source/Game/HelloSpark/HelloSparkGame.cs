@@ -80,6 +80,23 @@ public class HelloSparkGame : IGame
         staticmesh3.WorldLocation = staticmesh.ForwardVector * 5 - staticmesh.RightVector * 20 - staticmesh.UpVector * 1;
 
 
+        var staticmesh4 = new StaticMeshActor(world);
+        var flower = await Task.Run(() =>
+        {
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/flower_gazania.glb"))
+            {
+                MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
+
+                return sm;
+            }
+        });
+
+        flower.Elements.ForEach(element => element.Material.BlendMode = Spark.Core.Assets.BlendMode.Masked);
+        staticmesh4.StaticMesh = flower;
+
+        staticmesh4.WorldScale = new Vector3(5f);
+        staticmesh4.WorldLocation = staticmesh.UpVector * -10;
+
         if (world.Engine.MainMouse != null)
         {
             world.Engine.MainMouse.MouseMove += (mouse, mousePos) =>

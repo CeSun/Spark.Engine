@@ -145,6 +145,7 @@ public class LighingtShadingPass : Pass
 
         using (shader.Use(renderer.gl))
         {
+            shader.SetFloat("IndirectLightIntensity", 0.01f);
             shader.SetInt("Buffer_BaseColor_AO", 0);
             renderer.gl.ActiveTexture(GLEnum.Texture0);
             renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[0]);
