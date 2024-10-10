@@ -14,6 +14,8 @@ public class RenderDevice
     public GL gl => Engine.GraphicsApi!;
     public Engine Engine { get; private set; }
     public RectangleMesh RectangleMesh { get; private set; }
+
+    public CubeMesh CubeMesh { get; private set; }
     public ShaderTemplate? GetShaderTemplate(string path)
     {
         if (_shaderCacheDictonary.TryGetValue(path, out var shaderTemplate))
@@ -44,6 +46,8 @@ public class RenderDevice
         Engine = engine;
         RectangleMesh = new RectangleMesh();
         RectangleMesh.InitRender(this);
+        CubeMesh = new CubeMesh();
+        CubeMesh.InitRender(this);
     }
 
     public void UpdateAssetProxy(IntPtr ptr)
@@ -224,7 +228,82 @@ public class RectangleMesh
     }
 }
 
-public static class DrawMeshHelper
+public class CubeMesh
+{
+    public uint vao;
+    public uint vbo;
+    public unsafe void InitRender(RenderDevice renderer)
+    {
+        var gl = renderer.gl;
+        float[] vertices =
+        [
+               // back face
+               -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+                 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+                 1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
+                 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+                -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+                -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+                // front face
+                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+                 1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+                 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+                 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+                -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+                -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+                // left face
+                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+                -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+                -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+                -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+                -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+                // right face
+                 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+                 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+                 1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
+                 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+                 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+                 1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
+                // bottom face
+                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+                 1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+                 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+                 1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+                -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+                -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+                // top face
+                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+                 1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+                 1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
+                 1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+                -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+                -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
+           ];
+        vao = gl.GenVertexArray();
+        vbo = gl.GenBuffer();
+        // fill buffer
+        gl.BindBuffer(GLEnum.ArrayBuffer, vbo);
+        unsafe
+        {
+            fixed (void* p = vertices)
+            {
+                gl.BufferData(GLEnum.ArrayBuffer, (nuint)vertices.Length * sizeof(float), p, GLEnum.StaticDraw);
+            }
+            // link vertex attributes
+            gl.BindVertexArray(vao);
+            gl.EnableVertexAttribArray(0);
+            gl.VertexAttribPointer(0, 3, GLEnum.Float, false, 8 * sizeof(float), (void*)0);
+            gl.EnableVertexAttribArray(1);
+            gl.VertexAttribPointer(1, 3, GLEnum.Float, false, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+            gl.EnableVertexAttribArray(2);
+            gl.VertexAttribPointer(2, 2, GLEnum.Float, false, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+            gl.BindBuffer(GLEnum.ArrayBuffer, 0);
+            gl.BindVertexArray(0);
+        }
+    }
+}
+    public static class DrawMeshHelper
 {
 
     public static unsafe void Draw(this GL gl, RectangleMesh mesh)
@@ -233,7 +312,11 @@ public static class DrawMeshHelper
         gl.DrawElements(GLEnum.Triangles, 6, GLEnum.UnsignedInt, (void*)0);
     }
 
-
+    public static unsafe void Draw(this GL gl, CubeMesh mesh)
+    {
+        gl.BindVertexArray(mesh.vao);
+        gl.DrawArrays(GLEnum.Triangles, 0, 36);
+    }
     public static void DrawElementDepth(this GL gl, ShaderTemplate shader, ElementProxy element, Matrix4x4 Model, Matrix4x4 View, Matrix4x4 Projection)
     {
         if (element.Material == null)
@@ -338,7 +421,6 @@ public static class DrawMeshHelper
                     lodIndex = staticmesh.StaticMeshProxy.StaticMeshLods.Count - 1;
                 lodIndex = 3 - lodIndex;
                 lod = staticmesh.StaticMeshProxy.StaticMeshLods[lodIndex];
-                Console.WriteLine(lodIndex);
             }
 
             foreach (var mesh in lod.Elements)

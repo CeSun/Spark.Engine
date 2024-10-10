@@ -16,6 +16,10 @@ public class SkyboxPass : Pass
     public override bool AlphaBlend => false;
     public override ClearBufferMask ClearBufferFlag => ClearBufferMask.None;
 
-   //  public void Render(RenderDevice device, CameraComponentProxy camera, )
+    public void Render(RenderDevice device, CameraComponentProxy camera)
+    {
+        device.gl.ResetPassState(this);
+        device.gl.Draw(device.CubeMesh);
+    }
 
 }

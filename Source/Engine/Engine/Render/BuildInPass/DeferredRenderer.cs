@@ -37,15 +37,6 @@ public class DeferredRenderer : Renderer
         }
         using (LightShadingRenderTarget.Begin(gl))
         {
-            if (Camera.ClearFlag == CameraClearFlag.None)
-            {
-                gl.ClearColor(Camera.ClearColor.X, Camera.ClearColor.Y, Camera.ClearColor.Z, Camera.ClearColor.W);
-                gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-            }
-            else if (Camera.ClearFlag == CameraClearFlag.Skybox) 
-            {
-                _skyboxPass.
-            }
             _lightingShadingPass.Render(this, Camera.World, Camera);
         }
 
@@ -56,11 +47,22 @@ public class DeferredRenderer : Renderer
                 gl.Enable(GLEnum.Blend);
                 gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
+                if (Camera.ClearFlag != CameraClearFlag.None)
+                {
+                    gl.ClearColor(Camera.ClearColor.X, Camera.ClearColor.Y, Camera.ClearColor.Z, Camera.ClearColor.W);
+                    gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+                }
+                if (Camera.ClearFlag == CameraClearFlag.Skybox)
+                {
+                }
                 using (_renderToCameraShader.Use(gl))
                 {
                     _renderToCameraShader.SetInt("Buffer_FinalColor", 0);
                     gl.ActiveTexture(GLEnum.Texture0);
                     gl.BindTexture(GLEnum.Texture2D, LightShadingRenderTarget.AttachmentTextureIds[0]);
+                    _renderToCameraShader.SetInt("Buffer_DepthBuffer", 1);
+                    gl.ActiveTexture(GLEnum.Texture1);
+                    gl.BindTexture(GLEnum.Texture2D, GBufferRenderTarget.AttachmentTextureIds.Last());
 
                     gl.Draw(RenderDevice.RectangleMesh);
                 }

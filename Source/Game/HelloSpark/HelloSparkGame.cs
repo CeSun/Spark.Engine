@@ -36,6 +36,7 @@ public class HelloSparkGame : IGame
         CameraActor = new CameraActor(world);
         CameraActor.ClearColor = Color.Red;
         CameraActor.NearPlaneDistance = 1;
+        CameraActor.ClearColor = Color.Azure;
         var staticmesh = new StaticMeshActor(world);
         staticmesh.StaticMesh = await Task.Run(() =>
         {
