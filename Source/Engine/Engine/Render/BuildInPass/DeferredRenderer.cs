@@ -2,6 +2,7 @@
 using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 using Spark.Core.Components;
+using Spark.Core.Render.BuildInPass;
 using System.Numerics;
 
 namespace Spark.Core.Render;
@@ -12,7 +13,7 @@ public class DeferredRenderer : Renderer
     PrezPass _prezPass = new PrezPass();
     BasePass _basePass = new BasePass();
     LighingtShadingPass _lightingShadingPass = new LighingtShadingPass();
-
+    SkyboxPass _skyboxPass = new SkyboxPass();
 
     ShaderTemplate _renderToCameraShader;
 
@@ -36,6 +37,15 @@ public class DeferredRenderer : Renderer
         }
         using (LightShadingRenderTarget.Begin(gl))
         {
+            if (Camera.ClearFlag == CameraClearFlag.None)
+            {
+                gl.ClearColor(Camera.ClearColor.X, Camera.ClearColor.Y, Camera.ClearColor.Z, Camera.ClearColor.W);
+                gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+            }
+            else if (Camera.ClearFlag == CameraClearFlag.Skybox) 
+            {
+                _skyboxPass.
+            }
             _lightingShadingPass.Render(this, Camera.World, Camera);
         }
 
@@ -46,11 +56,6 @@ public class DeferredRenderer : Renderer
                 gl.Enable(GLEnum.Blend);
                 gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
-                if (Camera.ClearFlag == CameraClearFlag.Color)
-                {
-                    gl.ClearColor(Camera.ClearColor.X, Camera.ClearColor.Y, Camera.ClearColor.Z, Camera.ClearColor.W);
-                    gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-                }
                 using (_renderToCameraShader.Use(gl))
                 {
                     _renderToCameraShader.SetInt("Buffer_FinalColor", 0);
@@ -92,7 +97,7 @@ public class DeferredRenderer : Renderer
                 Width = Camera.RenderTarget.Width,
                 Height = Camera.RenderTarget.Height,
                 Configs = new UnmanagedArray<FrameBufferConfig>([
-                    new FrameBufferConfig{Format = PixelFormat.Rgb, InternalFormat = InternalFormat.Rgb16f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
+                    new FrameBufferConfig{Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba16f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
                     new FrameBufferConfig{Format = PixelFormat.DepthStencil, InternalFormat = InternalFormat.Depth24Stencil8, PixelType= PixelType.UnsignedInt248, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
                 ])
             };

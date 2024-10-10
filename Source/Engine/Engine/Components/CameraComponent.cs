@@ -18,6 +18,7 @@ public enum ProjectionType
 
 public enum CameraClearFlag
 {
+    None = 0,
     Color = (1 << 0),
     Skybox = (1 <<2)
 }
