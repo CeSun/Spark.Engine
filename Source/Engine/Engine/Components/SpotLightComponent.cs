@@ -103,7 +103,7 @@ public class SpotLightComponentProxy : LightComponentProxy
         ShadowMapRenderTarget = renderDevice.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
         FalloffRadius = properties.FalloffRadius;
         View = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, Up);
-        Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians() * 2, 1, 10F, FalloffRadius);
+        Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians() * 2, 1, FalloffRadius * 0.01F, FalloffRadius);
         LightViewProjection = View * Projection;
     }
 

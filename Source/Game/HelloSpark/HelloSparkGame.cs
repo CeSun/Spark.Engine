@@ -23,13 +23,12 @@ public class HelloSparkGame : IGame
         light.LightStrength = 1f;
         light.InnerAngle = 15f;
         light.OuterAngle = 20f;
-        light.FalloffRadius = 50;
+        light.FalloffRadius = 10;
         SpotLightActor = light;
-
 
         DirectionalLightActor directionalLightActor = new DirectionalLightActor(world);
         directionalLightActor.Color = Color.White;
-        directionalLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(-90f.DegreeToRadians(), -120f.DegreeToRadians(), 0);
+        directionalLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(-90f.DegreeToRadians(), -150f.DegreeToRadians(), 0);
         directionalLightActor.LightStrength = 10f;
 
         CameraActor = new CameraActor(world);
@@ -46,8 +45,8 @@ public class HelloSparkGame : IGame
             }
         });
 
-        staticmesh.WorldScale = new Vector3(10f);
-        staticmesh.WorldLocation = staticmesh.ForwardVector * 20 - staticmesh.UpVector * 1;
+        staticmesh.WorldScale = new Vector3(1f);
+        staticmesh.WorldLocation = staticmesh.ForwardVector * 1 + staticmesh.UpVector * -2.8f;
 
         var staticmesh2 = new StaticMeshActor(world);
         staticmesh2.StaticMesh = await Task.Run(() =>
@@ -60,8 +59,8 @@ public class HelloSparkGame : IGame
             }
         });
 
-        staticmesh2.WorldScale = new Vector3(50f);
-        staticmesh2.WorldLocation = staticmesh.ForwardVector * 5 + staticmesh.RightVector * 15 - staticmesh.UpVector * 1;
+        staticmesh2.WorldScale = new Vector3(5f);
+        staticmesh2.WorldLocation = staticmesh.ForwardVector * 2 + staticmesh.RightVector * 2 + staticmesh.UpVector * -2.5f;
 
 
 
@@ -76,14 +75,14 @@ public class HelloSparkGame : IGame
             }
         });
 
-        staticmesh3.WorldScale = new Vector3(10f);
-        staticmesh3.WorldLocation = staticmesh.ForwardVector * 5 - staticmesh.RightVector * 20 - staticmesh.UpVector * 1;
+        staticmesh3.WorldScale = new Vector3(1f);
+        staticmesh3.WorldLocation = staticmesh.ForwardVector * 3 - staticmesh.RightVector * 3  + staticmesh.UpVector * -2.8f;
 
 
         var staticmesh4 = new StaticMeshActor(world);
         var flower = await Task.Run(() =>
         {
-            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/flower_gazania.glb"))
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "StaticMesh/coast_land_rocks_04.glb"))
             {
                 MeshImporter.ImporterStaticMeshFromGlbStream(sr, new StaticMeshImportSetting() { }, out var textures, out var materials, out var sm);
 
@@ -91,11 +90,9 @@ public class HelloSparkGame : IGame
             }
         });
 
-        flower.Elements.ForEach(element => element.Material.BlendMode = Spark.Core.Assets.BlendMode.Masked);
         staticmesh4.StaticMesh = flower;
-
-        staticmesh4.WorldScale = new Vector3(5f);
-        staticmesh4.WorldLocation = staticmesh.UpVector * -10;
+        staticmesh4.WorldScale = new Vector3(1f);
+        staticmesh4.WorldLocation = staticmesh.UpVector * -3;
 
         if (world.Engine.MainMouse != null)
         {
@@ -141,6 +138,31 @@ public class HelloSparkGame : IGame
     {
         CameraActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
         SpotLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
+
+        Vector2 Movement = Vector2.Zero;
+        if (world.Engine.MainKeyBoard.IsKeyPressed(Key.W))
+        {
+            Movement.X += 1;
+        }
+        if (world.Engine.MainKeyBoard.IsKeyPressed(Key.S))
+        {
+            Movement.X += -1;
+        }
+        if (world.Engine.MainKeyBoard.IsKeyPressed(Key.D))
+        {
+            Movement.Y += 1;
+        }
+        if (world.Engine.MainKeyBoard.IsKeyPressed(Key.A))
+        {
+            Movement.Y += -1;
+        }
+
+        if (Movement.Length() > 0)
+        {
+            Movement = Vector2.Normalize(Movement);
+            CameraActor.WorldLocation += (Movement.X * CameraActor.ForwardVector * (float)deltaTime / 1000 + Movement.Y * CameraActor.RightVector * (float)deltaTime / 1000);
+            SpotLightActor.WorldLocation = CameraActor.WorldLocation;
+        }
 
     }
 }

@@ -162,3 +162,41 @@ vec3 ACESFilmToneMapping(vec3 color)
     // 确保颜色在[0, 1]范围内
     return saturate(mappedColor);
 }
+
+
+/*
+// 主要的光照合并函数
+vec3 CombineLighting(vec3 directLight, vec3 indirectLight, vec3 normal, vec3 viewDir, 
+                     float roughness, float metallic, vec3 albedo)
+{
+    float smoothness = 1.0 - roughness;
+    float ssrIntensity = smoothness * smoothness;
+    
+    // 基础反射率
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    
+    // 计算菲涅尔
+    float NdotV = max(dot(normal, viewDir), 0.0);
+    vec3 F = fresnelSchlick(NdotV, F0);
+    
+    // 分离漫反射和镜面反射
+    vec3 kS = F;
+    vec3 kD = (1.0 - kS) * (1.0 - metallic);
+    
+    // 直接光照
+    vec3 diffuseDirect = kD * directLight * albedo / PI;
+    vec3 specularDirect = kS * directLight;
+    
+    // 间接光照
+    vec3 diffuseIndirect = kD * indirectLight * albedo;
+    vec3 specularIndirect = kS * indirectLight * ssrIntensity;
+    
+    // 合并所有光照分量
+    vec3 finalColor = diffuseDirect + specularDirect + diffuseIndirect + specularIndirect;
+    
+    // 注意：我们不在这里裁剪HDR值
+    
+    return finalColor;
+}
+}
+*/
