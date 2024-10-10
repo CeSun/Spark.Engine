@@ -3,6 +3,7 @@ using Jitter2.LinearMath;
 using SharpGLTF.Schema2;
 using Spark.Core;
 using Spark.Core.Assets;
+using Spark.Core.Shapes;
 using Spark.Util;
 using Material = Spark.Core.Assets.Material;
 using Texture = Spark.Core.Assets.Texture;
@@ -21,7 +22,7 @@ public class SkeletalMeshImportSetting
 }
 public static class MeshImporter
 {
-   
+
     public static void ImporterStaticMeshFromGlbStream(StreamReader streamReader, StaticMeshImportSetting staticMeshImportSetting, out List<Texture> textures, out List<Material> materials, out StaticMesh staticMesh)
     {
         textures = new List<Texture>();
@@ -29,11 +30,14 @@ public static class MeshImporter
         ModelRoot model = ModelRoot.ReadGLB(streamReader.BaseStream, new ReadSettings { Validation = SharpGLTF.Validation.ValidationMode.TryFix });
 
         var sm = new StaticMesh();
-        var elements = new List<Element<StaticMeshVertex>>();
-        foreach (var glMesh in model.LogicalMeshes)
+        foreach (var node in model.LogicalNodes)
         {
+            var glMesh = node.Mesh;
             if (glMesh == null)
                 continue;
+            var lod = new StaticMeshLod();
+            var elements = lod.Elements;
+
             foreach (var glPrimitive in glMesh.Primitives)
             {
                 List<StaticMeshVertex> staticMeshVertices = new List<StaticMeshVertex>();
@@ -100,9 +104,9 @@ public static class MeshImporter
                     }
                 }
                 List<uint> indices = [.. glPrimitive.IndexAccessor.AsIndicesArray()];
-                var material = new Material() 
-                { 
-                    ShaderPath = "Engine/Shader/BasePassShader/BasePassShader.json" ,
+                var material = new Material()
+                {
+                    ShaderPath = "Engine/Shader/BasePassShader/BasePassShader.json",
                     BlendMode = glPrimitive.Material.Alpha switch
                     {
                         AlphaMode.OPAQUE => BlendMode.Opaque,
@@ -111,7 +115,7 @@ public static class MeshImporter
                         _ => BlendMode.Opaque
                     }
                 };
-                    
+
                 foreach (var glChannel in glPrimitive.Material.Channels)
                 {
                     if (glChannel.Texture == null)
@@ -146,16 +150,40 @@ public static class MeshImporter
                     Indices = indices,
                 });
             }
-            
+            sm.StaticMeshLods.Add(lod);
         }
-        staticMesh = sm;
-        staticMesh.Elements = elements;
-        foreach (var element in staticMesh.Elements)
+        if (sm.StaticMeshLods.Count > 0)
         {
-            if (element.Material != null)
+            Box box = default;
+            bool first = true;
+            foreach (var element in sm.StaticMeshLods[0].Elements)
             {
-                materials.Add(element.Material);
-                textures.AddRange(element.Material.Textures.Values);
+                foreach (var vertex in element.Vertices)
+                {
+                    if (first == true)
+                    {
+                        box.Min = vertex.Location;
+                        box.Max = vertex.Location;
+                        first = false;
+                    }
+                    else
+                    {
+                        box += vertex.Location;
+                    }
+                }
+            }
+            sm.Box = box;
+        } 
+        staticMesh = sm;
+        foreach (var lod in staticMesh.StaticMeshLods)
+        {
+            foreach( var element in lod.Elements)
+            {
+                if (element.Material != null)
+                {
+                    materials.Add(element.Material);
+                    textures.AddRange(element.Material.Textures.Values);
+                }
             }
         }
     }

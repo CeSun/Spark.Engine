@@ -1,6 +1,7 @@
 ﻿using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 using Spark.Core.Components;
+using Spark.Core.Shapes;
 using Spark.Util;
 using System.Drawing;
 using System.Numerics;
@@ -281,13 +282,66 @@ public static class DrawMeshHelper
             Macros = ["_DEPTH_ONLY_"];
         }
 
+        Span<Vector3> Points = stackalloc Vector3[8];
         foreach (var staticmesh in staticMeshComponentProxies)
         {
             if (staticmesh.StaticMeshProxy == null)
                 continue;
             if (staticmesh.Hidden)
                 continue;
-            foreach (var mesh in staticmesh.StaticMeshProxy.Elements)
+            if (staticmesh.StaticMeshProxy.StaticMeshLods.Count <= 0)
+                continue;
+            StaticMeshLodProxy lod = staticmesh.StaticMeshProxy.StaticMeshLods[0];
+            // 计算lod
+            if (staticmesh.StaticMeshProxy.StaticMeshLods.Count > 1)
+            {
+                var mat = staticmesh.Trasnform * View * Projection;
+                staticmesh.StaticMeshProxy.Box.GetPoints(Points);
+                Box clipSpaceBox = new Box();
+                bool first = true;
+                foreach(var point in Points)
+                {
+                    var p = Vector4.Transform(point, mat);
+                    if (p.X > p.W)
+                        p.X = p.W;
+                    if (p.X < - p.W)
+                        p.X = - p.W;
+                    if (p.Y > p.W)
+                        p.Y = p.W;
+                    if (p.Y < -p.W)
+                        p.Y = -p.W;
+                    if (p.Z > p.W)
+                        p.Z = p.W;
+                    if (p.Z < -p.W)
+                        p.Z = -p.W;
+
+                    p = p / p.W;
+                    var clipSpacePoint = new Vector3(p.X, p.Y, p.Z);
+                    if (first)
+                    {
+                        clipSpaceBox.Max = clipSpacePoint;
+                        clipSpaceBox.Min = clipSpaceBox.Max;
+                        first = false;
+                    }
+                    else
+                    {
+                        clipSpaceBox += clipSpacePoint;
+                    }
+                }
+                var delta = clipSpaceBox.Max - clipSpaceBox.Min;
+                var area = delta.X * delta.Y;
+                var scale = Math.Clamp(area / 4, 0, 1);
+                if (scale == 0)
+                    continue;
+                var lodIndex = (int)(scale / (1.0f / staticmesh.StaticMeshProxy.StaticMeshLods.Count));
+                if (lodIndex >= staticmesh.StaticMeshProxy.StaticMeshLods.Count)
+                    lodIndex = staticmesh.StaticMeshProxy.StaticMeshLods.Count - 1;
+                lodIndex = 3 - lodIndex;
+                lod = staticmesh.StaticMeshProxy.StaticMeshLods[lodIndex];
+                Console.WriteLine(lodIndex);
+            }
+
+            foreach (var mesh in lod.Elements)
             {
                 if (mesh.Material == null)
                     continue;

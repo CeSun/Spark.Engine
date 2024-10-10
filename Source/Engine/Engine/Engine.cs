@@ -4,6 +4,7 @@ using Spark.Core.Platform;
 using Silk.NET.Windowing;
 using Spark.Core.Render;
 using Spark.Util;
+using Silk.NET.Maths;
 
 namespace Spark.Core;
 
@@ -12,7 +13,6 @@ public partial class Engine
     public IGameConfig GameConfig { get; private set; }
     public Engine(IPlatform platform, IGameConfig gameConfig)
     {
-        
         SyncContext = SingleThreadSyncContext.Initialize();
 
         Platform = platform;

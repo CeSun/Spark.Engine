@@ -277,7 +277,12 @@ public unsafe struct UnmanagedArray<T> : IDisposable where T : unmanaged
         }
     }
 
-
+    public ref T GetRefByIndex(int index)
+    {
+        if (index >= Length || index < 0)
+            throw new IndexOutOfRangeException();
+        return ref Unsafe.AsRef<T>((Ptr + index));
+    }
     public T this[int index]
     {
         get
