@@ -13,7 +13,7 @@ public class SkyboxPass : Pass
 {
     public override bool ZTest => true;
     public override bool ZWrite => false;
-    public override DepthFunction ZTestFunction => DepthFunction.Equal;
+    public override DepthFunction ZTestFunction => DepthFunction.Lequal;
     public override bool AlphaBlend => false;
     public override ClearBufferMask ClearBufferFlag => ClearBufferMask.None;
     public ShaderTemplate? Shader;
@@ -30,7 +30,6 @@ public class SkyboxPass : Pass
             shader.SetInt("TextureCube_Skybox", 0);
             device.gl.ActiveTexture(GLEnum.Texture0);
             device.gl.BindTexture(GLEnum.TextureCubeMap, camera.Skybox.TextureId);
-            device.gl.ResetPassState(this);
             device.gl.Draw(device.CubeMesh);
         }
     }

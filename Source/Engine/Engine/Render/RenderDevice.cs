@@ -514,7 +514,7 @@ public class CubeMesh
         }
         else
         {
-            gl.Enable(GLEnum.CullFace);
+            gl.Disable(GLEnum.CullFace);
         }
         if (pass.AlphaBlend)
         {

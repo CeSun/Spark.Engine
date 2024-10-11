@@ -11,6 +11,8 @@ uniform samplerCube TextureCube_Skybox;
 
 void main()
 {   
-    vec3 Color = texture(TextureCube_Skybox, TexCoords).rgb;
+    vec3 forward = TexCoords;
+    forward.y = TexCoords.y * -1.0;
+    vec3 Color = texture(TextureCube_Skybox, forward).rgb;
     Buffer_Color = vec4(Color, 1.0f);
 }
