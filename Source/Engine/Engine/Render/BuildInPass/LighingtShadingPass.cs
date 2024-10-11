@@ -10,13 +10,15 @@ namespace Spark.Core.Render;
 
 public class LighingtShadingPass : Pass
 {
-    public override bool ZTest => false;
+    public override bool ZTest => true;
+    public override bool ZWrite => true;
     public override bool AlphaBlend => true;
+    public override DepthFunction ZTestFunction => DepthFunction.Always;
     public override (BlendingFactor source, BlendingFactor destination) AlphaBlendFactors => (BlendingFactor.One, BlendingFactor.One);
     public override BlendEquationModeEXT AlphaEquation => BlendEquationModeEXT.FuncAdd;
     public override ClearBufferMask ClearBufferFlag => ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit;
-    public override Color ClearColor => Color.Black;
-
+    public override Color ClearColor => Color.FromArgb(0, 0, 0, 0);
+    public override int ClearStencil => 0;
 
 
     ShaderTemplate? DirectLightingShaderTemplate;
@@ -25,8 +27,32 @@ public class LighingtShadingPass : Pass
     public void Render(DeferredRenderer renderer, WorldProxy world, CameraComponentProxy camera)
     {
         renderer.gl.ResetPassState(this);
-        var shader = CheckDirectLightingShader(renderer.RenderDevice);
-      
+        if (camera.ClearFlag != CameraClearFlag.None)
+        {
+            renderer.gl.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
+            renderer.gl.Clear(ClearBufferMask.ColorBufferBit);
+        }
+
+        renderer.gl.Disable(EnableCap.Blend);
+        var shader = CheckIndirectLightingShader(renderer.RenderDevice);
+        using (shader.Use(renderer.gl))
+        {
+            shader.SetFloat("IndirectLightIntensity", 0.01f);
+            shader.SetInt("Buffer_BaseColor_AO", 0);
+            renderer.gl.ActiveTexture(GLEnum.Texture0);
+            renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[0]);
+            shader.SetInt("Buffer_Depth", 1);
+            renderer.gl.ActiveTexture(GLEnum.Texture1);
+            renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds.Last());
+            renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);
+        }
+
+        renderer.gl.Enable(EnableCap.Blend);
+        shader = CheckDirectLightingShader(renderer.RenderDevice);
+
+        renderer.gl.DepthMask(false);
+        renderer.gl.DepthFunc(DepthFunction.Notequal);
+
         foreach (var directionalLight in world.DirectionalLightComponentProxies)
         {
             if (directionalLight.CastShadow == true)
@@ -141,16 +167,7 @@ public class LighingtShadingPass : Pass
             }
         }
 
-        shader = CheckIndirectLightingShader(renderer.RenderDevice);
-
-        using (shader.Use(renderer.gl))
-        {
-            shader.SetFloat("IndirectLightIntensity", 0.01f);
-            shader.SetInt("Buffer_BaseColor_AO", 0);
-            renderer.gl.ActiveTexture(GLEnum.Texture0);
-            renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[0]);
-            renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);
-        }
+        renderer.gl.Disable(GLEnum.StencilTest);
 
     }
 

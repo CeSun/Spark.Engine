@@ -34,9 +34,20 @@ public class HelloSparkGame : IGame
         directionalLightActor.LightComponent.CastShadow = false;
 
         CameraActor = new CameraActor(world);
-        CameraActor.ClearColor = Color.Red;
+        CameraActor.ClearFlag = CameraClearFlag.Skybox;
+        CameraActor.ClearColor = Color.White;
         CameraActor.NearPlaneDistance = 1;
-        CameraActor.ClearColor = Color.Azure;
+
+        var textureCube = await Task.Run(() =>
+        {
+            using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "Texture/newport_loft.hdr"))
+            {
+                var texture = TextureImporter.ImportTextureHdrFromStream(sr, new TextureImportSetting());
+                return TextureImporter.GenerateTextureCubeFromTextureHdr(texture);
+            }
+        });
+        CameraActor.SkyboxTexture = textureCube;
+
         var staticmesh = new StaticMeshActor(world);
         staticmesh.StaticMesh = await Task.Run(() =>
         {

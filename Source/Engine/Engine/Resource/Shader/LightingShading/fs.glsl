@@ -48,9 +48,6 @@ void main()
 {
 	// 先对深度进行采样
 	float depth = texture(Buffer_Depth, texCoord).x;
-	
-	if (depth >= 1.0)
-		discard;
 	vec4 BaseColor_AO = texture(Buffer_BaseColor_AO, texCoord);
 	vec4 Normal_Metalness_Roughness = texture(Buffer_Normal_Metalness_Roughness, texCoord);
 
@@ -110,6 +107,6 @@ void main()
 #endif
 
 
-	Buffer_Color = vec4(Lo * LightStrength , 1.0f);
+	Buffer_Color = vec4(Lo * LightStrength , 0.0f);
 }
 

@@ -3,7 +3,6 @@ using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 using Spark.Core.Components;
 using Spark.Core.Render.BuildInPass;
-using System.Numerics;
 
 namespace Spark.Core.Render;
 
@@ -38,31 +37,25 @@ public class DeferredRenderer : Renderer
         using (LightShadingRenderTarget.Begin(gl))
         {
             _lightingShadingPass.Render(this, Camera.World, Camera);
+            if (Camera.ClearFlag == CameraClearFlag.Skybox)
+            {
+                _skyboxPass.Render(RenderDevice, Camera);
+            }
         }
 
         if (Camera.RenderTarget != null)
         {
             using (Camera.RenderTarget.Begin(gl))
             {
+                gl.Disable(EnableCap.DepthTest);
                 gl.Enable(GLEnum.Blend);
                 gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
-                if (Camera.ClearFlag != CameraClearFlag.None)
-                {
-                    gl.ClearColor(Camera.ClearColor.X, Camera.ClearColor.Y, Camera.ClearColor.Z, Camera.ClearColor.W);
-                    gl.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
-                }
-                if (Camera.ClearFlag == CameraClearFlag.Skybox)
-                {
-                }
                 using (_renderToCameraShader.Use(gl))
                 {
                     _renderToCameraShader.SetInt("Buffer_FinalColor", 0);
                     gl.ActiveTexture(GLEnum.Texture0);
                     gl.BindTexture(GLEnum.Texture2D, LightShadingRenderTarget.AttachmentTextureIds[0]);
-                    _renderToCameraShader.SetInt("Buffer_DepthBuffer", 1);
-                    gl.ActiveTexture(GLEnum.Texture1);
-                    gl.BindTexture(GLEnum.Texture2D, GBufferRenderTarget.AttachmentTextureIds.Last());
 
                     gl.Draw(RenderDevice.RectangleMesh);
                 }
@@ -100,7 +93,7 @@ public class DeferredRenderer : Renderer
                 Height = Camera.RenderTarget.Height,
                 Configs = new UnmanagedArray<FrameBufferConfig>([
                     new FrameBufferConfig{Format = PixelFormat.Rgba, InternalFormat = InternalFormat.Rgba16f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.ColorAttachment0, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest},
-                    new FrameBufferConfig{Format = PixelFormat.DepthStencil, InternalFormat = InternalFormat.Depth24Stencil8, PixelType= PixelType.UnsignedInt248, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
+                    new FrameBufferConfig{Format = PixelFormat.DepthStencil, InternalFormat = InternalFormat.Depth24Stencil8, PixelType= PixelType.UnsignedInt248, FramebufferAttachment = FramebufferAttachment.DepthStencilAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
                 ])
             };
             unsafe

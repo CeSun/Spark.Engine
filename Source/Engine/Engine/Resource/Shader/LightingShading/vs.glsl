@@ -10,5 +10,6 @@ out vec2 texCoord;
 void main()
 {
 	texCoord = TexCoord;
-	gl_Position = vec4(Position, 1.0f);
+	vec4 pos = vec4(Position, 1.0f);
+	gl_Position = pos.xyww;
 }

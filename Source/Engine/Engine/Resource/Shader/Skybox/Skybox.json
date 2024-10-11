@@ -1,0 +1,8 @@
+﻿{
+  "name": "Skybox",
+  "include": [
+    "Engine/Shader/Common/common.glsl"
+  ],
+  "vertex": "Engine/Shader/Skybox/vs.glsl",
+  "fragment": "Engine/Shader/Skybox/fs.glsl"
+}

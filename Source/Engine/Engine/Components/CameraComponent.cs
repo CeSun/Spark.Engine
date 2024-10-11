@@ -218,7 +218,7 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
         Order = properties.Order;
         RenderTarget = renderDevice.GetProxy<RenderTargetProxy>(properties.RenderTarget);
         ProjectionType = properties.ProjectionType;
-        Skybox = renderDevice.GetProxy<TextureCubeProxy>(properties.RenderTarget);
+        Skybox = renderDevice.GetProxy<TextureCubeProxy>(properties.SkyboxTexture);
         ClearFlag = properties.ClearFlag;
         ClearColor = properties.ClearColor;
 
