@@ -1,6 +1,8 @@
-﻿using Silk.NET.OpenGLES;
+﻿using Silk.NET.Maths;
+using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 using Spark.Core.Components;
+using Spark.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,7 +27,7 @@ public class SkyboxPass : Pass
         var shader = CheckShader(device);
         using(shader.Use(device.gl))
         {
-            shader.SetMatrix("View", camera.View);
+            shader.SetMatrix("View", camera.View.AsMatrix3x3());
             shader.SetMatrix("Projection", camera.Projection);
             shader.SetInt("TextureCube_Skybox", 0);
             device.gl.ActiveTexture(GLEnum.Texture0);

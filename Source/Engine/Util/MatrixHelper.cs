@@ -115,6 +115,30 @@ public static class MatrixHelper
         return angles;
     }
 
+    public static Matrix4x4 AsMatrix3x3(this Matrix4x4 m)
+    {
+       return new Matrix4x4()
+        {
+            M11 = m.M11,
+            M12 = m.M12,
+            M13 = m.M13,
+            M14 = 0,
+            M21 = m.M21,
+            M22 = m.M22,
+            M23 = m.M23,
+            M24 = 0,
+            M31 = m.M31,
+            M32 = m.M32,
+            M33 = m.M33,
+            M34 = 0,
+            M41 = 0,
+            M42 = 0,
+            M43 = 0,
+            M44 = 0
+        };
+
+    }
+
 }
 
 public static class PlaneHelper
