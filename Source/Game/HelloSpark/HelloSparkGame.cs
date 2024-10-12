@@ -6,7 +6,6 @@ using Spark.Importer;
 using Spark.Util;
 using System.Drawing;
 using System.Numerics;
-using System.Runtime.Intrinsics.X86;
 
 namespace HelloSpark;
 
@@ -32,6 +31,9 @@ public class HelloSparkGame : IGame
         directionalLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(-90f.DegreeToRadians(), -150f.DegreeToRadians(), 0);
         directionalLightActor.LightStrength = 10f;
         directionalLightActor.LightComponent.CastShadow = false;
+
+        PointLightActor pointLightActor = new PointLightActor(world);
+
 
         CameraActor = new CameraActor(world);
         CameraActor.ClearFlag = CameraClearFlag.Skybox;
@@ -150,7 +152,10 @@ public class HelloSparkGame : IGame
     float yaw = 0;
     public void Update(World world, double deltaTime)
     {
-        Console.WriteLine(deltaTime);
+        if (CameraActor == null || SpotLightActor == null) 
+            return;
+        if (world.Engine.MainKeyBoard == null)
+            return;
         CameraActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
         SpotLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
 

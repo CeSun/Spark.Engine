@@ -1,4 +1,5 @@
-﻿using Spark.Core.Actors;
+﻿using Silk.NET.OpenGLES;
+using Spark.Core.Actors;
 using Spark.Core.Render;
 using Spark.Util;
 using System.Runtime.CompilerServices;
@@ -51,6 +52,42 @@ public class PointLightComponentProxy : LightComponentProxy
         ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(propertiesPtr);
         Color = properties.LightBaseProperties.Color;
         FalloffRadius = properties.FalloffRadius;
+        if (FBO == 0)
+        {
+            InitShadowMap(renderDevice.gl);
+        }
+    }
+
+    public uint FBO;
+    public uint CubeId;
+
+    public unsafe void InitShadowMap(GL gl)
+    {
+        FBO = gl.GenFramebuffer();
+
+        CubeId = gl.GenTexture();
+        gl.BindTexture(TextureTarget.ProxyTextureCubeMap, CubeId);
+
+        for (uint i = 0; i < 6; i++)
+        {
+            gl.TexImage2D((TextureTarget)((uint)TextureTarget.TextureCubeMapPositiveX + i), 0, InternalFormat.DepthComponent24, 512, 512, 0, PixelFormat.DepthComponent, PixelType.UnsignedInt, (void*)null);
+        }
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
+        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+
+        gl.BindFramebuffer(FramebufferTarget.Framebuffer, FBO);
+        gl.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, CubeId, 0);
+
+        gl.DrawBuffers([GLEnum.None]);
+        gl.ReadBuffer(GLEnum.None);
+        var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
+        if (state != GLEnum.FramebufferComplete)
+        {
+            Console.WriteLine("fbo 出错！" + state);
+        }
     }
 }
 
