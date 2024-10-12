@@ -290,7 +290,6 @@ public partial class PrimitiveComponent
             var tmpRelativeTransform = value * InverseParentMatrix;
 
             RelativeTransform = tmpRelativeTransform;
-            MakeRenderDirty();
         }
     }
 

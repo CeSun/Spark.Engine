@@ -27,7 +27,12 @@ public class AndroidFileSystem(AssetManager assetManager): IFileSystem
 
     public StreamReader GetStream(string Path)
     {
-        return new StreamReader(_assetManager.Open($"Resource/{Path}"));
+
+        var stream = _assetManager.Open($"Resource/{Path}");
+        var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        ms.Seek(0, SeekOrigin.Begin);
+        return new StreamReader(ms);
     }
 
     public bool Exists(string ModuleName, string Path)
@@ -45,7 +50,7 @@ public class AndroidFileSystem(AssetManager assetManager): IFileSystem
 
     public StreamReader GetStream(string ModuleName, string Path)
     {
-        return new StreamReader(_assetManager.Open($"Resource/{ModuleName}/{Path}"));
+        return GetStream($"{ModuleName}/{Path}");
     }
 
 }

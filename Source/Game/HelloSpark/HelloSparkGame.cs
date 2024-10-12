@@ -47,8 +47,36 @@ public class HelloSparkGame : IGame
             }
         });
         CameraActor.SkyboxTexture = textureCube;
-       
 
+        if (world.Engine.MainMouse != null)
+        {
+            world.Engine.MainMouse.MouseMove += (mouse, mousePos) =>
+            {
+                if (mouse.IsButtonPressed(MouseButton.Left) == false)
+                {
+                    return;
+                }
+                if (LastFramePos.X < 0 || mousePos.Y < 0)
+                    LastFramePos = mousePos;
+                Euler.X += (mousePos - LastFramePos).X * 0.03f;
+                Euler.Y += (mousePos - LastFramePos).Y * 0.03f;
+
+                if (Euler.Y > 89.0)
+                    Euler.Y = 89;
+                if (Euler.Y < -89.0)
+                    Euler.Y = -89;
+
+                LastFramePos = mousePos;
+
+            };
+            world.Engine.MainMouse.MouseDown += (mouse, Button) =>
+            {
+                if (mouse.IsButtonPressed(MouseButton.Left))
+                {
+                    LastFramePos = mouse.Position;
+                }
+            };
+        }
         var staticmesh = new StaticMeshActor(world);
         staticmesh.StaticMesh = await Task.Run(() =>
         {
@@ -109,35 +137,6 @@ public class HelloSparkGame : IGame
         staticmesh4.WorldScale = new Vector3(1f);
         staticmesh4.WorldLocation = staticmesh.UpVector * -3;
 
-        if (world.Engine.MainMouse != null)
-        {
-            world.Engine.MainMouse.MouseMove += (mouse, mousePos) =>
-            {
-                if (mouse.IsButtonPressed(MouseButton.Left) == false)
-                {
-                    return;
-                }
-                if (LastFramePos.X < 0 || mousePos.Y < 0)
-                    LastFramePos = mousePos;
-                Euler.X += (mousePos - LastFramePos).X * 0.03f;
-                Euler.Y += (mousePos - LastFramePos).Y * 0.03f;
-
-                if (Euler.Y > 89.0)
-                    Euler.Y = 89;
-                if (Euler.Y < -89.0)
-                    Euler.Y = -89;
-
-                LastFramePos = mousePos;
-
-            };
-            world.Engine.MainMouse.MouseDown += (mouse, Button) =>
-            {
-                if (mouse.IsButtonPressed(MouseButton.Left))
-                {
-                    LastFramePos = mouse.Position;
-                }
-            };
-        }
     }
 
 
@@ -151,6 +150,7 @@ public class HelloSparkGame : IGame
     float yaw = 0;
     public void Update(World world, double deltaTime)
     {
+        Console.WriteLine(deltaTime);
         CameraActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
         SpotLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
 

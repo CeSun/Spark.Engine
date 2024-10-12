@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 /.idea/
+/Source/Launcher/Launcher.Desktop/Properties/launchSettings.json

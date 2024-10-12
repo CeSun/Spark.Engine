@@ -74,25 +74,11 @@ public static class TextureImporter
 
     public static Texture ImportTextureHdrFromStream(StreamReader streamReader, TextureImportSetting setting)
     {
-        MemoryStream ms = new MemoryStream();
-        using (BinaryReader br = new BinaryReader(streamReader.BaseStream))
-        {
-            List<byte> buffer = new List<byte>();
-            do
-            {
-                var data = br.ReadBytes(1024);
-                if (data.Length <= 0)
-                    break;
-                ms.Write(data);
-            } while (true);
-        }
-
-
         if (setting.FlipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(1);
         }
-        var imageResult = ImageResultFloat.FromStream(ms);
+        var imageResult = ImageResultFloat.FromStream(streamReader.BaseStream);
         if (setting.FlipVertically)
         {
             StbImage.stbi_set_flip_vertically_on_load(0);

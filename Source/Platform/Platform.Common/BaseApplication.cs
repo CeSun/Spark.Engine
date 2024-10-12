@@ -17,7 +17,7 @@ public abstract class BaseApplication
     protected void Wait(double waitTime)
     {
         sw.Restart();
-        while (sw.ElapsedMilliseconds < (waitTime * 0.965))
+        while (sw.ElapsedMilliseconds < (waitTime))
         {
             
         }
