@@ -56,13 +56,13 @@ public class PointLightComponentProxy : LightComponentProxy
         if (CastShadow == true)
         {
             InitShadowMap(renderDevice.gl); 
-            View[0] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Right, -Up);
-            View[1] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation - Right, -Up);
-            View[2] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation - Up, Forward);
-            View[3] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Up, -Forward);
+            View[0] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + new Vector3(1, 0, 0), new Vector3(0, -1, 0));
+            View[1] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + new Vector3(-1, 0, 0), new Vector3(0, -1, 0));
+            View[2] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + new Vector3(0, 1, 0), new Vector3(0, 0, 1));
+            View[3] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + new Vector3(0, -1, 0), new Vector3(0, 0, -1));
 
-            View[4] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, -Up);
-            View[5] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation - Forward, -Up);
+            View[4] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + new Vector3(0, 0, 1), new Vector3(0, -1, 0));
+            View[5] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + new Vector3(0, 0, -1), new Vector3(0, -1, 0));
 
             Projection = Matrix4x4.CreatePerspectiveFieldOfView(90f.DegreeToRadians(), 1, FalloffRadius * 0.01F, FalloffRadius);
             for (int i = 0; i < 6; i++)
