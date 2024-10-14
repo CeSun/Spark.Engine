@@ -2,6 +2,7 @@
 using Spark.Core.Actors;
 using Spark.Core.Render;
 using Spark.Util;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -52,21 +53,41 @@ public class PointLightComponentProxy : LightComponentProxy
         ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(propertiesPtr);
         Color = properties.LightBaseProperties.Color;
         FalloffRadius = properties.FalloffRadius;
-        if (FBO == 0)
+        if (CastShadow == true)
         {
-            InitShadowMap(renderDevice.gl);
+            InitShadowMap(renderDevice.gl); 
+            View[0] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Right, -Up);
+            View[1] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation - Right, -Up);
+            View[2] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation - Up, Forward);
+            View[3] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Up, -Forward);
+
+            View[4] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, -Up);
+            View[5] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation - Forward, -Up);
+
+            Projection = Matrix4x4.CreatePerspectiveFieldOfView(90f.DegreeToRadians(), 1, FalloffRadius * 0.01F, FalloffRadius);
+            for (int i = 0; i < 6; i++)
+            {
+                LightViewProjections[i] = View[i] * Projection;
+            }
         }
+
     }
+
+    public Matrix4x4[] View = new Matrix4x4[6];
+    public Matrix4x4[] LightViewProjections = new Matrix4x4[6];
+    public Matrix4x4 Projection;
 
     public uint FBO;
     public uint CubeId;
 
     public unsafe void InitShadowMap(GL gl)
     {
+        if (CastShadow == false)
+            return;
         FBO = gl.GenFramebuffer();
 
         CubeId = gl.GenTexture();
-        gl.BindTexture(TextureTarget.ProxyTextureCubeMap, CubeId);
+        gl.BindTexture(TextureTarget.TextureCubeMap, CubeId);
 
         for (uint i = 0; i < 6; i++)
         {
@@ -79,15 +100,22 @@ public class PointLightComponentProxy : LightComponentProxy
         gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
 
         gl.BindFramebuffer(FramebufferTarget.Framebuffer, FBO);
-        gl.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, CubeId, 0);
+        gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment,TextureTarget.TextureCubeMapNegativeX, CubeId, 0);
 
-        gl.DrawBuffers([GLEnum.None]);
-        gl.ReadBuffer(GLEnum.None);
         var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
         if (state != GLEnum.FramebufferComplete)
         {
             Console.WriteLine("fbo 出错！" + state);
         }
+    }
+
+    public override void DestoryGpuResource(RenderDevice renderer)
+    {
+        base.DestoryGpuResource(renderer);
+        renderer.gl.DeleteTexture(CubeId);
+        renderer.gl.DeleteFramebuffer(FBO);
+        CubeId = 0;
+        FBO = 0;
     }
 }
 

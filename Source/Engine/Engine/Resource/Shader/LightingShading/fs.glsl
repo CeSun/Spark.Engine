@@ -35,6 +35,9 @@ uniform float OuterCosine;
 #if defined  _DIRECTIONAL_LIGHT_ || defined _SPOT_LIGHT_
 uniform sampler2D Buffer_ShadowMap;
 uniform mat4 LightViewProjection;
+#elif defined _POINT_LIGHT_
+uniform samplerCube Buffer_ShadowCubeMap;
+uniform mat4 LightViewProjections[6];
 #endif
 
 #endif
@@ -43,6 +46,8 @@ vec3 Normal2DTo3D(vec2 Oct);
 vec3 calculateWorldPosition(vec3 clipSpacePosition, mat4 viewProjectionInverseMatrix);
 vec3 CalculatePbrLighting(vec3 baseColor, float metalness,float roughness, vec3 normal,  float lightAttenuation, vec3 lightColor, vec3 lightDirection, vec3 cameraDirection);
 vec3 CalculateBlinnPhongLighting(vec3 baseColor, float metalness,float roughness, vec3 normal,  float lightAttenuation, vec3 lightColor, vec3 lightDirection, vec3 cameraDirection);
+
+int getFaceIndex(vec3 direction);
 
 void main()
 {
@@ -89,21 +94,30 @@ void main()
 
 #ifdef _WITH_SHADOW_
 
-#if defined  _DIRECTIONAL_LIGHT_ || defined _SPOT_LIGHT_
-	 vec4 lightSpacePosition = LightViewProjection * vec4(worldPosition, 1.0);
-	 lightSpacePosition = lightSpacePosition / lightSpacePosition.w;
-	
-	 vec2 lightTextureUV = lightSpacePosition.xy / 2.0 + 0.5;
-	 float currectShadowSpaceDepth = lightSpacePosition.z;
-	 float shadowMapDepth = texture(Buffer_ShadowMap, lightTextureUV).x * 2.0 - 1.0;
-	 
 
-	 if (shadowMapDepth + 0.005 <= currectShadowSpaceDepth)
+	float shadowMapDepth = 1.0;
+
+#ifdef _POINT_LIGHT_
+	int matrixIndex = getFaceIndex(lightDirection);
+	mat4 LightViewProjection = LightViewProjections[matrixIndex];
+#endif
+
+	vec4 lightSpacePosition = LightViewProjection * vec4(worldPosition, 1.0);
+	lightSpacePosition = lightSpacePosition / lightSpacePosition.w;
+	float currectShadowSpaceDepth = lightSpacePosition.z;
+
+#if defined  _DIRECTIONAL_LIGHT_ || defined _SPOT_LIGHT_
+	vec2 lightTextureUV = lightSpacePosition.xy / 2.0 + 0.5;
+	shadowMapDepth = texture(Buffer_ShadowMap, lightTextureUV).x * 2.0 - 1.0;
+
+#elif defined _POINT_LIGHT_
+	shadowMapDepth = texture(Buffer_ShadowCubeMap, lightDirection).x * 2.0 - 1.0;
+#endif
+	
+	if (shadowMapDepth + 0.005 <= currectShadowSpaceDepth)
 		Lo = vec3(0.0);
 	else
 		Lo = Lo;
-#endif
-
 #endif
 
 

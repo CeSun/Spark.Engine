@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Silk.NET.OpenGLES;
 using Spark.Core.Assets;
 
@@ -11,7 +12,8 @@ public class Shader
     public uint ProgramId;
 
     public required GL gl;
-  
+
+    public Dictionary<string, int> UniformLocations = new Dictionary<string, int>();
     public void SetInt(string name, int value)
     {
         if (gl == null)
@@ -199,7 +201,15 @@ public static class ShaderHelper
         }
         gl.DeleteShader(vert);
         gl.DeleteShader(frag);
+        Dictionary<string, int> locations = [];
+        var num = gl.GetProgram(ProgramId, GLEnum.ActiveUniforms);
+        for(int i = 0; i < num; i++)
+        {
+            var name = gl.GetActiveUniform(ProgramId, (uint)i, out var size, out var type);
 
+            var location = gl.GetUniformLocation(ProgramId, name);
+            locations.Add(name, location);
+        }
         return new Shader() { ProgramId = ProgramId, gl = gl };
     }
 }

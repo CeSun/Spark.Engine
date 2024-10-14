@@ -91,32 +91,46 @@ public class LighingtShadingPass : Pass
             shader.Dispose();
         }
 
-        using (shader.Use(renderer.gl, "_POINT_LIGHT_"))
+       
+        foreach (var pointLight in world.PointLightComponentProxies)
         {
+            if (pointLight.CastShadow == true)
+                shader.Use(renderer.gl, "_POINT_LIGHT_", "_WITH_SHADOW_");
+            else
+                shader.Use(renderer.gl, "_POINT_LIGHT_");
+
             shader.SetVector3("CameraPosition", camera.WorldLocation);
             shader.SetMatrix("ViewProjectionInverse", camera.ViewProjectionInverse);
-            foreach (var pointLight in world.PointLightComponentProxies)
+
+            shader.SetVector3("LightColor", pointLight.Color);
+            shader.SetFloat("LightStrength", pointLight.LightStrength);
+
+            shader.SetVector3("LightPosition", pointLight.WorldLocation);
+            shader.SetFloat("LightFalloffRadius", pointLight.FalloffRadius);
+
+            shader.SetInt("Buffer_BaseColor_AO", 0);
+            renderer.gl.ActiveTexture(GLEnum.Texture0);
+            renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[0]);
+
+            shader.SetInt("Buffer_Normal_Metalness_Roughness", 1);
+            renderer.gl.ActiveTexture(GLEnum.Texture1);
+            renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[1]);
+
+            shader.SetInt("Buffer_Depth", 2);
+            renderer.gl.ActiveTexture(GLEnum.Texture2);
+            renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds.Last());
+            if (pointLight.CastShadow == true)
             {
-                shader.SetVector3("LightColor", pointLight.Color);
-                shader.SetFloat("LightStrength", pointLight.LightStrength);
-
-                shader.SetVector3("LightPosition", pointLight.WorldLocation);
-                shader.SetFloat("LightFalloffRadius", pointLight.FalloffRadius);
-
-                shader.SetInt("Buffer_BaseColor_AO", 0);
-                renderer.gl.ActiveTexture(GLEnum.Texture0);
-                renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[0]);
-
-                shader.SetInt("Buffer_Normal_Metalness_Roughness", 1);
-                renderer.gl.ActiveTexture(GLEnum.Texture1);
-                renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds[1]);
-
-                shader.SetInt("Buffer_Depth", 2);
-                renderer.gl.ActiveTexture(GLEnum.Texture2);
-                renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds.Last());
-
-                renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);
+                for (int i = 0; i < 6; i++)
+                {
+                    shader.SetMatrix($"LightViewProjections[{i}]", pointLight.LightViewProjections[i]);
+                }
+                shader.SetInt("Buffer_ShadowCubeMap", 3);
+                renderer.gl.ActiveTexture(GLEnum.Texture3);
+                renderer.gl.BindTexture(GLEnum.TextureCubeMap, pointLight.CubeId);
             }
+            renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);
+            shader.Dispose();
         }
         foreach (var spotLight in world.SpotLightComponentProxies)
         {

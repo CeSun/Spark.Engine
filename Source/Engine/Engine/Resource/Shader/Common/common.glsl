@@ -200,3 +200,24 @@ vec3 CombineLighting(vec3 directLight, vec3 indirectLight, vec3 normal, vec3 vie
 }
 }
 */
+
+int getFaceIndex(vec3 direction)
+{
+    vec3 absDir = abs(direction);
+    int faceIndex;
+    
+    if(absDir.x >= absDir.y && absDir.x >= absDir.z)
+    {
+        faceIndex = direction.x > 0.0 ? 0 : 1;
+    }
+    else if(absDir.y >= absDir.x && absDir.y >= absDir.z)
+    {
+        faceIndex = direction.y > 0.0 ? 2 : 3;
+    }
+    else
+    {
+        faceIndex = direction.z > 0.0 ? 4 : 5;
+    }
+    
+    return faceIndex;
+}
