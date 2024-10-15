@@ -59,8 +59,8 @@ public class DirectionalLightComponentProxy : LightComponentProxy
     public void UpdateMatrix(CameraComponentProxy camera)
     {
         var cameraDirectionalMatrix = Matrix4x4.CreateFromQuaternion(camera.WorldRotation);
+        Matrix4x4.Invert(cameraDirectionalMatrix, out var cameraDirectionalInverseMatrix);
         var len = (camera.FarPlaneDistance - camera.NearPlaneDistance) / ShadowMapRenderTargets.Count;
-        Span<Vector3> AABBPoints = stackalloc Vector3[8];
         for (int i = 0; i < ShadowMapRenderTargets.Count; i++)
         {
             var projection = camera.GetProjection(camera.NearPlaneDistance + i * len, camera.NearPlaneDistance + (i + 1) * len);
@@ -78,22 +78,17 @@ public class DirectionalLightComponentProxy : LightComponentProxy
             box += Vector3.Transform(new Vector3(-1, -1, 1), cameraToDirectionLight);
             box += Vector3.Transform(new Vector3(-1, -1, 1), cameraToDirectionLight);
 
-            box.GetPoints(AABBPoints);
             var ZLength = box.Max.Z - box.Min.Z;
-            Vector3 middle = Vector3.Zero;
-            for(int j = 0; j < AABBPoints.Length; j++)
-            {
-                AABBPoints[j] = Vector3.Transform(AABBPoints[i], cameraDirectionalMatrix);
-                middle += AABBPoints[j];
-            }
-            middle /= 8;
+            var XLength = box.Max.X - box.Min.X;
+            var YLength = box.Max.Y - box.Min.Y;
+            var orgine =  Vector3.Transform((box.Max + box.Min) / 2, cameraDirectionalInverseMatrix);
+
             
-
-            view = Matrix4x4.CreateLookAt(middle, middle + camera.Forward, camera.Up);
-            projection = Matrix4x4.CreateOrthographic(ShadowMapSize, ShadowMapSize, ZLength / -2, ZLength / 2);
+            view = Matrix4x4.CreateLookAt(orgine + (Forward * ZLength * -1), orgine , Up);
+            projection = Matrix4x4.CreateOrthographic(XLength, YLength, ZLength / 2, ZLength * 1.5F);
             LightViewProjection[i] = view * projection;
-
-
+            Views[i] = view;
+            Projections[i] = projection;
         }
     }
     public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)

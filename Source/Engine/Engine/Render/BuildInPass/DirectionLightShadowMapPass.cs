@@ -18,7 +18,8 @@ public class DirectionLightShadowMapPass : Pass
 
     public void Render(RenderDevice device, WorldProxy world, DirectionalLightComponentProxy dirctionalLightComponent, CameraComponentProxy Camera)
     {
-        for(int i = 0; i < dirctionalLightComponent.ShadowMapRenderTargets.Count; i++)
+        dirctionalLightComponent.UpdateMatrix(Camera);
+        for (int i = 0; i < dirctionalLightComponent.ShadowMapRenderTargets.Count; i++)
         {
             using (dirctionalLightComponent.ShadowMapRenderTargets[i].Begin(device.gl))
             {
