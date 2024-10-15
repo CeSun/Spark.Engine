@@ -16,7 +16,7 @@ public class HelloSparkGame : IGame
     CameraActor? CameraActor;
     SpotLightActor? SpotLightActor;
     public async void BeginPlay(World world)
-    {
+    { /*
         SpotLightActor light = new SpotLightActor(world);
         light.Color = Color.White;
         light.LightStrength = 1f;
@@ -26,15 +26,15 @@ public class HelloSparkGame : IGame
         light.SpotLightComponent.CastShadow = false;
         SpotLightActor = light;
         
+       
+        PointLightActor pointLightActor = new PointLightActor(world);
+        pointLightActor.FalloffRadius = 10f;
+        */
         DirectionalLightActor directionalLightActor = new DirectionalLightActor(world);
         directionalLightActor.Color = Color.White;
         directionalLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(-90f.DegreeToRadians(), -150f.DegreeToRadians(), 0);
         directionalLightActor.LightStrength = 10f;
         directionalLightActor.LightComponent.CastShadow = true;
-        /*
-        PointLightActor pointLightActor = new PointLightActor(world);
-        pointLightActor.FalloffRadius = 10f;
-        */
         CameraActor = new CameraActor(world);
         CameraActor.ClearFlag = CameraClearFlag.Skybox;
         CameraActor.ClearColor = Color.White;
@@ -152,12 +152,12 @@ public class HelloSparkGame : IGame
     float yaw = 0;
     public void Update(World world, double deltaTime)
     {
-        if (CameraActor == null || SpotLightActor == null) 
-            return;
         if (world.Engine.MainKeyBoard == null)
-            return;
-        CameraActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
-        SpotLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
+            return; 
+        if (CameraActor != null)
+            CameraActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
+        if (SpotLightActor != null)
+            SpotLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(Euler.X.DegreeToRadians(), Euler.Y.DegreeToRadians(), 0);
 
         Vector2 Movement = Vector2.Zero;
         if (world.Engine.MainKeyBoard.IsKeyPressed(Key.W))
@@ -180,8 +180,11 @@ public class HelloSparkGame : IGame
         if (Movement.Length() > 0)
         {
             Movement = Vector2.Normalize(Movement);
-            CameraActor.WorldLocation += (Movement.X * CameraActor.ForwardVector * (float)deltaTime / 1000 + Movement.Y * CameraActor.RightVector * (float)deltaTime / 1000);
-            SpotLightActor.WorldLocation = CameraActor.WorldLocation;
+            if (CameraActor != null)
+                CameraActor.WorldLocation += (Movement.X * CameraActor.ForwardVector * (float)deltaTime / 1000 + Movement.Y * CameraActor.RightVector * (float)deltaTime / 1000);
+
+            if (SpotLightActor != null && CameraActor != null) 
+                SpotLightActor.WorldLocation = CameraActor.WorldLocation;
         }
 
     }

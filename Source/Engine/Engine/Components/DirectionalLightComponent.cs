@@ -2,6 +2,7 @@
 using Spark.Core.Actors;
 using Spark.Core.Assets;
 using Spark.Core.Render;
+using Spark.Core.Shapes;
 using Spark.Util;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -14,13 +15,20 @@ public class DirectionalLightComponent : LightComponent
     public DirectionalLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
         ShadowMapSize = 1024;
+        CascadedShadowMapLevel = 3;
     }
-
+    public int _cascadedShadowMapLevel;
+    public int CascadedShadowMapLevel
+    {
+        get => _cascadedShadowMapLevel;
+        set => ChangeProperty(ref _cascadedShadowMapLevel, value);
+    }
     protected override unsafe int propertiesStructSize => sizeof(DirectionalLightComponentProperties);
     public override nint GetPrimitiveComponentProperties()
     {
         var ptr = base.GetPrimitiveComponentProperties();
         ref var properties = ref UnsafeHelper.AsRef<DirectionalLightComponentProperties>(ptr);
+        properties.CascadedShadowMapLevel = CascadedShadowMapLevel;
         return ptr;
     }
 
@@ -42,24 +50,66 @@ public class DirectionalLightComponent : LightComponent
 public class DirectionalLightComponentProxy : LightComponentProxy
 {
 
-    public Matrix4x4 View;
+    public List<Matrix4x4> Views = [];
+    public List<Matrix4x4> Projections = [];
+    public List<RenderTargetProxy> ShadowMapRenderTargets = [];
+    public List<Matrix4x4> LightViewProjection = [];
+    public int CascadedShadowMapLevel;
 
-    public Matrix4x4 Projection;
-    public RenderTargetProxy? ShadowMapRenderTarget { get; set; }
+    public void UpdateMatrix(CameraComponentProxy camera)
+    {
+        var cameraDirectionalMatrix = Matrix4x4.CreateFromQuaternion(camera.WorldRotation);
+        var len = (camera.FarPlaneDistance - camera.NearPlaneDistance) / ShadowMapRenderTargets.Count;
+        Span<Vector3> AABBPoints = stackalloc Vector3[8];
+        for (int i = 0; i < ShadowMapRenderTargets.Count; i++)
+        {
+            var projection = camera.GetProjection(camera.NearPlaneDistance + i * len, camera.NearPlaneDistance + (i + 1) * len);
+            var view = camera.View;
+            var cameraToDirectionLight = projection * view * cameraDirectionalMatrix;
 
-    public Matrix4x4 LightViewProjection;
+            Box box = new Box();
+            box.Max = Vector3.Transform(new Vector3(1, 1, 1), cameraToDirectionLight);
+            box.Min = box.Max;
+            box += Vector3.Transform(new Vector3(-1, 1, 1), cameraToDirectionLight);
+            box += Vector3.Transform(new Vector3(1, -1, 1), cameraToDirectionLight);
+            box += Vector3.Transform(new Vector3(1, 1, -1), cameraToDirectionLight);
+            box += Vector3.Transform(new Vector3(1, -1, -1), cameraToDirectionLight);
+            box += Vector3.Transform(new Vector3(-1, 1, -1), cameraToDirectionLight);
+            box += Vector3.Transform(new Vector3(-1, -1, 1), cameraToDirectionLight);
+            box += Vector3.Transform(new Vector3(-1, -1, 1), cameraToDirectionLight);
+
+            box.GetPoints(AABBPoints);
+            var ZLength = box.Max.Z - box.Min.Z;
+            Vector3 middle = Vector3.Zero;
+            for(int j = 0; j < AABBPoints.Length; j++)
+            {
+                AABBPoints[j] = Vector3.Transform(AABBPoints[i], cameraDirectionalMatrix);
+                middle += AABBPoints[j];
+            }
+            middle /= 8;
+            
+
+            view = Matrix4x4.CreateLookAt(middle, middle + camera.Forward, camera.Up);
+            projection = Matrix4x4.CreateOrthographic(ShadowMapSize, ShadowMapSize, ZLength / -2, ZLength / 2);
+            LightViewProjection[i] = view * projection;
+
+
+        }
+    }
     public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
         uint lastShadowMapSize = ShadowMapSize;
+        var lastCSMLevel = CascadedShadowMapLevel;
         base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<DirectionalLightComponentProperties>(propertiesPtr);
 
-        View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
-        Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
-        LightViewProjection = View * Projection;
+        // View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
+        // Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
+        // LightViewProjection = View * Projection;
+        CascadedShadowMapLevel = properties.CascadedShadowMapLevel;
         if (CastShadow)
         {
-            if (lastShadowMapSize != ShadowMapSize)
+            if (lastShadowMapSize != ShadowMapSize || CascadedShadowMapLevel != lastCSMLevel)
             {
                 UninitShadowMap(renderDevice);
                 InitShadowMap(renderDevice);
@@ -74,30 +124,37 @@ public class DirectionalLightComponentProxy : LightComponentProxy
     public unsafe override void InitShadowMap(RenderDevice device)
     {
         base.InitShadowMap(device);
-        if (ShadowMapRenderTarget == null) 
+        for(int i = 0; i < CascadedShadowMapLevel; i ++)
         {
-            ShadowMapRenderTarget = new RenderTargetProxy();
+            var shadowMapRenderTarget = new RenderTargetProxy();
+            var properties = new RenderTargetProxyProperties
+            {
+                IsDefaultRenderTarget = false,
+                Width = (int)ShadowMapSize,
+                Height = (int)ShadowMapSize,
+            };
+            properties.Configs.Resize(1);
+            properties.Configs[0] = new FrameBufferConfig { Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType = PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest };
+            shadowMapRenderTarget.UpdatePropertiesAndRebuildGPUResource(device, (nint)(&properties));
+            properties.Configs.Dispose();
+            ShadowMapRenderTargets.Add(shadowMapRenderTarget);
+            LightViewProjection.Add(Matrix4x4.Identity);
+            Views.Add(Matrix4x4.Identity);
+            Projections.Add(Matrix4x4.Identity);
         }
-        var properties = new RenderTargetProxyProperties
-        {
-            IsDefaultRenderTarget = false,
-            Width = (int)ShadowMapSize,
-            Height = (int)ShadowMapSize,
-        };
-        properties.Configs.Resize(1);
-        properties.Configs[0] = new FrameBufferConfig { Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType = PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest };
-        ShadowMapRenderTarget.UpdatePropertiesAndRebuildGPUResource(device, (nint)(&properties));
-        properties.Configs.Dispose();
     }
 
     public override void UninitShadowMap(RenderDevice device)
     {
         base.UninitShadowMap(device);
-        if (ShadowMapRenderTarget != null)
+        foreach(var renderTarget in ShadowMapRenderTargets)
         {
-            ShadowMapRenderTarget.DestoryGpuResource(device);
-            ShadowMapRenderTarget = null;
+            renderTarget.DestoryGpuResource(device);
         }
+        ShadowMapRenderTargets.Clear();
+        Views.Clear();
+        Projections.Clear();
+        LightViewProjection.Clear();
     }
 
     public override void DestoryGpuResource(RenderDevice device)
@@ -110,4 +167,5 @@ public class DirectionalLightComponentProxy : LightComponentProxy
 public struct DirectionalLightComponentProperties
 {
     public LightComponentProperties LightBaseProperties;
+    public int CascadedShadowMapLevel;
 }

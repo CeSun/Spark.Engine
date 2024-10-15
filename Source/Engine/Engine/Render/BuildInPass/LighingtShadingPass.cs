@@ -78,13 +78,13 @@ public class LighingtShadingPass : Pass
             renderer.gl.ActiveTexture(GLEnum.Texture2);
             renderer.gl.BindTexture(GLEnum.Texture2D, renderer.GBufferRenderTarget.AttachmentTextureIds.Last());
 
-
-            if (directionalLight.CastShadow && directionalLight.ShadowMapRenderTarget != null)
+            
+            if (directionalLight.CastShadow && directionalLight.ShadowMapRenderTargets.Count > 0)
             {
-                shader.SetMatrix("LightViewProjection", directionalLight.LightViewProjection);
+                shader.SetMatrix("LightViewProjection", directionalLight.LightViewProjection[0]);
                 shader.SetInt("Buffer_ShadowMap", 3);
                 renderer.gl.ActiveTexture(GLEnum.Texture3);
-                renderer.gl.BindTexture(GLEnum.Texture2D, directionalLight.ShadowMapRenderTarget.AttachmentTextureIds[0]);
+                renderer.gl.BindTexture(GLEnum.Texture2D, directionalLight.ShadowMapRenderTargets[0].AttachmentTextureIds[0]);
             }
 
             renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);

@@ -18,18 +18,14 @@ public class DirectionLightShadowMapPass : Pass
 
     public void Render(RenderDevice device, WorldProxy world, DirectionalLightComponentProxy dirctionalLightComponent, CameraComponentProxy Camera)
     {
-        if (dirctionalLightComponent.ShadowMapRenderTarget == null)
-            return;
-
-
-        dirctionalLightComponent.View = Matrix4x4.CreateLookAt(Camera.WorldLocation - dirctionalLightComponent.Forward * 30, Camera.WorldLocation - dirctionalLightComponent.Forward * 29, dirctionalLightComponent.Up);
-        dirctionalLightComponent.LightViewProjection = dirctionalLightComponent.View * dirctionalLightComponent.Projection;
-
-        using (dirctionalLightComponent.ShadowMapRenderTarget.Begin(device.gl))
+        for(int i = 0; i < dirctionalLightComponent.ShadowMapRenderTargets.Count; i++)
         {
-            device.gl.ResetPassState(this);
-            device.gl.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection, true);
-            device.gl.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), dirctionalLightComponent.View, dirctionalLightComponent.Projection, true);
+            using (dirctionalLightComponent.ShadowMapRenderTargets[i].Begin(device.gl))
+            {
+                device.gl.ResetPassState(this);
+                device.gl.BatchDrawStaticMesh(CollectionsMarshal.AsSpan(world.StaticMeshComponentProxies), dirctionalLightComponent.Views[i], dirctionalLightComponent.Projections[i], true);
+                device.gl.BatchDrawSkeletalMesh(CollectionsMarshal.AsSpan(world.SkeletalComponentProxies), dirctionalLightComponent.Views[i], dirctionalLightComponent.Projections[i], true);
+            }
         }
     }
 }

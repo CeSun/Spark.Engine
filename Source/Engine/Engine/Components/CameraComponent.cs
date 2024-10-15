@@ -146,10 +146,12 @@ public class CameraComponentProxy : PrimitiveComponentProxy, IComparable<CameraC
     public Vector4 ClearColor;
 
     public Matrix4x4 View;
-    public Matrix4x4 Projection => this.ProjectionType switch
+    public Matrix4x4 Projection => GetProjection(NearPlaneDistance, FarPlaneDistance);
+
+    public Matrix4x4 GetProjection(float near, float far) => ProjectionType switch
     {
-        ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), RenderTarget!.Width / (float)RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
-        ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget!.Width, RenderTarget.Height, NearPlaneDistance, FarPlaneDistance),
+        ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView.DegreeToRadians(), RenderTarget!.Width / (float)RenderTarget.Height, near, far),
+        ProjectionType.Orthographic => Matrix4x4.CreatePerspective(RenderTarget!.Width, RenderTarget.Height, near, far),
         _ => throw new NotImplementedException()
     };
     public Matrix4x4 ViewProjection;
