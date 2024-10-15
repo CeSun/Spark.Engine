@@ -49,13 +49,18 @@ public class PointLightComponentProxy : LightComponentProxy
     public float FalloffRadius { get; set; }
     public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
+        uint lastShadowMapSize = ShadowMapSize;
         base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<PointLightComponentProperties>(propertiesPtr);
         Color = properties.LightBaseProperties.Color;
         FalloffRadius = properties.FalloffRadius;
         if (CastShadow == true)
         {
-            InitShadowMap(renderDevice.gl); 
+            if (lastShadowMapSize != ShadowMapSize)
+            {
+                UninitShadowMap(renderDevice);
+                InitShadowMap(renderDevice);
+            }
             View[0] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + new Vector3(1, 0, 0), new Vector3(0, -1, 0));
             View[1] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + new Vector3(-1, 0, 0), new Vector3(0, -1, 0));
             View[2] = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + new Vector3(0, 1, 0), new Vector3(0, 0, 1));
@@ -70,6 +75,10 @@ public class PointLightComponentProxy : LightComponentProxy
                 LightViewProjections[i] = View[i] * Projection;
             }
         }
+        else
+        {
+            UninitShadowMap(renderDevice);
+        }
 
     }
 
@@ -80,42 +89,46 @@ public class PointLightComponentProxy : LightComponentProxy
     public uint FBO;
     public uint CubeId;
 
-    public unsafe void InitShadowMap(GL gl)
+    public override unsafe void UninitShadowMap(RenderDevice device)
+    {
+        device.gl.DeleteTexture(CubeId);
+        device.gl.DeleteFramebuffer(FBO);
+        CubeId = 0;
+        FBO = 0;
+    }
+    public override unsafe void InitShadowMap(RenderDevice device)
     {
         if (CastShadow == false)
             return;
-        FBO = gl.GenFramebuffer();
+        FBO = device.gl.GenFramebuffer();
 
-        CubeId = gl.GenTexture();
-        gl.BindTexture(TextureTarget.TextureCubeMap, CubeId);
+        CubeId = device.gl.GenTexture();
+        device.gl.BindTexture(TextureTarget.TextureCubeMap, CubeId);
 
         for (uint i = 0; i < 6; i++)
         {
-            gl.TexImage2D((TextureTarget)((uint)TextureTarget.TextureCubeMapPositiveX + i), 0, InternalFormat.DepthComponent24, 512, 512, 0, PixelFormat.DepthComponent, PixelType.UnsignedInt, (void*)null);
+            device.gl.TexImage2D((TextureTarget)((uint)TextureTarget.TextureCubeMapPositiveX + i), 0, InternalFormat.DepthComponent24, ShadowMapSize, ShadowMapSize, 0, PixelFormat.DepthComponent, PixelType.UnsignedInt, (void*)null);
         }
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
-        gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
+        device.gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMagFilter, (int)GLEnum.Nearest);
+        device.gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureMinFilter, (int)GLEnum.Nearest);
+        device.gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapR, (int)GLEnum.ClampToEdge);
+        device.gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapS, (int)GLEnum.ClampToEdge);
+        device.gl.TexParameter(GLEnum.TextureCubeMap, GLEnum.TextureWrapT, (int)GLEnum.ClampToEdge);
 
-        gl.BindFramebuffer(FramebufferTarget.Framebuffer, FBO);
-        gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment,TextureTarget.TextureCubeMapNegativeX, CubeId, 0);
+        device.gl.BindFramebuffer(FramebufferTarget.Framebuffer, FBO);
+        device.gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment,TextureTarget.TextureCubeMapNegativeX, CubeId, 0);
 
-        var state = gl.CheckFramebufferStatus(GLEnum.Framebuffer);
+        var state = device.gl.CheckFramebufferStatus(GLEnum.Framebuffer);
         if (state != GLEnum.FramebufferComplete)
         {
             Console.WriteLine("fbo 出错！" + state);
         }
     }
 
-    public override void DestoryGpuResource(RenderDevice renderer)
+    public override void DestoryGpuResource(RenderDevice device)
     {
-        base.DestoryGpuResource(renderer);
-        renderer.gl.DeleteTexture(CubeId);
-        renderer.gl.DeleteFramebuffer(FBO);
-        CubeId = 0;
-        FBO = 0;
+        base.DestoryGpuResource(device);
+        UninitShadowMap(device);
     }
 }
 

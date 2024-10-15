@@ -16,22 +16,6 @@ public class SpotLightComponent : LightComponent
         InnerAngle = 12.5f;
         OuterAngle = 17.5f;
         FalloffRadius = 1f;
-        ShadowMapRenderTarget = new RenderTarget()
-        {
-            IsDefaultRenderTarget = false,
-            Width = 1024,
-            Height = 1024,
-            Configs = [
-               new FrameBufferConfig{Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
-            ]
-        };
-        
-    }
-    private RenderTarget? _shadowMapRenderTarget;
-    public RenderTarget? ShadowMapRenderTarget
-    {
-        get => _shadowMapRenderTarget;
-        set => ChangeAssetProperty(ref _shadowMapRenderTarget, value);
     }
     protected override int propertiesStructSize => Marshal.SizeOf<SpotLightComponentProperties>();
 
@@ -61,7 +45,6 @@ public class SpotLightComponent : LightComponent
         ref var properties = ref UnsafeHelper.AsRef<SpotLightComponentProperties>(ptr);
         properties.InnerAngle = _innerAngle;
         properties.OuterAngle = _outerAngle;
-        properties.ShadowMapRenderTarget = ShadowMapRenderTarget == null ? default : ShadowMapRenderTarget.WeakGCHandle;
         properties.FalloffRadius = FalloffRadius;
         return ptr;
     }
@@ -94,19 +77,65 @@ public class SpotLightComponentProxy : LightComponentProxy
     public float InnerCosine { get; set; }
     public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
+        uint lastShadowMapSize = ShadowMapSize;
         base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<SpotLightComponentProperties>(propertiesPtr);
         OuterAngle = properties.OuterAngle;
         OuterCosine = MathF.Cos(OuterAngle.DegreeToRadians());
         InnerAngle = properties.InnerAngle;
         InnerCosine = MathF.Cos(InnerAngle.DegreeToRadians());
-        ShadowMapRenderTarget = renderDevice.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
         FalloffRadius = properties.FalloffRadius;
         View = Matrix4x4.CreateLookAt(WorldLocation, WorldLocation + Forward, Up);
         Projection = Matrix4x4.CreatePerspectiveFieldOfView(OuterAngle.DegreeToRadians() * 2, 1, FalloffRadius * 0.01F, FalloffRadius);
         LightViewProjection = View * Projection;
+
+        if (CastShadow)
+        {
+            if (lastShadowMapSize != ShadowMapSize)
+            {
+                UninitShadowMap(renderDevice);
+                InitShadowMap(renderDevice);
+            }
+        }
+        else
+        {
+            UninitShadowMap(renderDevice);
+        }
     }
 
+    public override void DestoryGpuResource(RenderDevice device)
+    {
+        base.DestoryGpuResource(device);
+        UninitShadowMap(device);
+    }
+    public unsafe override void InitShadowMap(RenderDevice device)
+    {
+        base.InitShadowMap(device);
+        if (ShadowMapRenderTarget == null)
+        {
+            ShadowMapRenderTarget = new RenderTargetProxy();
+        }
+        var properties = new RenderTargetProxyProperties
+        {
+            IsDefaultRenderTarget = false,
+            Width = (int)ShadowMapSize,
+            Height = (int)ShadowMapSize,
+        };
+        properties.Configs.Resize(1);
+        properties.Configs[0] = new FrameBufferConfig { Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType = PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest };
+        ShadowMapRenderTarget.UpdatePropertiesAndRebuildGPUResource(device, (nint)(&properties));
+        properties.Configs.Dispose();
+    }
+
+    public override void UninitShadowMap(RenderDevice device)
+    {
+        base.UninitShadowMap(device);
+        if (ShadowMapRenderTarget != null)
+        {
+            ShadowMapRenderTarget.DestoryGpuResource(device);
+            ShadowMapRenderTarget = null;
+        }
+    }
 
 }
 
@@ -114,7 +143,6 @@ public class SpotLightComponentProxy : LightComponentProxy
 public struct SpotLightComponentProperties
 {
     public LightComponentProperties LightBaseProperties;
-    public GCHandle ShadowMapRenderTarget;
     public float OuterAngle;
     public float InnerAngle;
     public float FalloffRadius;

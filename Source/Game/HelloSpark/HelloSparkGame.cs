@@ -25,16 +25,16 @@ public class HelloSparkGame : IGame
         light.FalloffRadius = 10;
         light.SpotLightComponent.CastShadow = false;
         SpotLightActor = light;
-        /*
+        
         DirectionalLightActor directionalLightActor = new DirectionalLightActor(world);
         directionalLightActor.Color = Color.White;
         directionalLightActor.WorldRotation = Quaternion.CreateFromYawPitchRoll(-90f.DegreeToRadians(), -150f.DegreeToRadians(), 0);
         directionalLightActor.LightStrength = 10f;
-        directionalLightActor.LightComponent.CastShadow = false;
-        */
+        directionalLightActor.LightComponent.CastShadow = true;
+        /*
         PointLightActor pointLightActor = new PointLightActor(world);
         pointLightActor.FalloffRadius = 10f;
-
+        */
         CameraActor = new CameraActor(world);
         CameraActor.ClearFlag = CameraClearFlag.Skybox;
         CameraActor.ClearColor = Color.White;

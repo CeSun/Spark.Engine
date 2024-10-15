@@ -146,10 +146,6 @@ public class SkeletalMeshComponentProxy : PrimitiveComponentProxy
         }
     }
 
-    public override void DestoryGpuResource(RenderDevice renderer)
-    {
-        base.DestoryGpuResource(renderer);
-    }
 }
 
 public unsafe struct SkeletalMeshComponentProperties

@@ -422,7 +422,7 @@ public class PrimitiveComponentProxy
         Matrix4x4.Invert(m, out NormalTransform);
         NormalTransform = Matrix4x4.Transpose(NormalTransform);
     }
-    public virtual void DestoryGpuResource(RenderDevice renderer)
+    public virtual void DestoryGpuResource(RenderDevice device)
     {
 
     }

@@ -13,22 +13,7 @@ public class DirectionalLightComponent : LightComponent
 {
     public DirectionalLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
-        ShadowMapRenderTarget = new RenderTarget() 
-        { 
-            IsDefaultRenderTarget = false, 
-            Width = 1024, 
-            Height = 1024, 
-            Configs = [
-               new FrameBufferConfig{Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType= PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest}
-            ] 
-        };
-    }
-
-    private RenderTarget? _shadowMapRenderTarget;
-    public RenderTarget? ShadowMapRenderTarget 
-    {
-        get => _shadowMapRenderTarget;
-        set => ChangeAssetProperty(ref _shadowMapRenderTarget, value);
+        ShadowMapSize = 1024;
     }
 
     protected override unsafe int propertiesStructSize => sizeof(DirectionalLightComponentProperties);
@@ -36,7 +21,6 @@ public class DirectionalLightComponent : LightComponent
     {
         var ptr = base.GetPrimitiveComponentProperties();
         ref var properties = ref UnsafeHelper.AsRef<DirectionalLightComponentProperties>(ptr);
-        properties.ShadowMapRenderTarget = ShadowMapRenderTarget == null ? default : ShadowMapRenderTarget.WeakGCHandle;
         return ptr;
     }
 
@@ -66,18 +50,64 @@ public class DirectionalLightComponentProxy : LightComponentProxy
     public Matrix4x4 LightViewProjection;
     public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
     {
+        uint lastShadowMapSize = ShadowMapSize;
         base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<DirectionalLightComponentProperties>(propertiesPtr);
-        ShadowMapRenderTarget = renderDevice.GetProxy<RenderTargetProxy>(properties.ShadowMapRenderTarget);
 
         View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
         Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
         LightViewProjection = View * Projection;
+        if (CastShadow)
+        {
+            if (lastShadowMapSize != ShadowMapSize)
+            {
+                UninitShadowMap(renderDevice);
+                InitShadowMap(renderDevice);
+            }
+        }
+        else
+        {
+            UninitShadowMap(renderDevice);
+        }
+    }
+
+    public unsafe override void InitShadowMap(RenderDevice device)
+    {
+        base.InitShadowMap(device);
+        if (ShadowMapRenderTarget == null) 
+        {
+            ShadowMapRenderTarget = new RenderTargetProxy();
+        }
+        var properties = new RenderTargetProxyProperties
+        {
+            IsDefaultRenderTarget = false,
+            Width = (int)ShadowMapSize,
+            Height = (int)ShadowMapSize,
+        };
+        properties.Configs.Resize(1);
+        properties.Configs[0] = new FrameBufferConfig { Format = PixelFormat.DepthComponent, InternalFormat = InternalFormat.DepthComponent32f, PixelType = PixelType.Float, FramebufferAttachment = FramebufferAttachment.DepthAttachment, MagFilter = TextureMagFilter.Nearest, MinFilter = TextureMinFilter.Nearest };
+        ShadowMapRenderTarget.UpdatePropertiesAndRebuildGPUResource(device, (nint)(&properties));
+        properties.Configs.Dispose();
+    }
+
+    public override void UninitShadowMap(RenderDevice device)
+    {
+        base.UninitShadowMap(device);
+        if (ShadowMapRenderTarget != null)
+        {
+            ShadowMapRenderTarget.DestoryGpuResource(device);
+            ShadowMapRenderTarget = null;
+        }
+    }
+
+    public override void DestoryGpuResource(RenderDevice device)
+    {
+        base.DestoryGpuResource(device);
+        UninitShadowMap(device);
     }
 }
 
 public struct DirectionalLightComponentProperties
 {
     public LightComponentProperties LightBaseProperties;
-    public GCHandle ShadowMapRenderTarget;
 }

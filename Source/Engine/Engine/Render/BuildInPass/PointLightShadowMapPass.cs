@@ -16,7 +16,7 @@ public class PointLightShadowMapPass : Pass
     {
         if (proxy.CastShadow == false)
             return;
-        device.gl.Viewport(new Rectangle(0, 0, 512, 512));
+        device.gl.Viewport(new Rectangle(0, 0, (int)proxy.ShadowMapSize, (int)proxy.ShadowMapSize));
         device.gl.BindFramebuffer(FramebufferTarget.Framebuffer, proxy.FBO);
         for (int i = 0; i < 6; i++)
         {
