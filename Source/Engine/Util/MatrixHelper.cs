@@ -139,6 +139,11 @@ public static class MatrixHelper
 
     }
 
+    public static Vector3 VectorToPoint(this Vector4 v)
+    {
+        var v2 = v / v.W;
+        return v2.AsVector3();
+    }
 }
 
 public static class PlaneHelper

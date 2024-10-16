@@ -9,7 +9,7 @@
       </PropertyGroup>
 
       <ItemGroup>
-        <PackageReference Include="Jitter2" Version="2.4.4" />
+        <PackageReference Include="Jitter2" Version="2.4.5" />
 	    <PackageReference Include="Silk.NET.Input.Common" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES" Version="$(SilkVersion)" />
 	    <PackageReference Include="Silk.NET.OpenGLES.Extensions.EXT" Version="$(SilkVersion)" />

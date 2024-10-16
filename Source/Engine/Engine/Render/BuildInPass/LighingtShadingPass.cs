@@ -56,7 +56,7 @@ public class LighingtShadingPass : Pass
         foreach (var directionalLight in world.DirectionalLightComponentProxies)
         {
             if (directionalLight.CastShadow == true)
-                shader.Use(renderer.gl, "_DIRECTIONAL_LIGHT_", "_WITH_SHADOW_");
+                shader.Use(renderer.gl, "_DIRECTIONAL_LIGHT_", "_WITH_SHADOW_", "_CSM_LEVEL_ " + directionalLight.CascadedShadowMapLevel);
             else
                 shader.Use(renderer.gl, "_DIRECTIONAL_LIGHT_");
             shader.SetVector3("CameraPosition", camera.WorldLocation);
@@ -81,10 +81,15 @@ public class LighingtShadingPass : Pass
             
             if (directionalLight.CastShadow && directionalLight.ShadowMapRenderTargets.Count > 0)
             {
-                shader.SetMatrix("LightViewProjection", directionalLight.LightViewProjection[0]);
-                shader.SetInt("Buffer_ShadowMap", 3);
-                renderer.gl.ActiveTexture(GLEnum.Texture3);
-                renderer.gl.BindTexture(GLEnum.Texture2D, directionalLight.ShadowMapRenderTargets[0].AttachmentTextureIds[0]);
+                for(int i = 0; i < directionalLight.ShadowMapRenderTargets.Count; i++)
+                {
+                    shader.SetMatrix($"LightViewProjections[{i}]", directionalLight.LightViewProjection[i]);
+                    shader.SetInt($"Buffer_ShadowMaps[{i}]", 3 + i);
+                    renderer.gl.ActiveTexture(GLEnum.Texture3 + i);
+                    renderer.gl.BindTexture(GLEnum.Texture2D, directionalLight.ShadowMapRenderTargets[i].AttachmentTextureIds[0]);
+                }
+                shader.SetFloat("Far", camera.FarPlaneDistance);
+                shader.SetFloat("Near", camera.NearPlaneDistance);
             }
 
             renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);

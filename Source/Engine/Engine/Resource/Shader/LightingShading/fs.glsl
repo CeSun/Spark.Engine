@@ -32,7 +32,12 @@ uniform float OuterCosine;
 
 #ifdef _WITH_SHADOW_
 
-#if defined  _DIRECTIONAL_LIGHT_ || defined _SPOT_LIGHT_
+#ifdef _DIRECTIONAL_LIGHT_
+uniform sampler2D Buffer_ShadowMaps[_CSM_LEVEL_];
+uniform mat4 LightViewProjections[_CSM_LEVEL_];
+uniform float Near;
+uniform float Far;
+#elif defined _SPOT_LIGHT_
 uniform sampler2D Buffer_ShadowMap;
 uniform mat4 LightViewProjection;
 #elif defined _POINT_LIGHT_
@@ -96,7 +101,15 @@ void main()
 
 
 	float shadowMapDepth = 1.0;
+#ifdef _DIRECTIONAL_LIGHT_
+	float fragToCameraDistance = length(worldPosition - CameraPosition) - Near;
+	float unitLen = (Far - Near) / float(_CSM_LEVEL_);
+	int csmLevel = int(fragToCameraDistance / unitLen);
 
+
+
+	mat4 LightViewProjection = LightViewProjections[csmLevel];
+#endif
 #ifdef _POINT_LIGHT_
 	int matrixIndex = getFaceIndex(lightDirection);
 	mat4 LightViewProjection = LightViewProjections[matrixIndex];
@@ -106,10 +119,12 @@ void main()
 	lightSpacePosition = lightSpacePosition / lightSpacePosition.w;
 	float currectShadowSpaceDepth = lightSpacePosition.z;
 
-#if defined  _DIRECTIONAL_LIGHT_ || defined _SPOT_LIGHT_
+#if  defined _SPOT_LIGHT_
 	vec2 lightTextureUV = lightSpacePosition.xy / 2.0 + 0.5;
 	shadowMapDepth = texture(Buffer_ShadowMap, lightTextureUV).x * 2.0 - 1.0;
-
+#elif defined  _DIRECTIONAL_LIGHT_
+	vec2 lightTextureUV = lightSpacePosition.xy / 2.0 + 0.5;
+	shadowMapDepth = texture(Buffer_ShadowMaps[csmLevel], lightTextureUV).x * 2.0 - 1.0;
 #elif defined _POINT_LIGHT_
 	shadowMapDepth = texture(Buffer_ShadowCubeMap, lightDirection).x * 2.0 - 1.0;
 #endif

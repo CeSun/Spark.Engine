@@ -15,7 +15,7 @@ public class DirectionalLightComponent : LightComponent
     public DirectionalLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
         ShadowMapSize = 1024;
-        CascadedShadowMapLevel = 3;
+        CascadedShadowMapLevel = 5;
     }
     public int _cascadedShadowMapLevel;
     public int CascadedShadowMapLevel
@@ -58,30 +58,32 @@ public class DirectionalLightComponentProxy : LightComponentProxy
 
     public void UpdateMatrix(CameraComponentProxy camera)
     {
-        var cameraDirectionalMatrix = Matrix4x4.CreateFromQuaternion(camera.WorldRotation);
-        Matrix4x4.Invert(cameraDirectionalMatrix, out var cameraDirectionalInverseMatrix);
+        var directionalLightRotationMatrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
+        Matrix4x4.Invert(directionalLightRotationMatrix, out var directionalLightRotationInverseMatrix);
         var len = (camera.FarPlaneDistance - camera.NearPlaneDistance) / ShadowMapRenderTargets.Count;
         for (int i = 0; i < ShadowMapRenderTargets.Count; i++)
         {
+            var near = camera.NearPlaneDistance + i * len;
+            var far = camera.NearPlaneDistance + (i + 1) * len;
             var projection = camera.GetProjection(camera.NearPlaneDistance + i * len, camera.NearPlaneDistance + (i + 1) * len);
             var view = camera.View;
-            var cameraToDirectionLight = projection * view * cameraDirectionalMatrix;
-
+            var cameraToDirectionLight = directionalLightRotationInverseMatrix * view * projection;
+            Matrix4x4.Invert(cameraToDirectionLight, out var cameraToDirectionLightInverseMatrix);
             Box box = new Box();
-            box.Max = Vector3.Transform(new Vector3(1, 1, 1), cameraToDirectionLight);
+            box.Max = Vector4.Transform(new Vector4(1, 1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
             box.Min = box.Max;
-            box += Vector3.Transform(new Vector3(-1, 1, 1), cameraToDirectionLight);
-            box += Vector3.Transform(new Vector3(1, -1, 1), cameraToDirectionLight);
-            box += Vector3.Transform(new Vector3(1, 1, -1), cameraToDirectionLight);
-            box += Vector3.Transform(new Vector3(1, -1, -1), cameraToDirectionLight);
-            box += Vector3.Transform(new Vector3(-1, 1, -1), cameraToDirectionLight);
-            box += Vector3.Transform(new Vector3(-1, -1, 1), cameraToDirectionLight);
-            box += Vector3.Transform(new Vector3(-1, -1, 1), cameraToDirectionLight);
+            box += Vector4.Transform(new Vector4(-1, 1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
+            box += Vector4.Transform(new Vector4(1, -1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
+            box += Vector4.Transform(new Vector4(1, 1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
+            box += Vector4.Transform(new Vector4(1, -1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
+            box += Vector4.Transform(new Vector4(-1, 1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
+            box += Vector4.Transform(new Vector4(-1, -1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
+            box += Vector4.Transform(new Vector4(-1, -1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
 
             var ZLength = box.Max.Z - box.Min.Z;
             var XLength = box.Max.X - box.Min.X;
             var YLength = box.Max.Y - box.Min.Y;
-            var orgine =  Vector3.Transform((box.Max + box.Min) / 2, cameraDirectionalInverseMatrix);
+            var orgine =  Vector3.Transform((box.Max + box.Min) / 2, directionalLightRotationInverseMatrix);
 
             
             view = Matrix4x4.CreateLookAt(orgine + (Forward * ZLength * -1), orgine , Up);
@@ -97,10 +99,6 @@ public class DirectionalLightComponentProxy : LightComponentProxy
         var lastCSMLevel = CascadedShadowMapLevel;
         base.UpdateProperties(propertiesPtr, renderDevice);
         ref var properties = ref UnsafeHelper.AsRef<DirectionalLightComponentProperties>(propertiesPtr);
-
-        // View = Matrix4x4.CreateLookAt(Vector3.Zero, Forward, Up);
-        // Projection = Matrix4x4.CreateOrthographic(100, 100, 1.0f, 100f);
-        // LightViewProjection = View * Projection;
         CascadedShadowMapLevel = properties.CascadedShadowMapLevel;
         if (CastShadow)
         {
