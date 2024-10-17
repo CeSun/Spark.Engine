@@ -12,7 +12,7 @@ public class DirectionLightShadowMapPass : Pass
     public override bool ZTest => true;
     public override bool ZWrite => true;
     public override bool CullFace => true;
-    public override TriangleFace CullTriangleFace => TriangleFace.Back;
+    public override TriangleFace CullTriangleFace => TriangleFace.Front;
     public override ClearBufferMask ClearBufferFlag => ClearBufferMask.DepthBufferBit;
     public override float ClearDepth => 1.0f;
 

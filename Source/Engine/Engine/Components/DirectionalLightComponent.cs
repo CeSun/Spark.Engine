@@ -66,10 +66,10 @@ public class DirectionalLightComponentProxy : LightComponentProxy
         {
             var near = camera.NearPlaneDistance + (i == 0 ? 0 : MathF.Pow(0.5F, ShadowMapRenderTargets.Count - i) * len);
             var far = camera.NearPlaneDistance + MathF.Pow(0.5F, ShadowMapRenderTargets.Count - i - 1) * len;
-            var projection = camera.GetProjection(near, far * 1.2f);
+            var projection = camera.GetProjection(near, far);
             var view = camera.View;
-            var cameraToDirectionLight = directionalLightRotationInverseMatrix * view * projection;
-            Matrix4x4.Invert(cameraToDirectionLight, out var cameraToDirectionLightInverseMatrix);
+            var directionalLightToCamera = directionalLightRotationInverseMatrix * view * projection;
+            Matrix4x4.Invert(directionalLightToCamera, out var cameraToDirectionLightInverseMatrix);
             Box box = new Box();
             box.Max = Vector4.Transform(new Vector4(1, 1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
             box.Min = box.Max;
@@ -79,7 +79,7 @@ public class DirectionalLightComponentProxy : LightComponentProxy
             box += Vector4.Transform(new Vector4(1, -1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
             box += Vector4.Transform(new Vector4(-1, 1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
             box += Vector4.Transform(new Vector4(-1, -1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
-            box += Vector4.Transform(new Vector4(-1, -1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
+            box += Vector4.Transform(new Vector4(-1, -1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
 
             var ZLength = box.Max.Z - box.Min.Z;
             var XLength = box.Max.X - box.Min.X;

@@ -133,7 +133,11 @@ void main()
 	shadowMapDepth = texture(Buffer_ShadowCubeMap, lightDirection).x * 2.0 - 1.0;
 #endif
 	
-	if (shadowMapDepth + 0.005 <= currectShadowSpaceDepth)
+	if (shadowMapDepth
+#ifndef _DIRECTIONAL_LIGHT_
+	+ 0.005 
+#endif
+	<= currectShadowSpaceDepth)
 		Lo = vec3(0.0);
 	else
 		Lo = Lo;
