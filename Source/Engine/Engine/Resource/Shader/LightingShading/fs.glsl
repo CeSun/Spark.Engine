@@ -35,8 +35,8 @@ uniform float OuterCosine;
 #ifdef _DIRECTIONAL_LIGHT_
 uniform sampler2D Buffer_ShadowMaps[_CSM_LEVEL_];
 uniform mat4 LightViewProjections[_CSM_LEVEL_];
-uniform float Near;
-uniform float Far;
+uniform float CSMFars[_CSM_LEVEL_];
+uniform mat4 View;
 #elif defined _SPOT_LIGHT_
 uniform sampler2D Buffer_ShadowMap;
 uniform mat4 LightViewProjection;
@@ -102,11 +102,15 @@ void main()
 
 	float shadowMapDepth = 1.0;
 #ifdef _DIRECTIONAL_LIGHT_
-	float fragToCameraDistance = length(worldPosition - CameraPosition) - Near;
-	float unitLen = (Far - Near) / float(_CSM_LEVEL_);
-	int csmLevel = int(fragToCameraDistance / unitLen);
+	vec4 viewSpacePos = View * vec4(worldPosition, 1.0);
+	float fragToCameraDistance = abs(viewSpacePos.z);
+	int csmLevel = 0;
 
-
+	for (csmLevel = 0 ; csmLevel < _CSM_LEVEL_; csmLevel++)
+	{
+		if (fragToCameraDistance < CSMFars[csmLevel])
+			break;
+	}
 
 	mat4 LightViewProjection = LightViewProjections[csmLevel];
 #endif

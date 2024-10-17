@@ -39,7 +39,7 @@ public class HelloSparkGame : IGame
         CameraActor.ClearFlag = CameraClearFlag.Skybox;
         CameraActor.ClearColor = Color.White;
         CameraActor.NearPlaneDistance = 1;
-        
+        CameraActor.FarPlaneDistance = 10;
         var textureCube = await Task.Run(() =>
         {
             using (var sr = world.Engine.FileSystem.GetStream("HelloSpark", "Texture/table_mountain_2_puresky_1k.hdr"))

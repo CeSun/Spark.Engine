@@ -85,11 +85,11 @@ public class LighingtShadingPass : Pass
                 {
                     shader.SetMatrix($"LightViewProjections[{i}]", directionalLight.LightViewProjection[i]);
                     shader.SetInt($"Buffer_ShadowMaps[{i}]", 3 + i);
+                    shader.SetFloat($"CSMFars[{i}]", directionalLight.CSMFars[i]);
                     renderer.gl.ActiveTexture(GLEnum.Texture3 + i);
                     renderer.gl.BindTexture(GLEnum.Texture2D, directionalLight.ShadowMapRenderTargets[i].AttachmentTextureIds[0]);
                 }
-                shader.SetFloat("Far", camera.FarPlaneDistance);
-                shader.SetFloat("Near", camera.NearPlaneDistance);
+                shader.SetMatrix("View", camera.View);
             }
 
             renderer.gl.Draw(renderer.RenderDevice.RectangleMesh);

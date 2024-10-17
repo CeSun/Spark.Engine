@@ -15,7 +15,7 @@ public class DirectionalLightComponent : LightComponent
     public DirectionalLightComponent(Actor actor, bool registerToWorld = true) : base(actor, registerToWorld)
     {
         ShadowMapSize = 1024;
-        CascadedShadowMapLevel = 5;
+        CascadedShadowMapLevel = 4;
     }
     public int _cascadedShadowMapLevel;
     public int CascadedShadowMapLevel
@@ -54,18 +54,19 @@ public class DirectionalLightComponentProxy : LightComponentProxy
     public List<Matrix4x4> Projections = [];
     public List<RenderTargetProxy> ShadowMapRenderTargets = [];
     public List<Matrix4x4> LightViewProjection = [];
+    public List<float> CSMFars = [];
     public int CascadedShadowMapLevel;
 
     public void UpdateMatrix(CameraComponentProxy camera)
     {
         var directionalLightRotationMatrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
         Matrix4x4.Invert(directionalLightRotationMatrix, out var directionalLightRotationInverseMatrix);
-        var len = (camera.FarPlaneDistance - camera.NearPlaneDistance) / ShadowMapRenderTargets.Count;
+        var len = (camera.FarPlaneDistance - camera.NearPlaneDistance);
         for (int i = 0; i < ShadowMapRenderTargets.Count; i++)
         {
-            var near = camera.NearPlaneDistance + i * len;
-            var far = camera.NearPlaneDistance + (i + 1) * len;
-            var projection = camera.GetProjection(camera.NearPlaneDistance + i * len, camera.NearPlaneDistance + (i + 1) * len);
+            var near = camera.NearPlaneDistance + (i == 0 ? 0 : MathF.Pow(0.5F, ShadowMapRenderTargets.Count - i) * len);
+            var far = camera.NearPlaneDistance + MathF.Pow(0.5F, ShadowMapRenderTargets.Count - i - 1) * len;
+            var projection = camera.GetProjection(near, far * 1.2f);
             var view = camera.View;
             var cameraToDirectionLight = directionalLightRotationInverseMatrix * view * projection;
             Matrix4x4.Invert(cameraToDirectionLight, out var cameraToDirectionLightInverseMatrix);
@@ -86,11 +87,12 @@ public class DirectionalLightComponentProxy : LightComponentProxy
             var orgine =  Vector3.Transform((box.Max + box.Min) / 2, directionalLightRotationInverseMatrix);
 
             
-            view = Matrix4x4.CreateLookAt(orgine + (Forward * ZLength * -1), orgine , Up);
-            projection = Matrix4x4.CreateOrthographic(XLength, YLength, ZLength / 2, ZLength * 1.5F);
+            view = Matrix4x4.CreateLookAt(orgine, orgine + Forward, Up);
+            projection = Matrix4x4.CreateOrthographic(XLength, YLength, -ZLength / 2, ZLength / 2);
             LightViewProjection[i] = view * projection;
             Views[i] = view;
             Projections[i] = projection;
+            CSMFars[i] = far;
         }
     }
     public override void UpdateProperties(nint propertiesPtr, RenderDevice renderDevice)
@@ -134,6 +136,7 @@ public class DirectionalLightComponentProxy : LightComponentProxy
             LightViewProjection.Add(Matrix4x4.Identity);
             Views.Add(Matrix4x4.Identity);
             Projections.Add(Matrix4x4.Identity);
+            CSMFars.Add(0);
         }
     }
 
@@ -148,6 +151,7 @@ public class DirectionalLightComponentProxy : LightComponentProxy
         Views.Clear();
         Projections.Clear();
         LightViewProjection.Clear();
+        CSMFars.Clear();
     }
 
     public override void DestoryGpuResource(RenderDevice device)
