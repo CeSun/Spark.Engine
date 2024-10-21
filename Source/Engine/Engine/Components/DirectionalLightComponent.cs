@@ -62,33 +62,66 @@ public class DirectionalLightComponentProxy : LightComponentProxy
         var directionalLightRotationMatrix = Matrix4x4.CreateFromQuaternion(WorldRotation);
         Matrix4x4.Invert(directionalLightRotationMatrix, out var directionalLightRotationInverseMatrix);
         var len = (camera.FarPlaneDistance - camera.NearPlaneDistance);
+        Span<Vector3> Points = stackalloc Vector3[8];
         for (int i = 0; i < ShadowMapRenderTargets.Count; i++)
         {
             var near = camera.NearPlaneDistance + (i == 0 ? 0 : MathF.Pow(0.5F, ShadowMapRenderTargets.Count - i) * len);
             var far = camera.NearPlaneDistance + MathF.Pow(0.5F, ShadowMapRenderTargets.Count - i - 1) * len;
-            var projection = camera.GetProjection(near, far);
+            var projection = camera.GetProjection(near, far * 1.2F);
             var view = camera.View;
-            var directionalLightToCamera = directionalLightRotationInverseMatrix * view * projection;
-            Matrix4x4.Invert(directionalLightToCamera, out var cameraToDirectionLightInverseMatrix);
+            var directionalLightToCamera = view * projection;
+            Matrix4x4.Invert(directionalLightToCamera, out var cameraInverseMatrix);
+            Points[0] = Vector4.Transform(new Vector4(1, 1, 1, 1), cameraInverseMatrix).VectorToPoint();
+            Points[1] = Vector4.Transform(new Vector4(-1, 1, 1, 1), cameraInverseMatrix).VectorToPoint();
+            Points[2] = Vector4.Transform(new Vector4(1, -1, 1, 1), cameraInverseMatrix).VectorToPoint();
+            Points[3] = Vector4.Transform(new Vector4(1, 1, -1, 1), cameraInverseMatrix).VectorToPoint();
+            Points[4] = Vector4.Transform(new Vector4(1, -1, -1, 1), cameraInverseMatrix).VectorToPoint();
+            Points[5] = Vector4.Transform(new Vector4(-1, 1, -1, 1), cameraInverseMatrix).VectorToPoint();
+            Points[6] = Vector4.Transform(new Vector4(-1, -1, 1, 1), cameraInverseMatrix).VectorToPoint();
+            Points[7] = Vector4.Transform(new Vector4(-1, -1, -1, 1), cameraInverseMatrix).VectorToPoint();
+
+            Vector3 Center = new Vector3();
+            foreach(var point in Points)
+            {
+                Center += point;
+            }
+            Center /= Points.Length;
+
+            view = Matrix4x4.CreateLookAt(Center, Center + Forward, Up);
             Box box = new Box();
-            box.Max = Vector4.Transform(new Vector4(1, 1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
-            box.Min = box.Max;
-            box += Vector4.Transform(new Vector4(-1, 1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
-            box += Vector4.Transform(new Vector4(1, -1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
-            box += Vector4.Transform(new Vector4(1, 1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
-            box += Vector4.Transform(new Vector4(1, -1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
-            box += Vector4.Transform(new Vector4(-1, 1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
-            box += Vector4.Transform(new Vector4(-1, -1, 1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
-            box += Vector4.Transform(new Vector4(-1, -1, -1, 1), cameraToDirectionLightInverseMatrix).VectorToPoint();
-
-            var ZLength = box.Max.Z - box.Min.Z;
-            var XLength = box.Max.X - box.Min.X;
-            var YLength = box.Max.Y - box.Min.Y;
-            var orgine =  Vector3.Transform((box.Max + box.Min) / 2, directionalLightRotationInverseMatrix);
-
-            
-            view = Matrix4x4.CreateLookAt(orgine, orgine + Forward, Up);
-            projection = Matrix4x4.CreateOrthographic(XLength, YLength, -ZLength / 2, ZLength / 2);
+            bool init = false;
+            foreach (var point in Points)
+            {
+                var p = Vector3.Transform(point, view);
+                if (init == false)
+                {
+                    box.Max = p;
+                    box.Min = p;
+                    init = true;
+                }
+                else
+                {
+                    box += p;
+                }
+            }
+            float zMult = 10.0f;
+            if (box.Min.Z < 0)
+            {
+                box.Min.Z *= zMult;
+            }
+            else
+            {
+                box.Min.Z /= zMult;
+            }
+            if (box.Max.Z < 0)
+            {
+                box.Max.Z /= zMult;
+            }
+            else
+            {
+                box.Max.Z *= zMult;
+            }
+            projection = Matrix4x4.CreateOrthographicOffCenter(box.Min.X, box.Max.X, box.Min.Y, box.Max.Y, box.Min.Z, box.Max.Z);
             LightViewProjection[i] = view * projection;
             Views[i] = view;
             Projections[i] = projection;
