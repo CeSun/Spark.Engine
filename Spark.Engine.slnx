@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/Src/">
+    <Project Path="Src/Spark.Engine.Desktop/Spark.Engine.Desktop.csproj" />
+    <Project Path="Src/Spark.Engine.Editor/Spark.Engine.Editor.csproj" />
+    <Project Path="Src/Spark.Engine/Spark.Engine.csproj" />
+  </Folder>
+</Solution>
