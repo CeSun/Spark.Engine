@@ -1,13 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Spark.Engine\Spark.Engine.csproj" />
+    <ProjectReference Include="..\..\Src\Spark.Engine.Desktop\Spark.Engine.Desktop.csproj" />
+    <ProjectReference Include="..\..\Src\Spark.Engine\Spark.Engine.csproj" />
   </ItemGroup>
 
 </Project>

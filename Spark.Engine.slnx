@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/Demo/">
+    <Project Path="Demo/Demo.Desktop/Demo.Desktop.csproj" Id="b2d20ffb-373b-4b2c-a0f1-e8d653d0b87c" />
+    <Project Path="Demo/Demo/Demo.csproj" Id="d6fe34a4-e9c3-49e1-b4b1-957c73b3fb46" />
+  </Folder>
+  <Folder Name="/Doc/" />
   <Folder Name="/Src/">
     <Project Path="Src/Spark.Engine.Desktop/Spark.Engine.Desktop.csproj" />
     <Project Path="Src/Spark.Engine.Editor/Spark.Engine.Editor.csproj" />

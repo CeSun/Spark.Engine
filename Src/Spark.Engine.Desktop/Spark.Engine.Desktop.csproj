@@ -6,4 +6,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Spark.Engine\Spark.Engine.csproj" />
+  </ItemGroup>
+
 </Project>

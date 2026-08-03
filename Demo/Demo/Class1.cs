@@ -1,4 +1,4 @@
-﻿namespace Spark.Editor
+﻿namespace Demo
 {
     public class Class1
     {
