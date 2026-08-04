@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Silk.NET.Windowing;
 using Spark.Engine.Builder;
+using Spark.Engine.Threads;
+using Spark.Engine.Worlds;
 using System.Diagnostics;
-using System.Net.Http.Headers;
 
 namespace Spark.Engine;
 
@@ -16,11 +17,17 @@ public class EngineApplication
 
     public bool IsClosing => _isClosing;
 
+    public ServiceProvider ServiceProvider { get; private set; }
+
     private Stopwatch _stopwatch = new Stopwatch();
 
     private EngineOptions _engineOptions;
 
-    public ServiceProvider ServiceProvider { get; private set; }
+    private RenderThread _renderThread;
+
+    private EngineSynchronizationContext _engineSynchronizationContext;
+
+    private List<WorldContext> _worldContexts = [];
 
     public EngineApplication(ServiceProvider serviceProvider)
     {
@@ -29,6 +36,10 @@ public class EngineApplication
         View = serviceProvider.GetService<IView>();
 
         _engineOptions = serviceProvider.GetService<EngineOptions>() ?? new EngineOptions();
+
+        _engineSynchronizationContext = new EngineSynchronizationContext();
+
+        _renderThread = new RenderThread(this);
     }
 
     public void Run()
@@ -39,6 +50,8 @@ public class EngineApplication
             targetFrameDelta = 1.0f / _engineOptions.TargetFrameRate;
 
         _stopwatch.Start();
+
+        _engineSynchronizationContext.Initialize();
 
         if (View == null)
         {
@@ -53,6 +66,7 @@ public class EngineApplication
         }
         else
         {
+            _renderThread.Start();
             setupView();
             View.Initialize();
             while (IsClosing == false)
@@ -82,9 +96,11 @@ public class EngineApplication
 
     public void Update(float deltaTime)
     {
+        _engineSynchronizationContext.Update();
     }
 
     public void Render()
     {
+
     }
 }

@@ -9,4 +9,5 @@ public class EngineOptions
     public int Width { get; set; } = 800;
     public int Height { get; set; } = 600;
     public int TargetFrameRate { get; set; } = 60;
+    public static EngineOptions Default { get; set; } = new EngineOptions();
 }
