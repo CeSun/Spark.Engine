@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Silk.NET.Windowing;
+using Spark.Engine.Builder;
 
 namespace Spark.Engine.Desktop;
 

@@ -1,4 +1,4 @@
-﻿using Spark.Engine;
+﻿using Spark.Engine.Builder;
 using Spark.Engine.Desktop;
 
 var builder = EngineBuilder.Create(args);

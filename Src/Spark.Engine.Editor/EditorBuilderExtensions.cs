@@ -1,4 +1,6 @@
-﻿namespace Spark.Engine.Editor;
+﻿using Spark.Engine.Builder;
+
+namespace Spark.Engine.Editor;
 
 public static class EditorBuilderExtensions
 {

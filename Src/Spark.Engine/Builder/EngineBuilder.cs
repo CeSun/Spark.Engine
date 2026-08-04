@@ -3,13 +3,21 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Spark.Engine;
+namespace Spark.Engine.Builder;
 
 public class EngineBuilder
 {
     public static EngineBuilder Create(string[] args)
     {
-        return new EngineBuilder();
+        var builder =  new EngineBuilder();
+
+        builder.Services.AddSingleton(new EngineOptions()
+        {
+            Width = 800,
+            Height = 600
+        });
+
+        return builder;
     }
 
     public ServiceCollection Services { get; } = new ServiceCollection();
