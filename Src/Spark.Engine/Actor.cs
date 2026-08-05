@@ -1,9 +1,14 @@
 ﻿using Spark.Engine.Components;
+using Spark.Engine.Worlds;
 
 namespace Spark.Engine;
 
 public class Actor
 {
+    private World? _world;
+
+    public World? World => _world;
+
     public SceneComponent? RootComponent { get; }
 
     private HashSet<ActorComponent> _ownedComponents = [];
@@ -15,5 +20,16 @@ public class Actor
         _ownedComponents.Add(component);
     }
 
+    public virtual void BeginPlay()
+    {
 
+    }
+    public virtual void Update(float deltaTime)
+    {
+
+    }
+
+    public virtual void EndPlay()
+    {
+    }
 }
