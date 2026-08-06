@@ -4,6 +4,7 @@ using Spark.Engine.Builder;
 using Spark.Engine.Threads;
 using Spark.Engine.Worlds;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Spark.Engine;
 
@@ -28,6 +29,10 @@ public class EngineApplication
     private EngineSynchronizationContext _engineSynchronizationContext;
 
     private List<WorldContext> _worldContexts = [];
+
+    private readonly DualFrameBuffer<FrameData> dualFrameBuffer = new(() => new FrameData());
+
+    public DualFrameBuffer<FrameData> DualFrameBuffer => dualFrameBuffer;
 
     public EngineApplication(ServiceProvider serviceProvider)
     {
@@ -80,6 +85,9 @@ public class EngineApplication
             }
             View.Dispose();
         }
+
+        RequestClose();
+        dualFrameBuffer.Dispose();
     }
 
     private void setupView()
@@ -91,12 +99,32 @@ public class EngineApplication
 
     public void RequestClose()
     {
+        if (_isClosing)
+            return;
+
         _isClosing = true;
+        dualFrameBuffer.Dispose();
     }
 
     public void Update(float deltaTime)
     {
-        _engineSynchronizationContext.Update();
+        if (_isClosing)
+            return;
+
+        try
+        {
+            var buffer = DualFrameBuffer.GetEmptyBuffer();
+            Console.WriteLine("Update Thread");
+            _engineSynchronizationContext.Update();
+            DualFrameBuffer.SubmitReady();
+        }
+        catch (OperationCanceledException)
+        {
+            RequestClose();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     public void Render()
