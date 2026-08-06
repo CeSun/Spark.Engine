@@ -66,7 +66,7 @@ public class EngineApplication
                 if (deltaTime < targetFrameDelta)
                     continue;
                 _stopwatch.Restart();
-                Update(deltaTime);
+                onUpdate(deltaTime);
             }
         }
         else
@@ -76,59 +76,43 @@ public class EngineApplication
             View.Initialize();
             while (IsClosing == false)
             {
-                var deltaTime = (float)_stopwatch.Elapsed.TotalSeconds;
-                if (deltaTime < targetFrameDelta)
-                    continue;
-                _stopwatch.Restart();
-                View.DoEvents();
-                Update(deltaTime);
+                try
+                {
+                    var deltaTime = (float)_stopwatch.Elapsed.TotalSeconds;
+                    if (deltaTime < targetFrameDelta)
+                        continue;
+                    _stopwatch.Restart();
+                    var buffer = DualFrameBuffer.GetEmptyBuffer();
+                    View.DoEvents();
+                    _engineSynchronizationContext.Update();
+                    onUpdate(deltaTime);
+                    DualFrameBuffer.SubmitReady();
+                }
+                catch 
+                {
+                    RequestClose();
+                }
             }
-            View.Dispose();
         }
-
-        RequestClose();
-        dualFrameBuffer.Dispose();
     }
 
     private void setupView()
     {
         if (View == null)
             return;
-        View.Closing += RequestClose;
+       View.Closing += RequestClose;
     }
 
     public void RequestClose()
     {
         if (_isClosing)
             return;
-
         _isClosing = true;
-        dualFrameBuffer.Dispose();
     }
 
-    public void Update(float deltaTime)
+    private void onUpdate(float deltaTime)
     {
-        if (_isClosing)
-            return;
-
-        try
-        {
-            var buffer = DualFrameBuffer.GetEmptyBuffer();
-            Console.WriteLine("Update Thread");
-            _engineSynchronizationContext.Update();
-            DualFrameBuffer.SubmitReady();
-        }
-        catch (OperationCanceledException)
-        {
-            RequestClose();
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-    }
-
-    public void Render()
-    {
+        Console.WriteLine("Update Thread");
 
     }
 }

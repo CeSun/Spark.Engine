@@ -54,7 +54,5 @@ public class RenderThread
     {
         if (frame == null)
             return;
-
-        Console.WriteLine("Render frame");
     }
 }
