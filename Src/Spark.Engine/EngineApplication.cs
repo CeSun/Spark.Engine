@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Silk.NET.Windowing;
 using Spark.Engine.Builder;
+using Spark.Engine.Render;
 using Spark.Engine.Threads;
 using Spark.Engine.Worlds;
 using System.Diagnostics;
@@ -10,10 +11,6 @@ namespace Spark.Engine;
 
 public class EngineApplication
 {
-    public IView? View { get; private set; }
-
-    public IWindow? Window => View as IWindow;
-
     private bool _isClosing = false;
 
     public bool IsClosing => _isClosing;
@@ -38,8 +35,6 @@ public class EngineApplication
     {
         ServiceProvider = serviceProvider;
 
-        View = serviceProvider.GetService<IView>();
-
         _engineOptions = serviceProvider.GetService<EngineOptions>() ?? new EngineOptions();
 
         _engineSynchronizationContext = new EngineSynchronizationContext();
@@ -49,6 +44,7 @@ public class EngineApplication
 
     public void Run()
     {
+        /*
         float targetFrameDelta = 0.0f;
 
         if (_engineOptions.TargetFrameRate > 0)
@@ -58,7 +54,7 @@ public class EngineApplication
 
         _engineSynchronizationContext.Initialize();
 
-        if (View == null)
+        if (null == null)
         {
             while (IsClosing == false)
             {
@@ -72,8 +68,6 @@ public class EngineApplication
         else
         {
             _renderThread.Start();
-            setupView();
-            View.Initialize();
             while (IsClosing == false)
             {
                 try
@@ -83,7 +77,6 @@ public class EngineApplication
                         continue;
                     _stopwatch.Restart();
                     var buffer = DualFrameBuffer.GetEmptyBuffer();
-                    View.DoEvents();
                     _engineSynchronizationContext.Update();
                     onUpdate(deltaTime);
                     DualFrameBuffer.SubmitReady();
@@ -94,14 +87,9 @@ public class EngineApplication
                 }
             }
         }
+        */
     }
 
-    private void setupView()
-    {
-        if (View == null)
-            return;
-       View.Closing += RequestClose;
-    }
 
     public void RequestClose()
     {
@@ -113,6 +101,5 @@ public class EngineApplication
     private void onUpdate(float deltaTime)
     {
         Console.WriteLine("Update Thread");
-
     }
 }

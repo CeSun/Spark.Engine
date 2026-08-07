@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading;
 
-namespace Spark.Engine.Threads;
+namespace Spark.Engine.Render;
 
 /// <summary>
 /// 单生产者/单消费者双缓冲帧同步器。
