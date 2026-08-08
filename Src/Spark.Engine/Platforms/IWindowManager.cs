@@ -6,11 +6,7 @@ namespace Spark.Engine.Platforms;
 
 public interface IWindowManager
 {
-    public IWindow? MainWindow { get; }
-
-    public void CreateMainWindow(string title, int width, int height);
-
     public IWindow CreateWindow(string title, int width, int height);
 
-    public IWindow DestroyWindow(IWindow window);
+    public IReadOnlyList<IWindow> Windows { get; }
 }

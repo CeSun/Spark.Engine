@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 
 namespace Spark.Engine.Platforms;
 
-public class IWindow
+public interface IWindow
 {
+    public Vector2 Size { get; }
+    public void Close();
+    void PollEvents();
 }

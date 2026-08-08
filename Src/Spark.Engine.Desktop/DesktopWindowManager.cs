@@ -2,25 +2,29 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using SN = Silk.NET;
+using SNW = Silk.NET.Windowing;
 
 namespace Spark.Engine.Desktop;
 
-internal class DesktopWindowManager : IWindowManager
+public class DesktopWindowManager : IWindowManager
 {
-    public IWindow? MainWindow => throw new NotImplementedException();
+    internal List<DesktopWindow> windows = new List<DesktopWindow>();
 
-    public void CreateMainWindow(string title, int width, int height)
-    {
-        throw new NotImplementedException();
-    }
+    public IReadOnlyList<IWindow> Windows => windows.AsReadOnly();
 
     public IWindow CreateWindow(string title, int width, int height)
     {
-        throw new NotImplementedException();
-    }
+        var options = SNW.WindowOptions.Default with
+        {
+            Size = new SN.Maths.Vector2D<int>(width, height),
+            Title = title
+        };
 
-    public IWindow DestroyWindow(IWindow window)
-    {
-        throw new NotImplementedException();
+        var window = SNW.Window.Create(options);
+
+        var desktopWindow = new DesktopWindow(window, this);
+
+        return desktopWindow;
     }
 }

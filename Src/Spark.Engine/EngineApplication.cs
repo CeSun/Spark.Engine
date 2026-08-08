@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Silk.NET.Windowing;
 using Spark.Engine.Builder;
+using Spark.Engine.Platforms;
 using Spark.Engine.Render;
 using Spark.Engine.Threads;
 using Spark.Engine.Worlds;
@@ -25,11 +25,11 @@ public class EngineApplication
 
     private EngineSynchronizationContext _engineSynchronizationContext;
 
-    private List<WorldContext> _worldContexts = [];
-
     private readonly DualFrameBuffer<FrameData> dualFrameBuffer = new(() => new FrameData());
 
     public DualFrameBuffer<FrameData> DualFrameBuffer => dualFrameBuffer;
+
+    public IWindow MainWindow { get; private set; }
 
     public EngineApplication(ServiceProvider serviceProvider)
     {
@@ -40,11 +40,19 @@ public class EngineApplication
         _engineSynchronizationContext = new EngineSynchronizationContext();
 
         _renderThread = new RenderThread(this);
+
+
+        var windowManager = ServiceProvider.GetService<IWindowManager>();
+
+        if (windowManager == null)
+            throw new InvalidOperationException("No IWindowManager implementation found.");
+
+        MainWindow = windowManager.CreateWindow("Spark Engine", 800, 600);
+
     }
 
     public void Run()
     {
-        /*
         float targetFrameDelta = 0.0f;
 
         if (_engineOptions.TargetFrameRate > 0)
@@ -54,40 +62,26 @@ public class EngineApplication
 
         _engineSynchronizationContext.Initialize();
 
-        if (null == null)
+        _renderThread.Start();
+
+        while (IsClosing == false)
         {
-            while (IsClosing == false)
+            try
             {
                 var deltaTime = (float)_stopwatch.Elapsed.TotalSeconds;
                 if (deltaTime < targetFrameDelta)
                     continue;
                 _stopwatch.Restart();
+                var buffer = DualFrameBuffer.GetEmptyBuffer();
+                _engineSynchronizationContext.Update();
                 onUpdate(deltaTime);
+                DualFrameBuffer.SubmitReady();
             }
-        }
-        else
-        {
-            _renderThread.Start();
-            while (IsClosing == false)
+            catch
             {
-                try
-                {
-                    var deltaTime = (float)_stopwatch.Elapsed.TotalSeconds;
-                    if (deltaTime < targetFrameDelta)
-                        continue;
-                    _stopwatch.Restart();
-                    var buffer = DualFrameBuffer.GetEmptyBuffer();
-                    _engineSynchronizationContext.Update();
-                    onUpdate(deltaTime);
-                    DualFrameBuffer.SubmitReady();
-                }
-                catch 
-                {
-                    RequestClose();
-                }
+                RequestClose();
             }
         }
-        */
     }
 
 
