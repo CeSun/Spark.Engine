@@ -2,6 +2,7 @@
 using Spark.Engine.Platforms;
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace Spark.Engine;
@@ -18,16 +19,30 @@ public class WindowManager
 
     private readonly IServiceProvider _serviceProvider;
 
+    public IWindow MainWindow => _windows.Count > 0 ? _windows[0] : throw new Exception("No main window available.");
+
     public WindowManager(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
         _windowBackend = _serviceProvider.GetRequiredService<IWindowBackend>();
     }
-    public IWindow CreateWindow(int width, int height, string title)
+
+    public IWindow CreateWindow(string title, int width, int height)
     {
         var window = _windowBackend.CreateWindow(title, width, height);
+        
+        _peddingAddWindows.Add(window);
 
         return window;
+    }
+
+
+    public void DestroyWindow(IWindow window)
+    {
+        if (_windows.Contains(window))
+        {
+            _peddingRemoveWindows.Add(window);
+        }
     }
 
     public void UpdateWindow()

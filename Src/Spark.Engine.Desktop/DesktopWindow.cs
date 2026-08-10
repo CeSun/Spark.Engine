@@ -41,6 +41,6 @@ public class DesktopWindow : IWindow
 
     public void Initialize()
     {
-        throw new NotImplementedException();
+        _view.Initialize();
     }
 }

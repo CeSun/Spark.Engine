@@ -28,7 +28,8 @@ public unsafe class EngineApplication
 
     public DualFrameBuffer<FrameData> DualFrameBuffer => dualFrameBuffer;
 
-    public IWindow MainWindow { get; private set; }
+
+    public WindowManager WindowManager { get; private set; }
 
     public EngineApplication(ServiceProvider serviceProvider)
     {
@@ -40,13 +41,9 @@ public unsafe class EngineApplication
 
         _renderThread = new RenderThread(this);
 
+        WindowManager = ServiceProvider.GetService<WindowManager>() ?? throw new InvalidOperationException("No WindowManager implementation found.");
 
-        var windowManager = ServiceProvider.GetService<IWindowBackend>();
-
-        if (windowManager == null)
-            throw new InvalidOperationException("No IWindowBackend implementation found.");
-
-        MainWindow = windowManager.CreateWindow("Spark Engine", 800, 600);
+        var window = WindowManager.CreateWindow("Spark Engine", 800, 600);
 
     }
 
@@ -74,11 +71,12 @@ public unsafe class EngineApplication
                     continue;
                 _stopwatch.Restart();
                 var buffer = DualFrameBuffer.GetEmptyBuffer();
+                WindowManager.UpdateWindow();
                 _engineSynchronizationContext.Update();
                 onUpdate(deltaTime);
                 DualFrameBuffer.SubmitReady();
             }
-            catch
+            catch (Exception ex) 
             {
                 RequestClose();
             }
