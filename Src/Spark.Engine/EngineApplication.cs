@@ -10,10 +10,6 @@ namespace Spark.Engine;
 
 public unsafe class EngineApplication
 {
-    private bool _isClosing = false;
-
-    public bool IsClosing => _isClosing;
-
     public ServiceProvider ServiceProvider { get; private set; }
 
     private Stopwatch _stopwatch = new Stopwatch();
@@ -27,7 +23,6 @@ public unsafe class EngineApplication
     private readonly DualFrameBuffer<FrameData> dualFrameBuffer = new(() => new FrameData());
 
     public DualFrameBuffer<FrameData> DualFrameBuffer => dualFrameBuffer;
-
 
     public WindowManager WindowManager { get; private set; }
 
@@ -62,7 +57,7 @@ public unsafe class EngineApplication
 
         _renderThread.Start();
 
-        while (IsClosing == false)
+        while (WindowManager.Windows.Count != 0)
         {
             try
             {
@@ -78,21 +73,11 @@ public unsafe class EngineApplication
             }
             catch (Exception ex) 
             {
-                RequestClose();
             }
         }
 
         onUninitialize();
     }
-
-
-    public void RequestClose()
-    {
-        if (_isClosing)
-            return;
-        _isClosing = true;
-    }
-
     private void onInitialize()
     {
         Console.WriteLine("Initialize Thread");

@@ -11,6 +11,8 @@ public class WindowManager
 {
     private List<IWindow> _windows = new List<IWindow>();
 
+    public IReadOnlyList<IWindow> Windows => _windows;
+
     private List<IWindow> _peddingAddWindows = new List<IWindow>();
 
     private List<IWindow> _peddingRemoveWindows = new List<IWindow>();
