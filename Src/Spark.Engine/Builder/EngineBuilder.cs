@@ -17,6 +17,8 @@ public class EngineBuilder
             Height = 600
         });
 
+        builder.Services.AddSingleton(sp => new WindowManager(sp));
+
         return builder;
     }
 

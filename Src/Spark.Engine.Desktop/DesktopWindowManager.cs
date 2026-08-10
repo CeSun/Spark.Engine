@@ -7,12 +7,8 @@ using SNW = Silk.NET.Windowing;
 
 namespace Spark.Engine.Desktop;
 
-public class DesktopWindowManager : IWindowManager
+public class DesktopWindowManager : IWindowBackend
 {
-    internal List<DesktopWindow> windows = new List<DesktopWindow>();
-
-    public IReadOnlyList<IWindow> Windows => windows.AsReadOnly();
-
     public IWindow CreateWindow(string title, int width, int height)
     {
         var options = SNW.WindowOptions.Default with
@@ -23,7 +19,7 @@ public class DesktopWindowManager : IWindowManager
 
         var window = SNW.Window.Create(options);
 
-        var desktopWindow = new DesktopWindow(window, this);
+        var desktopWindow = new DesktopWindow(window);
 
         return desktopWindow;
     }

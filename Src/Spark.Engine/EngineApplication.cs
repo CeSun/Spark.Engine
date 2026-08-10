@@ -1,15 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
 using Spark.Engine.Platforms;
 using Spark.Engine.Render;
 using Spark.Engine.Threads;
-using Spark.Engine.Worlds;
 using System.Diagnostics;
-using System.Threading;
 
 namespace Spark.Engine;
 
-public class EngineApplication
+public unsafe class EngineApplication
 {
     private bool _isClosing = false;
 
@@ -42,10 +41,10 @@ public class EngineApplication
         _renderThread = new RenderThread(this);
 
 
-        var windowManager = ServiceProvider.GetService<IWindowManager>();
+        var windowManager = ServiceProvider.GetService<IWindowBackend>();
 
         if (windowManager == null)
-            throw new InvalidOperationException("No IWindowManager implementation found.");
+            throw new InvalidOperationException("No IWindowBackend implementation found.");
 
         MainWindow = windowManager.CreateWindow("Spark Engine", 800, 600);
 
@@ -61,6 +60,8 @@ public class EngineApplication
         _stopwatch.Start();
 
         _engineSynchronizationContext.Initialize();
+
+        onInitialize();
 
         _renderThread.Start();
 
@@ -82,6 +83,8 @@ public class EngineApplication
                 RequestClose();
             }
         }
+
+        onUninitialize();
     }
 
 
@@ -92,8 +95,18 @@ public class EngineApplication
         _isClosing = true;
     }
 
+    private void onInitialize()
+    {
+        Console.WriteLine("Initialize Thread");
+    }
+
     private void onUpdate(float deltaTime)
     {
         Console.WriteLine("Update Thread");
+    }
+
+    private void onUninitialize()
+    {
+        Console.WriteLine("Uninitialize Thread");
     }
 }

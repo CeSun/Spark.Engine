@@ -8,6 +8,7 @@ namespace Spark.Engine.Platforms;
 public interface IWindow
 {
     public Vector2 Size { get; }
+    public void Initialize();
     public void Close();
     void PollEvents();
 }

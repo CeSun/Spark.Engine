@@ -1,4 +1,5 @@
-﻿using Spark.Engine.Platforms;
+﻿using Silk.NET.WebGPU;
+using Spark.Engine.Platforms;
 using System.Numerics;
 using SNW = Silk.NET.Windowing;
 
@@ -8,12 +9,9 @@ public class DesktopWindow : IWindow
 {
     private SNW.IView _view;
     private SNW.IWindow? _window => _view as SNW.IWindow;
-    private DesktopWindowManager _manager;
-    public DesktopWindow(SNW.IView window, DesktopWindowManager manager)
+    public DesktopWindow(SNW.IView window)
     {
         _view = window;
-        _manager = manager;
-        _manager.windows.Add(this);
     }
 
     public Vector2 Size => new Vector2(_view.Size.X, _view.Size.Y);
@@ -26,6 +24,23 @@ public class DesktopWindow : IWindow
     public void Close()
     {
         _view.Close();
-        _manager.windows.Remove(this);
+    }
+
+    public unsafe void Initialize(WebGPU webGpu, Instance* instance)
+    {
+        WebGPU webGPU = WebGPU.GetApi();
+
+        var instanceDescriptor = new InstanceDescriptor();
+
+        var _instance = webGPU.CreateInstance(ref instanceDescriptor);
+
+        _view.Initialize();
+
+        var surface = _view.CreateWebGPUSurface(webGPU, _instance);
+    }
+
+    public void Initialize()
+    {
+        throw new NotImplementedException();
     }
 }

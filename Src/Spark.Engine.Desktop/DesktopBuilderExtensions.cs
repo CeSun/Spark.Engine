@@ -9,7 +9,7 @@ public static class DesktopBuilderExtensions
 {
     public static EngineBuilder UseDesktop(this EngineBuilder builder)
     {
-        builder.Services.AddScoped<IWindowManager, DesktopWindowManager>();
+        builder.Services.AddScoped<IWindowBackend, DesktopWindowManager>();
 
         return builder;
     }
