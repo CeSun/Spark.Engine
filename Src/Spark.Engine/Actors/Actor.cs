@@ -1,7 +1,7 @@
 ﻿using Spark.Engine.Components;
 using Spark.Engine.Worlds;
 
-namespace Spark.Engine;
+namespace Spark.Engine.Actors;
 
 public class Actor
 {

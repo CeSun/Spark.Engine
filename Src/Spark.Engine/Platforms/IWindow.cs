@@ -9,6 +9,7 @@ public interface IWindow
 {
     public Vector2 Size { get; }
     public void Initialize();
-    public void Close();
+
+    public void Uninitialize();
     void PollEvents();
 }

@@ -1,9 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Spark.Engine.Platforms;
-using System;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 
 namespace Spark.Engine;
 
@@ -32,8 +28,17 @@ public class WindowManager
     public IWindow CreateWindow(string title, int width, int height)
     {
         var window = _windowBackend.CreateWindow(title, width, height);
+
+        if (Windows.Count == 0)
+        {
+            window.Initialize();
+            _windows.Add(window);
+        }
+        else
+        {
+            _peddingAddWindows.Add(window);
+        }
         
-        _peddingAddWindows.Add(window);
 
         return window;
     }
@@ -62,6 +67,7 @@ public class WindowManager
         {
             foreach (var window in _peddingRemoveWindows)
             {
+                window.Uninitialize();
                 _windows.Remove(window);
             }
             _peddingRemoveWindows.Clear();
@@ -71,7 +77,5 @@ public class WindowManager
         {
             window.PollEvents();
         }
-
     }
-
 }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
 using Spark.Engine.Platforms;
@@ -10,6 +11,8 @@ namespace Spark.Engine;
 
 public unsafe class EngineApplication
 {
+    private readonly ILogger<EngineApplication> _logger;
+
     public ServiceProvider ServiceProvider { get; private set; }
 
     private Stopwatch _stopwatch = new Stopwatch();
@@ -26,9 +29,14 @@ public unsafe class EngineApplication
 
     public WindowManager WindowManager { get; private set; }
 
+
+    public bool IsClosing { get; private set; } = false;
+
     public EngineApplication(ServiceProvider serviceProvider)
     {
         ServiceProvider = serviceProvider;
+
+        _logger = serviceProvider.GetRequiredService<ILogger<EngineApplication>>();
 
         _engineOptions = serviceProvider.GetService<EngineOptions>() ?? new EngineOptions();
 
@@ -49,6 +57,11 @@ public unsafe class EngineApplication
         if (_engineOptions.TargetFrameRate > 0)
             targetFrameDelta = 1.0f / _engineOptions.TargetFrameRate;
 
+        _logger.LogInformation(
+            "Engine main loop is starting with target frame rate {TargetFrameRate} and {WindowCount} windows",
+            _engineOptions.TargetFrameRate,
+            WindowManager.Windows.Count);
+
         _stopwatch.Start();
 
         _engineSynchronizationContext.Initialize();
@@ -62,34 +75,63 @@ public unsafe class EngineApplication
             try
             {
                 var deltaTime = (float)_stopwatch.Elapsed.TotalSeconds;
+
                 if (deltaTime < targetFrameDelta)
                     continue;
+
                 _stopwatch.Restart();
+
                 var buffer = DualFrameBuffer.GetEmptyBuffer();
+
                 WindowManager.UpdateWindow();
+
                 _engineSynchronizationContext.Update();
+
                 onUpdate(deltaTime);
+
                 DualFrameBuffer.SubmitReady();
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Unhandled exception in engine main loop; execution will continue");
             }
         }
+
+        if (IsClosing == false)
+        {
+            IsClosing = true;
+        }
+
+        _logger.LogInformation("Engine main loop stopped because all windows were closed");
+
+        _renderThread.WaitForExit();
 
         onUninitialize();
     }
     private void onInitialize()
     {
-        Console.WriteLine("Initialize Thread");
+        _logger.LogInformation("Initialize Thread");
     }
 
     private void onUpdate(float deltaTime)
     {
-        Console.WriteLine("Update Thread");
     }
 
     private void onUninitialize()
     {
-        Console.WriteLine("Uninitialize Thread");
+        _logger.LogInformation("Uninitialize Thread");
+    }
+
+    public void ExitGame()
+    {
+        if (IsClosing == false)
+        {
+            IsClosing = true;
+
+            foreach(var window in WindowManager.Windows)
+            {
+                WindowManager.DestroyWindow(window);
+            }
+        }
     }
 }

@@ -7,25 +7,20 @@ namespace Spark.Engine.Desktop;
 
 public class DesktopWindow : IWindow
 {
-    private SNW.IView _view;
-    private SNW.IWindow? _window => _view as SNW.IWindow;
-    public DesktopWindow(SNW.IView window)
+    private SNW.IWindow _window;
+    public DesktopWindow(SNW.IWindow window)
     {
-        _view = window;
+        _window = window;
     }
 
-    public Vector2 Size => new Vector2(_view.Size.X, _view.Size.Y);
+    public Vector2 Size => new Vector2(_window.Size.X, _window.Size.Y);
 
     public void PollEvents()
     {
-        _view.DoEvents();
+        _window.DoEvents();
     }
 
-    public void Close()
-    {
-        _view.Close();
-    }
-
+    /*
     public unsafe void Initialize(WebGPU webGpu, Instance* instance)
     {
         WebGPU webGPU = WebGPU.GetApi();
@@ -34,13 +29,19 @@ public class DesktopWindow : IWindow
 
         var _instance = webGPU.CreateInstance(ref instanceDescriptor);
 
-        _view.Initialize();
+        _window.Initialize();
 
-        var surface = _view.CreateWebGPUSurface(webGPU, _instance);
+        var surface = _window.CreateWebGPUSurface(webGPU, _instance);
     }
+    */
 
     public void Initialize()
     {
-        _view.Initialize();
+        _window.Initialize();
+    }
+
+    public void Uninitialize()
+    {
+        _window.Dispose();
     }
 }

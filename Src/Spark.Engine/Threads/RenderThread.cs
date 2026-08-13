@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Spark.Engine.Render;
 using System;
 using System.Collections.Generic;
@@ -16,10 +17,13 @@ public class RenderThread
     private bool _isClosing => _engineApplication.IsClosing;
 
     private readonly Thread _thread;
+    private readonly ILogger<RenderThread> _logger;
 
     public RenderThread(EngineApplication engineApplication)
     {
         _engineApplication = engineApplication;
+
+        _logger = engineApplication.ServiceProvider.GetRequiredService<ILogger<RenderThread>>();
 
         _thread = new Thread(run);
     }
@@ -27,6 +31,11 @@ public class RenderThread
     public void Start()
     {
         _thread.Start();
+    }
+
+    public void WaitForExit()
+    {
+        _thread.Join();
     }
 
     private void run()
@@ -37,16 +46,11 @@ public class RenderThread
             {
                 var buffer = _engineApplication.DualFrameBuffer.GetReadyBuffer();
                 render(buffer);
-                Console.WriteLine("Render Thread");
                 _engineApplication.DualFrameBuffer.ReturnEmpty();
             }
-            catch (OperationCanceledException)
+            catch (Exception e)
             {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
+                _logger.LogError(e, "RenderThread run error");
             }
         }
     }
