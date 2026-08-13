@@ -14,7 +14,7 @@ public class RenderThread
 
     public ServiceProvider ServiceProvider => _engineApplication.ServiceProvider;
 
-    private bool _isClosing => _engineApplication.IsClosing;
+    private bool IsClosing => _engineApplication.IsClosing;
 
     private readonly Thread _thread;
     private readonly ILogger<RenderThread> _logger;
@@ -25,7 +25,7 @@ public class RenderThread
 
         _logger = engineApplication.ServiceProvider.GetRequiredService<ILogger<RenderThread>>();
 
-        _thread = new Thread(run);
+        _thread = new Thread(Run);
     }
 
     public void Start()
@@ -38,19 +38,19 @@ public class RenderThread
         _thread.Join();
     }
 
-    private void run()
+    private void Run()
     {
-        while (_isClosing == false)
+        while (IsClosing == false)
         {
             try
             {
                 var buffer = _engineApplication.DualFrameBuffer.GetReadyBuffer();
-                render(buffer);
+                Render(buffer);
                 _engineApplication.DualFrameBuffer.ReturnEmpty();
             }
             catch (Exception e)
             {
-                if (!_isClosing)
+                if (!IsClosing)
                 {
                     _logger.LogError(e, "RenderThread run error");
                 }
@@ -58,7 +58,7 @@ public class RenderThread
         }
     }
 
-    private void render(FrameData? frame)
+    private void Render(FrameData? frame)
     {
         if (frame == null)
             return;

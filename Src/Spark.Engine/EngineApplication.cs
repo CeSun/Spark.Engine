@@ -23,9 +23,9 @@ public unsafe class EngineApplication
 
     private EngineSynchronizationContext _engineSynchronizationContext;
 
-    private readonly DualFrameBuffer<FrameData> dualFrameBuffer = new(() => new FrameData());
+    private readonly DualFrameBuffer<FrameData> _dualFrameBuffer = new(() => new FrameData());
 
-    public DualFrameBuffer<FrameData> DualFrameBuffer => dualFrameBuffer;
+    public DualFrameBuffer<FrameData> DualFrameBuffer => _dualFrameBuffer;
 
     public WindowManager WindowManager { get; private set; }
 
@@ -72,7 +72,7 @@ public unsafe class EngineApplication
 
         _engineSynchronizationContext.Initialize();
 
-        onInitialize();
+        OnInitialize();
 
         _renderThread.Start();
 
@@ -93,7 +93,7 @@ public unsafe class EngineApplication
 
                 _engineSynchronizationContext.Update();
 
-                onUpdate(deltaTime);
+                OnUpdate(deltaTime);
 
                 DualFrameBuffer.SubmitReady();
             }
@@ -114,18 +114,18 @@ public unsafe class EngineApplication
 
         _renderThread.WaitForExit();
 
-        onUninitialize();
+        OnUninitialize();
     }
-    private void onInitialize()
+    private void OnInitialize()
     {
         _logger.LogInformation("Initialize Thread");
     }
 
-    private void onUpdate(float deltaTime)
+    private void OnUpdate(float deltaTime)
     {
     }
 
-    private void onUninitialize()
+    private void OnUninitialize()
     {
         _logger.LogInformation("Uninitialize Thread");
     }
