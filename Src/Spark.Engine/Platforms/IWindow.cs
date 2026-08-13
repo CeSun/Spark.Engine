@@ -11,9 +11,13 @@ public interface IWindow
 
     string Title { get; set; }
 
+    bool IsClosing { get; }
+
     void Initialize();
 
     void Uninitialize();
 
     void PollEvents();
+
+    void Close();
 }

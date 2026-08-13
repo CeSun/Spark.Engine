@@ -50,7 +50,10 @@ public class RenderThread
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "RenderThread run error");
+                if (!_isClosing)
+                {
+                    _logger.LogError(e, "RenderThread run error");
+                }
             }
         }
     }

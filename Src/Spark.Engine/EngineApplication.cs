@@ -30,7 +30,13 @@ public unsafe class EngineApplication
     public WindowManager WindowManager { get; private set; }
 
 
-    public bool IsClosing { get; private set; } = false;
+    private volatile bool _isClosing;
+
+    public bool IsClosing
+    {
+        get => _isClosing;
+        private set => _isClosing = value;
+    }
 
     public EngineApplication(ServiceProvider serviceProvider)
     {
@@ -104,6 +110,8 @@ public unsafe class EngineApplication
 
         _logger.LogInformation("Engine main loop stopped because all windows were closed");
 
+        DualFrameBuffer.Dispose();
+
         _renderThread.WaitForExit();
 
         onUninitialize();
@@ -124,14 +132,9 @@ public unsafe class EngineApplication
 
     public void ExitGame()
     {
-        if (IsClosing == false)
+        foreach (var window in WindowManager.Windows)
         {
-            IsClosing = true;
-
-            foreach(var window in WindowManager.Windows)
-            {
-                WindowManager.DestroyWindow(window);
-            }
+            window.Close();
         }
     }
 }

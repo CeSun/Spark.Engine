@@ -13,6 +13,8 @@ public class DesktopWindow : IWindow
 
     public string Title { get => _window.Title; set => _window.Title = value; }
 
+    public bool IsClosing => _window.IsClosing;
+
     public DesktopWindow(SNW.IWindow window)
     {
         _window = window;
@@ -21,6 +23,11 @@ public class DesktopWindow : IWindow
     public void PollEvents()
     {
         _window.DoEvents();
+    }
+
+    public void Close()
+    {
+        _window.Close();
     }
 
     public void Initialize()

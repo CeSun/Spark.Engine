@@ -9,9 +9,9 @@ public class WindowManager
 
     public IReadOnlyList<IWindow> Windows => _windows;
 
-    private List<IWindow> _peddingAddWindows = new List<IWindow>();
+    private List<IWindow> _pendingAddWindows = new List<IWindow>();
 
-    private List<IWindow> _peddingRemoveWindows = new List<IWindow>();
+    private List<IWindow> _pendingRemoveWindows = new List<IWindow>();
 
     private readonly IWindowBackend _windowBackend;
 
@@ -36,7 +36,7 @@ public class WindowManager
         }
         else
         {
-            _peddingAddWindows.Add(window);
+            _pendingAddWindows.Add(window);
         }
         
 
@@ -44,38 +44,43 @@ public class WindowManager
     }
 
 
-    public void DestroyWindow(IWindow window)
+    private void RemoveWindow(IWindow window)
     {
         if (_windows.Contains(window))
         {
-            _peddingRemoveWindows.Add(window);
+            _pendingRemoveWindows.Add(window);
         }
     }
 
     public void UpdateWindow()
     {
-        if (_peddingAddWindows.Count > 0)
+        if (_pendingAddWindows.Count > 0)
         {
-            foreach (var window in _peddingAddWindows)
+            foreach (var window in _pendingAddWindows)
             {
                 window.Initialize();   
             }
-            _windows.AddRange(_peddingAddWindows);
-            _peddingAddWindows.Clear();
+            _windows.AddRange(_pendingAddWindows);
+            _pendingAddWindows.Clear();
         }
-        if (_peddingRemoveWindows.Count > 0)
+        foreach (var window in _windows)
         {
-            foreach (var window in _peddingRemoveWindows)
+            window.PollEvents();
+
+            if (window.IsClosing)
+            {
+                RemoveWindow(window);
+            }
+        }
+
+        if (_pendingRemoveWindows.Count > 0)
+        {
+            foreach (var window in _pendingRemoveWindows)
             {
                 window.Uninitialize();
                 _windows.Remove(window);
             }
-            _peddingRemoveWindows.Clear();
-        }
-
-        foreach (var window in _windows)
-        {
-            window.PollEvents();
+            _pendingRemoveWindows.Clear();
         }
     }
 }
