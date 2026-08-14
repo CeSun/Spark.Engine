@@ -1,17 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
+using Silk.NET.WebGPU;
 using System.Numerics;
-using System.Text;
 
 namespace Spark.Engine.Platforms;
 
-public interface IWindow
+public unsafe interface IWindow
 {
     Vector2 Size { get; set; }
 
     string Title { get; set; }
 
     bool IsClosing { get; }
+
+    /// <summary>WebGPU surface, available after <see cref="Initialize"/> has run.</summary>
+    Surface* Surface { get; }
 
     void Initialize();
 

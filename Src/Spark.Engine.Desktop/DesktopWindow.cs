@@ -15,6 +15,8 @@ public unsafe class DesktopWindow : IWindow
 
     private Surface* _surface;
 
+    public Surface* Surface => _surface;
+
     public Vector2 Size { get => (Vector2)_window.Size; set => _window.Size = new Silk.NET.Maths.Vector2D<int>((int)value.X, (int)value.Y); }
 
     public string Title { get => _window.Title; set => _window.Title = value; }

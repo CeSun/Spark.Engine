@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using Spark.Engine.Render;
 
 namespace Spark.Engine.Components;
 
 public class CameraComponent : SceneComponent
 {
-
+    public Viewport? Viewport { get; set; }
 }
