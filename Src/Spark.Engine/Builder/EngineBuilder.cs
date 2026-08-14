@@ -1,6 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Spark.Engine.Render;
 
 namespace Spark.Engine.Builder;
 
@@ -32,7 +33,8 @@ public class EngineBuilder
             Height = 600
         });
 
-        builder.Services.AddSingleton(sp => new WindowManager(sp));
+        builder.Services.AddSingleton(new RenderTargetRegistry());
+        builder.Services.AddSingleton(sp => new WindowManager(sp, sp.GetRequiredService<RenderTargetRegistry>()));
 
         return builder;
     }

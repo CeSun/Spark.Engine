@@ -1,21 +1,23 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
-using Spark.Engine.Platforms;
+using Spark.Engine.Components;
 using Spark.Engine.Render;
 using Spark.Engine.Threads;
+using Spark.Engine.Worlds;
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Numerics;
 
 namespace Spark.Engine;
 
-public unsafe class EngineApplication
+public class EngineApplication
 {
     private readonly ILogger<EngineApplication> _logger;
 
     public ServiceProvider ServiceProvider { get; private set; }
 
-    private Stopwatch _stopwatch = new Stopwatch();
+    private Stopwatch _stopwatch = new();
 
     private EngineOptions _engineOptions;
 
@@ -25,10 +27,22 @@ public unsafe class EngineApplication
 
     private readonly DualFrameBuffer<FrameData> _dualFrameBuffer = new(() => new FrameData());
 
+    private readonly List<CameraComponent> _cameraBuffer = new();
+
+    private readonly ConcurrentQueue<StaticMesh> _pendingMeshUploads = new();
+
     public DualFrameBuffer<FrameData> DualFrameBuffer => _dualFrameBuffer;
 
     public WindowManager WindowManager { get; private set; }
 
+    /// <summary>渲染目标注册表（逻辑线程注册，渲染线程查询）。</summary>
+    public RenderTargetRegistry RenderTargets { get; }
+
+    /// <summary>世界上下文（驱动场景更新与相机收集）。</summary>
+    public WorldContext WorldContext { get; } = new();
+
+    /// <summary>待上传到渲染线程的网格（逻辑线程 Enqueue，渲染线程 Dequeue）。</summary>
+    internal ConcurrentQueue<StaticMesh> PendingMeshUploads => _pendingMeshUploads;
 
     private volatile bool _isClosing;
 
@@ -48,12 +62,13 @@ public unsafe class EngineApplication
 
         _engineSynchronizationContext = new EngineSynchronizationContext();
 
-        _renderThread = new RenderThread(this);
+        RenderTargets = serviceProvider.GetService<RenderTargetRegistry>() ?? new RenderTargetRegistry();
+
+        _renderThread = new RenderThread(this, RenderTargets);
 
         WindowManager = ServiceProvider.GetService<WindowManager>() ?? throw new InvalidOperationException("No WindowManager implementation found.");
 
-        var window = WindowManager.CreateWindow("Spark Engine", 800, 600);
-
+        WindowManager.CreateWindow("Spark Engine", _engineOptions.Width, _engineOptions.Height);
     }
 
     public void Run()
@@ -95,6 +110,8 @@ public unsafe class EngineApplication
 
                 OnUpdate(deltaTime);
 
+                FillFrameData(buffer, deltaTime);
+
                 DualFrameBuffer.SubmitReady();
             }
             catch (Exception ex)
@@ -116,6 +133,35 @@ public unsafe class EngineApplication
 
         OnUninitialize();
     }
+
+    private void FillFrameData(FrameData buffer, float deltaTime)
+    {
+        buffer.DeltaTime = deltaTime;
+        buffer.FrameIndex++;
+        buffer.Cameras.Clear();
+
+        if (WorldContext.CurrentWorld is not World world)
+            return;
+
+        _cameraBuffer.Clear();
+        world.CollectCameras(_cameraBuffer);
+
+        foreach (var camera in _cameraBuffer)
+        {
+            if (camera.RenderTarget is not RenderTarget target)
+                continue;
+
+            buffer.Cameras.Add(new CameraRenderInfo(
+                target.Id,
+                camera.GetViewMatrix(),
+                camera.GetProjectionMatrix(target.AspectRatio),
+                new Vector4(0.10f, 0.15f, 0.25f, 1.0f)));
+        }
+
+        buffer.RenderItems.Clear();
+        world.CollectRenderItems(buffer.RenderItems);
+    }
+
     private void OnInitialize()
     {
         _logger.LogInformation("Initialize Thread");
@@ -123,11 +169,19 @@ public unsafe class EngineApplication
 
     private void OnUpdate(float deltaTime)
     {
+        WorldContext.CurrentWorld?.Update(deltaTime);
     }
 
     private void OnUninitialize()
     {
         _logger.LogInformation("Uninitialize Thread");
+    }
+
+    /// <summary>提交一个静态网格到渲染线程（创建 GPU 资源并上传数据）。</summary>
+    public void UploadMesh(StaticMesh mesh)
+    {
+        if (mesh == null) throw new ArgumentNullException(nameof(mesh));
+        _pendingMeshUploads.Enqueue(mesh);
     }
 
     public void ExitGame()

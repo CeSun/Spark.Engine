@@ -1,27 +1,48 @@
 using Silk.NET.WebGPU;
 using Spark.Engine.Platforms;
-using Spark.Engine.Components;
 
 namespace Spark.Engine.Render;
 
-public unsafe class Viewport
+/// <summary>
+/// 窗口渲染目标——<see cref="RenderTarget"/> 的窗口实现（唯一带交换链的一种）。
+/// 退化为纯渲染目标描述：窗口 + 表面 + 尺寸，不持有、不感知任何相机。
+/// </summary>
+public sealed class Viewport : RenderTarget
 {
-    private IWindow? _window;
+    /// <summary>构造时绑定的窗口，不可更换。</summary>
+    public IWindow Window { get; }
 
-    private Surface* _surface;
+    /// <summary>实时取值，不缓存（surface 可能被平台重建）。</summary>
+    public RenderSurface? Surface => Window.Surface;
 
-    public IWindow? Window => _window;
+    public override uint Width => Surface?.Width ?? 0;
 
-    public Surface* Surface => _surface;
+    public override uint Height => Surface?.Height ?? 0;
 
-    public void BindWindow(IWindow window)
+    public override TextureFormat Format => Surface?.Format ?? default;
+
+    public Viewport(int id, IWindow window)
+        : base(id)
     {
-        _window = window;
-        _surface = window.Surface;
+        Window = window;
     }
 
-    public void BindCamera(CameraComponent camera)
+    public override RenderTargetSession BeginRenderSession()
     {
+        var surface = Surface;
+        if (surface == null)
+            return default;
 
+        // 同步窗口物理尺寸（懒重配在 acquire 前生效）
+        var framebuffer = Window.FramebufferSize;
+        surface.Resize((uint)framebuffer.X, (uint)framebuffer.Y);
+
+        var texture = surface.AcquireNextTexture();
+        return new RenderTargetSession(surface, texture);
+    }
+
+    public override void Dispose()
+    {
+        // RenderSurface 由平台层（DesktopWindow.Uninitialize）释放，这里仅解除窗口引用关系
     }
 }

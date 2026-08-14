@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Silk.NET.Core.Contexts;
 using Silk.NET.WebGPU;
+using Spark.Engine.Render;
 using System;
 using System.Threading;
 
@@ -106,8 +107,9 @@ public unsafe class WebGPUContext
         Queue = queue;
     }
 
-    public Surface* CreateSurface(INativeWindowSource nativeWindow)
+    public RenderSurface CreateSurface(INativeWindowSource nativeWindow)
     {
-        return WebGPUSurface.CreateWebGPUSurface(nativeWindow, Api, Instance);
+        var surface = WebGPUSurface.CreateWebGPUSurface(nativeWindow, Api, Instance);
+        return new RenderSurface(Api, Adapter, Device, surface);
     }
 }

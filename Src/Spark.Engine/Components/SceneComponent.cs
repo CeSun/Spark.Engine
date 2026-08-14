@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
@@ -13,17 +13,21 @@ public class SceneComponent : ActorComponent
 
     private List<SceneComponent> _attachChildren = [];
 
-    private Vector3 _relativeLocation;
+    public Vector3 RelativeLocation { get; set; }
 
-    public Vector3 RelativeLocation => _relativeLocation;
+    private Vector3 _relativeScale = Vector3.One;
 
-    private Vector3 _relativeScale;
+    public Vector3 RelativeScale { get => _relativeScale; set => _relativeScale = value; }
 
-    public Vector3 RelativeScale => _relativeScale;
+    private Quaternion _relativeRotation = Quaternion.Identity;
 
-    private Quaternion _relativeRotation;
+    public Quaternion RelativeRotation { get => _relativeRotation; set => _relativeRotation = value; }
 
-    public Quaternion RelativeRotation => _relativeRotation;
+    /// <summary>世界变换矩阵（父级挂载尚未实现，简化为相对即世界）。</summary>
+    public Matrix4x4 WorldTransform =>
+        Matrix4x4.CreateScale(_relativeScale) *
+        Matrix4x4.CreateFromQuaternion(_relativeRotation) *
+        Matrix4x4.CreateTranslation(RelativeLocation);
 
     public T GetComponent<T>() where T : ActorComponent
     {
