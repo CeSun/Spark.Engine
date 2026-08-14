@@ -14,6 +14,7 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Silk.NET.WebGPU" />
+    <PackageReference Include="Silk.NET.WebGPU.Native.WGPU" />
   </ItemGroup>
 
 </Project>

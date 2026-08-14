@@ -1,7 +1,5 @@
-﻿using Spark.Engine.Platforms;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Spark.Engine.Builder;
+using Spark.Engine.Platforms;
 using SN = Silk.NET;
 using SNW = Silk.NET.Windowing;
 
@@ -9,6 +7,13 @@ namespace Spark.Engine.Desktop;
 
 public class DesktopWindowManager : IWindowBackend
 {
+    private readonly WebGPUContext _webGPUContext;
+
+    public DesktopWindowManager(WebGPUContext webGPUContext)
+    {
+        _webGPUContext = webGPUContext;
+    }
+
     public IWindow CreateWindow(string title, int width, int height)
     {
         var options = SNW.WindowOptions.Default with
@@ -19,8 +24,6 @@ public class DesktopWindowManager : IWindowBackend
 
         var window = SNW.Window.Create(options);
 
-        var desktopWindow = new DesktopWindow(window);
-
-        return desktopWindow;
+        return new DesktopWindow(window, _webGPUContext);
     }
 }
