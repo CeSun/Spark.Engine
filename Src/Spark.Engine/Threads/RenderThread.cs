@@ -167,8 +167,8 @@ public unsafe class RenderThread
 
     private void DrawMesh(RenderPassEncoder* pass, MeshGPUResource mesh, in CameraRenderInfo cam, in RenderItem item)
     {
-        // MVP = World * View * Projection（System.Numerics 行主序），转置后传入 WGSL 列主序矩阵
-        var mvp = Matrix4x4.Transpose(item.WorldMatrix * cam.ViewMatrix * cam.ProjectionMatrix);
+        // System.Numerics 行主序矩阵直接映射 WGSL 列主序（mul(mat, vec) 语义），无需转置
+        var mvp = item.WorldMatrix * cam.ViewMatrix * cam.ProjectionMatrix;
 
         float* p = &mvp.M11;
         _webGPUContext!.Api.QueueWriteBuffer(_webGPUContext.Queue, mesh.UniformBuffer, 0, p, (nuint)(16 * sizeof(float)));
