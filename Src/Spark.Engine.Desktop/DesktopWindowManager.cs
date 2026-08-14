@@ -18,6 +18,7 @@ public class DesktopWindowManager : IWindowBackend
     {
         var options = SNW.WindowOptions.Default with
         {
+            API = SNW.GraphicsAPI.None,
             Size = new SN.Maths.Vector2D<int>(width, height),
             Title = title
         };

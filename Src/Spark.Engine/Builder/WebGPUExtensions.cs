@@ -16,73 +16,9 @@ public static class WebGPUExtensions
         var instanceDescriptor = new InstanceDescriptor();
         var instance = api.CreateInstance(ref instanceDescriptor);
 
-        var adapter = RequestAdapter(api, instance);
-        var device = RequestDevice(api, adapter);
-        var queue = api.DeviceGetQueue(device);
-
-        builder.Services.AddSingleton(new WebGPUContext(api, instance, adapter, device, queue));
+        builder.Services.AddSingleton(new WebGPUContext(api, instance));
 
         return builder;
-    }
-
-    private static unsafe Adapter* RequestAdapter(WebGPU api, Instance* instance)
-    {
-        Adapter* adapter = null;
-        string? error = null;
-        using var signal = new ManualResetEventSlim(false);
-
-        RequestAdapterCallback callback = (status, result, message, _) =>
-        {
-            if (status == RequestAdapterStatus.Success)
-            {
-                adapter = result;
-            }
-            else
-            {
-                error = $"WebGPU adapter request failed: {status}";
-            }
-
-            signal.Set();
-        };
-
-        api.InstanceRequestAdapter(instance, null, callback, null);
-        signal.Wait();
-        GC.KeepAlive(callback);
-
-        if (adapter == null)
-            throw new InvalidOperationException(error ?? "No WebGPU adapter available.");
-
-        return adapter;
-    }
-
-    private static unsafe Device* RequestDevice(WebGPU api, Adapter* adapter)
-    {
-        Device* device = null;
-        string? error = null;
-        using var signal = new ManualResetEventSlim(false);
-
-        RequestDeviceCallback callback = (status, result, message, _) =>
-        {
-            if (status == RequestDeviceStatus.Success)
-            {
-                device = result;
-            }
-            else
-            {
-                error = $"WebGPU device request failed: {status}";
-            }
-
-            signal.Set();
-        };
-
-        api.AdapterRequestDevice(adapter, null, callback, null);
-        signal.Wait();
-        GC.KeepAlive(callback);
-
-        if (device == null)
-            throw new InvalidOperationException(error ?? "No WebGPU device available.");
-
-        return device;
     }
 }
 
@@ -92,24 +28,86 @@ public unsafe class WebGPUContext
 
     public Instance* Instance { get; }
 
-    public Adapter* Adapter { get; }
+    public Adapter* Adapter { get; private set; }
 
-    public Device* Device { get; }
+    public Device* Device { get; private set; }
 
-    public Queue* Queue { get; }
+    public Queue* Queue { get; private set; }
 
-    public WebGPUContext(WebGPU api, Instance* instance, Adapter* adapter, Device* device, Queue* queue)
+    public WebGPUContext(WebGPU api, Instance* instance)
     {
         Api = api;
         Instance = instance;
-        Adapter = adapter;
-        Device = device;
-        Queue = queue;
     }
 
     public RenderSurface CreateSurface(INativeWindowSource nativeWindow)
     {
         var surface = WebGPUSurface.CreateWebGPUSurface(nativeWindow, Api, Instance);
+        EnsureDevice(surface);
         return new RenderSurface(Api, Adapter, Device, surface);
+    }
+
+    private void EnsureDevice(Surface* compatibleSurface)
+    {
+        if (Device != null)
+            return;
+
+        Adapter = RequestAdapter(compatibleSurface);
+        Device = RequestDevice(Adapter);
+        Queue = Api.DeviceGetQueue(Device);
+    }
+
+    private Adapter* RequestAdapter(Surface* compatibleSurface)
+    {
+        Adapter* adapter = null;
+        string? error = null;
+        using var signal = new ManualResetEventSlim(false);
+
+        RequestAdapterCallback callback = (status, result, message, _) =>
+        {
+            if (status == RequestAdapterStatus.Success)
+                adapter = result;
+            else
+                error = $"WebGPU adapter request failed: {status}";
+
+            signal.Set();
+        };
+
+        var options = new RequestAdapterOptions { CompatibleSurface = compatibleSurface };
+        Api.InstanceRequestAdapter(Instance, ref options, callback, null);
+        signal.Wait();
+        GC.KeepAlive(callback);
+
+        if (adapter == null)
+            throw new InvalidOperationException(error ?? "No WebGPU adapter available.");
+
+        return adapter;
+    }
+
+    private Device* RequestDevice(Adapter* adapter)
+    {
+        Device* device = null;
+        string? error = null;
+        using var signal = new ManualResetEventSlim(false);
+
+        RequestDeviceCallback callback = (status, result, message, _) =>
+        {
+            if (status == RequestDeviceStatus.Success)
+                device = result;
+            else
+                error = $"WebGPU device request failed: {status}";
+
+            signal.Set();
+        };
+
+        var descriptor = new DeviceDescriptor();
+        Api.AdapterRequestDevice(adapter, ref descriptor, callback, null);
+        signal.Wait();
+        GC.KeepAlive(callback);
+
+        if (device == null)
+            throw new InvalidOperationException(error ?? "No WebGPU device available.");
+
+        return device;
     }
 }

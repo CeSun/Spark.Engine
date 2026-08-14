@@ -8,7 +8,7 @@ namespace Spark.Engine.Desktop;
 
 public class DesktopWindow : IWindow
 {
-    private SNW.IWindow _window;
+    private readonly SNW.IWindow _window;
 
     private readonly WebGPUContext _webGPUContext;
 
@@ -56,10 +56,8 @@ public class DesktopWindow : IWindow
 
         _surface = _webGPUContext.CreateSurface(_window);
 
-        // 首次配置须在 surface 创建线程立即完成（否则 wgpu 报 Invalid surface）
-        var framebuffer = _window.FramebufferSize;
+        var framebuffer = FramebufferSize;
         _surface.Resize((uint)framebuffer.X, (uint)framebuffer.Y);
-        _surface.EnsureConfigured();
     }
 
     public void Uninitialize()

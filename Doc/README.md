@@ -53,7 +53,8 @@ RenderThread（渲染循环：上传处理 → 分组 → acquire → clear → 
 
 - `EngineBuilder.Create(args)`：配置 Serilog 日志（控制台 + 滚动文件）、`EngineOptions`、
   `RenderTargetRegistry`、`WindowManager`
-- `InitializeWebGPU()`：创建 instance/adapter/device/queue，注册 `WebGPUContext`
+- `InitializeWebGPU()`：创建 instance 并注册 `WebGPUContext`；首个 surface 创建后按兼容性选择
+  adapter，再创建 device/queue
 - `UseDesktop()`：注册 `IWindowBackend`（桌面实现）
 - `EngineOptions`：`Width`/`Height`/`TargetFrameRate`
 
@@ -62,6 +63,7 @@ RenderThread（渲染循环：上传处理 → 分组 → acquire → clear → 
 - `IWindow`：`Size`/`FramebufferSize`/`Title`/`IsClosing`/`Surface` + 生命周期方法
 - `IWindowBackend`：窗口工厂
 - `DesktopWindow` / `DesktopWindowManager`：Silk.NET.Windowing 实现
+- 桌面窗口使用 `GraphicsAPI.None`，避免 Silk 默认图形上下文占用原生窗口并与 WebGPU 交换链冲突
 - `WebGPUContext`：持有 api/instance/adapter/device/queue，`CreateSurface` 创建 `RenderSurface`
 
 ### 3. 交换链封装（RenderSurface）
@@ -70,7 +72,7 @@ RenderThread（渲染循环：上传处理 → 分组 → acquire → clear → 
   `AcquireNextTexture`/`Present`/`Resize`/`SetPresentMode`/`EnsureConfigured`
 - `FrameTexture`：acquire 结果的 RAII 包装（纹理 + 默认视图）
 - 尺寸一律用物理像素 `FramebufferSize`（为 0 时回退到 `Size`，修 HiDPI 时序问题）
-- 首次配置在 surface 创建线程立即完成；后续 resize/lost 懒重配
+- 首次配置及后续 resize/lost 均由渲染线程在 acquire 前懒重配
 
 ### 4. 渲染目标体系（RenderTarget）
 
@@ -128,7 +130,7 @@ RenderThread（渲染循环：上传处理 → 分组 → acquire → clear → 
 |---|---|---|
 | 渲染管线骨架（清屏） | ✅ | ✅（本地 GPU 环境验证通过） |
 | World 场景接入 | ✅ | ✅（本地 GPU 环境验证通过） |
-| StaticMesh 三角形渲染 | ✅ | ⚠️ 沙箱 GPU surface 失效，需本地 GPU 环境运行验证 |
+| StaticMesh 三角形渲染 | ✅ | ✅（本地 GPU 环境验证通过） |
 
 ---
 

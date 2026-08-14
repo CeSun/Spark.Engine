@@ -33,7 +33,7 @@ public unsafe sealed class RenderSurface : IDisposable
     /// <summary>物理像素高。</summary>
     public uint Height => _height;
 
-    public float AspectRatio => _width / (float)_height;
+    public float AspectRatio => _targetHeight == 0 ? 1.0f : _targetWidth / (float)_targetHeight;
 
     public TextureFormat Format => _format;
 
@@ -96,8 +96,8 @@ public unsafe sealed class RenderSurface : IDisposable
     }
 
     /// <summary>
-    /// 立即按目标配置（尺寸/PresentMode）重配交换链。首次配置须在 surface 创建线程调用；
-    /// 之后渲染线程每次 acquire 前也会经此懒重配（尺寸/lost 变化时）。
+    /// 立即按目标配置（尺寸/PresentMode）重配交换链。
+    /// 渲染线程每次 acquire 前经此懒重配（首次使用、尺寸/lost 变化时）。
     /// </summary>
     public void EnsureConfigured()
     {
@@ -110,36 +110,46 @@ public unsafe sealed class RenderSurface : IDisposable
         if (!needsReconfig)
             return;
 
+        if (_targetWidth == 0 || _targetHeight == 0)
+            return;
+
         SurfaceCapabilities capabilities = default;
         _api.SurfaceGetCapabilities(_surface, _adapter, ref capabilities);
 
-        if (capabilities.FormatCount == 0)
-            return; // 无可用纹理格式，保持未配置，下帧重试
-
-        var format = capabilities.Formats[0];
-        var presentMode = ChoosePresentMode(_targetPresentMode, capabilities);
-        var alphaMode = capabilities.AlphaModeCount > 0
-            ? capabilities.AlphaModes[0]
-            : CompositeAlphaMode.Opaque;
-
-        var config = new SurfaceConfiguration
+        try
         {
-            Device = _device,
-            Format = format,
-            Usage = TextureUsage.RenderAttachment,
-            Width = _targetWidth,
-            Height = _targetHeight,
-            PresentMode = presentMode,
-            AlphaMode = alphaMode,
-        };
+            if (capabilities.FormatCount == 0)
+                return; // 无可用纹理格式，保持未配置，下帧重试
 
-        _api.SurfaceConfigure(_surface, ref config);
+            var format = capabilities.Formats[0];
+            var presentMode = ChoosePresentMode(_targetPresentMode, capabilities);
+            var alphaMode = capabilities.AlphaModeCount > 0
+                ? capabilities.AlphaModes[0]
+                : CompositeAlphaMode.Opaque;
 
-        _format = format;
-        _presentMode = presentMode;
-        _width = _targetWidth;
-        _height = _targetHeight;
-        _configured = true;
+            var config = new SurfaceConfiguration
+            {
+                Device = _device,
+                Format = format,
+                Usage = TextureUsage.RenderAttachment,
+                Width = _targetWidth,
+                Height = _targetHeight,
+                PresentMode = presentMode,
+                AlphaMode = alphaMode,
+            };
+
+            _api.SurfaceConfigure(_surface, ref config);
+
+            _format = format;
+            _presentMode = presentMode;
+            _width = _targetWidth;
+            _height = _targetHeight;
+            _configured = true;
+        }
+        finally
+        {
+            _api.SurfaceCapabilitiesFreeMembers(capabilities);
+        }
     }
 
     private static PresentMode ChoosePresentMode(PresentMode requested, in SurfaceCapabilities capabilities)
