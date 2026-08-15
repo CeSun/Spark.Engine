@@ -20,26 +20,31 @@ public unsafe sealed class SceneRenderer : IDisposable
         struct VertexInput {
             @location(0) position : vec3f,
             @location(1) color : vec3f,
+            @location(2) uv : vec2f,
         };
 
         struct VertexOutput {
             @builtin(position) clip_position : vec4f,
             @location(0) color : vec3f,
+            @location(1) uv : vec2f,
         };
 
         @group(0) @binding(0) var<uniform> mvp : mat4x4f;
+        @group(1) @binding(0) var tex : texture_2d<f32>;
+        @group(1) @binding(1) var samp : sampler;
 
         @vertex
         fn vs_main(in : VertexInput) -> VertexOutput {
             var out : VertexOutput;
             out.clip_position = mvp * vec4f(in.position, 1.0);
             out.color = in.color;
+            out.uv = in.uv;
             return out;
         }
 
         @fragment
         fn fs_main(in : VertexOutput) -> @location(0) vec4f {
-            return vec4f(in.color, 1.0);
+            return textureSample(tex, samp, in.uv) * vec4f(in.color, 1.0);
         }
         """;
 
@@ -62,12 +67,16 @@ public unsafe sealed class SceneRenderer : IDisposable
     private readonly List<int> _removedProxyIds = new();
     private readonly List<SceneObjectHeader> _visibleObjects = new();
     private readonly List<LightPayload> _visibleLights = new();
+    private readonly HashSet<int> _loggedTextureMisses = new();
 
     private BindGroupLayout* _bindGroupLayout;
+    private BindGroupLayout* _textureBindGroupLayout;
     private PipelineLayout* _pipelineLayout;
     private ShaderModule* _shaderModule;
     private RenderPipeline* _renderPipeline;
     private TextureFormat _pipelineFormat;
+    private Sampler* _sampler;
+    private TextureGPUResource? _whiteTexture;
 
     /// <summary>最近一帧最后一个相机剔除后保留的光源（供光照 pass 消费，P2）。</summary>
     public IReadOnlyList<LightPayload> VisibleLights => _visibleLights;
@@ -190,6 +199,22 @@ public unsafe sealed class SceneRenderer : IDisposable
         if (!_proxyStates.TryGetValue(obj.ProxyId, out var state))
             return;
 
+        // 纹理绑定组：优先用网格纹理，否则兜底白纹理
+        TextureGPUResource? textureGpu = null;
+        if (payload.TextureId != 0)
+        {
+            if (!_gpuResources.TryGetValue(payload.TextureId, out var tex) || tex is not TextureGPUResource texture)
+            {
+                if (_loggedTextureMisses.Add(payload.TextureId))
+                    _logger.LogWarning("Texture {TextureId} not uploaded, using fallback white texture", payload.TextureId);
+            }
+            else
+            {
+                textureGpu = texture;
+            }
+        }
+        textureGpu ??= _whiteTexture!;
+
         // System.Numerics 行主序矩阵直接映射 WGSL 列主序（mul(mat, vec) 语义），无需转置
         var mvp = obj.WorldTransform * camera.ViewMatrix * camera.ProjectionMatrix;
 
@@ -199,6 +224,7 @@ public unsafe sealed class SceneRenderer : IDisposable
         var api = _webGpu.Api;
         api.RenderPassEncoderSetPipeline(pass, _renderPipeline);
         api.RenderPassEncoderSetBindGroup(pass, 0, state.BindGroup, (nuint)0, null);
+        api.RenderPassEncoderSetBindGroup(pass, 1, textureGpu.BindGroup, (nuint)0, null);
         api.RenderPassEncoderSetVertexBuffer(pass, 0, mesh.VertexBuffer, 0, mesh.VertexBufferSize);
         api.RenderPassEncoderSetIndexBuffer(pass, mesh.IndexBuffer, mesh.IndexFormat, 0, mesh.IndexBufferSize);
         api.RenderPassEncoderDrawIndexed(pass, mesh.IndexCount, 1, 0, 0, 0);
@@ -269,7 +295,13 @@ public unsafe sealed class SceneRenderer : IDisposable
 
                         _gpuResources[mesh.ResourceId] = CreateMeshGPUResource(mesh);
                         break;
-                    // 未来：case Texture texture: ... ; case Material material: ...
+                    case Texture2D texture:
+                        if (_gpuResources.ContainsKey(texture.ResourceId))
+                            continue;
+
+                        _gpuResources[texture.ResourceId] = CreateTextureGPUResource(texture.Width, texture.Height, texture.PixelData);
+                        break;
+                    // 未来：case Material material: ...
                 }
             }
             catch (Exception ex)
@@ -322,6 +354,49 @@ public unsafe sealed class SceneRenderer : IDisposable
             indexSize);
     }
 
+    private TextureGPUResource CreateTextureGPUResource(uint width, uint height, byte[] rgba8)
+    {
+        EnsureBindGroupLayout();
+
+        var api = _webGpu!.Api;
+        var device = _webGpu.Device;
+        var queue = _webGpu.Queue;
+
+        var size = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
+        var textureDesc = new TextureDescriptor
+        {
+            Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
+            Dimension = TextureDimension.Dimension2D,
+            Size = size,
+            Format = TextureFormat.Rgba8Unorm,
+            MipLevelCount = 1,
+            SampleCount = 1,
+        };
+        Texture* gpuTexture = api.DeviceCreateTexture(device, ref textureDesc);
+
+        var copyDest = new ImageCopyTexture { Texture = gpuTexture, MipLevel = 0, Origin = default, Aspect = TextureAspect.All };
+        var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = width * 4, RowsPerImage = height };
+        fixed (byte* data = rgba8)
+        {
+            api.QueueWriteTexture(queue, ref copyDest, data, (nuint)rgba8.Length, ref dataLayout, ref size);
+        }
+
+        TextureView* view = api.TextureCreateView(gpuTexture, (TextureViewDescriptor*)null);
+
+        BindGroupEntry* entries = stackalloc BindGroupEntry[2];
+        entries[0] = new BindGroupEntry { Binding = 0, TextureView = view };
+        entries[1] = new BindGroupEntry { Binding = 1, Sampler = _sampler };
+        var bindGroupDesc = new BindGroupDescriptor
+        {
+            Layout = _textureBindGroupLayout,
+            EntryCount = (nuint)2,
+            Entries = entries,
+        };
+        BindGroup* bindGroup = api.DeviceCreateBindGroup(device, ref bindGroupDesc);
+
+        return new TextureGPUResource(api, gpuTexture, view, bindGroup);
+    }
+
     private StaticMeshRenderState CreateStaticMeshRenderState()
     {
         EnsureBindGroupLayout();
@@ -363,7 +438,8 @@ public unsafe sealed class SceneRenderer : IDisposable
         var api = _webGpu!.Api;
         var device = _webGpu.Device;
 
-        var entry = new BindGroupLayoutEntry
+        // group 0：MVP uniform（每实例）
+        var mvpEntry = new BindGroupLayoutEntry
         {
             Binding = 0,
             Visibility = ShaderStage.Vertex,
@@ -374,21 +450,71 @@ public unsafe sealed class SceneRenderer : IDisposable
                 MinBindingSize = 64,
             },
         };
-
-        var layoutDesc = new BindGroupLayoutDescriptor
+        var mvpLayoutDesc = new BindGroupLayoutDescriptor
         {
             EntryCount = (nuint)1,
-            Entries = &entry,
+            Entries = &mvpEntry,
         };
-        _bindGroupLayout = api.DeviceCreateBindGroupLayout(device, ref layoutDesc);
+        _bindGroupLayout = api.DeviceCreateBindGroupLayout(device, ref mvpLayoutDesc);
 
-        BindGroupLayout* bindGroupLayout = _bindGroupLayout;
+        // group 1：纹理 + 采样器（每纹理）
+        BindGroupLayoutEntry* textureEntries = stackalloc BindGroupLayoutEntry[2];
+        textureEntries[0] = new BindGroupLayoutEntry
+        {
+            Binding = 0,
+            Visibility = ShaderStage.Fragment,
+            Texture = new TextureBindingLayout
+            {
+                SampleType = TextureSampleType.Float,
+                ViewDimension = TextureViewDimension.Dimension2D,
+                Multisampled = false,
+            },
+        };
+        textureEntries[1] = new BindGroupLayoutEntry
+        {
+            Binding = 1,
+            Visibility = ShaderStage.Fragment,
+            Sampler = new SamplerBindingLayout
+            {
+                Type = SamplerBindingType.Filtering,
+            },
+        };
+        var textureLayoutDesc = new BindGroupLayoutDescriptor
+        {
+            EntryCount = (nuint)2,
+            Entries = textureEntries,
+        };
+        _textureBindGroupLayout = api.DeviceCreateBindGroupLayout(device, ref textureLayoutDesc);
+
+        // pipeline layout：group0 + group1
+        BindGroupLayout** layouts = stackalloc BindGroupLayout*[2];
+        layouts[0] = _bindGroupLayout;
+        layouts[1] = _textureBindGroupLayout;
         var pipelineLayoutDesc = new PipelineLayoutDescriptor
         {
-            BindGroupLayoutCount = (nuint)1,
-            BindGroupLayouts = &bindGroupLayout,
+            BindGroupLayoutCount = (nuint)2,
+            BindGroupLayouts = layouts,
         };
         _pipelineLayout = api.DeviceCreatePipelineLayout(device, ref pipelineLayoutDesc);
+
+        // 共享采样器
+        var samplerDesc = new SamplerDescriptor
+        {
+            AddressModeU = AddressMode.ClampToEdge,
+            AddressModeV = AddressMode.ClampToEdge,
+            AddressModeW = AddressMode.ClampToEdge,
+            MagFilter = FilterMode.Linear,
+            MinFilter = FilterMode.Linear,
+            MipmapFilter = MipmapFilterMode.Linear,
+            LodMinClamp = 0f,
+            LodMaxClamp = 32f,
+            Compare = CompareFunction.Undefined,
+            MaxAnisotropy = 1,
+        };
+        _sampler = api.DeviceCreateSampler(device, ref samplerDesc);
+
+        // 兜底 1x1 白纹理（无纹理网格用）
+        _whiteTexture = CreateTextureGPUResource(1, 1, new byte[] { 255, 255, 255, 255 });
     }
 
     private void EnsurePipeline(TextureFormat format)
@@ -439,15 +565,16 @@ public unsafe sealed class SceneRenderer : IDisposable
 
         fixed (byte* vsPtr = vsEntry, fsPtr = fsEntry)
         {
-            VertexAttribute* attributes = stackalloc VertexAttribute[2];
+            VertexAttribute* attributes = stackalloc VertexAttribute[3];
             attributes[0] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 0, ShaderLocation = 0 };
             attributes[1] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 12, ShaderLocation = 1 };
+            attributes[2] = new VertexAttribute { Format = VertexFormat.Float32x2, Offset = 24, ShaderLocation = 2 };
 
             var vertexLayout = new VertexBufferLayout
             {
                 ArrayStride = (ulong)sizeof(StaticMeshVertex),
                 StepMode = VertexStepMode.Vertex,
-                AttributeCount = (nuint)2,
+                AttributeCount = (nuint)3,
                 Attributes = attributes,
             };
 
@@ -517,11 +644,17 @@ public unsafe sealed class SceneRenderer : IDisposable
         _proxyStates.Clear();
         FlushPendingDelete();
 
+        if (_whiteTexture != null) _whiteTexture.Dispose();
+        if (_sampler != null) api.SamplerRelease(_sampler);
+        if (_textureBindGroupLayout != null) api.BindGroupLayoutRelease(_textureBindGroupLayout);
         if (_renderPipeline != null) api.RenderPipelineRelease(_renderPipeline);
         if (_shaderModule != null) api.ShaderModuleRelease(_shaderModule);
         if (_pipelineLayout != null) api.PipelineLayoutRelease(_pipelineLayout);
         if (_bindGroupLayout != null) api.BindGroupLayoutRelease(_bindGroupLayout);
 
+        _whiteTexture = null;
+        _sampler = null;
+        _textureBindGroupLayout = null;
         _renderPipeline = null;
         _shaderModule = null;
         _pipelineLayout = null;
