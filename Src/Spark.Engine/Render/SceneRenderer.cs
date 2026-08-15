@@ -46,9 +46,9 @@ public unsafe sealed class SceneRenderer : IDisposable
     private readonly ILogger<SceneRenderer> _logger;
     private readonly WebGPUContext? _webGpu;
     private readonly RenderTargetRegistry _targets;
-    private readonly ConcurrentQueue<ISceneResource> _pendingUploads;
+    private readonly ResourceManager _resourceManager;
 
-    // 静态资源（几何，按 MeshId 上传一次）
+    // GPU 资源（单注册表，按 ResourceId 上传一次）
     private readonly Dictionary<int, IGPUResource> _gpuResources = new();
 
     // 渲染侧每实例状态（按 ProxyId），静态网格为 MVP uniform + bind group
@@ -76,12 +76,12 @@ public unsafe sealed class SceneRenderer : IDisposable
         ILogger<SceneRenderer> logger,
         WebGPUContext? webGpu,
         RenderTargetRegistry targets,
-        ConcurrentQueue<ISceneResource> pendingUploads)
+        ResourceManager resourceManager)
     {
         _logger = logger;
         _webGpu = webGpu;
         _targets = targets;
-        _pendingUploads = pendingUploads;
+        _resourceManager = resourceManager;
     }
 
     public void Render(SceneSnapshot snapshot)
@@ -241,16 +241,23 @@ public unsafe sealed class SceneRenderer : IDisposable
             _pendingDelete.Dequeue().Dispose();
 
         // per-asset GPU 资源（ISceneResource 被 Dispose/GC 时入队，ResourceId 生命周期）
-        while (ResourceManager.PendingGpuReleases.TryDequeue(out int resourceId))
+        while (_resourceManager.TryDequeueGpuRelease(out int resourceId))
         {
             if (_gpuResources.Remove(resourceId, out var gpu))
+            {
                 gpu.Dispose();
+                _resourceManager.NotifyReleased(resourceId);   // 清除去重标记，允许重传
+            }
         }
+
+        // 被移除的渲染目标（ADR-7：视口 surface 延迟释放）
+        while (_targets.TryDequeueRemoval(out var target))
+            target?.Dispose();
     }
 
     private void ProcessUploads()
     {
-        while (_pendingUploads.TryDequeue(out var resource))
+        while (_resourceManager.TryDequeueUpload(out var resource))
         {
             try
             {
@@ -267,7 +274,7 @@ public unsafe sealed class SceneRenderer : IDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Resource upload failed for resource {ResourceId}", resource.ResourceId);
+                _logger.LogError(ex, "Resource upload failed for resource {ResourceId}", resource?.ResourceId);
             }
         }
     }

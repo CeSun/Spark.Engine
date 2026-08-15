@@ -5,7 +5,6 @@ using Spark.Engine.Components;
 using Spark.Engine.Render;
 using Spark.Engine.Threads;
 using Spark.Engine.Worlds;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 
 namespace Spark.Engine;
@@ -28,8 +27,6 @@ public class EngineApplication
 
     private readonly List<CameraComponent> _cameraBuffer = new();
 
-    private readonly ConcurrentQueue<ISceneResource> _pendingResourceUploads = new();
-
     private readonly ResourceManager _resourceManager;
 
     public DualFrameBuffer<SceneSnapshot> DualFrameBuffer => _dualFrameBuffer;
@@ -41,9 +38,6 @@ public class EngineApplication
 
     /// <summary>世界上下文（驱动场景更新与相机收集）。</summary>
     public WorldContext WorldContext { get; } = new();
-
-    /// <summary>待上传到渲染线程的网格（逻辑线程 Enqueue，渲染线程 Dequeue）。</summary>
-    internal ConcurrentQueue<ISceneResource> PendingResourceUploads => _pendingResourceUploads;
 
     /// <summary>资源管理器（按 ResourceId 去重的自动上传 + GPU 表示延迟释放）。</summary>
     public ResourceManager ResourceManager => _resourceManager;
@@ -69,7 +63,7 @@ public class EngineApplication
 
         _engineSynchronizationContext = new EngineSynchronizationContext();
 
-        _resourceManager = new ResourceManager(_pendingResourceUploads);
+        _resourceManager = new ResourceManager();
 
         RenderTargets = serviceProvider.GetService<RenderTargetRegistry>() ?? new RenderTargetRegistry();
 

@@ -43,6 +43,7 @@ public sealed class Viewport : RenderTarget
 
     public override void Dispose()
     {
-        // RenderSurface 由平台层（DesktopWindow.Uninitialize）释放，这里仅解除窗口引用关系
+        // 渲染线程帧末调用：延迟释放 RenderSurface（ADR-7）
+        Window.DisposeSurface();
     }
 }

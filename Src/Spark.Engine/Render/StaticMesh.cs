@@ -26,6 +26,8 @@ public sealed class StaticMesh : ISceneResource, IDisposable
 
     private int _disposed;
 
+    private Action<int>? _releaseNotifier;
+
     /// <summary>全局唯一网格 ID → 渲染线程 MeshGPUResource 注册表。</summary>
     public int MeshId { get; } = Interlocked.Increment(ref _nextMeshId);
 
@@ -57,13 +59,15 @@ public sealed class StaticMesh : ISceneResource, IDisposable
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
 
-        ResourceManager.EnqueueGpuRelease(MeshId);
+        _releaseNotifier?.Invoke(ResourceId);
         GC.SuppressFinalize(this);
     }
 
     /// <summary>GC 兜底：CPU 数据被回收时安排渲染线程延迟释放 GPU 几何（非确定性路径）。</summary>
     ~StaticMesh()
     {
-        ResourceManager.EnqueueGpuRelease(MeshId);
+        _releaseNotifier?.Invoke(ResourceId);
     }
+
+    void ISceneResource.AttachReleaseNotifier(Action<int> releaseNotifier) => _releaseNotifier = releaseNotifier;
 }

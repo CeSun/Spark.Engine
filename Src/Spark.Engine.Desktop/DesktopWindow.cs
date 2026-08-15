@@ -62,9 +62,13 @@ public class DesktopWindow : IWindow
 
     public void Uninitialize()
     {
+        // RenderSurface 由渲染线程经 DisposeSurface 延迟释放（ADR-7），这里只释放 Silk 窗口
+        _window.Dispose();
+    }
+
+    public void DisposeSurface()
+    {
         _surface?.Dispose();
         _surface = null;
-
-        _window.Dispose();
     }
 }

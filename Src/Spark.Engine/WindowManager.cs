@@ -83,10 +83,9 @@ public class WindowManager
         {
             foreach (var window in _pendingRemoveWindows)
             {
-                // 注销渲染目标（RenderSurface 由窗口 Uninitialize 释放）
+                // 注销渲染目标：入延迟删除队列，渲染线程帧末释放 surface（ADR-7）
                 if (_viewports.Remove(window, out var viewport))
                 {
-                    viewport.Dispose();
                     _targets.Remove(viewport.Id);
                 }
 

@@ -22,6 +22,9 @@ public interface IWindow
 
     void Uninitialize();
 
+    /// <summary>释放渲染表面（交换链），由渲染线程帧末延迟调用（ADR-7）。</summary>
+    void DisposeSurface();
+
     void PollEvents();
 
     void Close();

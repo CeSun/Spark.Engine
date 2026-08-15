@@ -4,21 +4,14 @@ namespace Spark.Engine.Render;
 
 /// <summary>
 /// 资源管理器（逻辑侧）：协调「上传」与「GPU 表示延迟释放」的通用生命周期。
-/// 上传走实例队列（与 SceneRenderer 共享，元素为 <see cref="ISceneResource"/> 通用契约）；释放走静态队列
-/// （终结器/Dispose 无实例可达，单引擎应用假设）。每类型的 GPU 资源创建由渲染线程分派（SceneRenderer.ProcessUploads）。
+/// 上传/释放均为实例队列；释放回调在 EnsureUploaded 时注入到资源（终结器无需静态入口）。
+/// 每类型的 GPU 资源创建由渲染线程分派（SceneRenderer.ProcessUploads）。
 /// </summary>
 public sealed class ResourceManager
 {
-    /// <summary>GPU 表示释放队列（渲染线程帧末 drain）。</summary>
-    internal static readonly ConcurrentQueue<int> PendingGpuReleases = new();
-
-    private readonly ConcurrentQueue<ISceneResource> _pendingUploads;
-    private readonly HashSet<int> _uploaded = new();
-
-    public ResourceManager(ConcurrentQueue<ISceneResource> pendingUploads)
-    {
-        _pendingUploads = pendingUploads ?? throw new ArgumentNullException(nameof(pendingUploads));
-    }
+    private readonly ConcurrentQueue<ISceneResource> _pendingUploads = new();
+    private readonly ConcurrentQueue<int> _pendingGpuReleases = new();
+    private readonly ConcurrentDictionary<int, byte> _uploaded = new();
 
     /// <summary>首次引用时入队上传（按 <see cref="ISceneResource.ResourceId"/> 去重）。</summary>
     public void EnsureUploaded(ISceneResource? resource)
@@ -26,10 +19,22 @@ public sealed class ResourceManager
         if (resource == null)
             return;
 
-        if (_uploaded.Add(resource.ResourceId))
+        if (_uploaded.TryAdd(resource.ResourceId, 0))
+        {
+            resource.AttachReleaseNotifier(EnqueueGpuRelease);
             _pendingUploads.Enqueue(resource);
+        }
     }
 
-    /// <summary>安排渲染线程释放某资源的 GPU 表示（由 Dispose/终结器调用）。</summary>
-    internal static void EnqueueGpuRelease(int resourceId) => PendingGpuReleases.Enqueue(resourceId);
+    /// <summary>渲染线程：取下一个待上传资源。</summary>
+    internal bool TryDequeueUpload(out ISceneResource? resource) => _pendingUploads.TryDequeue(out resource);
+
+    /// <summary>渲染线程：取下一个待释放的 ResourceId。</summary>
+    internal bool TryDequeueGpuRelease(out int resourceId) => _pendingGpuReleases.TryDequeue(out resourceId);
+
+    /// <summary>渲染线程：GPU 表示释放后清除去重标记，允许后续重新上传。</summary>
+    internal void NotifyReleased(int resourceId) => _uploaded.TryRemove(resourceId, out _);
+
+    /// <summary>资源 Dispose/GC 时的释放回调（注入到资源）。</summary>
+    private void EnqueueGpuRelease(int resourceId) => _pendingGpuReleases.Enqueue(resourceId);
 }
