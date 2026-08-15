@@ -1,8 +1,12 @@
 # Spark.Engine 渲染管线与渲染目标设计
 
-> 状态：设计定稿（未实现）
+> 状态：已实现（本文档记录初始设计；帧数据通路已演进，见 [SceneSync-Design.md](./SceneSync-Design.md)）
 > 决策记录：见 §12；UE 对比：见 §13；未决事项：见 §14
 > 关联代码：`Src/Spark.Engine/Render/*`、`Src/Spark.Engine/Platforms/*`、`Src/Spark.Engine.Desktop/*`
+
+> **演进说明**：§7 的 `FrameData`/`RenderItem`/`CameraRenderInfo` 已被 `SceneSnapshot`（header + 分类 payload）
+> 取代，§9 的渲染循环已迁入 `SceneRenderer`，网格/光源经 `Scene`/`SceneProxy` 统一同步（ADR-8~ADR-11），
+> 详见 [SceneSync-Design.md](./SceneSync-Design.md)。
 
 ## 1. 背景与目标
 
@@ -625,9 +629,10 @@ private void Render(FrameData frame)
 - `TextureRenderTarget` 具体实现（GPU 纹理创建、pass 附件绑定，RenderGraph 阶段）；
 - 帧内渲染依赖（后处理链：相机 A 渲到贴图 → 相机 B 采样；阴影贴图同理）——当前只保证
   "填写顺序 = 渲染顺序"，拓扑排序留到 RenderGraph 阶段；
-- 资源销毁延迟删除队列（ADR-7 落地：跨线程标记 + 渲染线程空闲批量释放）；
-- 网格、材质、管线状态对象与资源注册表（RenderGraph 阶段）；
-- 渲染命令列表（现在 FrameData 只有清屏 + 相机快照，无 draw call）；
+- 资源销毁延迟删除队列（ADR-7 已落地于场景代理状态 `SceneRenderer._pendingDelete`；`RenderTargetRegistry`
+  视口销毁仍直接 Remove，待接入）；
+- 网格、材质、管线状态对象与资源注册表（网格几何/实例 MVP 注册表已实现；材质注册表 P2）；
+- 渲染命令列表（已实现静态网格 draw + 渲染线程球-视锥剔除；RenderGraph 命令流仍待 P2）；
 - 无相机视口的占位渲染（棋盘格背景等，编辑器场景视图需要）；
 - `ViewportRect` 多视口（分屏 / 编辑器多视图）；
 - PresentMode 由 `EngineOptions` 暴露（可切 VSync）；

@@ -16,7 +16,7 @@ public class WindowManager
 
     public IReadOnlyList<IWindow> Windows => _windows;
 
-    public IWindow MainWindow => _windows.Count > 0 ? _windows[0] : throw new Exception("No main window available.");
+    public IWindow MainWindow => _windows.Count > 0 ? _windows[0] : throw new InvalidOperationException("No main window available.");
 
     public WindowManager(IServiceProvider serviceProvider, RenderTargetRegistry targets)
     {

@@ -7,7 +7,6 @@ using Spark.Engine.Threads;
 using Spark.Engine.Worlds;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Numerics;
 
 namespace Spark.Engine;
 
@@ -25,13 +24,15 @@ public class EngineApplication
 
     private EngineSynchronizationContext _engineSynchronizationContext;
 
-    private readonly DualFrameBuffer<FrameData> _dualFrameBuffer = new(() => new FrameData());
+    private readonly DualFrameBuffer<SceneSnapshot> _dualFrameBuffer = new(() => new SceneSnapshot());
 
     private readonly List<CameraComponent> _cameraBuffer = new();
 
     private readonly ConcurrentQueue<StaticMesh> _pendingMeshUploads = new();
 
-    public DualFrameBuffer<FrameData> DualFrameBuffer => _dualFrameBuffer;
+    private readonly MeshLibrary _meshLibrary;
+
+    public DualFrameBuffer<SceneSnapshot> DualFrameBuffer => _dualFrameBuffer;
 
     public WindowManager WindowManager { get; private set; }
 
@@ -43,6 +44,12 @@ public class EngineApplication
 
     /// <summary>待上传到渲染线程的网格（逻辑线程 Enqueue，渲染线程 Dequeue）。</summary>
     internal ConcurrentQueue<StaticMesh> PendingMeshUploads => _pendingMeshUploads;
+
+    /// <summary>网格资产库（按 MeshId 去重的自动上传）。</summary>
+    public MeshLibrary MeshLibrary => _meshLibrary;
+
+    /// <summary>初始化回调：Run 时在窗口创建后、主循环开始前执行一次（供组合根写入游戏逻辑）。</summary>
+    public Action<EngineApplication>? InitializeCallback { get; set; }
 
     private volatile bool _isClosing;
 
@@ -62,13 +69,13 @@ public class EngineApplication
 
         _engineSynchronizationContext = new EngineSynchronizationContext();
 
+        _meshLibrary = new MeshLibrary(_pendingMeshUploads);
+
         RenderTargets = serviceProvider.GetService<RenderTargetRegistry>() ?? new RenderTargetRegistry();
 
-        _renderThread = new RenderThread(this, RenderTargets);
+        _renderThread = new RenderThread(this);
 
         WindowManager = ServiceProvider.GetService<WindowManager>() ?? throw new InvalidOperationException("No WindowManager implementation found.");
-
-        WindowManager.CreateWindow("Spark Engine", _engineOptions.Width, _engineOptions.Height);
     }
 
     public void Run()
@@ -78,16 +85,20 @@ public class EngineApplication
         if (_engineOptions.TargetFrameRate > 0)
             targetFrameDelta = 1.0f / _engineOptions.TargetFrameRate;
 
+        _stopwatch.Start();
+
+        _engineSynchronizationContext.Initialize();
+
+        // 窗口在 Run 时创建（而非构造）：初始化回调需要访问主窗口（viewport）
+        WindowManager.CreateWindow("Spark Engine", _engineOptions.Width, _engineOptions.Height);
+
         _logger.LogInformation(
             "Engine main loop is starting with target frame rate {TargetFrameRate} and {WindowCount} windows",
             _engineOptions.TargetFrameRate,
             WindowManager.Windows.Count);
 
-        _stopwatch.Start();
-
-        _engineSynchronizationContext.Initialize();
-
         OnInitialize();
+        InitializeCallback?.Invoke(this);
 
         _renderThread.Start();
 
@@ -134,11 +145,11 @@ public class EngineApplication
         OnUninitialize();
     }
 
-    private void FillFrameData(FrameData buffer, float deltaTime)
+    private void FillFrameData(SceneSnapshot snapshot, float deltaTime)
     {
-        buffer.DeltaTime = deltaTime;
-        buffer.FrameIndex++;
-        buffer.Cameras.Clear();
+        snapshot.Clear();
+        snapshot.DeltaTime = deltaTime;
+        snapshot.FrameIndex++;
 
         if (WorldContext.CurrentWorld is not World world)
             return;
@@ -151,37 +162,32 @@ public class EngineApplication
             if (camera.RenderTarget is not RenderTarget target)
                 continue;
 
-            buffer.Cameras.Add(new CameraRenderInfo(
+            snapshot.Cameras.Add(new CameraSnapshot(
                 target.Id,
                 camera.GetViewMatrix(),
                 camera.GetProjectionMatrix(target.AspectRatio),
-                new Vector4(0.10f, 0.15f, 0.25f, 1.0f)));
+                camera.ClearColor));
         }
 
-        buffer.RenderItems.Clear();
-        world.CollectRenderItems(buffer.RenderItems);
+        world.Scene.Capture(snapshot);
     }
 
-    private void OnInitialize()
+    /// <summary>主循环开始前的初始化（子类可覆写，需调用 base）。</summary>
+    protected virtual void OnInitialize()
     {
         _logger.LogInformation("Initialize Thread");
     }
 
-    private void OnUpdate(float deltaTime)
+    /// <summary>每逻辑帧更新（子类可覆写；base 负责更新当前世界，需调用 base）。</summary>
+    protected virtual void OnUpdate(float deltaTime)
     {
         WorldContext.CurrentWorld?.Update(deltaTime);
     }
 
-    private void OnUninitialize()
+    /// <summary>主循环结束后的反初始化（子类可覆写，需调用 base）。</summary>
+    protected virtual void OnUninitialize()
     {
         _logger.LogInformation("Uninitialize Thread");
-    }
-
-    /// <summary>提交一个静态网格到渲染线程（创建 GPU 资源并上传数据）。</summary>
-    public void UploadMesh(StaticMesh mesh)
-    {
-        if (mesh == null) throw new ArgumentNullException(nameof(mesh));
-        _pendingMeshUploads.Enqueue(mesh);
     }
 
     public void ExitGame()

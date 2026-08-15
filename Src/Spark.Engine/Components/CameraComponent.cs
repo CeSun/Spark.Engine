@@ -18,6 +18,9 @@ public class CameraComponent : SceneComponent
 
     public float FarPlane { get; set; } = 1000f;
 
+    /// <summary>清屏色；仅当该目标组内第一个相机时生效。</summary>
+    public Vector4 ClearColor { get; set; } = new(0.10f, 0.15f, 0.25f, 1.0f);
+
     /// <summary>由世界变换推导的视图矩阵。</summary>
     public Matrix4x4 GetViewMatrix()
     {

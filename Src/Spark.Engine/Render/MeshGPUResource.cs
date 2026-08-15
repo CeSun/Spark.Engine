@@ -4,8 +4,8 @@ using Buffer = Silk.NET.WebGPU.Buffer;
 namespace Spark.Engine.Render;
 
 /// <summary>
-/// 渲染线程侧的网格 GPU 资源：顶点/索引/MVP uniform buffer 与绑定组。
-/// 由渲染线程在上传时创建，<see cref="Dispose"/> 释放全部底层句柄。
+/// 网格资产的 GPU 资源（几何，按 MeshId 上传一次）：顶点/索引缓冲。
+/// 每实例的 MVP uniform 见 <see cref="StaticMeshRenderState"/>。
 /// </summary>
 public unsafe sealed class MeshGPUResource : IDisposable
 {
@@ -14,11 +14,6 @@ public unsafe sealed class MeshGPUResource : IDisposable
     public Buffer* VertexBuffer { get; }
 
     public Buffer* IndexBuffer { get; }
-
-    /// <summary>每对象 MVP 矩阵（64 字节），渲染时 QueueWriteBuffer 更新。</summary>
-    public Buffer* UniformBuffer { get; }
-
-    public BindGroup* BindGroup { get; }
 
     public uint IndexCount { get; }
 
@@ -34,8 +29,6 @@ public unsafe sealed class MeshGPUResource : IDisposable
         WebGPU api,
         Buffer* vertexBuffer,
         Buffer* indexBuffer,
-        Buffer* uniformBuffer,
-        BindGroup* bindGroup,
         uint indexCount,
         IndexFormat indexFormat,
         ulong vertexBufferSize,
@@ -44,8 +37,6 @@ public unsafe sealed class MeshGPUResource : IDisposable
         _api = api;
         VertexBuffer = vertexBuffer;
         IndexBuffer = indexBuffer;
-        UniformBuffer = uniformBuffer;
-        BindGroup = bindGroup;
         IndexCount = indexCount;
         IndexFormat = indexFormat;
         VertexBufferSize = vertexBufferSize;
@@ -54,9 +45,34 @@ public unsafe sealed class MeshGPUResource : IDisposable
 
     public void Dispose()
     {
-        if (BindGroup != null) _api.BindGroupRelease(BindGroup);
         if (VertexBuffer != null) _api.BufferRelease(VertexBuffer);
         if (IndexBuffer != null) _api.BufferRelease(IndexBuffer);
+    }
+}
+
+/// <summary>
+/// 静态网格实例的渲染侧状态（按 ProxyId 生命周期管理，ADR-7 延迟删除）：
+/// 每实例 MVP uniform buffer 与 bind group。
+/// </summary>
+public unsafe sealed class StaticMeshRenderState : IDisposable
+{
+    private readonly WebGPU _api;
+
+    /// <summary>每实例 MVP 矩阵（64 字节），渲染时 QueueWriteBuffer 更新。</summary>
+    public Buffer* UniformBuffer { get; }
+
+    public BindGroup* BindGroup { get; }
+
+    public StaticMeshRenderState(WebGPU api, Buffer* uniformBuffer, BindGroup* bindGroup)
+    {
+        _api = api;
+        UniformBuffer = uniformBuffer;
+        BindGroup = bindGroup;
+    }
+
+    public void Dispose()
+    {
+        if (BindGroup != null) _api.BindGroupRelease(BindGroup);
         if (UniformBuffer != null) _api.BufferRelease(UniformBuffer);
     }
 }

@@ -2,16 +2,18 @@
 
 > 状态：持续演进中
 > 本文是项目级设计总览，明确区分「已实现」与「设计（未实现）」。
-> 渲染管线详设见 [RenderPipeline-Design.md](./RenderPipeline-Design.md)。
+> 渲染管线详设见 [RenderPipeline-Design.md](./RenderPipeline-Design.md)；逻辑/渲染线程场景同步机制见
+> [SceneSync-Design.md](./SceneSync-Design.md)。
 
 ## 概述
 
 Spark.Engine 是一个用 C# 从零实现的跨平台游戏引擎，渲染后端基于 **WebGPU**（Silk.NET 绑定，
 Native 实现为 wgpu），窗口基于 Silk.NET.Windowing，基础设施基于 Microsoft.Extensions.DependencyInjection
-与 Serilog。场景对象模型借鉴 Unreal Engine（World → Actor → Component）。
+与 Serilog。场景对象模型借鉴 Unreal Engine（World → Actor → Component），逻辑/渲染线程同步借鉴 UE 的
+FScene / FSceneProxy / FSceneRenderer 模式。
 
-当前处于**早期原型阶段**：渲染管线已能绘制静态网格（三角形），场景系统已接入主循环，
-但材质、纹理、光照、编辑器等尚未实现。
+当前处于**早期原型阶段**：渲染管线已能绘制静态网格（三角形），场景对象（网格/光源）经统一快照通道
+传入渲染线程并做视锥剔除；场景代理由 SceneGen 源生成器生成；材质、纹理、实际光照着色、编辑器等尚未实现。
 
 ## 解决方案结构
 
@@ -19,29 +21,37 @@ Native 实现为 wgpu），窗口基于 Silk.NET.Windowing，基础设施基于 
 Spark.Engine.slnx
 ├─ Src/
 │  ├─ Spark.Engine/          核心引擎库（net10.0，唯一 WebGPU 依赖点）
+│  │  ├─ Math/               包围球/视锥（渲染线程剔除）
+│  │  ├─ Render/             Scene/SceneProxy/SceneSnapshot/SceneRenderer 等
+│  │  ├─ Components/         组件（含 LightComponent/StaticMeshComponent）
+│  │  ├─ Threads/            RenderThread（外壳）/EngineSynchronizationContext
+│  │  └─ Worlds/             World（含 Scene）/WorldContext
+│  ├─ Spark.Engine.SceneGen/ 源生成器（按 [SceneProxy]/[ScenePayload] 生成 proxy/payload）
 │  ├─ Spark.Engine.Desktop/  桌面平台后端（net11.0，Silk.NET.Windowing）
 │  └─ Spark.Engine.Editor/   编辑器（net11.0，空壳）
 ├─ Demo/
 │  ├─ Demo/                  空类库
-│  └─ Demo.Desktop/          可运行演示（三角形渲染）
+│  └─ Demo.Desktop/          可运行演示（三角形 + 点光源）
 └─ Doc/                      设计文档
 ```
 
 ## 架构分层
 
 ```
-Demo（入口：EngineBuilder → UseDesktop → Build → Run）
+Demo（入口：EngineBuilder → InitializeWebGPU → UseDesktop → Build → Run）
   │
   ▼
-EngineApplication（主循环：窗口事件 → 世界更新 → 填帧数据 → 提交）
+EngineApplication（主循环：窗口事件 → 同步上下文 → 世界更新 → 填场景快照 → 提交）
   ├─ WindowManager（窗口生命周期 + Viewport 创建）
-  ├─ WorldContext → World（Actor 增删/更新/相机与网格收集）
-  └─ DualFrameBuffer<FrameData>（双缓冲，逻辑→渲染）
+  ├─ WorldContext → World（Actor 增删/更新 + Scene 场景注册表 + 相机收集）
+  └─ DualFrameBuffer<SceneSnapshot>（双缓冲，逻辑→渲染）
        │
        ▼
-RenderThread（渲染循环：上传处理 → 分组 → acquire → clear → draw → present）
-  ├─ RenderTargetRegistry（窗口视口/离屏贴图注册表）
-  ├─ MeshGPUResource 注册表（网格 GPU 资源）
+RenderThread（线程外壳 → SceneRenderer）
+  ├─ SceneRenderer（上传处理 → 生命周期 diff → acquire → 剔除 → clear → draw → present → 延迟删除）
+  │    ├─ RenderTargetRegistry（窗口视口注册表）
+  │    ├─ MeshGPUResource 注册表（网格几何，上传一次）
+  │    └─ StaticMeshRenderState 注册表（每实例 MVP，按 ProxyId）
   └─ RenderPipeline / BindGroupLayout / ShaderModule
 ```
 
@@ -81,48 +91,74 @@ RenderThread（渲染循环：上传处理 → 分组 → acquire → clear → 
 - `RenderTargetSession`（RAII）：`Dispose` 时释放视图并 present
 - `RenderTargetRegistry`：跨线程注册表（逻辑线程注册/渲染线程查询，`ConcurrentDictionary`）
 
-### 5. 帧数据（FrameData）
+### 5. 场景快照（SceneSnapshot，替代原 FrameData）
 
-- `FrameData`：`DeltaTime`/`FrameIndex`/`Cameras`/`RenderItems`——**值快照 + 资源 ID**，
-  绝不携带 GPU 指针或跨线程对象引用
-- `CameraRenderInfo`：`TargetId` + 视图/投影矩阵 + 清屏色
-- `RenderItem`：`MeshId` + 世界矩阵
-- 帧由**相机驱动**：逻辑线程遍历活跃相机，渲染线程按目标分组渲染
+- `SceneSnapshot`：`DeltaTime`/`FrameIndex`/`Cameras`/`Objects` + 分类 payload 缓冲——**值快照 +
+  资源 ID**，绝不携带 GPU 指针或跨线程对象引用
+- `SceneObjectHeader`：`ProxyId` + `Category` + `WorldTransform` + `Bounds` + `Visibility` +
+  `PayloadIndex`（统一剔除面）
+- 分类 payload（`StaticMeshPayload`/`LightPayload`）与 `StaticMeshes`/`Lights` 缓冲字段由
+  **SceneGen 源生成器**产出；`AddObject<T>` 辅助把「写 header + 写 payload」收口成一行
+- `CameraSnapshot`：`TargetId` + 视图/投影矩阵 + 清屏色（清屏色由 `CameraComponent.ClearColor` 提供，
+  不再硬编码）
+- `FrameBuffer<T>`：池化数组，每帧只归零计数复用，避免每帧 GC
 
-### 6. 双缓冲帧同步（DualFrameBuffer）
+### 6. 场景代理体系（Scene / SceneProxy，借鉴 UE FScene）
+
+- `Scene`：逻辑侧场景注册表，`Register`/`Unregister`/`Capture`，分配稳定 `ProxyId`
+- `SceneProxy`（抽象）：`WorldTransform`/`Bounds`/`Visibility` + `Capture` 快照序列化
+- **组件是唯一权威**：`[SceneProxy(类别)]` 标记组件（快照字段名由生成器从类别推导），`[ScenePayload]`
+  标记进 payload 的字段/属性（默认值只在此处）
+- **SceneGen 源生成器**产出：proxy 子类、payload struct、组件的 partial（`_proxy` + 生命周期 +
+  `SyncProxy`）、`SceneSnapshot` 的 payload 字段与 `ClearPayloads`
+- 语义钩子 `OnProxyMapped`：组件里手写每类专属的 Bounds 规则（生成器声明、用户实现）
+- 组件经生成的 `BeginPlay`/`EndPlay` 注册/注销，`Update` 同步；`Actor` 转发组件生命周期
+
+### 7. 双缓冲帧同步（DualFrameBuffer）
 
 - 单生产者/单消费者双缓冲，逻辑线程最多超前渲染线程 1 帧
 - Present 回压闭环隐式成立：present 慢 → acquire 阻塞 → 逻辑线程降速
 
-### 7. 多线程
+### 8. 多线程
 
-- `RenderThread`：渲染循环（上传处理 → 分组 → acquire → clear → draw → present）+ 资源释放
+- `RenderThread`：线程外壳（循环 + 异常兜底 + 释放），渲染逻辑在 `SceneRenderer`
+- `SceneRenderer`：上传处理 → 生命周期 diff（新增/存活/销毁）→ 分组 → acquire → 剔除 → clear →
+  draw → present → 延迟删除（ADR-7）
 - `EngineSynchronizationContext`：`Post`/`Send` 把异步回调封送到主引擎线程
 
-### 8. 场景系统（World → Actor → Component）
+### 9. 场景系统（World → Actor → Component）
 
-- `World`：`AddActor`/`RemoveActor`（延迟增删）、`Update`、`CollectCameras`、`CollectRenderItems`
+- `World`：`AddActor`/`RemoveActor`（延迟增删）、`Update`、`CollectCameras`、`Scene` 注册表
 - `WorldContext`：`CurrentWorld` 可设置
-- `Actor`：`BeginPlay`/`Update`/`EndPlay` 生命周期、`Components`/`GetComponent<T>`/世界归属
-- `ActorComponent`：`Owner` 归属
-- `SceneComponent`：相对位置/旋转/缩放（可读写）、`WorldTransform`、父子挂载（挂载 API 未完成）
-- `CameraComponent`：`RenderTarget`（可写，指向窗口视口或离屏贴图）、`Viewport` 便捷属性、
-  FOV/Near/Far、`GetViewMatrix`/`GetProjectionMatrix`
+- `Actor`：`BeginPlay`/`Update`/`EndPlay` 生命周期、`Components`/`GetComponent<T>`/世界归属，转发组件生命周期
+- `ActorComponent`：`BeginPlay`/`Update`/`EndPlay`（对应 UE 的 TickComponent）；带 `[SceneProxy]` 的
+  组件的这些生命周期由 SceneGen 生成的 partial 实现，组件只写 `[ScenePayload]` 字段与 `OnProxyMapped`
+- `SceneComponent`：相对位置/旋转/缩放（可读写）、`WorldTransform`
+- `CameraComponent`：`RenderTarget`（可写）、`Viewport` 便捷属性、FOV/Near/Far/`ClearColor`、
+  `GetViewMatrix`/`GetProjectionMatrix`
 
-### 9. 静态网格渲染
+### 10. 静态网格渲染 + 渲染线程剔除
 
-- `StaticMesh`：CPU 顶点（位置+颜色）/索引 + 全局 `MeshId`
-- `StaticMeshComponent`：持有网格，世界变换来自 `WorldTransform`
-- `MeshGPUResource`：渲染线程顶点/索引/MVP uniform buffer + bind group
-- 上传队列：`EngineApplication.UploadMesh` → `ConcurrentQueue` → 渲染线程创建 GPU buffer + 上传
+- `StaticMesh`：CPU 顶点（位置+颜色）/索引 + 本地包围球 `Bounds` + 全局 `MeshId`
+- `StaticMeshComponent`：持有网格 + `StaticMeshSceneProxy`，每帧同步世界变换与包围球
+- `MeshGPUResource`：顶点/索引缓冲（**几何，按 MeshId 上传一次**）
+- `StaticMeshRenderState`：每实例 MVP uniform + bind group（按 `ProxyId` 生命周期管理，修复多实例
+  共享单 buffer 的问题）
+- `SceneRenderer` 视锥剔除：`Frustum`（Gribb-Hartmann 提取）+ `BoundingSphere`，逐相机剔除 → 按类别分流
 - WGSL 着色器（MVP uniform）+ `RenderPipeline` + bind group layout/pipeline layout
-- draw 循环：每相机一个 render pass（首个 clear、后续 Load 叠加），`MVP = Transpose(World×View×Proj)`
+- draw：每相机一个 render pass（首个 clear、后续 Load 叠加），`MVP = World×View×Proj`（行主序直传，不转置）
 
-### 10. 引擎应用与演示
+### 11. 光源数据通路
 
-- `EngineApplication`：主循环（窗口事件 → 同步上下文 → 世界更新 → 填帧数据 → 提交）、
+- `LightComponent`（`[SceneProxy]`）→ 生成 `LightSceneProxy`/`LightPayload` → `Scene` →
+  `SceneSnapshot.Lights`（+ header 包围球）→ `SceneRenderer` 剔除/收集
+- 光源与网格走同一套快照通道；实际光照着色（shading）为 P2，当前仅数据通路 + 剔除就绪
+
+### 12. 引擎应用与演示
+
+- `EngineApplication`：主循环（窗口事件 → 同步上下文 → 世界更新 → 填 `SceneSnapshot` → 提交）、
   `UploadMesh` 入口、`ExitGame`
-- `Demo.Desktop`：创建 World → 相机 Actor → 三角形网格 → 渲染
+- `Demo.Desktop`：创建 World → 相机 Actor → 三角形网格 → 点光源 → 渲染
 
 ### 验证状态
 
@@ -131,29 +167,31 @@ RenderThread（渲染循环：上传处理 → 分组 → acquire → clear → 
 | 渲染管线骨架（清屏） | ✅ | ✅（本地 GPU 环境验证通过） |
 | World 场景接入 | ✅ | ✅（本地 GPU 环境验证通过） |
 | StaticMesh 三角形渲染 | ✅ | ✅（本地 GPU 环境验证通过） |
+| Scene/SceneProxy 统一同步 + 视锥剔除 + 光源数据通路 | ✅ | ⏳（待本地 GPU 环境运行验证） |
 
 ---
 
 ## 二、设计（未实现 / 待实现）
 
-按优先级分组。详见 [RenderPipeline-Design.md §14](./RenderPipeline-Design.md#14-未决事项--后续阶段)。
+按优先级分组。详见 [RenderPipeline-Design.md §14](./RenderPipeline-Design.md#14-未决事项--后续阶段)
+与 [SceneSync-Design.md §13](./SceneSync-Design.md#13-未决事项)。
 
 ### P1 —— 资源生命周期与性能（下一步）
 
-1. **`StaticMeshHandle` 引用计数**：当前 `StaticMeshComponent.Mesh` 直接持有完整 CPU 网格数据，
+1. **`StaticMeshHandle` 引用计数**：当前 `StaticMeshComponent` 仍持有完整 CPU 网格数据，
    上传 GPU 后仍占用内存。改为轻量 Handle（`MeshId` + 引用计数），上传后释放 CPU 数据。
-2. **ADR-7 延迟删除队列**：资源销毁跨线程安全化——逻辑线程标记删除，渲染线程帧末批量释放
-   GPU buffer（当前 `RenderTargetRegistry` 直接 Remove，未走延迟删除）。
-3. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，逻辑线程只重算/提交
-   变化的物体，静态物体复用上一帧变换（当前每帧全量遍历 + 全量快照）。
+2. **ADR-7 延迟删除队列（收尾）**：已落地于场景代理状态（`SceneRenderer._pendingDelete`）；
+   待补：`RenderTargetRegistry` 仍直接 Remove，窗口视口销毁未走延迟删除。
+3. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，只重算/提交变化的对象，
+   静态对象复用上一帧快照（当前每帧全量快照）。
 
 ### P2 —— 渲染能力扩展
 
 4. **`TextureRenderTarget`**：离屏渲染目标（无交换链），解锁后处理链/阴影贴图/小地图/编辑器预览。
-5. **材质系统 + 纹理采样 + 光照**：当前只有纯色顶点着色，无纹理、材质、光照。
+5. **材质系统 + 纹理采样 + 实际光照着色**：光源数据通路已就绪，shading 未实现；无纹理、无材质。
 6. **帧内渲染依赖 / 拓扑排序**：后处理链（相机 A 渲到贴图 → 相机 B 采样）、阴影贴图的
    pass 顺序。当前只保证"填写顺序 = 渲染顺序"。
-7. **视锥剔除 + 空间划分**：可见性剔除（BVH/八叉树），当前全量提交。
+7. **剔除加速结构 + 遮挡剔除**：基础球-视锥剔除已实现；BVH/八叉树/遮挡剔除未实现。
 
 ### P3 —— 引擎完善
 
@@ -165,14 +203,15 @@ RenderThread（渲染循环：上传处理 → 分组 → acquire → clear → 
 13. **`EngineApplication` 生命周期回调公开化**：`OnInitialize`/`OnUpdate`/`OnUninitialize` 当前为
     private 空实现，需公开供子类/游戏逻辑覆写。
 14. **Editor 项目落地**：`UseEditor` 当前为空壳。
-15. **单元测试**：`DualFrameBuffer` 已具备可测性；`RenderSurface` 的 dirty 判定可抽纯函数测试
+15. **单元测试**：`DualFrameBuffer`/`BoundingSphere`/`Frustum` 已具备可测性；
     （`Directory.Packages.props` 已引入 xunit 但未写测试）。
 
 ---
 
 ## 设计原则
 
-> 详见 [RenderPipeline-Design.md §2](./RenderPipeline-Design.md#2-设计原则)
+> 详见 [RenderPipeline-Design.md §2](./RenderPipeline-Design.md#2-设计原则) 与
+> [SceneSync-Design.md §2](./SceneSync-Design.md#2-设计原则在-adr-1adr-7-上新增)
 
 - **P1 裸指针不出核心库**：`Surface*` 等只存在于 `RenderSurface` 内部
 - **P2 资源线程归属唯一**：GPU 资源归渲染线程，逻辑线程经资源 ID + 注册表间接引用
@@ -180,20 +219,33 @@ RenderThread（渲染循环：上传处理 → 分组 → acquire → clear → 
 - **P4 懒重配**：surface 尺寸/PresentMode/lost 变化在 acquire 前检查并重配
 - **P5 所有权单向**：平台层创建/销毁 `RenderSurface`，渲染系统只引用
 - **P6 渲染目标统一**：相机输出不限于窗口，`RenderTarget` 抽象统一窗口与贴图
+- **P7 一条通道，分类 payload**：所有场景对象共用 `SceneProxy → SceneSnapshot → SceneRenderer`
+  单通道，差异只在 payload 结构与渲染侧消费者
+- **P8 静态上传一次，动态每帧快照**：几何/纹理上传一次；变换/包围盒/光源参数/骨骼姿态每帧快照
+- **P9 稳定 ID + 生命周期 diff**：`ProxyId` + 集合比对得出新增/存活/销毁
+- **P10 剔除归渲染线程**：逻辑线程提交完整对象集 + bounds，渲染线程按相机剔除
+- **P11 语义手写、样板生成**：component 是唯一权威（字段/默认值/Bounds 规则手写）；proxy/payload/
+  快照登记点等传输样板由 SceneGen 源生成器产出
 
 ## 决策记录（ADR）
 
-> 详见 [RenderPipeline-Design.md §12](./RenderPipeline-Design.md#12-决策记录adr)
+> 详见 [RenderPipeline-Design.md §12](./RenderPipeline-Design.md#12-决策记录adr) 与
+> [SceneSync-Design.md §12](./SceneSync-Design.md#12-决策记录adr续-renderpipeline-designmd-12)
 
 | ID | 决策 |
 |---|---|
-| ADR-1 | FrameData 值快照 + 资源 ID，帧由相机驱动 |
+| ADR-1 | `SceneSnapshot` 值快照 + 资源 ID，帧由相机驱动（场景对象统一 header + 分类 payload） |
 | ADR-2 | Surface resize 每帧懒重配 |
 | ADR-3 | 裸指针封装为 `RenderSurface` |
 | ADR-4 | 尺寸用物理像素 `FramebufferSize` |
 | ADR-5 | `RenderSurface` 由平台层创建/销毁 |
 | ADR-6 | 渲染目标统一 `RenderTarget` 抽象 |
-| ADR-7 | 资源销毁走延迟删除队列（**未落地**） |
+| ADR-7 | 资源销毁走延迟删除队列（**已落地于场景代理状态**，视口销毁待接入） |
+| ADR-8 | 所有场景对象共用 `SceneProxy → SceneSnapshot → SceneRenderer` 单通道 |
+| ADR-9 | 静态数据 upload-once 资源注册表，动态数据每帧值快照 |
+| ADR-10 | 场景对象用稳定 `ProxyId` + 集合 diff 表达新增/存活/销毁 |
+| ADR-11 | 剔除归渲染线程：逻辑提交完整对象集 + bounds，渲染线程按相机剔除 |
+| ADR-12 | 传输样板（proxy/payload/快照字段/Capture）由源生成器按 `[SceneProxy]`/`[ScenePayload]` 产出，语义手写 |
 
 ## 构建与运行
 
@@ -211,3 +263,4 @@ dotnet run --project Demo/Demo.Desktop
 ## 关联文档
 
 - [RenderPipeline-Design.md](./RenderPipeline-Design.md) — 渲染管线详设（含类图、UE 对比）
+- [SceneSync-Design.md](./SceneSync-Design.md) — 逻辑/渲染线程场景同步机制（Scene/SceneProxy/SceneSnapshot）

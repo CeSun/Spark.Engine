@@ -13,6 +13,9 @@ public class World
     /// <summary>当前已进入世界的 Actor（BeginPlay 已调用）。</summary>
     public IReadOnlyList<Actor> Actors => _actors;
 
+    /// <summary>渲染场景注册表：持有所有场景代理（网格/光源/…），每帧捕获为快照。</summary>
+    public Scene Scene { get; } = new();
+
     public void AddActor(Actor actor)
     {
         if (actor == null) throw new ArgumentNullException(nameof(actor));
@@ -55,7 +58,7 @@ public class World
         }
     }
 
-    /// <summary>收集本帧活跃相机（绑定了渲染目标的 CameraComponent）。</summary>
+    /// <summary>收集本帧活跃相机（绑定了渲染目标的 CameraComponent，即"视图"）。</summary>
     public void CollectCameras(List<CameraComponent> result)
     {
         foreach (var actor in _actors)
@@ -64,21 +67,6 @@ public class World
             {
                 if (component is CameraComponent camera && camera.RenderTarget != null)
                     result.Add(camera);
-            }
-        }
-    }
-
-    /// <summary>收集本帧可渲染物体（持有网格的 StaticMeshComponent）。</summary>
-    public void CollectRenderItems(List<RenderItem> result)
-    {
-        foreach (var actor in _actors)
-        {
-            foreach (var component in actor.Components)
-            {
-                if (component is StaticMeshComponent meshComponent && meshComponent.Mesh != null)
-                {
-                    result.Add(new RenderItem(meshComponent.Mesh.MeshId, meshComponent.WorldTransform));
-                }
             }
         }
     }

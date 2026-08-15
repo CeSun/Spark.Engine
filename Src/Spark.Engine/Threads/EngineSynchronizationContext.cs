@@ -1,25 +1,24 @@
-﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Spark.Engine.Threads;
 
+/// <summary>
+/// 把异步回调封送到主引擎线程的同步上下文。
+/// Post：异步，异常被吞掉（不打断主循环）；Send：同步，异常仅向调用方抛出。
+/// </summary>
 public class EngineSynchronizationContext : SynchronizationContext
 {
-    private readonly ConcurrentQueue<WorkItem> _queue = new();
-    private int _mainThreadId;
-    private struct WorkItem
+    private sealed class WorkItem
     {
-        public SendOrPostCallback Callback;
+        public SendOrPostCallback Callback = null!;
         public object? State;
         public ManualResetEventSlim? Signal;
         public Exception? Exception;
     }
-    public EngineSynchronizationContext()
-    {
 
-    }
+    private readonly ConcurrentQueue<WorkItem> _queue = new();
+    private int _mainThreadId;
+
     public void Initialize()
     {
         _mainThreadId = Thread.CurrentThread.ManagedThreadId;
@@ -29,12 +28,7 @@ public class EngineSynchronizationContext : SynchronizationContext
     public override void Post(SendOrPostCallback d, object? state)
     {
         if (d == null) throw new ArgumentNullException(nameof(d));
-        _queue.Enqueue(new WorkItem
-        {
-            Callback = d,
-            State = state,
-            Signal = null
-        });
+        _queue.Enqueue(new WorkItem { Callback = d, State = state });
     }
 
     public override void Send(SendOrPostCallback d, object? state)
@@ -48,26 +42,20 @@ public class EngineSynchronizationContext : SynchronizationContext
         }
 
         using var signal = new ManualResetEventSlim(false);
-        var work = new WorkItem
-        {
-            Callback = d,
-            State = state,
-            Signal = signal
-        };
+        var work = new WorkItem { Callback = d, State = state, Signal = signal };
         _queue.Enqueue(work);
 
         signal.Wait();
 
+        // WorkItem 是类：Update 侧写入的 Exception 此处可见，只向 Send 调用方抛出
         if (work.Exception != null)
-        {
             throw work.Exception;
-        }
     }
 
     public void Update()
     {
         if (Thread.CurrentThread.ManagedThreadId != _mainThreadId)
-            throw new InvalidOperationException("Update必须在主线程调用");
+            throw new InvalidOperationException("Update must be called on the main thread.");
 
         while (_queue.TryDequeue(out var item))
         {
@@ -77,23 +65,15 @@ public class EngineSynchronizationContext : SynchronizationContext
             }
             catch (Exception ex)
             {
+                // 捕获不重抛：Post 吞掉，Send 由调用方经 work.Exception 抛出
                 item.Exception = ex;
             }
             finally
             {
-                if (item.Signal != null)
-                {
-                    item.Signal.Set();
-                    if (item.Exception != null)
-                    {
-                        throw item.Exception;
-                    }
-                }
+                item.Signal?.Set();
             }
         }
     }
-    public override SynchronizationContext CreateCopy()
-    {
-        return this;
-    }
+
+    public override SynchronizationContext CreateCopy() => this;
 }

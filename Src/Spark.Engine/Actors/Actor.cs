@@ -40,13 +40,19 @@ public class Actor
 
     public virtual void BeginPlay()
     {
+        foreach (var component in _ownedComponents)
+            component.BeginPlay();
     }
 
     public virtual void Update(float deltaTime)
     {
+        foreach (var component in _ownedComponents)
+            component.Update(deltaTime);
     }
 
     public virtual void EndPlay()
     {
+        foreach (var component in _ownedComponents)
+            component.EndPlay();
     }
 }
