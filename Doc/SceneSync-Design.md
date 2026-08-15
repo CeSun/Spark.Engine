@@ -72,7 +72,7 @@ public sealed class Scene
     private int _nextProxyId;
     private readonly Dictionary<int, SceneProxy> _proxies = new();
 
-    public MeshLibrary? MeshLibrary { get; set; }   // 资源自动上传（由组合根接线）
+    public ResourceManager? ResourceManager { get; set; }   // 资源自动上传 + GPU 延迟释放（由组合根接线）
 
     public T Register<T>(T proxy) where T : SceneProxy;  // 分配 ProxyId 并登记
     public void Unregister(int proxyId);
@@ -148,7 +148,7 @@ proxy/payload/Capture/生命周期等传输样板由 `Spark.Engine.SceneGen`（`
   `BeginPlay/Update/EndPlay` + `SyncProxy`）、`SceneSnapshot` 的分类 payload 字段与 `ClearPayloads`。
 - **资源成员降级**：`[ScenePayload]` 成员若其类型实现 `ISceneResource`（`int ResourceId { get; }`），
   生成器自动把它降级为 `{Name}Id`（int）进 payload，并在 `SyncProxy` 里发
-  `_proxy.XId = X?.ResourceId ?? 0` 与 `Owner?.World?.Scene?.MeshLibrary?.EnsureUploaded(X)`。
+  `_proxy.XId = X?.ResourceId ?? 0` 与 `Owner?.World?.Scene?.ResourceManager?.EnsureUploaded(X)`。
 - 每类专属语义经 `partial void OnProxyMapped(<Proxy> proxy)` 钩子手写（如 Bounds 规则），生成器声明、
   用户实现。
 
@@ -165,8 +165,10 @@ public partial class StaticMeshComponent : SceneComponent
 }
 ```
 
-**`MeshLibrary`**（`Scene.MeshLibrary`，由组合根接线）：按 `MeshId` 去重的「首次引用自动上传」；
-渲染侧 `ProcessUploads` 再按 `MeshId` 去重兜底。这样"组件有哪些资源、何时上传、资源→ID"全部声明式。
+**`ResourceManager`**（`Scene.ResourceManager`，由组合根接线）：按 `MeshId` 去重的「首次引用自动上传」；
+渲染侧 `ProcessUploads` 再按 `MeshId` 去重兜底。GPU 几何的释放：`StaticMesh.Dispose`/终结器把 `MeshId`
+入队（静态队列，终结器无实例可达），渲染线程帧末 drain 并 `_gpuResources.Remove` 释放——CPU 数据由 .NET GC
+管理，GPU 几何由 ADR-7 延迟删除，两层都不用手写引用计数。
 
 ## 7. 渲染侧：`SceneRenderer`
 
@@ -175,7 +177,7 @@ public partial class StaticMeshComponent : SceneComponent
 ```csharp
 public sealed class SceneRenderer
 {
-    private readonly Dictionary<int, MeshGPUResource> _meshes;      // 几何，按 MeshId 上传一次
+    private readonly Dictionary<int, IGPUResource> _gpuResources;   // 单注册表，按 ResourceId 上传一次
     private readonly Dictionary<int, StaticMeshRenderState> _proxyStates;  // 每实例 MVP，按 ProxyId
     private readonly Queue<StaticMeshRenderState> _pendingDelete;   // ADR-7 延迟删除
 
@@ -208,7 +210,7 @@ public sealed class SceneRenderer
 | `Scene` / `SceneProxy` / 组件 | 逻辑线程 | 仅逻辑线程读写；渲染线程**永不触碰** |
 | `SceneSnapshot`（双缓冲两槽） | 各自独立 | 逻辑线程独占"空槽"，渲染线程独占"就绪槽"；`DualFrameBuffer` 保证互不重叠 |
 | `SceneRenderer._proxyStates` | 渲染线程 | 仅渲染线程读写 |
-| GPU 资源注册表（`_meshes`） | 渲染线程 | 逻辑线程经 `MeshLibrary` 单向入队请求创建 |
+| GPU 资源注册表（`_gpuResources`） | 渲染线程 | 逻辑线程经 `ResourceManager` 单向入队请求创建/释放 |
 | 资源销毁 | 渲染线程 | 逻辑线程只发"注销"信号，渲染线程帧末延迟释放（ADR-7） |
 
 不变式：**值快照 + 资源 ID**（无指针/对象引用/GPU 句柄）、**单写者双缓冲**（≤1 帧，槽互不重叠）、
@@ -268,7 +270,8 @@ foreach (ref readonly var obj in snapshot.Objects.Span)
 ## 14. 未决事项
 
 - `RenderTargetRegistry` 视口销毁仍直接 Remove（ADR-7 收尾，窗口 surface 销毁竞态）。
-- P1-1：`StaticMeshHandle` 引用计数/卸载（`MeshLibrary` 目前只去重上传，不释放 CPU 数据、不卸载）。
+- 资源生命周期收尾：GPU 几何延迟释放已落地（`StaticMesh.Dispose`/终结器 → `ResourceManager` → 渲染线程
+  帧末 drain）；CPU 数据驱逐与磁盘流式加载留待 P3-9。
 - P1-3：dirty 增量快照（当前每帧全量快照）。
 - P2-4/5/6/7：`TextureRenderTarget`、材质/纹理/实际光照着色、帧内依赖拓扑、BVH/遮挡剔除。
 - 动态 buffer（骨骼皮肤矩阵、实例变换）分配策略：ring buffer vs 每对象独立 buffer。

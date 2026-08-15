@@ -46,10 +46,10 @@ public unsafe sealed class SceneRenderer : IDisposable
     private readonly ILogger<SceneRenderer> _logger;
     private readonly WebGPUContext? _webGpu;
     private readonly RenderTargetRegistry _targets;
-    private readonly ConcurrentQueue<StaticMesh> _pendingUploads;
+    private readonly ConcurrentQueue<ISceneResource> _pendingUploads;
 
     // 静态资源（几何，按 MeshId 上传一次）
-    private readonly Dictionary<int, MeshGPUResource> _meshes = new();
+    private readonly Dictionary<int, IGPUResource> _gpuResources = new();
 
     // 渲染侧每实例状态（按 ProxyId），静态网格为 MVP uniform + bind group
     private readonly Dictionary<int, StaticMeshRenderState> _proxyStates = new();
@@ -76,7 +76,7 @@ public unsafe sealed class SceneRenderer : IDisposable
         ILogger<SceneRenderer> logger,
         WebGPUContext? webGpu,
         RenderTargetRegistry targets,
-        ConcurrentQueue<StaticMesh> pendingUploads)
+        ConcurrentQueue<ISceneResource> pendingUploads)
     {
         _logger = logger;
         _webGpu = webGpu;
@@ -185,7 +185,7 @@ public unsafe sealed class SceneRenderer : IDisposable
     private void DrawStaticMesh(RenderPassEncoder* pass, in SceneObjectHeader obj, SceneSnapshot snapshot, in CameraSnapshot camera)
     {
         var payload = snapshot.StaticMeshes[obj.PayloadIndex];
-        if (!_meshes.TryGetValue(payload.MeshId, out var mesh))
+        if (!_gpuResources.TryGetValue(payload.MeshId, out var gpu) || gpu is not MeshGPUResource mesh)
             return; // 网格尚未上传，本帧跳过
         if (!_proxyStates.TryGetValue(obj.ProxyId, out var state))
             return;
@@ -236,24 +236,38 @@ public unsafe sealed class SceneRenderer : IDisposable
 
     private void FlushPendingDelete()
     {
+        // per-instance MVP（ProxyId 生命周期）
         while (_pendingDelete.Count > 0)
             _pendingDelete.Dequeue().Dispose();
+
+        // per-asset GPU 资源（ISceneResource 被 Dispose/GC 时入队，ResourceId 生命周期）
+        while (ResourceManager.PendingGpuReleases.TryDequeue(out int resourceId))
+        {
+            if (_gpuResources.Remove(resourceId, out var gpu))
+                gpu.Dispose();
+        }
     }
 
     private void ProcessUploads()
     {
-        while (_pendingUploads.TryDequeue(out var mesh))
+        while (_pendingUploads.TryDequeue(out var resource))
         {
             try
             {
-                if (_meshes.ContainsKey(mesh.MeshId))
-                    continue; // 已上传（MeshLibrary 去重后的兜底）
+                switch (resource)
+                {
+                    case StaticMesh mesh:
+                        if (_gpuResources.ContainsKey(mesh.ResourceId))
+                            continue; // 已上传（ResourceManager 去重后的兜底）
 
-                _meshes[mesh.MeshId] = CreateMeshGPUResource(mesh);
+                        _gpuResources[mesh.ResourceId] = CreateMeshGPUResource(mesh);
+                        break;
+                    // 未来：case Texture texture: ... ; case Material material: ...
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Mesh upload failed for mesh {MeshId}", mesh.MeshId);
+                _logger.LogError(ex, "Resource upload failed for resource {ResourceId}", resource.ResourceId);
             }
         }
     }
@@ -487,9 +501,9 @@ public unsafe sealed class SceneRenderer : IDisposable
         if (api == null)
             return;
 
-        foreach (var mesh in _meshes.Values)
-            mesh.Dispose();
-        _meshes.Clear();
+        foreach (var gpu in _gpuResources.Values)
+            gpu.Dispose();
+        _gpuResources.Clear();
 
         foreach (var state in _proxyStates.Values)
             state.Dispose();

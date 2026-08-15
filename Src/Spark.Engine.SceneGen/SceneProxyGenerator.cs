@@ -229,7 +229,7 @@ public sealed class SceneProxyGenerator : IIncrementalGenerator
                 ? $"        _proxy.{p.FieldName} = {p.Name}?.ResourceId ?? 0;"
                 : $"        _proxy.{p.FieldName} = {p.Name};");
             if (p.IsResource)
-                sb.AppendLine($"        Owner?.World?.Scene?.MeshLibrary?.EnsureUploaded({p.Name});");
+                sb.AppendLine($"        Owner?.World?.Scene?.ResourceManager?.EnsureUploaded({p.Name});");
         }
         sb.AppendLine("        OnProxyMapped(_proxy);");
         sb.AppendLine("    }");

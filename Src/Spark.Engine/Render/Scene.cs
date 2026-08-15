@@ -12,8 +12,8 @@ public sealed class Scene
 
     public int ProxyCount => _proxies.Count;
 
-    /// <summary>网格资产库（按 MeshId 去重自动上传），由引擎/组合根接线。</summary>
-    public MeshLibrary? MeshLibrary { get; set; }
+    /// <summary>资源管理器（自动上传 + GPU 表示延迟释放），由引擎/组合根接线。</summary>
+    public ResourceManager? ResourceManager { get; set; }
 
     /// <summary>注册代理并分配全局唯一 ProxyId。</summary>
     public T Register<T>(T proxy) where T : SceneProxy

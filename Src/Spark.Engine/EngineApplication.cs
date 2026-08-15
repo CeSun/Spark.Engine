@@ -28,9 +28,9 @@ public class EngineApplication
 
     private readonly List<CameraComponent> _cameraBuffer = new();
 
-    private readonly ConcurrentQueue<StaticMesh> _pendingMeshUploads = new();
+    private readonly ConcurrentQueue<ISceneResource> _pendingResourceUploads = new();
 
-    private readonly MeshLibrary _meshLibrary;
+    private readonly ResourceManager _resourceManager;
 
     public DualFrameBuffer<SceneSnapshot> DualFrameBuffer => _dualFrameBuffer;
 
@@ -43,10 +43,10 @@ public class EngineApplication
     public WorldContext WorldContext { get; } = new();
 
     /// <summary>待上传到渲染线程的网格（逻辑线程 Enqueue，渲染线程 Dequeue）。</summary>
-    internal ConcurrentQueue<StaticMesh> PendingMeshUploads => _pendingMeshUploads;
+    internal ConcurrentQueue<ISceneResource> PendingResourceUploads => _pendingResourceUploads;
 
-    /// <summary>网格资产库（按 MeshId 去重的自动上传）。</summary>
-    public MeshLibrary MeshLibrary => _meshLibrary;
+    /// <summary>资源管理器（按 ResourceId 去重的自动上传 + GPU 表示延迟释放）。</summary>
+    public ResourceManager ResourceManager => _resourceManager;
 
     /// <summary>初始化回调：Run 时在窗口创建后、主循环开始前执行一次（供组合根写入游戏逻辑）。</summary>
     public Action<EngineApplication>? InitializeCallback { get; set; }
@@ -69,7 +69,7 @@ public class EngineApplication
 
         _engineSynchronizationContext = new EngineSynchronizationContext();
 
-        _meshLibrary = new MeshLibrary(_pendingMeshUploads);
+        _resourceManager = new ResourceManager(_pendingResourceUploads);
 
         RenderTargets = serviceProvider.GetService<RenderTargetRegistry>() ?? new RenderTargetRegistry();
 

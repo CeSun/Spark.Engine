@@ -20,7 +20,7 @@ game.InitializeCallback = app =>
     // 创建世界
     var world = new World();
     app.WorldContext.CurrentWorld = world;
-    world.Scene.MeshLibrary = app.MeshLibrary;
+    world.Scene.ResourceManager = app.ResourceManager;
 
     // 创建相机 Actor，绑定主视口
     var cameraActor = new Actor();
@@ -41,7 +41,7 @@ game.InitializeCallback = app =>
         },
         new uint[] { 0, 1, 2 });
 
-    // 创建网格 Actor（StaticMeshComponent；网格在 BeginPlay 时经 MeshLibrary 自动上传）
+    // 创建网格 Actor（StaticMeshComponent；网格在 BeginPlay 时经 ResourceManager 自动上传）
     var meshActor = new Actor();
     meshActor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh });
     world.AddActor(meshActor);

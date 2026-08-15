@@ -20,9 +20,11 @@ public readonly struct StaticMeshVertex
 /// 静态网格资产：持有 CPU 端顶点/索引数据与全局唯一 <see cref="MeshId"/>。
 /// GPU 资源（buffer/绑定组）由渲染线程按 MeshId 注册，经上传队列同步（handle 模式）。
 /// </summary>
-public sealed class StaticMesh : ISceneResource
+public sealed class StaticMesh : ISceneResource, IDisposable
 {
     private static int _nextMeshId;
+
+    private int _disposed;
 
     /// <summary>全局唯一网格 ID → 渲染线程 MeshGPUResource 注册表。</summary>
     public int MeshId { get; } = Interlocked.Increment(ref _nextMeshId);
@@ -47,5 +49,21 @@ public sealed class StaticMesh : ISceneResource
             positions[i] = Vertices[i].Position;
 
         Bounds = BoundingSphere.CreateFromPoints(positions);
+    }
+
+    /// <summary>显式释放：安排渲染线程延迟释放 GPU 几何（确定性路径）。</summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
+        ResourceManager.EnqueueGpuRelease(MeshId);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>GC 兜底：CPU 数据被回收时安排渲染线程延迟释放 GPU 几何（非确定性路径）。</summary>
+    ~StaticMesh()
+    {
+        ResourceManager.EnqueueGpuRelease(MeshId);
     }
 }

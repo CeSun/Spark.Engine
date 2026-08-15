@@ -7,7 +7,7 @@ namespace Spark.Engine.Render;
 /// 网格资产的 GPU 资源（几何，按 MeshId 上传一次）：顶点/索引缓冲。
 /// 每实例的 MVP uniform 见 <see cref="StaticMeshRenderState"/>。
 /// </summary>
-public unsafe sealed class MeshGPUResource : IDisposable
+public unsafe sealed class MeshGPUResource : IGPUResource
 {
     private readonly WebGPU _api;
 

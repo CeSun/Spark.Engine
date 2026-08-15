@@ -50,7 +50,7 @@ EngineApplication（主循环：窗口事件 → 同步上下文 → 世界更�
 RenderThread（线程外壳 → SceneRenderer）
   ├─ SceneRenderer（上传处理 → 生命周期 diff → acquire → 剔除 → clear → draw → present → 延迟删除）
   │    ├─ RenderTargetRegistry（窗口视口注册表）
-  │    ├─ MeshGPUResource 注册表（网格几何，上传一次）
+  │    ├─ IGPUResource 注册表（单注册表，几何/纹理等，上传一次）
   │    └─ StaticMeshRenderState 注册表（每实例 MVP，按 ProxyId）
   └─ RenderPipeline / BindGroupLayout / ShaderModule
 ```
@@ -114,7 +114,7 @@ RenderThread（线程外壳 → SceneRenderer）
 - 语义钩子 `OnProxyMapped`：组件里手写每类专属的 Bounds 规则（生成器声明、用户实现）
 - **资源成员降级**：`[ScenePayload]` 成员若实现 `ISceneResource`（`int ResourceId`），生成器自动降级为
   `{Name}Id` 进 payload，并自动触发上传
-- **`MeshLibrary`**：按 `MeshId` 去重的自动上传（挂 `Scene.MeshLibrary`）；组件首次引用资源即上传
+- **`ResourceManager`**：按 `MeshId` 去重的自动上传 + GPU 几何延迟释放（挂 `Scene.ResourceManager`）；组件首次引用资源即上传
 - 组件经生成的 `BeginPlay`/`EndPlay` 注册/注销，`Update` 同步；`Actor` 转发组件生命周期
 
 ### 7. 双缓冲帧同步（DualFrameBuffer）
@@ -160,7 +160,7 @@ RenderThread（线程外壳 → SceneRenderer）
 ### 12. 引擎应用与演示
 
 - `EngineApplication`：主循环（窗口事件 → 同步上下文 → 世界更新 → 填 `SceneSnapshot` → 提交）、
-  `InitializeCallback`（初始化回调）、`MeshLibrary`（资源自动上传）、`ExitGame`；窗口在 `Run` 时创建
+  `InitializeCallback`（初始化回调）、`ResourceManager`（资源自动上传 + GPU 延迟释放）、`ExitGame`；窗口在 `Run` 时创建
 - `Demo.Desktop`：游戏逻辑写在 `InitializeCallback` 里 → 创建 World → 相机 Actor → 三角形网格 → 点光源 → 渲染
 
 ### 验证状态
@@ -181,8 +181,9 @@ RenderThread（线程外壳 → SceneRenderer）
 
 ### P1 —— 资源生命周期与性能（下一步）
 
-1. **`StaticMeshHandle` 引用计数**：当前 `StaticMeshComponent` 仍持有完整 CPU 网格数据，
-   上传 GPU 后仍占用内存。改为轻量 Handle（`MeshId` + 引用计数），上传后释放 CPU 数据。
+1. **资源生命周期（部分落地）**：GPU 几何在 `StaticMesh` 被 `Dispose`/GC 回收时，经 `ResourceManager`
+   延迟释放（渲染线程帧末 drain，ADR-7）；CPU 顶点/索引仍常驻（由 .NET GC 管理），磁盘流式加载与
+   CPU 数据驱逐留待 P3-9。
 2. **ADR-7 延迟删除队列（收尾）**：已落地于场景代理状态（`SceneRenderer._pendingDelete`）；
    待补：`RenderTargetRegistry` 仍直接 Remove，窗口视口销毁未走延迟删除。
 3. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，只重算/提交变化的对象，

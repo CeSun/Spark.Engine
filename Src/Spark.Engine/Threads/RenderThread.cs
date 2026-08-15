@@ -26,7 +26,7 @@ public class RenderThread
             services.GetRequiredService<ILogger<SceneRenderer>>(),
             services.GetService<WebGPUContext>(),
             engineApplication.RenderTargets,
-            engineApplication.PendingMeshUploads);
+            engineApplication.PendingResourceUploads);
         _thread = new Thread(Run);
     }
 
