@@ -112,6 +112,9 @@ RenderThread（线程外壳 → SceneRenderer）
 - **SceneGen 源生成器**产出：proxy 子类、payload struct、组件的 partial（`_proxy` + 生命周期 +
   `SyncProxy`）、`SceneSnapshot` 的 payload 字段与 `ClearPayloads`
 - 语义钩子 `OnProxyMapped`：组件里手写每类专属的 Bounds 规则（生成器声明、用户实现）
+- **资源成员降级**：`[ScenePayload]` 成员若实现 `ISceneResource`（`int ResourceId`），生成器自动降级为
+  `{Name}Id` 进 payload，并自动触发上传
+- **`MeshLibrary`**：按 `MeshId` 去重的自动上传（挂 `Scene.MeshLibrary`）；组件首次引用资源即上传
 - 组件经生成的 `BeginPlay`/`EndPlay` 注册/注销，`Update` 同步；`Actor` 转发组件生命周期
 
 ### 7. 双缓冲帧同步（DualFrameBuffer）
@@ -157,8 +160,8 @@ RenderThread（线程外壳 → SceneRenderer）
 ### 12. 引擎应用与演示
 
 - `EngineApplication`：主循环（窗口事件 → 同步上下文 → 世界更新 → 填 `SceneSnapshot` → 提交）、
-  `UploadMesh` 入口、`ExitGame`
-- `Demo.Desktop`：创建 World → 相机 Actor → 三角形网格 → 点光源 → 渲染
+  `InitializeCallback`（初始化回调）、`MeshLibrary`（资源自动上传）、`ExitGame`；窗口在 `Run` 时创建
+- `Demo.Desktop`：游戏逻辑写在 `InitializeCallback` 里 → 创建 World → 相机 Actor → 三角形网格 → 点光源 → 渲染
 
 ### 验证状态
 
