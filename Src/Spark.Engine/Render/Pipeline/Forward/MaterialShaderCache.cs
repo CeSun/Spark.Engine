@@ -125,8 +125,30 @@ public unsafe sealed class MaterialShaderCache : IDisposable
                 AlphaToCoverageEnabled = false,
             };
 
+            // 深度状态：前向与深度 pass 共用（写深度 + Less 测试 + 禁用 stencil）
+            // stencil 比较函数必须为有效值（Always），读写掩码默认 0 = 禁用 stencil
+            var depthStencil = new DepthStencilState
+            {
+                Format = TextureFormat.Depth24Plus,
+                DepthWriteEnabled = true,
+                DepthCompare = CompareFunction.Less,
+                StencilFront = new StencilFaceState
+                {
+                    Compare = CompareFunction.Always,
+                    FailOp = StencilOperation.Keep,
+                    DepthFailOp = StencilOperation.Keep,
+                    PassOp = StencilOperation.Keep,
+                },
+                StencilBack = new StencilFaceState
+                {
+                    Compare = CompareFunction.Always,
+                    FailOp = StencilOperation.Keep,
+                    DepthFailOp = StencilOperation.Keep,
+                    PassOp = StencilOperation.Keep,
+                },
+            };
+
             ColorTargetState colorTarget = default;
-            DepthStencilState depthStencil = default;
             FragmentState fragmentState;
 
             if (pass == ShaderPass.Forward)
@@ -171,13 +193,6 @@ public unsafe sealed class MaterialShaderCache : IDisposable
             else
             {
                 // 深度 pass：无颜色附件，仅写深度（masked 材质在片元 discard）
-                depthStencil = new DepthStencilState
-                {
-                    Format = TextureFormat.Depth24Plus,
-                    DepthWriteEnabled = true,
-                    DepthCompare = CompareFunction.Less,
-                };
-
                 fragmentState = new FragmentState
                 {
                     Module = shaderModule,
@@ -194,7 +209,7 @@ public unsafe sealed class MaterialShaderCache : IDisposable
                 Primitive = primitiveState,
                 Multisample = multisampleState,
                 Fragment = &fragmentState,
-                DepthStencil = pass == ShaderPass.Forward ? null : &depthStencil,
+                DepthStencil = &depthStencil,
             };
 
             return api.DeviceCreateRenderPipeline(device, ref pipelineDesc);

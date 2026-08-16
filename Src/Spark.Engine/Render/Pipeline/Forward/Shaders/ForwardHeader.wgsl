@@ -13,6 +13,11 @@ struct FrameUniforms {
     pad1 : u32,
     pad2 : u32,
     lights : array<Light, {{MAX_LIGHTS}}>,
+    shadow_view_proj : mat4x4f,
+    shadow_light     : u32,
+    pad3 : u32,
+    pad4 : u32,
+    pad5 : u32,
 };
 
 struct ObjectUniforms {
@@ -43,6 +48,8 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0) var<uniform> frame : FrameUniforms;
+@group(0) @binding(1) var shadow_map  : texture_depth_2d;
+@group(0) @binding(2) var shadow_samp : sampler_comparison;
 @group(1) @binding(0) var<uniform> obj   : ObjectUniforms;
 @group(2) @binding(0) var<uniform> mp    : MaterialParamsUniform;
 @group(3) @binding(0) var base_color_tex : texture_2d<f32>;

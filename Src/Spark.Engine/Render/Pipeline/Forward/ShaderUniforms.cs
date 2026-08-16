@@ -36,7 +36,8 @@ public struct LightUniformArray
 
 /// <summary>
 /// 每帧 uniform（group0，与 WGSL <c>FrameUniforms</c> 一一对应）。
-/// 布局：view_proj(64) + camera_pos(16) + light_count(4) + pad(12) + lights(16×64)。
+/// 布局：view_proj(64) + camera_pos(16) + light_count(4) + pad(12) + lights(16×64)
+///     + shadow_view_proj(64) + shadow_light(4) + pad(12)。
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct FrameUniformData
@@ -54,6 +55,18 @@ public struct FrameUniformData
     public uint Pad2;
 
     public LightUniformArray Lights;
+
+    /// <summary>阴影光源的 view-proj（forward pass 把世界坐标变换到阴影贴图空间）。</summary>
+    public Matrix4x4 ShadowViewProjection;
+
+    /// <summary>阴影光源在 lights 数组中的下标；0xFFFFFFFF = 无阴影。</summary>
+    public uint ShadowLightIndex;
+
+    public uint Pad3;
+
+    public uint Pad4;
+
+    public uint Pad5;
 }
 
 /// <summary>每实例 uniform（group1，与 WGSL <c>ObjectUniforms</c> 一一对应）。</summary>

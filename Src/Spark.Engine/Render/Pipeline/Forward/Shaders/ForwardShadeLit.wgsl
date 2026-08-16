@@ -31,7 +31,15 @@ fn shade_lit(albedo : vec3f, metallic : f32, roughness : f32, n : vec3f, world_p
         var ndl = max(dot(nrm, to_light), 0.0);
         var h = normalize(to_light + v);
         var spec = pow(max(dot(nrm, h), 0.0), shininess);
-        color = color + lcol * atten * (albedo * ndl + spec_color * spec * ndl);
+        var shadow = 1.0;
+        if (i == frame.shadow_light) {
+            var ls = frame.shadow_view_proj * vec4f(world_pos, 1.0);
+            var ndc = ls.xyz / ls.w;
+            var suv = ndc.xy * 0.5 + 0.5;
+            suv.y = 1.0 - suv.y;
+            shadow = textureSampleCompare(shadow_map, shadow_samp, suv, ndc.z + 0.002);
+        }
+        color = color + lcol * atten * shadow * (albedo * ndl + spec_color * spec * ndl);
     }
     return color;
 }

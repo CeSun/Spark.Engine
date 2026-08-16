@@ -14,7 +14,7 @@ FScene / FSceneProxy / FSceneRenderer 模式。
 
 当前处于**早期原型阶段**：渲染管线已能绘制静态网格（三角形），场景对象（网格/光源）经统一快照通道
 传入渲染线程并做视锥剔除；场景代理由 SceneGen 源生成器生成；材质系统（Material/MaterialInstance、
-shader 编译缓存）与前向光照着色（Blinn-Phong）已落地，节点图编辑器、法线贴图与 PBR 尚未实现。
+shader 编译缓存）、前向光照着色（Blinn-Phong）与阴影贴图已落地，节点图编辑器、法线贴图与 PBR 尚未实现。
 
 ## 解决方案结构
 
@@ -184,7 +184,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - `ForwardRenderer : IRenderPipeline`：当前唯一实现（前向渲染）；`RenderThread` 只依赖接口（DI 注入）
 - 换管线 = 换 DI 注册：`UseForward()` ↔ 未来的 `UseDeferred()`，渲染线程/场景同步零改动（ADR-21）
 - 多 pass shader：`ShaderPass`（Forward/ShadowDepth/DepthOnly）+ 缓存键 `(MaterialShaderKey, ShaderPass)`，
-  同一材质按 pass 编多份 shader；深度 pass 的 pipeline 已就绪，阴影渲染待 `TextureRenderTarget`（ADR-22）
+  同一材质按 pass 编多份 shader；阴影贴图已落地（ShadowDepth pass → 前向采样，ADR-22，见 [ShadowMapping-Design.md](./ShadowMapping-Design.md)）
 
 ### 验证状态
 
@@ -196,6 +196,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | Scene/SceneProxy 统一同步 + 视锥剔除 + 光源数据通路 | ✅ | ⏳（待本地 GPU 环境运行验证） |
 | 材质系统（Material/MaterialInstance + shader 编译缓存） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 前向光照着色（Blinn-Phong） | ✅ | ✅（本地 GPU 环境验证通过） |
+| 阴影贴图（ShadowDepth pass + 前向采样） | ✅ | ✅（本地 GPU 环境验证通过） |
 
 ---
 
@@ -310,3 +311,4 @@ dotnet run --project Demo/Demo.Desktop
 - [SceneSync-Design.md](./SceneSync-Design.md) — 逻辑/渲染线程场景同步机制（Scene/SceneProxy/SceneSnapshot）
 - [MaterialSystem-Design.md](./MaterialSystem-Design.md) — 材质系统设计（资产模型/shader 缓存/绑定组/着色/实例化/多 pass）
 - [RenderGraph-Design.md](./RenderGraph-Design.md) — 帧图（RenderGraph）设计（声明式依赖图/资源生命周期/别名复用）
+- [ShadowMapping-Design.md](./ShadowMapping-Design.md) — 阴影贴图设计（多 pass 阴影 + 踩坑经验）

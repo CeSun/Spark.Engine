@@ -64,36 +64,65 @@ game.InitializeCallback = app =>
         },
         new uint[] { 0, 1, 2 });
 
-    // 基础材质：Lit + 基础色纹理（P1：着色模型 + 纹理采样）
+    // 左三角：Unlit + 纹理（测试纹理采样，无光照）
     var material = new Material
     {
-        ShadingModel = ShadingModel.Lit,
+        ShadingModel = ShadingModel.Unlit,
         BaseColorTexture = texture,
-        Roughness = 0.4f,
     };
 
-    // 材质实例：引用基础材质，覆写 roughness 与底色 tint（P3：实例参数覆写）
-    var materialInstance = new MaterialInstance { Parent = material };
-    materialInstance.SetScalar(MaterialParam.Roughness, 0.9f);
-    materialInstance.SetVector(MaterialParam.BaseColor, new Vector4(1f, 0.5f, 0.5f, 1f));
+    // 右三角：Unlit + 纯蓝（测试 base color，无光照）
+    var materialRight = new Material
+    {
+        ShadingModel = ShadingModel.Unlit,
+        BaseColor = new Vector4(0f, 0f, 1f, 1f),
+    };
 
-    // 左三角：基础材质
+    // 左三角
     var meshActorLeft = new Actor();
     meshActorLeft.AddOwnedComponent(new StaticMeshComponent { Mesh = meshLeft, Material = material });
     world.AddActor(meshActorLeft);
 
-    // 右三角：材质实例（同 shader、异参数）
+    // 右三角
     var meshActorRight = new Actor();
-    meshActorRight.AddOwnedComponent(new StaticMeshComponent { Mesh = meshRight, Material = materialInstance });
+    meshActorRight.AddOwnedComponent(new StaticMeshComponent { Mesh = meshRight, Material = materialRight });
     world.AddActor(meshActorRight);
 
-    // 创建点光源 Actor（PointLightComponent；位置来自 Actor 世界变换）
-    var lightActor = new Actor();
-    lightActor.AddOwnedComponent(new PointLightComponent
+    // 背景墙（接收阴影、不投射）：z=-4 的大四边形，朝 +Z
+    var wallNormal = new Vector3(0f, 0f, 1f);
+    var wallMesh = new StaticMesh(
+        new[]
+        {
+            new StaticMeshVertex(new Vector3(-3f, -2f, -4f), Vector3.One, new Vector2(0f, 0f), wallNormal),
+            new StaticMeshVertex(new Vector3(3f, -2f, -4f), Vector3.One, new Vector2(1f, 0f), wallNormal),
+            new StaticMeshVertex(new Vector3(3f, 2f, -4f), Vector3.One, new Vector2(1f, 1f), wallNormal),
+            new StaticMeshVertex(new Vector3(-3f, 2f, -4f), Vector3.One, new Vector2(0f, 1f), wallNormal),
+        },
+        new uint[] { 0, 1, 2, 0, 2, 3 });
+
+    var wallMaterial = new Material
     {
+        ShadingModel = ShadingModel.Lit,
+        BaseColor = new Vector4(0.6f, 0.6f, 0.6f, 1f),
+        Roughness = 0.9f,
+    };
+
+    var wallActor = new Actor();
+    wallActor.AddOwnedComponent(new StaticMeshComponent { Mesh = wallMesh, Material = wallMaterial, CastShadow = false });
+    world.AddActor(wallActor);
+
+    // 聚光光源（CastShadow）：偏移到 (0.5, 0, 0)、朝 -Z 照射，把两个三角形投到背景墙上
+    // （光源与相机错开，阴影才会投到三角形侧面可见的位置）
+    var lightActor = new Actor();
+    lightActor.AddOwnedComponent(new SpotLightComponent
+    {
+        RelativeLocation = new Vector3(0.5f, 0f, 0f),
         Color = Vector3.One,
-        Intensity = 8f,
-        Range = 10f,
+        Intensity = 1.5f,
+        Range = 20f,
+        InnerConeAngle = 0.5f,
+        OuterConeAngle = 1.1f,
+        CastShadow = true,
     });
     world.AddActor(lightActor);
 };
