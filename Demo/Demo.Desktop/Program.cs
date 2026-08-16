@@ -87,11 +87,10 @@ game.InitializeCallback = app =>
     meshActorRight.AddOwnedComponent(new StaticMeshComponent { Mesh = meshRight, Material = materialInstance });
     world.AddActor(meshActorRight);
 
-    // 创建点光源 Actor（LightComponent；位置来自 Actor 世界变换）
+    // 创建点光源 Actor（PointLightComponent；位置来自 Actor 世界变换）
     var lightActor = new Actor();
-    lightActor.AddOwnedComponent(new LightComponent
+    lightActor.AddOwnedComponent(new PointLightComponent
     {
-        Type = LightType.Point,
         Color = Vector3.One,
         Intensity = 8f,
         Range = 10f,

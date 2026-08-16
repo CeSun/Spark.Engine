@@ -6,8 +6,8 @@ using Spark.Engine.Render.Resources;
 namespace Spark.Engine.Render.Pipeline.Forward;
 
 /// <summary>
-/// shader 编译产物缓存（进程内，ADR-14）：按 <see cref="MaterialShaderKey"/> 共享 ShaderModule，
-/// 按 (key, target format) 共享 RenderPipeline。静态属性相同的材质复用同一编译产物。
+/// shader 编译产物缓存（进程内，ADR-14）：按 (MaterialShaderKey, ShaderPass) 共享 ShaderModule，
+/// 按 ((key, pass), target format) 共享 RenderPipeline。静态属性相同的材质、同一 pass 复用同一编译产物。
 /// </summary>
 public unsafe sealed class MaterialShaderCache : IDisposable
 {
@@ -30,7 +30,7 @@ public unsafe sealed class MaterialShaderCache : IDisposable
 
     private readonly WebGPUContext _webGpu;
     private readonly PipelineLayout* _pipelineLayout;
-    private readonly Dictionary<MaterialShaderKey, MaterialVariant> _variants = new();
+    private readonly Dictionary<(MaterialShaderKey Key, ShaderPass Pass), MaterialVariant> _variants = new();
 
     public MaterialShaderCache(WebGPUContext webGpu, PipelineLayout* pipelineLayout)
     {
@@ -38,31 +38,32 @@ public unsafe sealed class MaterialShaderCache : IDisposable
         _pipelineLayout = pipelineLayout;
     }
 
-    /// <summary>取该 key + 目标格式的 RenderPipeline（缺则编译并缓存）。</summary>
-    public RenderPipeline* GetPipeline(MaterialShaderKey key, TextureFormat format)
+    /// <summary>取该 key + pass + 目标格式的 RenderPipeline（缺则编译并缓存）。</summary>
+    public RenderPipeline* GetPipeline(MaterialShaderKey key, ShaderPass pass, TextureFormat format)
     {
-        var variant = GetOrCreateVariant(key);
+        var variant = GetOrCreateVariant(key, pass);
         if (variant.Pipelines.TryGetValue(format, out var cached))
             return (RenderPipeline*)cached;
 
-        var pipeline = CreatePipeline(key, variant.ShaderModule, format);
+        var pipeline = CreatePipeline(key, pass, variant.ShaderModule, format);
         variant.Pipelines[format] = (nint)pipeline;
         return pipeline;
     }
 
-    private MaterialVariant GetOrCreateVariant(MaterialShaderKey key)
+    private MaterialVariant GetOrCreateVariant(MaterialShaderKey key, ShaderPass pass)
     {
-        if (!_variants.TryGetValue(key, out var variant))
+        var cacheKey = (key, pass);
+        if (!_variants.TryGetValue(cacheKey, out var variant))
         {
-            variant = new MaterialVariant { ShaderModule = CreateShaderModule(key) };
-            _variants[key] = variant;
+            variant = new MaterialVariant { ShaderModule = CreateShaderModule(key, pass) };
+            _variants[cacheKey] = variant;
         }
         return variant;
     }
 
-    private ShaderModule* CreateShaderModule(MaterialShaderKey key)
+    private ShaderModule* CreateShaderModule(MaterialShaderKey key, ShaderPass pass)
     {
-        string source = MaterialShaderCodegen.Generate(key);
+        string source = MaterialShaderCodegen.Generate(key, pass);
         byte[] codeBytes = Encoding.UTF8.GetBytes(source);
 
         fixed (byte* codePtr = codeBytes)
@@ -77,7 +78,7 @@ public unsafe sealed class MaterialShaderCache : IDisposable
         }
     }
 
-    private RenderPipeline* CreatePipeline(MaterialShaderKey key, ShaderModule* shaderModule, TextureFormat format)
+    private RenderPipeline* CreatePipeline(MaterialShaderKey key, ShaderPass pass, ShaderModule* shaderModule, TextureFormat format)
     {
         var api = _webGpu.Api;
         var device = _webGpu.Device;
@@ -117,49 +118,74 @@ public unsafe sealed class MaterialShaderCache : IDisposable
                 CullMode = key.CullMode == MaterialCullMode.None ? Silk.NET.WebGPU.CullMode.None : Silk.NET.WebGPU.CullMode.Back,
             };
 
-            ColorTargetState colorTarget = new()
-            {
-                Format = format,
-                Blend = null,
-                WriteMask = ColorWriteMask.All,
-            };
-
-            // 半透明：标准 alpha 混合
-            if (key.BlendMode == BlendMode.Translucent)
-            {
-                BlendState* blend = stackalloc BlendState[1];
-                blend[0] = new BlendState
-                {
-                    Color = new BlendComponent
-                    {
-                        Operation = BlendOperation.Add,
-                        SrcFactor = BlendFactor.SrcAlpha,
-                        DstFactor = BlendFactor.OneMinusSrcAlpha,
-                    },
-                    Alpha = new BlendComponent
-                    {
-                        Operation = BlendOperation.Add,
-                        SrcFactor = BlendFactor.One,
-                        DstFactor = BlendFactor.OneMinusSrcAlpha,
-                    },
-                };
-                colorTarget.Blend = blend;
-            }
-
-            var fragmentState = new FragmentState
-            {
-                Module = shaderModule,
-                EntryPoint = fsPtr,
-                TargetCount = (nuint)1,
-                Targets = &colorTarget,
-            };
-
             var multisampleState = new MultisampleState
             {
                 Count = 1,
                 Mask = 0xFFFFFFFF,
                 AlphaToCoverageEnabled = false,
             };
+
+            ColorTargetState colorTarget = default;
+            DepthStencilState depthStencil = default;
+            FragmentState fragmentState;
+
+            if (pass == ShaderPass.Forward)
+            {
+                colorTarget = new ColorTargetState
+                {
+                    Format = format,
+                    Blend = null,
+                    WriteMask = ColorWriteMask.All,
+                };
+
+                // 半透明：标准 alpha 混合
+                if (key.BlendMode == BlendMode.Translucent)
+                {
+                    BlendState* blend = stackalloc BlendState[1];
+                    blend[0] = new BlendState
+                    {
+                        Color = new BlendComponent
+                        {
+                            Operation = BlendOperation.Add,
+                            SrcFactor = BlendFactor.SrcAlpha,
+                            DstFactor = BlendFactor.OneMinusSrcAlpha,
+                        },
+                        Alpha = new BlendComponent
+                        {
+                            Operation = BlendOperation.Add,
+                            SrcFactor = BlendFactor.One,
+                            DstFactor = BlendFactor.OneMinusSrcAlpha,
+                        },
+                    };
+                    colorTarget.Blend = blend;
+                }
+
+                fragmentState = new FragmentState
+                {
+                    Module = shaderModule,
+                    EntryPoint = fsPtr,
+                    TargetCount = (nuint)1,
+                    Targets = &colorTarget,
+                };
+            }
+            else
+            {
+                // 深度 pass：无颜色附件，仅写深度（masked 材质在片元 discard）
+                depthStencil = new DepthStencilState
+                {
+                    Format = TextureFormat.Depth24Plus,
+                    DepthWriteEnabled = true,
+                    DepthCompare = CompareFunction.Less,
+                };
+
+                fragmentState = new FragmentState
+                {
+                    Module = shaderModule,
+                    EntryPoint = fsPtr,
+                    TargetCount = (nuint)0,
+                    Targets = null,
+                };
+            }
 
             var pipelineDesc = new RenderPipelineDescriptor
             {
@@ -168,6 +194,7 @@ public unsafe sealed class MaterialShaderCache : IDisposable
                 Primitive = primitiveState,
                 Multisample = multisampleState,
                 Fragment = &fragmentState,
+                DepthStencil = pass == ShaderPass.Forward ? null : &depthStencil,
             };
 
             return api.DeviceCreateRenderPipeline(device, ref pipelineDesc);

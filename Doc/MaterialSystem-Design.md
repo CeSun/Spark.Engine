@@ -246,8 +246,9 @@ public readonly struct MaterialShaderKey : IEquatable<MaterialShaderKey>
 }
 ```
 
-- **`MaterialShaderKey → MaterialVariant`**（编译缓存，跨材质资产共享）：两个网格即使贴不同纹理/
-  不同 tint，只要静态属性相同，就复用同一个 ShaderModule + RenderPipeline（每个 target format 一个）。
+- **`(MaterialShaderKey, ShaderPass) → MaterialVariant`**（编译缓存，跨材质资产 + 跨 pass 共享）：
+  同一材质按 pass 编出多份 shader（Forward / ShadowDepth / DepthOnly），静态属性相同的材质复用同一
+  编译产物（每个 (key, pass, target format) 一个 pipeline，见 §7.1）。
 - **纹理开关只改生成代码、不改绑定布局**：五个纹理槽位**恒绑定**（无纹理用 fallback 纹理，§6），
   `TextureFlags` 只决定生成 WGSL 是否 `textureSample` 该槽并参与混合——绑定组布局全局唯一，缓存
   管理大幅简化（见 §6 与 ADR-15）。
@@ -275,7 +276,7 @@ public readonly struct MaterialShaderKey : IEquatable<MaterialShaderKey>
 
 ## 7. WGSL 代码生成（模板 + 开关）
 
-P1 用**单文件模板 + 占位替换**生成 WGSL，P4 再换节点图 codegen。占位按 `MaterialShaderKey` 填入：
+P1 用**模板 + 占位替换**生成 WGSL，P4 再换节点图 codegen。占位按 `MaterialShaderKey` 填入，着色片段按 `ShaderPass` 分支：
 
 ```wgsl
 struct VertexInput {
@@ -316,8 +317,29 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 }
 ```
 
-代码生成器（`MaterialShaderCodegen`）是一个纯函数：`string Generate(MaterialShaderKey key)`，
-便于单测；光照函数（`ShadeLit`/`ShadePbr`）作为模板内置 WGSL 片段，随 key 拼接。
+代码生成器（`MaterialShaderCodegen`）是一个纯函数：`string Generate(MaterialShaderKey key, ShaderPass pass)`，
+便于单测。`ShaderPass.Forward` 拼完整着色（`ShadeLit` 光照函数模板）；`ShadowDepth`/`DepthOnly` 拼
+仅写深度的片元（`ForwardDepthFragment.wgsl`，masked 材质按 mask 纹理 `discard`）。
+
+### 7.1 多 pass（ShaderPass）
+
+同一材质在不同渲染阶段需要不同 shader——UE 的 `FMaterialShaderMap` 对每个 shader type 各编一份，
+这里用 `ShaderPass` 枚举做简化版：
+
+| pass | 片元着色 | pipeline 附件 | 用途 |
+|---|---|---|---|
+| `Forward` | 完整着色（shade_lit） | 颜色附件 | 前向基础 pass |
+| `ShadowDepth` | 仅写深度（masked 时 discard） | 无颜色附件 + 深度附件 | 阴影贴图 |
+| `DepthOnly` | 仅写深度（masked 时 discard） | 无颜色附件 + 深度附件 | 深度预 pass |
+
+- 完整 shader 身份 = **`(MaterialShaderKey, ShaderPass)`**：`MaterialShaderKey` 决定"材质是什么"（静态属性），
+  `ShaderPass` 决定"在哪个阶段画"；两者正交，缓存按元组隔离（§5，ADR-22）。
+- 顶点着色器三个 pass 共用（都输出 clip_position + uv/法线）；片元着色器按 pass 分支，深度 pass 复用
+  材质参数里的 mask 开关（`BlendMode.Masked`）决定是否 `discard`。
+- 深度 pass 的 pipeline：`FragmentState.TargetCount=0`（无颜色目标）+ `DepthStencilState`
+  （`Depth24Plus`，写深度、`CompareFunction.Less`）。
+- 渲染器当前只画 `ShaderPass.Forward`；真正跑阴影/深度 pass 还需 `TextureRenderTarget` + 深度缓冲
+  + 渲染器多 pass 循环（步骤 B，见 §14）。
 
 ## 8. 与现有单通道集成
 
@@ -381,6 +403,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 | ADR-18 | P0~P3 用固定参数集 + WGSL 模板 codegen，节点图 codegen 后置（P4） | 直接做节点图 | 先打通编译/着色/实例化闭环，节点图是大工程、需独立立项 |
 | ADR-19 | `MaterialInstance : Material`，组件 `[ScenePayload]` 成员统一类型 `Material?`，v1 不引入 `IMaterial` | 独立 `IMaterial` 接口 | 复用源生成器的 `ISceneResource` 接口名匹配降级机制，避免生成器改动 |
 | ADR-20 | v1 先实现 `Lit`(Blinn-Phong)，`PBR` 作为 `MaterialParamsUniform` 已含 metallic/roughness 的顺延扩展 | 直接上 PBR | 先打通光照数据通路，PBR 只换 `ShadePbr` 片段，风险可控 |
+| ADR-22 | 多 pass 用 `ShaderPass` 枚举（Forward/ShadowDepth/DepthOnly），缓存键为 `(MaterialShaderKey, ShaderPass)` | pass 塞进 `MaterialShaderKey` / 每 pass 一套机制 | pass 是渲染上下文、与材质属性正交；元组键让同一材质按 pass 编多份 shader 而不污染材质身份 |
 
 ## 13. 与 Unreal Engine 的对比与借鉴
 
@@ -417,6 +440,9 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 - **shader 缓存序列化**：进程内缓存重启即失效，磁盘缓存（hash → WGSL/pipeline）留待 P5。
 - **后处理/阴影材质**：依赖 `TextureRenderTarget`（P2-4）与帧内依赖拓扑（P2-6），材质系统要为其
   预留"非网格域"材质（屏幕空间材质）的挂载点。
+- **多 pass 渲染循环（步骤 B）**：`ShaderPass` 已落地于 shader 侧（§7.1，ADR-22），但渲染器仍只画
+  `Forward`；真正跑阴影/深度 pass 还需 `TextureRenderTarget` + 深度缓冲 + 渲染器按 pass 循环
+  （阴影贴图 → 前向采样）。
 - **节点图 codegen 的变量复用与死代码消除**：P4 的图 → WGSL 需要 SSA/去重，否则生成 shader 膨胀。
 
 ---

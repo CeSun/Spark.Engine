@@ -218,7 +218,7 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
         ObjectUniformData* objectPtr = &objectData;
         _webGpu!.Api.QueueWriteBuffer(_webGpu.Queue, state.ObjectBuffer, 0, objectPtr, (nuint)sizeof(ObjectUniformData));
 
-        var pipeline = _shaderCache!.GetPipeline(material.ShaderKey, _pipelineFormat);
+        var pipeline = _shaderCache!.GetPipeline(material.ShaderKey, ShaderPass.Forward, _pipelineFormat);
 
         var api = _webGpu.Api;
         api.RenderPassEncoderSetPipeline(pass, pipeline);

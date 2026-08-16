@@ -26,7 +26,7 @@ Spark.Engine.slnx
 │  │  ├─ Render/             场景同步（根）+ Resources（资源）+ Pipeline（管线）
 │  │  │  ├─ Resources/       资源：StaticMesh/Texture2D/Material + GPU 表示 + ResourceManager
 │  │  │  └─ Pipeline/        管线：RenderTarget/RenderSurface（共享）；Forward/（ForwardRenderer + shader）
-│  │  ├─ Components/         组件（含 LightComponent/StaticMeshComponent）
+│  │  ├─ Components/         组件（含 LightComponent 基类 + Point/Directional/Spot 光源、StaticMeshComponent）
 │  │  ├─ Threads/            RenderThread（外壳）/EngineSynchronizationContext
 │  │  └─ Worlds/             World（含 Scene）/WorldContext
 │  ├─ Spark.Engine.SceneGen/ 源生成器（按 [SceneProxy]/[ScenePayload] 生成 proxy/payload）
@@ -156,7 +156,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 ### 11. 光源数据通路
 
-- `LightComponent`（`[SceneProxy]`）→ 生成 `LightSceneProxy`/`LightPayload` → `Scene` →
+- `LightComponent`（抽象基类，`[SceneProxy]`）→ `PointLightComponent`/`DirectionalLightComponent`/
+  `SpotLightComponent` 构造时固定 `Type` → 生成统一的 `LightSceneProxy`/`LightPayload` → `Scene` →
   `SceneSnapshot.Lights`（+ header 包围球）→ `ForwardRenderer` 剔除/收集
 - 光源与网格走同一套快照通道；每帧把可见光打包进 group0 帧 uniform（`MAX_LIGHTS` 上限）
 - 光照着色（Blinn-Phong，点光/平行光/聚光 + 衰减）在片元着色器 `shade_lit` 里一次完成（前向着色）
@@ -182,6 +183,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - `IRenderPipeline`：可替换的「消费 `SceneSnapshot` → 提交绘制」契约（`Render` + `IDisposable`）
 - `ForwardRenderer : IRenderPipeline`：当前唯一实现（前向渲染）；`RenderThread` 只依赖接口（DI 注入）
 - 换管线 = 换 DI 注册：`UseForward()` ↔ 未来的 `UseDeferred()`，渲染线程/场景同步零改动（ADR-21）
+- 多 pass shader：`ShaderPass`（Forward/ShadowDepth/DepthOnly）+ 缓存键 `(MaterialShaderKey, ShaderPass)`，
+  同一材质按 pass 编多份 shader；深度 pass 的 pipeline 已就绪，阴影渲染待 `TextureRenderTarget`（ADR-22）
 
 ### 验证状态
 
@@ -305,4 +308,5 @@ dotnet run --project Demo/Demo.Desktop
 
 - [RenderPipeline-Design.md](./RenderPipeline-Design.md) — 渲染管线详设（含类图、UE 对比）
 - [SceneSync-Design.md](./SceneSync-Design.md) — 逻辑/渲染线程场景同步机制（Scene/SceneProxy/SceneSnapshot）
-- [MaterialSystem-Design.md](./MaterialSystem-Design.md) — 材质系统设计（资产模型/shader 缓存/绑定组/着色/实例化）
+- [MaterialSystem-Design.md](./MaterialSystem-Design.md) — 材质系统设计（资产模型/shader 缓存/绑定组/着色/实例化/多 pass）
+- [RenderGraph-Design.md](./RenderGraph-Design.md) — 帧图（RenderGraph）设计（声明式依赖图/资源生命周期/别名复用）

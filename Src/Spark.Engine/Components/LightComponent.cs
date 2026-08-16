@@ -5,13 +5,16 @@ using Spark.Engine.Render;
 namespace Spark.Engine.Components;
 
 /// <summary>
-/// 光源组件：光源参数全部是每帧动态数据。对应的 <see cref="LightSceneProxy"/> 与
-/// <see cref="LightPayload"/> 由 SceneProxy 源生成器产出；Bounds 规则在此手写。
+/// 光源组件基类（对应 UE 的 ULightComponent）：抽象，具体类型见
+/// <see cref="PointLightComponent"/>/<see cref="DirectionalLightComponent"/>/<see cref="SpotLightComponent"/>。
+/// 光源参数全部是每帧动态数据；<see cref="Type"/> 由具体子类在构造时固定，进 payload 供渲染线程分派。
+/// 对应的 <see cref="LightSceneProxy"/> 与 <see cref="LightPayload"/> 由 SceneProxy 源生成器产出；Bounds 规则在此手写。
 /// </summary>
 [SceneProxy(SceneCategory.Light)]
-public partial class LightComponent : SceneComponent
+public abstract partial class LightComponent : SceneComponent
 {
-    [ScenePayload] public LightType Type { get; set; } = LightType.Point;
+    /// <summary>光源类型（子类构造时固定，只读于外部）。</summary>
+    [ScenePayload] public LightType Type { get; protected set; } = LightType.Point;
 
     [ScenePayload] public Vector3 Color { get; set; } = Vector3.One;
 
