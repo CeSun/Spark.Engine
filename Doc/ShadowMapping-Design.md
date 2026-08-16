@@ -35,16 +35,17 @@ Render(SceneSnapshot)
 | `StaticMeshComponent.CastShadow` | 写进 header 的 `Visibility.CastShadow`，阴影 pass 据此收集 caster |
 | 前向深度缓冲 | `EnsureDepthTarget` 按视口尺寸懒建/重建，深度测试 `Less`（保证近处三角形盖住远处墙） |
 
-## 3. 深度约定与阴影比较
+## 3. 深度约定与阴影比较（已定位）
 
-- **System.Numerics `CreatePerspectiveFieldOfView` 是标准深度（near→0, far→1，非 reverse-Z）**。
-  已验证：near=0.1/far=20 时，z=-2 → ndc.z≈0.955、z=-4 → ndc.z≈0.980（近处更小）。
-- WGSL `textureSampleCompare(t, s, coords, depth_ref)` 返回 `compare(sampled_depth, depth_ref)`。
-- **标准前向阴影公式**应为 `light = 1.0 - textureSampleCompare(map, samp, uv, fragDepth - bias)`（`Compare=Less`）。
-- **本实现踩坑**：标准公式在本实现里得到**反相**（阴影区亮、非阴影区暗）。经验修正为
-  `light = textureSampleCompare(map, samp, uv, fragDepth + bias)`（翻转比较结果与 bias 符号）后阴影区变暗。
-  该方向与标准公式相反，说明本实现里比较结果的实际语义与预期相反（比较函数方向或深度取值需注意）；
-  后续若换后端/改深度约定，需重新验证此方向。
+- **深度是标准约定（near→0, far→1，非 reverse-Z）**。用实际矩阵验证（`view×proj` 作用后）：
+  世界 z=-2 → ndc.z≈0.955、z=-4 → ndc.z≈0.980（近处更小、远处更大）。
+- **比较方向踩坑（已定位）**：WGSL 规范对 `textureSampleCompare` 的比较方向曾定义不清
+  （[gpuweb/gpuweb#5285](https://github.com/gpuweb/gpuweb/issues/5285)）。实际 wgpu 的 `Compare=Less`
+  返回 `depth_ref < sampled_depth`，与常见教材的 `sampled_depth < depth_ref` **相反**。
+- **因此本实现的正确阴影公式是**（不能照抄教材的 `1 - textureSampleCompare`）：
+  `shadow = textureSampleCompare(shadow_map, shadow_samp, suv, ndc.z - bias)`，
+  bias 取**负**（减）——在 `depth_ref < sampled` 语义下，减 bias 让「自身表面」被判为受光、防止自阴影（acne）。
+  该公式里 `shadow` 直接就是光照因子（1=受光、0=被挡），所以后续换后端/改深度约定时需重新验证此方向。
 
 ## 4. 踩坑记录 / 经验教训（本次调试，按发现顺序）
 
