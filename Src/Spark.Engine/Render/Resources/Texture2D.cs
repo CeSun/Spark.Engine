@@ -1,4 +1,4 @@
-namespace Spark.Engine.Render;
+namespace Spark.Engine.Render.Resources;
 
 /// <summary>2D 纹理资产：RGBA8 像素数据，实现 ISceneResource 走统一上传通道。</summary>
 public sealed class Texture2D : SceneResource

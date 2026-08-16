@@ -20,12 +20,12 @@
 4. **每类一套机制**：每加一类就要复制"遍历 + 列表 + 队列 + 字典"。
 
 本设计把"逻辑线程 → 渲染线程"收敛为**单通道**：`Scene`（注册代理）→ `SceneSnapshot`（值快照）→
-`SceneRenderer`（镜像 + GPU 资源），让所有场景对象（网格/光源/未来的骨骼/粒子…）共用一套身份与
+`ForwardRenderer`（镜像 + GPU 资源），让所有场景对象（网格/光源/未来的骨骼/粒子…）共用一套身份与
 生命周期协议、一份线程安全契约，并把剔除所需的 bounds 随快照送达渲染线程。
 
 ## 2. 设计原则（在 ADR-1~ADR-7 上新增）
 
-- **P7 一条通道，分类 payload**：所有场景对象共用 `SceneProxy → SceneSnapshot → SceneRenderer`
+- **P7 一条通道，分类 payload**：所有场景对象共用 `SceneProxy → SceneSnapshot → ForwardRenderer`
   单通道；差异只在分类 payload 结构与渲染侧消费者。
 - **P8 静态上传一次，动态每帧快照**：几何/纹理等不可变数据走 upload-once 资源注册表；变换/包围盒/
   光源参数/骨骼姿态等可变数据走每帧快照。
@@ -50,7 +50,7 @@
 └──────────────┼─────────────────────────────────────────┘
                ▼  DualFrameBuffer<SceneSnapshot>（双缓冲，超前≤1帧）
 ┌──────────────┴─────────────────────────────────────────┐
-│  SceneRenderer（渲染线程）                             │
+│  ForwardRenderer（渲染线程）                           │
 │    ├─ 上传处理 + 生命周期 diff（ADR-7 延迟删除）        │
 │    ├─ GPU 资源注册表：MeshGPUResource（几何）          │
 │    ├─ 每实例状态：StaticMeshRenderState（MVP，按 ProxyId）│
@@ -59,7 +59,7 @@
 ```
 
 与 UE 的映射：`Scene` ≈ `FScene`，`SceneProxy` ≈ `FPrimitiveSceneProxy`，`SceneSnapshot` ≈ 场景基元提交，
-`SceneRenderer` ≈ `FSceneRenderer` 输入侧。骨架同构，差异是早期简化（单一双缓冲、无命令流、无 RHI 线程）。
+`ForwardRenderer` ≈ `FSceneRenderer` 输入侧。骨架同构，差异是早期简化（单一双缓冲、无命令流、无 RHI 线程）。
 
 ## 4. 逻辑侧：`Scene` + `SceneProxy`（手写框架）
 
@@ -170,12 +170,12 @@ public partial class StaticMeshComponent : SceneComponent
 入队（静态队列，终结器无实例可达），渲染线程帧末 drain 并 `_gpuResources.Remove` 释放——CPU 数据由 .NET GC
 管理，GPU 几何由 ADR-7 延迟删除，两层都不用手写引用计数。
 
-## 7. 渲染侧：`SceneRenderer`
+## 7. 渲染侧：`ForwardRenderer`
 
 渲染线程的镜像。持久部分（GPU 资源、每实例状态）跨帧保留，快照部分每帧覆盖：
 
 ```csharp
-public sealed class SceneRenderer
+public sealed class ForwardRenderer
 {
     private readonly Dictionary<int, IGPUResource> _gpuResources;   // 单注册表，按 ResourceId 上传一次
     private readonly Dictionary<int, StaticMeshRenderState> _proxyStates;  // 每实例 MVP，按 ProxyId
@@ -209,7 +209,7 @@ public sealed class SceneRenderer
 |---|---|---|
 | `Scene` / `SceneProxy` / 组件 | 逻辑线程 | 仅逻辑线程读写；渲染线程**永不触碰** |
 | `SceneSnapshot`（双缓冲两槽） | 各自独立 | 逻辑线程独占"空槽"，渲染线程独占"就绪槽"；`DualFrameBuffer` 保证互不重叠 |
-| `SceneRenderer._proxyStates` | 渲染线程 | 仅渲染线程读写 |
+| `ForwardRenderer._proxyStates` | 渲染线程 | 仅渲染线程读写 |
 | GPU 资源注册表（`_gpuResources`） | 渲染线程 | 逻辑线程经 `ResourceManager` 单向入队请求创建/释放 |
 | 资源销毁 | 渲染线程 | 逻辑线程只发"注销"信号，渲染线程帧末延迟释放（ADR-7） |
 
@@ -243,7 +243,7 @@ foreach (ref readonly var obj in snapshot.Objects.Span)
 | 实例化（未来） | 网格 + 材质 | 每实例变换数组 | 剔除后合批 instanced draw |
 
 要点：**新增一个类别 = 写一个带 `[SceneProxy]` 的组件（`[ScenePayload]` 字段，资源则 `ISceneResource`）
-+ 在 `SceneRenderer` 加消费分支**；proxy/payload/快照登记点/生命周期全部由生成器产出，同步机制、身份
++ 在 `ForwardRenderer` 加消费分支**；proxy/payload/快照登记点/生命周期全部由生成器产出，同步机制、身份
 协议、线程契约、剔除循环零改动。
 
 ## 12. 迁移路径（已完成）
@@ -251,7 +251,7 @@ foreach (ref readonly var obj in snapshot.Objects.Span)
 - **步骤 1（统一结构）** ✅：`SceneSnapshot` + `SceneObjectHeader` + `BoundingSphere` + `FrameBuffer<T>`；
   相机改 `CameraSnapshot`、清屏色下沉 `CameraComponent.ClearColor`。
 - **步骤 2（生命周期）** ✅：`Scene` + `SceneProxy` + 组件 `BeginPlay/Update/EndPlay`；渲染侧集合 diff +
-  ADR-7 延迟删除（`SceneRenderer._pendingDelete`）。
+  ADR-7 延迟删除（`ForwardRenderer._pendingDelete`）。
 - **步骤 3（生成 + 扩展）** ✅：SceneGen 源生成器（proxy/payload 生成 + 资源成员降级/自动上传）+
   渲染线程剔除正式启用。
 
@@ -261,7 +261,7 @@ foreach (ref readonly var obj in snapshot.Objects.Span)
 
 | ID | 决策 | 备选 | 理由 |
 |---|---|---|---|
-| ADR-8 | 所有场景对象共用 `SceneProxy → SceneSnapshot → SceneRenderer` 单通道 | 每类独立一套列表/队列/注册表 | 一条线程契约、一套身份与生命周期协议，新增类别不复制机制 |
+| ADR-8 | 所有场景对象共用 `SceneProxy → SceneSnapshot → ForwardRenderer` 单通道 | 每类独立一套列表/队列/注册表 | 一条线程契约、一套身份与生命周期协议，新增类别不复制机制 |
 | ADR-9 | 静态数据 upload-once 资源注册表，动态数据每帧值快照 | 每帧重传全部（含几何） | 几何带宽与 GPU 重建成本不可接受 |
 | ADR-10 | 场景对象用稳定 `ProxyId` + 集合 diff 表达新增/存活/销毁 | 依赖列表出现/消失隐式表达 | 渲染侧需要持久状态，必须显式 create/destroy 信号 |
 | ADR-11 | 剔除归渲染线程：逻辑提交完整对象集 + bounds | 逻辑线程剔除后提交 | 剔除与逻辑 tick 解耦，便于未来遮挡/GPU-driven |

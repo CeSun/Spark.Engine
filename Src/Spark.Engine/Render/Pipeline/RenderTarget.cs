@@ -1,6 +1,6 @@
 using Silk.NET.WebGPU;
 
-namespace Spark.Engine.Render;
+namespace Spark.Engine.Render.Pipeline;
 
 /// <summary>
 /// 渲染目标抽象：窗口视口（<see cref="Viewport"/>）或离屏贴图（TextureRenderTarget，P2）的统一基类。

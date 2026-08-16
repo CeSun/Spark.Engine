@@ -1,7 +1,7 @@
 using Silk.NET.WebGPU;
 using Spark.Engine.Platforms;
 
-namespace Spark.Engine.Render;
+namespace Spark.Engine.Render.Pipeline;
 
 /// <summary>
 /// 窗口渲染目标——<see cref="RenderTarget"/> 的窗口实现（唯一带交换链的一种）。

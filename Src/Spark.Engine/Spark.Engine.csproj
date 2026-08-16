@@ -21,4 +21,9 @@
     <ProjectReference Include="..\Spark.Engine.SceneGen\Spark.Engine.SceneGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="Render\Pipeline\Forward\Shaders\*.wgsl" />
+    <EmbeddedResource Include="Render\Pipeline\Forward\Shaders\*.wgsl" />
+  </ItemGroup>
+
 </Project>

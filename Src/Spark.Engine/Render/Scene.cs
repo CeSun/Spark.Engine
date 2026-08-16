@@ -1,3 +1,5 @@
+using Spark.Engine.Render.Resources;
+
 namespace Spark.Engine.Render;
 
 /// <summary>

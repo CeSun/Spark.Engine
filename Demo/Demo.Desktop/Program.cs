@@ -4,6 +4,8 @@ using Spark.Engine.Builder;
 using Spark.Engine.Components;
 using Spark.Engine.Desktop;
 using Spark.Engine.Render;
+using Spark.Engine.Render.Pipeline.Forward;
+using Spark.Engine.Render.Resources;
 using Spark.Engine.Worlds;
 
 var builder = EngineBuilder.Create(args);
@@ -11,6 +13,8 @@ var builder = EngineBuilder.Create(args);
 builder.InitializeWebGPU();
 
 builder.UseDesktop();
+
+builder.UseForward();
 
 var game = builder.Build();
 
@@ -31,16 +35,6 @@ game.InitializeCallback = app =>
     var viewport = app.WindowManager.GetViewport(app.WindowManager.MainWindow);
     camera.RenderTarget = viewport;
 
-    // 创建三角形网格（顶点：位置 + 颜色 + UV）
-    var mesh = new StaticMesh(
-        new[]
-        {
-            new StaticMeshVertex(new Vector3(-0.5f, -0.5f, -2f), Vector3.One, new Vector2(0f, 0f)),
-            new StaticMeshVertex(new Vector3(0.5f, -0.5f, -2f), Vector3.One, new Vector2(1f, 0f)),
-            new StaticMeshVertex(new Vector3(0f, 0.5f, -2f), Vector3.One, new Vector2(0.5f, 1f)),
-        },
-        new uint[] { 0, 1, 2 });
-
     // 2x2 纹理：红 / 绿 / 蓝 / 白（RGBA8）
     var texture = new Texture2D(2, 2, new byte[]
     {
@@ -50,17 +44,57 @@ game.InitializeCallback = app =>
         255, 255, 255, 255,   // (1,1) 白
     });
 
-    // 创建网格 Actor（StaticMeshComponent；网格/纹理在 BeginPlay 时经 ResourceManager 自动上传）
-    var meshActor = new Actor();
-    meshActor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh, Texture = texture });
-    world.AddActor(meshActor);
+    // 两个三角形（顶点：位置 + 颜色 + UV + 法线，法线朝 +Z 面向相机/光源）
+    var normal = new Vector3(0f, 0f, 1f);
+    var meshLeft = new StaticMesh(
+        new[]
+        {
+            new StaticMeshVertex(new Vector3(-1.2f, -0.5f, -2f), Vector3.One, new Vector2(0f, 0f), normal),
+            new StaticMeshVertex(new Vector3(-0.2f, -0.5f, -2f), Vector3.One, new Vector2(1f, 0f), normal),
+            new StaticMeshVertex(new Vector3(-0.7f, 0.5f, -2f), Vector3.One, new Vector2(0.5f, 1f), normal),
+        },
+        new uint[] { 0, 1, 2 });
 
-    // 创建点光源 Actor（LightComponent）
+    var meshRight = new StaticMesh(
+        new[]
+        {
+            new StaticMeshVertex(new Vector3(0.2f, -0.5f, -2f), Vector3.One, new Vector2(0f, 0f), normal),
+            new StaticMeshVertex(new Vector3(1.2f, -0.5f, -2f), Vector3.One, new Vector2(1f, 0f), normal),
+            new StaticMeshVertex(new Vector3(0.7f, 0.5f, -2f), Vector3.One, new Vector2(0.5f, 1f), normal),
+        },
+        new uint[] { 0, 1, 2 });
+
+    // 基础材质：Lit + 基础色纹理（P1：着色模型 + 纹理采样）
+    var material = new Material
+    {
+        ShadingModel = ShadingModel.Lit,
+        BaseColorTexture = texture,
+        Roughness = 0.4f,
+    };
+
+    // 材质实例：引用基础材质，覆写 roughness 与底色 tint（P3：实例参数覆写）
+    var materialInstance = new MaterialInstance { Parent = material };
+    materialInstance.SetScalar(MaterialParam.Roughness, 0.9f);
+    materialInstance.SetVector(MaterialParam.BaseColor, new Vector4(1f, 0.5f, 0.5f, 1f));
+
+    // 左三角：基础材质
+    var meshActorLeft = new Actor();
+    meshActorLeft.AddOwnedComponent(new StaticMeshComponent { Mesh = meshLeft, Material = material });
+    world.AddActor(meshActorLeft);
+
+    // 右三角：材质实例（同 shader、异参数）
+    var meshActorRight = new Actor();
+    meshActorRight.AddOwnedComponent(new StaticMeshComponent { Mesh = meshRight, Material = materialInstance });
+    world.AddActor(meshActorRight);
+
+    // 创建点光源 Actor（LightComponent；位置来自 Actor 世界变换）
     var lightActor = new Actor();
     lightActor.AddOwnedComponent(new LightComponent
     {
         Type = LightType.Point,
-        Intensity = 5f,
+        Color = Vector3.One,
+        Intensity = 8f,
+        Range = 10f,
     });
     world.AddActor(lightActor);
 };

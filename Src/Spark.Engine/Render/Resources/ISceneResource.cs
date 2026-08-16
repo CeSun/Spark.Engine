@@ -1,4 +1,4 @@
-namespace Spark.Engine.Render;
+namespace Spark.Engine.Render.Resources;
 
 /// <summary>
 /// 可上传场景资源契约：暴露全局唯一资源 ID，并接受由 <see cref="ResourceManager"/> 注入的释放回调

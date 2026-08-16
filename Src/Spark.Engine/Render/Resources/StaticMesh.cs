@@ -1,20 +1,22 @@
 using System.Numerics;
 using Spark.Engine.Math;
 
-namespace Spark.Engine.Render;
+namespace Spark.Engine.Render.Resources;
 
-/// <summary>静态网格顶点：位置 + 颜色 + UV（interleaved，stride 32 字节）。</summary>
+/// <summary>静态网格顶点：位置 + 颜色 + UV + 法线（interleaved，stride 44 字节）。</summary>
 public readonly struct StaticMeshVertex
 {
     public readonly Vector3 Position;
     public readonly Vector3 Color;
     public readonly Vector2 Uv;
+    public readonly Vector3 Normal;
 
-    public StaticMeshVertex(Vector3 position, Vector3 color, Vector2 uv)
+    public StaticMeshVertex(Vector3 position, Vector3 color, Vector2 uv, Vector3 normal)
     {
         Position = position;
         Color = color;
         Uv = uv;
+        Normal = normal;
     }
 }
 

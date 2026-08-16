@@ -1,17 +1,17 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Spark.Engine.Builder;
-using Spark.Engine.Render;
+using Spark.Engine.Render.Pipeline;
 
 namespace Spark.Engine.Threads;
 
 /// <summary>
-/// 渲染线程外壳：只负责线程生命周期与异常兜底；渲染逻辑在 <see cref="SceneRenderer"/>。
+/// 渲染线程外壳：只负责线程生命周期与异常兜底；渲染逻辑在 <see cref="IRenderPipeline"/> 的实现里。
+/// 管线经 DI 注入（如 <c>UseForward()</c> 注册的 ForwardRenderer），换管线无需改动本类。
 /// </summary>
 public class RenderThread
 {
     private readonly EngineApplication _engineApplication;
-    private readonly SceneRenderer _sceneRenderer;
+    private readonly IRenderPipeline _pipeline;
     private readonly ILogger<RenderThread> _logger;
     private readonly Thread _thread;
 
@@ -22,11 +22,7 @@ public class RenderThread
         _engineApplication = engineApplication;
         var services = engineApplication.ServiceProvider;
         _logger = services.GetRequiredService<ILogger<RenderThread>>();
-        _sceneRenderer = new SceneRenderer(
-            services.GetRequiredService<ILogger<SceneRenderer>>(),
-            services.GetService<WebGPUContext>(),
-            engineApplication.RenderTargets,
-            engineApplication.ResourceManager);
+        _pipeline = services.GetRequiredService<IRenderPipeline>();
         _thread = new Thread(Run);
     }
 
@@ -41,7 +37,7 @@ public class RenderThread
             try
             {
                 var snapshot = _engineApplication.DualFrameBuffer.GetReadyBuffer();
-                _sceneRenderer.Render(snapshot);
+                _pipeline.Render(snapshot);
                 _engineApplication.DualFrameBuffer.ReturnEmpty();
             }
             catch (Exception ex)
@@ -51,6 +47,6 @@ public class RenderThread
             }
         }
 
-        _sceneRenderer.ReleaseResources();
+        _pipeline.Dispose();
     }
 }

@@ -1,4 +1,5 @@
 using Spark.Engine.Render;
+using Spark.Engine.Render.Resources;
 
 namespace Spark.Engine.Components;
 
@@ -13,11 +14,8 @@ public partial class StaticMeshComponent : SceneComponent
     /// <summary>网格资产（资源成员：进 payload 时降级为 MeshId）。</summary>
     [ScenePayload] public StaticMesh? Mesh { get; set; }
 
-    /// <summary>纹理资产（资源成员：进 payload 时降级为 TextureId）。</summary>
-    [ScenePayload] public Texture2D? Texture { get; set; }
-
-    /// <summary>材质 ID（预留，0 = 默认）。</summary>
-    [ScenePayload] public int MaterialId { get; set; }
+    /// <summary>材质资产（资源成员：进 payload 时降级为 MaterialId；null = 引擎默认材质）。</summary>
+    [ScenePayload] public Material? Material { get; set; }
 
     partial void OnProxyMapped(StaticMeshSceneProxy proxy)
     {

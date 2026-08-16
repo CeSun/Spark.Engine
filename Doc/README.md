@@ -13,7 +13,8 @@ Native 实现为 wgpu），窗口基于 Silk.NET.Windowing，基础设施基于 
 FScene / FSceneProxy / FSceneRenderer 模式。
 
 当前处于**早期原型阶段**：渲染管线已能绘制静态网格（三角形），场景对象（网格/光源）经统一快照通道
-传入渲染线程并做视锥剔除；场景代理由 SceneGen 源生成器生成；材质、纹理、实际光照着色、编辑器等尚未实现。
+传入渲染线程并做视锥剔除；场景代理由 SceneGen 源生成器生成；材质系统（Material/MaterialInstance、
+shader 编译缓存）与前向光照着色（Blinn-Phong）已落地，节点图编辑器、法线贴图与 PBR 尚未实现。
 
 ## 解决方案结构
 
@@ -22,7 +23,9 @@ Spark.Engine.slnx
 ├─ Src/
 │  ├─ Spark.Engine/          核心引擎库（net10.0，唯一 WebGPU 依赖点）
 │  │  ├─ Math/               包围球/视锥（渲染线程剔除）
-│  │  ├─ Render/             Scene/SceneProxy/SceneSnapshot/SceneRenderer 等
+│  │  ├─ Render/             场景同步（根）+ Resources（资源）+ Pipeline（管线）
+│  │  │  ├─ Resources/       资源：StaticMesh/Texture2D/Material + GPU 表示 + ResourceManager
+│  │  │  └─ Pipeline/        管线：RenderTarget/RenderSurface（共享）；Forward/（ForwardRenderer + shader）
 │  │  ├─ Components/         组件（含 LightComponent/StaticMeshComponent）
 │  │  ├─ Threads/            RenderThread（外壳）/EngineSynchronizationContext
 │  │  └─ Worlds/             World（含 Scene）/WorldContext
@@ -38,7 +41,7 @@ Spark.Engine.slnx
 ## 架构分层
 
 ```
-Demo（入口：EngineBuilder → InitializeWebGPU → UseDesktop → Build → Run）
+Demo（入口：EngineBuilder → InitializeWebGPU → UseDesktop → UseForward → Build → Run）
   │
   ▼
 EngineApplication（主循环：窗口事件 → 同步上下文 → 世界更新 → 填场景快照 → 提交）
@@ -47,12 +50,12 @@ EngineApplication（主循环：窗口事件 → 同步上下文 → 世界更�
   └─ DualFrameBuffer<SceneSnapshot>（双缓冲，逻辑→渲染）
        │
        ▼
-RenderThread（线程外壳 → SceneRenderer）
-  ├─ SceneRenderer（上传处理 → 生命周期 diff → acquire → 剔除 → clear → draw → present → 延迟删除）
-  │    ├─ RenderTargetRegistry（窗口视口注册表）
-  │    ├─ IGPUResource 注册表（单注册表，几何/纹理等，上传一次）
-  │    └─ StaticMeshRenderState 注册表（每实例 MVP，按 ProxyId）
-  └─ RenderPipeline / BindGroupLayout / ShaderModule
+RenderThread（线程外壳 → IRenderPipeline，DI 注入）
+  └─ ForwardRenderer : IRenderPipeline（上传处理 → 生命周期 diff → acquire → 剔除 → clear → draw → present → 延迟删除）
+       ├─ RenderTargetRegistry（窗口视口注册表）
+       ├─ IGPUResource 注册表（单注册表：几何/纹理/材质，上传一次）
+       ├─ StaticMeshRenderState 注册表（每实例 object uniform，按 ProxyId）
+       └─ MaterialShaderCache（MaterialShaderKey → ShaderModule + RenderPipeline，按 format 缓存）
 ```
 
 ---
@@ -62,10 +65,11 @@ RenderThread（线程外壳 → SceneRenderer）
 ### 1. 引导与依赖注入（Builder）
 
 - `EngineBuilder.Create(args)`：配置 Serilog 日志（控制台 + 滚动文件）、`EngineOptions`、
-  `RenderTargetRegistry`、`WindowManager`
+  `ResourceManager`、`RenderTargetRegistry`、`WindowManager`
 - `InitializeWebGPU()`：创建 instance 并注册 `WebGPUContext`；首个 surface 创建后按兼容性选择
   adapter，再创建 device/queue
 - `UseDesktop()`：注册 `IWindowBackend`（桌面实现）
+- `UseForward()`：注册 `IRenderPipeline → ForwardRenderer`（前向渲染管线）
 - `EngineOptions`：`Width`/`Height`/`TargetFrameRate`
 
 ### 2. 平台抽象层
@@ -124,9 +128,9 @@ RenderThread（线程外壳 → SceneRenderer）
 
 ### 8. 多线程
 
-- `RenderThread`：线程外壳（循环 + 异常兜底 + 释放），渲染逻辑在 `SceneRenderer`
-- `SceneRenderer`：上传处理 → 生命周期 diff（新增/存活/销毁）→ 分组 → acquire → 剔除 → clear →
-  draw → present → 延迟删除（ADR-7）
+- `RenderThread`：线程外壳（循环 + 异常兜底 + 释放），只依赖 `IRenderPipeline`（DI 注入，换管线不改本类）
+- `IRenderPipeline` / `ForwardRenderer`：管线抽象与具体前向实现；上传处理 → 生命周期 diff（新增/存活/销毁）
+  → 分组 → acquire → 剔除 → clear → draw → present → 延迟删除（ADR-7）
 - `EngineSynchronizationContext`：`Post`/`Send` 把异步回调封送到主引擎线程
 
 ### 9. 场景系统（World → Actor → Component）
@@ -142,26 +146,42 @@ RenderThread（线程外壳 → SceneRenderer）
 
 ### 10. 静态网格渲染 + 渲染线程剔除
 
-- `StaticMesh`：CPU 顶点（位置+颜色）/索引 + 本地包围球 `Bounds` + 全局 `MeshId`
-- `StaticMeshComponent`：持有网格 + `StaticMeshSceneProxy`，每帧同步世界变换与包围球
+- `StaticMesh`：CPU 顶点（位置+颜色+UV+法线）/索引 + 本地包围球 `Bounds` + 全局 `MeshId`
+- `StaticMeshComponent`：持有网格 + 材质 + `StaticMeshSceneProxy`，每帧同步世界变换与包围球
 - `MeshGPUResource`：顶点/索引缓冲（**几何，按 MeshId 上传一次**）
-- `StaticMeshRenderState`：每实例 MVP uniform + bind group（按 `ProxyId` 生命周期管理，修复多实例
-  共享单 buffer 的问题）
-- `SceneRenderer` 视锥剔除：`Frustum`（Gribb-Hartmann 提取）+ `BoundingSphere`，逐相机剔除 → 按类别分流
-- WGSL 着色器（MVP uniform）+ `RenderPipeline` + bind group layout/pipeline layout
-- draw：每相机一个 render pass（首个 clear、后续 Load 叠加），`MVP = World×View×Proj`（行主序直传，不转置）
+- `StaticMeshRenderState`：每实例 object uniform（world + 法线矩阵）+ bind group（按 `ProxyId` 生命周期管理）
+- `ForwardRenderer` 视锥剔除：`Frustum`（Gribb-Hartmann 提取）+ `BoundingSphere`，逐相机剔除 → 按类别分流
+- WGSL 由 `MaterialShaderCodegen` 按材质 key 生成，`MaterialShaderCache` 缓存 ShaderModule/RenderPipeline
+- draw：每相机一个 render pass（首个 clear、后续 Load 叠加），`clip = viewProj × world × position`
 
 ### 11. 光源数据通路
 
 - `LightComponent`（`[SceneProxy]`）→ 生成 `LightSceneProxy`/`LightPayload` → `Scene` →
-  `SceneSnapshot.Lights`（+ header 包围球）→ `SceneRenderer` 剔除/收集
-- 光源与网格走同一套快照通道；实际光照着色（shading）为 P2，当前仅数据通路 + 剔除就绪
+  `SceneSnapshot.Lights`（+ header 包围球）→ `ForwardRenderer` 剔除/收集
+- 光源与网格走同一套快照通道；每帧把可见光打包进 group0 帧 uniform（`MAX_LIGHTS` 上限）
+- 光照着色（Blinn-Phong，点光/平行光/聚光 + 衰减）在片元着色器 `shade_lit` 里一次完成（前向着色）
 
 ### 12. 引擎应用与演示
 
 - `EngineApplication`：主循环（窗口事件 → 同步上下文 → 世界更新 → 填 `SceneSnapshot` → 提交）、
   `InitializeCallback`（初始化回调）、`ResourceManager`（资源自动上传 + GPU 延迟释放）、`ExitGame`；窗口在 `Run` 时创建
-- `Demo.Desktop`：游戏逻辑写在 `InitializeCallback` 里 → 创建 World → 相机 Actor → 三角形网格 → 点光源 → 渲染
+- `Demo.Desktop`：游戏逻辑写在 `InitializeCallback` 里 → 创建 World → 相机 Actor → 三角形网格 → 材质（+实例）→ 点光源 → 渲染
+
+### 13. 材质系统 + 光照着色（P0~P3）
+
+- `Material`（静态属性 + 默认参数）与 `MaterialInstance : Material`（参数覆写）——实例不产生新 shader（ADR-13）
+- `MaterialShaderKey`（值类型）折叠静态属性（着色模型/混合/双面/纹理开关）→ 编译缓存，跨资产共享（ADR-14）
+- `MaterialShaderCodegen` 按 key 生成 WGSL（模板为嵌入式资源 `Render/Pipeline/Forward/Shaders/Forward*.wgsl`）；
+  `MaterialShaderCache` 缓存 ShaderModule + RenderPipeline（按 target format）
+- 绑定组四层：group0 帧 / group1 对象 / group2 材质参数 / group3 材质纹理（5 槽恒绑定 + fallback 纹理，ADR-15/16）
+- 光照：`shade_lit`（Blinn-Phong，点光/平行光/聚光）+ 自发光 + MetallicRoughness/Mask 纹理；法线贴图/PBR 待实现
+- `StaticMeshComponent.Material` 走 `[ScenePayload]` 资源降级（`MaterialId`）+ `ResourceManager` 自动上传（ADR-19）
+
+### 14. 管线抽象（IRenderPipeline）
+
+- `IRenderPipeline`：可替换的「消费 `SceneSnapshot` → 提交绘制」契约（`Render` + `IDisposable`）
+- `ForwardRenderer : IRenderPipeline`：当前唯一实现（前向渲染）；`RenderThread` 只依赖接口（DI 注入）
+- 换管线 = 换 DI 注册：`UseForward()` ↔ 未来的 `UseDeferred()`，渲染线程/场景同步零改动（ADR-21）
 
 ### 验证状态
 
@@ -171,6 +191,8 @@ RenderThread（线程外壳 → SceneRenderer）
 | World 场景接入 | ✅ | ✅（本地 GPU 环境验证通过） |
 | StaticMesh 三角形渲染 | ✅ | ✅（本地 GPU 环境验证通过） |
 | Scene/SceneProxy 统一同步 + 视锥剔除 + 光源数据通路 | ✅ | ⏳（待本地 GPU 环境运行验证） |
+| 材质系统（Material/MaterialInstance + shader 编译缓存） | ✅ | ✅（本地 GPU 环境验证通过） |
+| 前向光照着色（Blinn-Phong） | ✅ | ✅（本地 GPU 环境验证通过） |
 
 ---
 
@@ -184,7 +206,7 @@ RenderThread（线程外壳 → SceneRenderer）
 1. **资源生命周期（部分落地）**：GPU 几何在 `StaticMesh` 被 `Dispose`/GC 回收时，经 `ResourceManager`
    延迟释放（渲染线程帧末 drain，ADR-7）；CPU 顶点/索引仍常驻（由 .NET GC 管理），磁盘流式加载与
    CPU 数据驱逐留待 P3-9。
-2. **ADR-7 延迟删除队列（收尾）**：已落地于场景代理状态（`SceneRenderer._pendingDelete`）；
+2. **ADR-7 延迟删除队列（收尾）**：已落地于场景代理状态（`ForwardRenderer._pendingDelete`）；
    待补：`RenderTargetRegistry` 仍直接 Remove，窗口视口销毁未走延迟删除。
 3. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，只重算/提交变化的对象，
    静态对象复用上一帧快照（当前每帧全量快照）。
@@ -192,7 +214,8 @@ RenderThread（线程外壳 → SceneRenderer）
 ### P2 —— 渲染能力扩展
 
 4. **`TextureRenderTarget`**：离屏渲染目标（无交换链），解锁后处理链/阴影贴图/小地图/编辑器预览。
-5. **材质系统 + 纹理采样 + 实际光照着色**：光源数据通路已就绪，shading 未实现；无纹理、无材质。
+5. **材质系统 + 纹理采样 + 实际光照着色（部分落地）**：P0~P3 已实现（结构化材质 + shader 编译缓存 +
+   Blinn-Phong 前向着色）；节点图（P4）、法线贴图、PBR 未实现。
 6. **帧内渲染依赖 / 拓扑排序**：后处理链（相机 A 渲到贴图 → 相机 B 采样）、阴影贴图的
    pass 顺序。当前只保证"填写顺序 = 渲染顺序"。
 7. **剔除加速结构 + 遮挡剔除**：基础球-视锥剔除已实现；BVH/八叉树/遮挡剔除未实现。
@@ -223,13 +246,18 @@ RenderThread（线程外壳 → SceneRenderer）
 - **P4 懒重配**：surface 尺寸/PresentMode/lost 变化在 acquire 前检查并重配
 - **P5 所有权单向**：平台层创建/销毁 `RenderSurface`，渲染系统只引用
 - **P6 渲染目标统一**：相机输出不限于窗口，`RenderTarget` 抽象统一窗口与贴图
-- **P7 一条通道，分类 payload**：所有场景对象共用 `SceneProxy → SceneSnapshot → SceneRenderer`
+- **P7 一条通道，分类 payload**：所有场景对象共用 `SceneProxy → SceneSnapshot → ForwardRenderer`
   单通道，差异只在 payload 结构与渲染侧消费者
 - **P8 静态上传一次，动态每帧快照**：几何/纹理上传一次；变换/包围盒/光源参数/骨骼姿态每帧快照
 - **P9 稳定 ID + 生命周期 diff**：`ProxyId` + 集合比对得出新增/存活/销毁
 - **P10 剔除归渲染线程**：逻辑线程提交完整对象集 + bounds，渲染线程按相机剔除
 - **P11 语义手写、样板生成**：component 是唯一权威（字段/默认值/Bounds 规则手写）；proxy/payload/
   快照登记点等传输样板由 SceneGen 源生成器产出
+- **P17 管线可替换**：`IRenderPipeline` 抽象 + DI 注册切换（`UseForward`/未来的 `UseDeferred`），
+  渲染线程与场景同步只依赖接口
+
+> 材质系统原则 P12~P16（shader 缓存 / 静态动态分离 / 材质即资源 / 绑定组分层 / 结构化参数先行）见
+> [MaterialSystem-Design.md §2](./MaterialSystem-Design.md#2-设计原则在-p1p11-上新增)。
 
 ## 决策记录（ADR）
 
@@ -245,11 +273,20 @@ RenderThread（线程外壳 → SceneRenderer）
 | ADR-5 | `RenderSurface` 由平台层创建/销毁 |
 | ADR-6 | 渲染目标统一 `RenderTarget` 抽象 |
 | ADR-7 | 资源销毁走延迟删除队列（**已落地于场景代理状态**，视口销毁待接入） |
-| ADR-8 | 所有场景对象共用 `SceneProxy → SceneSnapshot → SceneRenderer` 单通道 |
+| ADR-8 | 所有场景对象共用 `SceneProxy → SceneSnapshot → ForwardRenderer` 单通道 |
 | ADR-9 | 静态数据 upload-once 资源注册表，动态数据每帧值快照 |
 | ADR-10 | 场景对象用稳定 `ProxyId` + 集合 diff 表达新增/存活/销毁 |
 | ADR-11 | 剔除归渲染线程：逻辑提交完整对象集 + bounds，渲染线程按相机剔除 |
 | ADR-12 | 传输样板（proxy/payload/快照字段/Capture）由源生成器按 `[SceneProxy]`/`[ScenePayload]` 产出，语义手写 |
+| ADR-13 | `Material`（静态 shader）与 `MaterialInstance`（参数覆写）分离，实例不产生新 shader |
+| ADR-14 | shader 变体用值类型 `MaterialShaderKey` 折叠 + 进程内编译缓存 |
+| ADR-15 | 纹理槽恒绑定（5 槽 + fallback），`TextureFlags` 只改生成代码 |
+| ADR-16 | 绑定组按更新频率分四层（frame/object/params/textures），布局全局唯一 |
+| ADR-17 | 未指定材质回退引擎内置 DefaultMaterial |
+| ADR-18 | P0~P3 用固定参数集 + WGSL 模板 codegen，节点图 codegen 后置（P4） |
+| ADR-19 | `MaterialInstance : Material`，组件成员统一类型 `Material?`，v1 不引入 `IMaterial` |
+| ADR-20 | 先 `Lit`(Blinn-Phong)，`PBR` 作为 metallic/roughness 已就绪的顺延扩展 |
+| ADR-21 | 管线抽象 `IRenderPipeline` + DI 注册切换（`UseForward`），渲染线程只依赖接口 |
 
 ## 构建与运行
 
@@ -268,3 +305,4 @@ dotnet run --project Demo/Demo.Desktop
 
 - [RenderPipeline-Design.md](./RenderPipeline-Design.md) — 渲染管线详设（含类图、UE 对比）
 - [SceneSync-Design.md](./SceneSync-Design.md) — 逻辑/渲染线程场景同步机制（Scene/SceneProxy/SceneSnapshot）
+- [MaterialSystem-Design.md](./MaterialSystem-Design.md) — 材质系统设计（资产模型/shader 缓存/绑定组/着色/实例化）

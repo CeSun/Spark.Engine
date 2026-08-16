@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Spark.Engine.Builder;
 using Spark.Engine.Components;
 using Spark.Engine.Render;
+using Spark.Engine.Render.Pipeline;
+using Spark.Engine.Render.Resources;
 using Spark.Engine.Threads;
 using Spark.Engine.Worlds;
 using System.Diagnostics;
@@ -63,7 +65,7 @@ public class EngineApplication
 
         _engineSynchronizationContext = new EngineSynchronizationContext();
 
-        _resourceManager = new ResourceManager();
+        _resourceManager = serviceProvider.GetRequiredService<ResourceManager>();
 
         RenderTargets = serviceProvider.GetService<RenderTargetRegistry>() ?? new RenderTargetRegistry();
 

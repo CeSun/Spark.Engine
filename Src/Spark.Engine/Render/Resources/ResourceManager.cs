@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace Spark.Engine.Render;
+namespace Spark.Engine.Render.Resources;
 
 /// <summary>
 /// 资源管理器（逻辑侧）：协调「上传」与「GPU 表示延迟释放」的通用生命周期。
@@ -28,6 +28,9 @@ public sealed class ResourceManager
 
     /// <summary>渲染线程：取下一个待上传资源。</summary>
     internal bool TryDequeueUpload(out ISceneResource? resource) => _pendingUploads.TryDequeue(out resource);
+
+    /// <summary>渲染线程：为「按需同步创建」的资源补挂释放回调（如材质引用的纹理）。</summary>
+    internal void AttachReleaseNotifier(ISceneResource resource) => resource.AttachReleaseNotifier(EnqueueGpuRelease);
 
     /// <summary>渲染线程：取下一个待释放的 ResourceId。</summary>
     internal bool TryDequeueGpuRelease(out int resourceId) => _pendingGpuReleases.TryDequeue(out resourceId);

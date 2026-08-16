@@ -1,6 +1,6 @@
 using Silk.NET.WebGPU;
 
-namespace Spark.Engine.Render;
+namespace Spark.Engine.Render.Pipeline;
 
 /// <summary>
 /// <see cref="RenderSurface.AcquireNextTexture"/> 的结果：本帧交换链纹理及其默认视图（RAII）。
