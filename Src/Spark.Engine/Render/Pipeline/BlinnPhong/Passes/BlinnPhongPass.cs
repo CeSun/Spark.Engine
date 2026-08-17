@@ -15,7 +15,7 @@ namespace Spark.Engine.Render.Pipeline.BlinnPhong.Passes;
 /// 对应 <see cref="ShaderPass.Forward"/>。
 /// group0 帧 uniform + 阴影贴图采样 / group1 对象 / group2 材质参数 / group3 材质纹理。
 /// </summary>
-internal sealed unsafe class BlinnPhongPass
+internal sealed unsafe class BlinnPhongPass : IRenderPass
 {
     private readonly WebGPUContext _webGpu;
     private readonly MaterialShaderCache _shaderCache;

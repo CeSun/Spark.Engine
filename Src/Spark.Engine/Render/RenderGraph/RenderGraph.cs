@@ -287,6 +287,70 @@ public sealed class RenderGraph : IDisposable
         }
     }
 
+    /// <summary>
+    /// 编译后导出图结构为纯数据快照（可视化/调试/序列化用）。必须在 <see cref="Compile"/> 之后调用。
+    /// </summary>
+    public RenderGraphDescription Dump()
+    {
+        if (!_compiled)
+            throw new InvalidOperationException("RenderGraph must be compiled before dump");
+
+        var description = new RenderGraphDescription();
+
+        foreach (var resource in _resources.Values.OrderBy(r => r.Handle.Id))
+        {
+            var graphResource = new GraphResource
+            {
+                Id = resource.Handle.Id,
+                IsExternal = resource.IsExternal,
+                Label = DescribeResource(resource),
+            };
+
+            // external 资源无帧内生命周期，用 -1 表示；transient 记录存活区间
+            if (!resource.IsExternal)
+            {
+                graphResource.FirstWrite = resource.FirstWrite;
+                graphResource.LastRead = resource.LastRead;
+            }
+
+            description.Resources.Add(graphResource);
+        }
+
+        foreach (var pass in _passes)
+        {
+            var graphPass = new GraphPass
+            {
+                Name = pass.Name,
+                ExecutionOrder = pass.ExecutionOrder,
+                IsCulled = pass.IsCulled,
+            };
+
+            foreach (var (resource, access) in pass.Reads)
+                graphPass.Reads.Add(new GraphEdge { ResourceId = resource.Id, Access = access });
+            foreach (var (resource, access) in pass.Writes)
+                graphPass.Writes.Add(new GraphEdge { ResourceId = resource.Id, Access = access });
+
+            description.Passes.Add(graphPass);
+        }
+
+        return description;
+    }
+
+    /// <summary>生成资源的人类可读标签。</summary>
+    private static string DescribeResource(TextureResource resource)
+    {
+        if (resource.IsExternal)
+        {
+            var target = resource.ExternalTarget;
+            return target is null
+                ? $"External({resource.Handle.Id})"
+                : $"{target.GetType().Name}({target.Id})";
+        }
+
+        var desc = resource.Desc;
+        return $"{desc.Width}×{desc.Height} {desc.Format}" + (desc.IsDepth ? " (depth)" : "");
+    }
+
     /// <summary>重置图（下一帧重新构建）。</summary>
     public void Reset()
     {

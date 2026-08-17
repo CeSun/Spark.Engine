@@ -2,7 +2,6 @@ using System.Numerics;
 using Microsoft.Extensions.Logging;
 using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
-using Spark.Engine.Math;
 using Spark.Engine.Render.Common;
 using Spark.Engine.Render.Pipeline.BlinnPhong.Passes;
 using Spark.Engine.Render.RenderGraph;
@@ -16,32 +15,15 @@ namespace Spark.Engine.Render.Pipeline.BlinnPhong;
 /// Blinn-Phong 前向渲染管线：消费 <see cref="SceneSnapshot"/>，做生命周期 diff（新增/存活/销毁 + ADR-7 延迟删除）、
 /// 视锥剔除并提交绘制（对应 UE 的 FSceneRenderer 输入侧）。
 ///
-/// 使用 <see cref="RenderGraph.RenderGraph"/> 声明式编排 ShadowDepth + BlinnPhong 两个 pass：
+/// 继承 <see cref="SceneRenderPipeline"/>——通用场景基建（上传 / 实例同步 / 延迟删除 / 帧图主循环）在基类，
+/// 本类只写「材质着色 + 两个 pass + 图怎么连」：
 /// - ShadowDepth pass：第一个投影阴影的聚光/平行光 → transient 深度贴图
 /// - BlinnPhong pass：采样阴影贴图，完整着色 → backbuffer
 ///
 /// 绑定组四层：group0 帧（+ 阴影贴图/比较采样器）/ group1 对象 / group2 材质参数 / group3 材质纹理。
 /// </summary>
-public unsafe sealed class BlinnPhongRenderer : IRenderPipeline
+public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
 {
-    private readonly ILogger<BlinnPhongRenderer> _logger;
-    private readonly WebGPUContext? _webGpu;
-    private readonly RenderTargetRegistry _targets;
-    private readonly ResourceManager _resourceManager;
-
-    // GPU 资源（单注册表，按 ResourceId 上传一次：网格/纹理/材质）
-    private readonly Dictionary<int, IGPUResource> _gpuResources = new();
-
-    // 渲染侧每实例状态（按 ProxyId），静态网格为 object uniform（group1）+ bind group
-    private readonly Dictionary<int, StaticMeshRenderState> _proxyStates = new();
-
-    // ADR-7 延迟删除队列（帧末批量释放）
-    private readonly Queue<StaticMeshRenderState> _pendingDelete = new();
-
-    // 帧内复用
-    private readonly HashSet<int> _liveProxyIds = new();
-    private readonly List<int> _removedProxyIds = new();
-
     // 绑定组布局（四层，全局唯一）+ pipeline layout + 采样器
     private BindGroupLayout* _frameLayout;
     private BindGroupLayout* _objectLayout;
@@ -71,28 +53,22 @@ public unsafe sealed class BlinnPhongRenderer : IRenderPipeline
         WebGPUContext? webGpu,
         RenderTargetRegistry targets,
         ResourceManager resourceManager)
+        : base(logger, webGpu, targets, resourceManager)
     {
-        _logger = logger;
-        _webGpu = webGpu;
-        _targets = targets;
-        _resourceManager = resourceManager;
     }
 
-    public void Render(SceneSnapshot snapshot)
+    /// <inheritdoc />
+    protected override void EnsurePipelineResources()
     {
-        if (_webGpu == null)
-            return;
-
         EnsureBindGroupLayouts();
         EnsurePasses();
-        ProcessUploads();
-        SyncProxyStates(snapshot);
+    }
 
+    /// <inheritdoc />
+    protected override void BuildGraph(RenderGraph.RenderGraph graph, SceneSnapshot snapshot)
+    {
         // 计算阴影信息
         var shadow = ComputeShadowInfo(snapshot);
-
-        // 构建 RenderGraph
-        using var graph = new RenderGraph.RenderGraph(_webGpu, _logger);
 
         // transient 资源：阴影深度贴图（仅当有阴影时注册）
         RenderGraphResource? shadowDepth = null;
@@ -119,12 +95,6 @@ public unsafe sealed class BlinnPhongRenderer : IRenderPipeline
                 first = false;
             }
         }
-
-        // 编译 + 执行
-        graph.Compile();
-        graph.Execute();
-
-        FlushPendingDelete();
     }
 
     private void EnsurePasses()
@@ -132,194 +102,19 @@ public unsafe sealed class BlinnPhongRenderer : IRenderPipeline
         if (_passesInitialized)
             return;
 
-        _shadowDepthPass = new ShadowDepthPass(
+        _shadowDepthPass = RegisterPass(new ShadowDepthPass(
             _webGpu!, _shaderCache!, _frameLayout,
-            _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger);
-        _shadowDepthPass.Initialize();
+            _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger));
 
-        _blinnPhongPass = new BlinnPhongPass(
+        _blinnPhongPass = RegisterPass(new BlinnPhongPass(
             _webGpu!, _shaderCache!, _frameLayout,
-            _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger);
-        _blinnPhongPass.Initialize();
+            _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger));
 
         _passesInitialized = true;
     }
 
-    private void SyncProxyStates(SceneSnapshot snapshot)
-    {
-        _liveProxyIds.Clear();
-        foreach (ref readonly var obj in snapshot.Objects.Span)
-        {
-            if (obj.Category == SceneCategory.StaticMesh)
-                _liveProxyIds.Add(obj.ProxyId);
-        }
-
-        // 移除：本地有但本帧快照无 → 延迟删除
-        _removedProxyIds.Clear();
-        foreach (var proxyId in _proxyStates.Keys)
-        {
-            if (!_liveProxyIds.Contains(proxyId))
-                _removedProxyIds.Add(proxyId);
-        }
-        foreach (var proxyId in _removedProxyIds)
-        {
-            if (_proxyStates.Remove(proxyId, out var state))
-                _pendingDelete.Enqueue(state);
-        }
-
-        // 新增：本帧快照有但本地无 → 创建实例状态
-        foreach (var proxyId in _liveProxyIds)
-        {
-            if (!_proxyStates.ContainsKey(proxyId))
-                _proxyStates[proxyId] = CreateStaticMeshRenderState();
-        }
-    }
-
-    private void FlushPendingDelete()
-    {
-        // per-instance object uniform（ProxyId 生命周期）
-        while (_pendingDelete.Count > 0)
-            _pendingDelete.Dequeue().Dispose();
-
-        // per-asset GPU 资源（ISceneResource 被 Dispose/GC 时入队，ResourceId 生命周期）
-        while (_resourceManager.TryDequeueGpuRelease(out int resourceId))
-        {
-            if (_gpuResources.Remove(resourceId, out var gpu))
-            {
-                gpu.Dispose();
-                _resourceManager.NotifyReleased(resourceId);   // 清除去重标记，允许重传
-            }
-        }
-
-        // 被移除的渲染目标（ADR-7：视口 surface 延迟释放）
-        while (_targets.TryDequeueRemoval(out var target))
-            target?.Dispose();
-    }
-
-    private void ProcessUploads()
-    {
-        while (_resourceManager.TryDequeueUpload(out var resource))
-        {
-            try
-            {
-                switch (resource)
-                {
-                    case StaticMesh mesh:
-                        if (_gpuResources.ContainsKey(mesh.ResourceId))
-                            continue; // 已上传（ResourceManager 去重后的兜底）
-
-                        _gpuResources[mesh.ResourceId] = CreateMeshGPUResource(mesh);
-                        break;
-                    case Texture2D texture:
-                        if (_gpuResources.ContainsKey(texture.ResourceId))
-                            continue;
-
-                        _gpuResources[texture.ResourceId] = CreateTextureGPUResource(texture.Width, texture.Height, texture.PixelData);
-                        break;
-                    case Material material:
-                        if (_gpuResources.ContainsKey(material.ResourceId))
-                            continue;
-
-                        _gpuResources[material.ResourceId] = CreateMaterialGPUResource(material);
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Resource upload failed for resource {ResourceId}", resource?.ResourceId);
-            }
-        }
-    }
-
-    private MeshGPUResource CreateMeshGPUResource(StaticMesh mesh)
-    {
-        var api = _webGpu!.Api;
-        var device = _webGpu.Device;
-        var queue = _webGpu.Queue;
-
-        ulong vertexSize = (ulong)(mesh.Vertices.Length * sizeof(StaticMeshVertex));
-        ulong indexSize = (ulong)(mesh.Indices.Length * sizeof(uint));
-
-        var vertexDesc = new BufferDescriptor
-        {
-            Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
-            Size = vertexSize,
-            MappedAtCreation = false,
-        };
-        Buffer* vertexBuffer = api.DeviceCreateBuffer(device, ref vertexDesc);
-        fixed (StaticMeshVertex* data = mesh.Vertices)
-        {
-            api.QueueWriteBuffer(queue, vertexBuffer, 0, data, (nuint)vertexSize);
-        }
-
-        var indexDesc = new BufferDescriptor
-        {
-            Usage = BufferUsage.Index | BufferUsage.CopyDst,
-            Size = indexSize,
-            MappedAtCreation = false,
-        };
-        Buffer* indexBuffer = api.DeviceCreateBuffer(device, ref indexDesc);
-        fixed (uint* data = mesh.Indices)
-        {
-            api.QueueWriteBuffer(queue, indexBuffer, 0, data, (nuint)indexSize);
-        }
-
-        return new MeshGPUResource(
-            api,
-            vertexBuffer,
-            indexBuffer,
-            (uint)mesh.Indices.Length,
-            IndexFormat.Uint32,
-            vertexSize,
-            indexSize);
-    }
-
-    private TextureGPUResource CreateTextureGPUResource(uint width, uint height, byte[] rgba8)
-    {
-        var api = _webGpu!.Api;
-        var device = _webGpu.Device;
-        var queue = _webGpu.Queue;
-
-        var size = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
-        var textureDesc = new TextureDescriptor
-        {
-            Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
-            Dimension = TextureDimension.Dimension2D,
-            Size = size,
-            Format = TextureFormat.Rgba8Unorm,
-            MipLevelCount = 1,
-            SampleCount = 1,
-        };
-        Texture* gpuTexture = api.DeviceCreateTexture(device, ref textureDesc);
-
-        var copyDest = new ImageCopyTexture { Texture = gpuTexture, MipLevel = 0, Origin = default, Aspect = TextureAspect.All };
-        var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = width * 4, RowsPerImage = height };
-        fixed (byte* data = rgba8)
-        {
-            api.QueueWriteTexture(queue, ref copyDest, data, (nuint)rgba8.Length, ref dataLayout, ref size);
-        }
-
-        TextureView* view = api.TextureCreateView(gpuTexture, (TextureViewDescriptor*)null);
-
-        return new TextureGPUResource(api, gpuTexture, view);
-    }
-
-    /// <summary>解析材质纹理槽位：缺失则同步创建 GPU 纹理并补挂释放回调（材质按需引用纹理）。</summary>
-    private TextureView* ResolveTextureView(Texture2D? texture, TextureGPUResource fallback)
-    {
-        if (texture == null)
-            return fallback.View;
-
-        if (_gpuResources.TryGetValue(texture.ResourceId, out var existing) && existing is TextureGPUResource tex)
-            return tex.View;
-
-        var created = CreateTextureGPUResource(texture.Width, texture.Height, texture.PixelData);
-        _gpuResources[texture.ResourceId] = created;
-        _resourceManager.AttachReleaseNotifier(texture);
-        return created.View;
-    }
-
-    private MaterialGPUResource CreateMaterialGPUResource(Material material)
+    /// <inheritdoc />
+    protected override MaterialGPUResource CreateMaterialGPUResource(Material material)
     {
         var api = _webGpu!.Api;
         var device = _webGpu.Device;
@@ -373,7 +168,8 @@ public unsafe sealed class BlinnPhongRenderer : IRenderPipeline
         return new MaterialGPUResource(api, key, paramsBuffer, paramsBindGroup, texturesBindGroup);
     }
 
-    private StaticMeshRenderState CreateStaticMeshRenderState()
+    /// <inheritdoc />
+    protected override StaticMeshRenderState CreateStaticMeshRenderState()
     {
         var api = _webGpu!.Api;
         var device = _webGpu.Device;
@@ -587,29 +383,18 @@ public unsafe sealed class BlinnPhongRenderer : IRenderPipeline
         _defaultMaterialGpu = CreateMaterialGPUResource(new Material { ShadingModel = ShadingModel.Unlit, BaseColor = Vector4.One });
     }
 
-    public void ReleaseResources()
+    /// <inheritdoc />
+    protected override void ReleasePipelineResources()
     {
-        var api = _webGpu?.Api;
-        if (api == null)
-            return;
+        var api = _webGpu!.Api;
 
-        _shadowDepthPass?.Dispose();
+        // pass 已由基类 Dispose 统一释放（RegisterPass 注册），这里只清字段
         _shadowDepthPass = null;
-        _blinnPhongPass?.Dispose();
         _blinnPhongPass = null;
         _passesInitialized = false;
 
         _shaderCache?.Dispose();
         _shaderCache = null;
-
-        foreach (var gpu in _gpuResources.Values)
-            gpu.Dispose();
-        _gpuResources.Clear();
-
-        foreach (var state in _proxyStates.Values)
-            state.Dispose();
-        _proxyStates.Clear();
-        FlushPendingDelete();
 
         if (_defaultMaterialGpu != null) _defaultMaterialGpu.Dispose();
         _defaultMaterialGpu = null;
@@ -635,6 +420,4 @@ public unsafe sealed class BlinnPhongRenderer : IRenderPipeline
         _frameLayout = null;
         _pipelineLayout = null;
     }
-
-    public void Dispose() => ReleaseResources();
 }

@@ -204,6 +204,11 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
   取代原 `BlinnPhongRenderer` 里手写的 `RenderShadowMap` / `DrawView` 命令式顺序
 - 窗口 backbuffer 作为 external 资源接入：`RenderGraph.Execute` 帧级 acquire/present 各一次（多相机/多 pass
   共享同一帧），pass 经 `GetTextureView` 取 acquire 的视图，不再各自 acquire/present
+- 可视化：`RenderGraph.Dump()` 编译后导出纯数据快照（pass/资源/读写边），`RenderGraphVisualizer` 输出
+  Mermaid / DOT / JSON；`BlinnPhongRenderer` 首帧打印 Mermaid 图
+- 图形化配置基础（独立可选模块，运行时未引用）：`RenderPassType`/`RenderPassTypeRegistry`（pass 类型 +
+  引脚 + 参数 schema）+ 可序列化 `RenderGraphDefinition`（资源声明 + 节点连线）+ `RenderGraphAssembler`
+  （定义 → 可执行图）；运行时 `BlinnPhongRenderer` 仍命令式建图，未来编辑器以配置层为入口
 - 详见 [RenderGraph-Design.md](./RenderGraph-Design.md)（目标架构 + Phase B 实现落地与踩坑经验）
 
 ### 验证状态

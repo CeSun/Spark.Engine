@@ -14,7 +14,7 @@ namespace Spark.Engine.Render.Pipeline.BlinnPhong.Passes;
 /// 阴影深度 pass：用光源 VP 把 CastShadow 的静态网格渲进深度贴图。
 /// 对应 <see cref="ShaderPass.ShadowDepth"/>。
 /// </summary>
-internal sealed unsafe class ShadowDepthPass
+internal sealed unsafe class ShadowDepthPass : IRenderPass
 {
     private readonly WebGPUContext _webGpu;
     private readonly MaterialShaderCache _shaderCache;

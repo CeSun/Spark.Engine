@@ -218,7 +218,7 @@ classDiagram
 | **B RenderGraph 核心** | `RenderGraph`/`RenderPass`/`RenderGraphResource`/`RenderGraphContext`；`RegisterTexture`/`ImportTexture`/`AddPass`；`Compile`（依赖边 + 拓扑排序 + 存活区间，**无别名**）；`Execute`（帧末释放 transient） | 阴影 + 前向两 pass 跑通；删一个 pass 的消费者能级联剔除 |
 | **C 别名复用** | 存活区间不重叠的 transient 纹理共用物理内存（帧内纹理池） | 内存峰值 = 最大并发占用，而非总和 |
 | **D barrier + 剔除** | WebGPU usage 校验之上显式表达状态转换；pass 级剔除 | 无花屏/黑屏；被剔除 pass 不分配资源 |
-| **E 可视化/调试** | dump 图：pass 依赖、资源生命周期条、barrier 位置 | 图形化排查多 pass 顺序 bug |
+| **E 可视化/调试** | dump 图：pass 依赖、资源生命周期、读写边（✅ 只读 dump 已落地：`RenderGraph.Dump()` + `RenderGraphVisualizer` 输出 Mermaid/DOT/JSON；barrier 位置待 Phase D）；图形化**配置**（可编辑）待做 | 图形化排查多 pass 顺序 bug |
 
 依赖：A → B → C/D → E。**B 是核心**（先「声明依赖、图推导顺序与生命周期」），C 别名与 D barrier 都是优化/正确性增强。
 
@@ -263,6 +263,11 @@ classDiagram
   `FirstWrite/LastRead` 对多 pass 读写的覆盖不完整。
 - **异步 compute / 并行 pass**：图给出并行机会后，是否接入 WebGPU compute queue 重叠。
 - **图编译缓存**：跨帧缓存拓扑与资源池，避免每帧全量重建（UE/Unity 都做了）。
+- **图形化配置（可编辑节点图）**：✅ 基础已落地为**独立可选模块**——pass 类型注册表（`RenderPassType` /
+  `RenderPassTypeRegistry`）+ 可序列化图定义（`RenderGraphDefinition`）+ 运行时装配器（`RenderGraphAssembler`）。
+  运行时 `BlinnPhongRenderer` 仍命令式建图，不依赖该模块；未来编辑器以配置层为入口。仍待：编辑器 UI（读注册表
+  拖线产定义 + JSON 持久化）。关键设计点：静态图中「有投影灯才加 ShadowDepth」这类动态条件现以运行时命令式分支
+  表达，真·静态图需条件节点。
 
 ## 10. 实现落地与踩坑经验（Phase B，2026-08-17）
 
