@@ -8,10 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SixLabors.ImageSharp" />
+    <Content Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Demo\Demo.csproj" />
     <ProjectReference Include="..\..\Src\Spark.Engine.Desktop\Spark.Engine.Desktop.csproj" />
     <ProjectReference Include="..\..\Src\Spark.Engine\Spark.Engine.csproj" />
   </ItemGroup>

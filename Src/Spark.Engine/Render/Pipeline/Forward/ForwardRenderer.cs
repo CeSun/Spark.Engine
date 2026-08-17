@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
 using Spark.Engine.Math;
+using Spark.Engine.Render.RenderGraph;
+using Spark.Engine.Render.RenderGraph.Passes;
 using Spark.Engine.Render.Resources;
 using Buffer = Silk.NET.WebGPU.Buffer;
 
@@ -10,8 +12,12 @@ namespace Spark.Engine.Render.Pipeline.Forward;
 
 /// <summary>
 /// 前向渲染管线（Forward）：消费 <see cref="SceneSnapshot"/>，做生命周期 diff（新增/存活/销毁 + ADR-7 延迟删除）、
-/// 视锥剔除并提交绘制（对应 UE 的 FSceneRenderer 输入侧）。前向着色 + 阴影贴图：每帧先把第一个投影阴影的
-/// 聚光/平行光渲进深度贴图（ShadowDepth pass），再在前向 pass 里采样阴影贴图（shade_lit）。
+/// 视锥剔除并提交绘制（对应 UE 的 FSceneRenderer 输入侧）。
+///
+/// 使用 <see cref="RenderGraph.RenderGraph"/> 声明式编排 ShadowDepth + Forward 两个 pass：
+/// - ShadowDepth pass：第一个投影阴影的聚光/平行光 → transient 深度贴图
+/// - Forward pass：采样阴影贴图，完整着色 → backbuffer
+///
 /// 绑定组四层：group0 帧（+ 阴影贴图/比较采样器）/ group1 对象 / group2 材质参数 / group3 材质纹理。
 /// </summary>
 public unsafe sealed class ForwardRenderer : IRenderPipeline
@@ -33,9 +39,6 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
     // 帧内复用
     private readonly HashSet<int> _liveProxyIds = new();
     private readonly List<int> _removedProxyIds = new();
-    private readonly List<SceneObjectHeader> _visibleObjects = new();
-    private readonly List<VisibleLight> _visibleLights = new();
-    private readonly HashSet<int> _loggedMaterialMisses = new();
 
     // 绑定组布局（四层，全局唯一）+ pipeline layout + 采样器
     private BindGroupLayout* _frameLayout;
@@ -45,21 +48,10 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
     private PipelineLayout* _pipelineLayout;
     private Sampler* _sampler;
 
-    // fallback 纹理（无纹理槽位绑定）
+    // fallback 纹理（材质上传时解析纹理槽位用）
     private TextureGPUResource? _whiteTexture;
     private TextureGPUResource? _normalTexture;
     private TextureGPUResource? _blackTexture;
-
-    // 每帧 uniform（group0，跨相机复用）
-    private Buffer* _frameBuffer;
-    private BindGroup* _frameBindGroup;
-
-    // 阴影：深度贴图（离屏目标）+ 比较采样器
-    private TextureRenderTarget? _shadowMap;
-    private Sampler* _shadowSampler;
-    private TextureRenderTarget? _dummyDepthMap;   // 阴影 pass 的 group0 占位深度纹理（避免同 pass 边写边采样）
-    private BindGroup* _shadowFrameBindGroup;      // 阴影 pass 的 group0（不含阴影贴图本身）
-    private TextureRenderTarget? _depthTarget;     // 前向 pass 的深度缓冲（当前固定尺寸，resize 留待后续）
 
     // shader 编译缓存（按 (MaterialShaderKey, ShaderPass) + format 共享）
     private MaterialShaderCache? _shaderCache;
@@ -67,7 +59,10 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
     // 引擎默认材质（未指定/未上传材质时回退，ADR-17）
     private MaterialGPUResource? _defaultMaterialGpu;
 
-    private TextureFormat _pipelineFormat;
+    // RenderGraph pass 实例（复用）
+    private ShadowDepthPass? _shadowDepthPass;
+    private ForwardPass? _forwardPass;
+    private bool _passesInitialized;
 
     public ForwardRenderer(
         ILogger<ForwardRenderer> logger,
@@ -87,332 +82,65 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
             return;
 
         EnsureBindGroupLayouts();
+        EnsurePasses();
         ProcessUploads();
         SyncProxyStates(snapshot);
 
-        // 阴影 pass：第一个投影阴影的聚光/平行光 → 深度贴图
+        // 计算阴影信息
         var shadow = ComputeShadowInfo(snapshot);
-        if (shadow.HasShadow)
-            RenderShadowMap(snapshot, shadow);
 
-        // 前向 pass：各相机
+        // 构建 RenderGraph
+        using var graph = new RenderGraph.RenderGraph(_webGpu, _logger);
+
+        // transient 资源：阴影深度贴图（仅当有阴影时注册）
+        RenderGraphResource? shadowDepth = null;
+        if (shadow.HasShadow)
+        {
+            var shadowDesc = new TextureResourceDesc(1024, 1024, TextureFormat.Depth24Plus,
+                TextureUsage.RenderAttachment | TextureUsage.TextureBinding);
+            shadowDepth = _shadowDepthPass!.AddToGraph(graph, shadowDesc, snapshot, shadow);
+        }
+
+        // 前向 pass：每个相机目标组一个 pass
         foreach (var group in snapshot.Cameras.GroupBy(c => c.TargetId))
         {
             if (!_targets.TryGet(group.Key, out var target) || target == null)
                 continue;
 
-            try
-            {
-                using var session = target.BeginRenderSession();
-                if (!session.IsValid)
-                    continue;
+            // import external 资源（backbuffer）
+            var backbuffer = graph.ImportTexture(target);
 
-                _pipelineFormat = target.Format;
-                EnsureDepthTarget(target.Width, target.Height);
-
-                bool first = true;
-                foreach (var camera in group)
-                {
-                    DrawView(session.FrameTexture, camera, snapshot, shadow, clear: first);
-                    first = false;
-                }
-            }
-            catch (Exception ex)
+            bool first = true;
+            foreach (var camera in group)
             {
-                _logger.LogError(ex, "Render target {TargetId} failed", group.Key);
+                _forwardPass!.AddToGraph(graph, backbuffer, shadowDepth, snapshot, camera, clear: first);
+                first = false;
             }
         }
+
+        // 编译 + 执行
+        graph.Compile();
+        graph.Execute();
 
         FlushPendingDelete();
     }
 
-    /// <summary>按视口尺寸懒建/重建前向深度缓冲（尺寸变化时重建）。</summary>
-    private void EnsureDepthTarget(uint width, uint height)
+    private void EnsurePasses()
     {
-        if (width == 0 || height == 0)
-            return;
-        if (_depthTarget != null && _depthTarget.Width == width && _depthTarget.Height == height)
+        if (_passesInitialized)
             return;
 
-        _depthTarget?.Dispose();
-        _depthTarget = new TextureRenderTarget(-3, _webGpu!.Api, _webGpu.Device, width, height, TextureFormat.Depth24Plus, isDepth: true);
-    }
+        _shadowDepthPass = new ShadowDepthPass(
+            _webGpu!, _shaderCache!, _frameLayout,
+            _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger);
+        _shadowDepthPass.Initialize();
 
-    private void DrawView(FrameTexture frame, in CameraSnapshot camera, SceneSnapshot snapshot, in ShadowInfo shadow, bool clear)
-    {
-        var api = _webGpu!.Api;
-        var device = _webGpu.Device;
-        var queue = _webGpu.Queue;
+        _forwardPass = new ForwardPass(
+            _webGpu!, _shaderCache!, _frameLayout,
+            _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger);
+        _forwardPass.Initialize();
 
-        // 渲染线程剔除：统一遍历 header，按类别分流
-        var frustum = Frustum.FromViewProjection(camera.ViewMatrix * camera.ProjectionMatrix);
-        Cull(snapshot, frustum);
-
-        // 每帧 uniform：view-proj + 相机位置 + 光源 + 阴影
-        var frameUniform = BuildFrameUniform(camera, shadow);
-        FrameUniformData* framePtr = &frameUniform;
-        api.QueueWriteBuffer(queue, _frameBuffer, 0, framePtr, (nuint)sizeof(FrameUniformData));
-
-        var encoder = api.DeviceCreateCommandEncoder(device, (CommandEncoderDescriptor*)null);
-
-        var colorAttachment = new RenderPassColorAttachment
-        {
-            View = frame.View,
-            LoadOp = clear ? LoadOp.Clear : LoadOp.Load,
-            StoreOp = StoreOp.Store,
-            ClearValue = new Color { R = camera.ClearColor.X, G = camera.ClearColor.Y, B = camera.ClearColor.Z, A = camera.ClearColor.W },
-        };
-
-        var depthAttachment = new RenderPassDepthStencilAttachment
-        {
-            View = _depthTarget!.View,
-            DepthLoadOp = LoadOp.Clear,
-            DepthStoreOp = StoreOp.Store,
-            DepthClearValue = 1.0f,
-        };
-
-        var renderPassDesc = new RenderPassDescriptor
-        {
-            ColorAttachmentCount = (nuint)1,
-            ColorAttachments = &colorAttachment,
-            DepthStencilAttachment = &depthAttachment,
-        };
-
-        var pass = api.CommandEncoderBeginRenderPass(encoder, ref renderPassDesc);
-
-        // group0 每相机 set 一次
-        api.RenderPassEncoderSetBindGroup(pass, 0, _frameBindGroup, (nuint)0, null);
-
-        foreach (var obj in _visibleObjects)
-            DrawStaticMesh(pass, obj, snapshot, ShaderPass.Forward, _pipelineFormat);
-
-        api.RenderPassEncoderEnd(pass);
-
-        var commandBuffer = api.CommandEncoderFinish(encoder, (CommandBufferDescriptor*)null);
-        api.QueueSubmit(queue, (nuint)1, &commandBuffer);
-    }
-
-    private void RenderShadowMap(SceneSnapshot snapshot, in ShadowInfo shadow)
-    {
-        var api = _webGpu!.Api;
-        var device = _webGpu.Device;
-        var queue = _webGpu.Queue;
-
-        // frame uniform：view_proj = 光源 VP（阴影 pass 不需要光照/阴影字段）
-        var frameUniform = new FrameUniformData
-        {
-            ViewProjection = shadow.ViewProjection,
-            CameraPosition = Vector4.Zero,
-            LightCount = 0,
-            ShadowLightIndex = uint.MaxValue,
-        };
-        FrameUniformData* framePtr = &frameUniform;
-        api.QueueWriteBuffer(queue, _frameBuffer, 0, framePtr, (nuint)sizeof(FrameUniformData));
-
-        // 剔除：只渲 CastShadow 的静态网格，用光源视锥
-        var frustum = Frustum.FromViewProjection(shadow.ViewProjection);
-        _visibleObjects.Clear();
-        foreach (ref readonly var obj in snapshot.Objects.Span)
-        {
-            if (obj.Category != SceneCategory.StaticMesh)
-                continue;
-            if ((obj.Visibility & VisibilityFlags.CastShadow) == 0)
-                continue;
-            if (!obj.Bounds.Intersects(frustum))
-                continue;
-            _visibleObjects.Add(obj);
-        }
-
-        var encoder = api.DeviceCreateCommandEncoder(device, (CommandEncoderDescriptor*)null);
-
-        var depthAttachment = new RenderPassDepthStencilAttachment
-        {
-            View = _shadowMap!.View,
-            DepthLoadOp = LoadOp.Clear,
-            DepthStoreOp = StoreOp.Store,
-            DepthClearValue = 1.0f,
-        };
-
-        var renderPassDesc = new RenderPassDescriptor
-        {
-            ColorAttachmentCount = (nuint)0,
-            ColorAttachments = null,
-            DepthStencilAttachment = &depthAttachment,
-        };
-
-        var pass = api.CommandEncoderBeginRenderPass(encoder, ref renderPassDesc);
-        api.RenderPassEncoderSetBindGroup(pass, 0, _shadowFrameBindGroup, (nuint)0, null);
-
-        foreach (var obj in _visibleObjects)
-            DrawStaticMesh(pass, obj, snapshot, ShaderPass.ShadowDepth, _shadowMap!.Format);
-
-        api.RenderPassEncoderEnd(pass);
-
-        var commandBuffer = api.CommandEncoderFinish(encoder, (CommandBufferDescriptor*)null);
-        api.QueueSubmit(queue, (nuint)1, &commandBuffer);
-    }
-
-    private void Cull(SceneSnapshot snapshot, in Frustum frustum)
-    {
-        _visibleObjects.Clear();
-        _visibleLights.Clear();
-
-        foreach (ref readonly var obj in snapshot.Objects.Span)
-        {
-            if ((obj.Visibility & VisibilityFlags.Visible) == 0)
-                continue;
-            if (!obj.Bounds.Intersects(frustum))
-                continue;
-
-            switch (obj.Category)
-            {
-                case SceneCategory.StaticMesh:
-                    _visibleObjects.Add(obj);
-                    break;
-                case SceneCategory.Light:
-                    var payload = snapshot.Lights[obj.PayloadIndex];
-                    var position = obj.WorldTransform.Translation;
-                    var direction = Vector3.TransformNormal(new Vector3(0f, 0f, -1f), obj.WorldTransform);
-                    _visibleLights.Add(new VisibleLight { ProxyId = obj.ProxyId, Position = position, Direction = direction, Payload = payload });
-                    break;
-            }
-        }
-    }
-
-    private void DrawStaticMesh(RenderPassEncoder* pass, in SceneObjectHeader obj, SceneSnapshot snapshot, ShaderPass shaderPass, TextureFormat format)
-    {
-        var payload = snapshot.StaticMeshes[obj.PayloadIndex];
-        if (!_gpuResources.TryGetValue(payload.MeshId, out var gpu) || gpu is not MeshGPUResource mesh)
-            return; // 网格尚未上传，本帧跳过
-        if (!_proxyStates.TryGetValue(obj.ProxyId, out var state))
-            return;
-
-        // 材质：缺失回退默认材质
-        MaterialGPUResource? material = null;
-        if (payload.MaterialId != 0)
-        {
-            if (!_gpuResources.TryGetValue(payload.MaterialId, out var mg) || mg is not MaterialGPUResource m)
-            {
-                if (_loggedMaterialMisses.Add(payload.MaterialId))
-                    _logger.LogWarning("Material {MaterialId} not uploaded, using default material", payload.MaterialId);
-            }
-            else
-            {
-                material = m;
-            }
-        }
-        material ??= _defaultMaterialGpu!;
-
-        // object uniform（world + 法线矩阵）
-        Matrix4x4.Invert(obj.WorldTransform, out var invWorld);
-        ObjectUniformData objectData = new()
-        {
-            World = obj.WorldTransform,
-            NormalMatrix = Matrix4x4.Transpose(invWorld),
-        };
-        ObjectUniformData* objectPtr = &objectData;
-        _webGpu!.Api.QueueWriteBuffer(_webGpu.Queue, state.ObjectBuffer, 0, objectPtr, (nuint)sizeof(ObjectUniformData));
-
-        var pipeline = _shaderCache!.GetPipeline(material.ShaderKey, shaderPass, format);
-
-        var api = _webGpu.Api;
-        api.RenderPassEncoderSetPipeline(pass, pipeline);
-        api.RenderPassEncoderSetBindGroup(pass, 1, state.ObjectBindGroup, (nuint)0, null);
-        api.RenderPassEncoderSetBindGroup(pass, 2, material.ParamsBindGroup, (nuint)0, null);
-        api.RenderPassEncoderSetBindGroup(pass, 3, material.TexturesBindGroup, (nuint)0, null);
-        api.RenderPassEncoderSetVertexBuffer(pass, 0, mesh.VertexBuffer, 0, mesh.VertexBufferSize);
-        api.RenderPassEncoderSetIndexBuffer(pass, mesh.IndexBuffer, mesh.IndexFormat, 0, mesh.IndexBufferSize);
-        api.RenderPassEncoderDrawIndexed(pass, mesh.IndexCount, 1, 0, 0, 0);
-    }
-
-    private FrameUniformData BuildFrameUniform(in CameraSnapshot camera, in ShadowInfo shadow)
-    {
-        var frame = new FrameUniformData
-        {
-            ViewProjection = camera.ViewMatrix * camera.ProjectionMatrix,
-            ShadowViewProjection = shadow.HasShadow ? shadow.ViewProjection : Matrix4x4.Identity,
-            ShadowLightIndex = uint.MaxValue,
-        };
-        Matrix4x4.Invert(camera.ViewMatrix, out var invView);
-        frame.CameraPosition = new Vector4(invView.Translation, 1f);
-
-        int count = System.Math.Min(_visibleLights.Count, ShaderConstants.MaxLights);
-        frame.LightCount = (uint)count;
-        for (int i = 0; i < count; i++)
-        {
-            var light = _visibleLights[i];
-            frame.Lights[i] = ToLightUniform(light);
-            if (shadow.HasShadow && light.ProxyId == shadow.LightProxyId)
-                frame.ShadowLightIndex = (uint)i;
-        }
-
-        return frame;
-    }
-
-    private static LightUniform ToLightUniform(in VisibleLight light)
-    {
-        var p = light.Payload;
-        float type = p.Type switch
-        {
-            LightType.Point => 0f,
-            LightType.Directional => 1f,
-            LightType.Spot => 2f,
-            _ => 0f,
-        };
-
-        return new LightUniform
-        {
-            ColorIntensity = new Vector4(p.Color, p.Intensity),
-            PositionRange = new Vector4(light.Position, p.Type == LightType.Directional ? 0f : MathF.Max(p.Range, 0f)),
-            DirectionCone = new Vector4(light.Direction, MathF.Cos(p.InnerConeAngle)),
-            TypeOuter = new Vector4(type, MathF.Cos(p.OuterConeAngle), 0f, 0f),
-        };
-    }
-
-    private ShadowInfo ComputeShadowInfo(SceneSnapshot snapshot)
-    {
-        foreach (ref readonly var obj in snapshot.Objects.Span)
-        {
-            if (obj.Category != SceneCategory.Light)
-                continue;
-
-            var light = snapshot.Lights[obj.PayloadIndex];
-            if (!light.CastShadow || light.Type is not (LightType.Directional or LightType.Spot))
-                continue;
-
-            var position = obj.WorldTransform.Translation;
-            var direction = Vector3.TransformNormal(new Vector3(0f, 0f, -1f), obj.WorldTransform);
-            return new ShadowInfo
-            {
-                HasShadow = true,
-                ViewProjection = ComputeLightViewProjection(light, position, direction),
-                LightProxyId = obj.ProxyId,
-            };
-        }
-        return default;
-    }
-
-    private static Matrix4x4 ComputeLightViewProjection(LightPayload light, Vector3 position, Vector3 direction)
-    {
-        var up = Vector3.UnitY;
-        if (MathF.Abs(Vector3.Dot(direction, up)) > 0.99f)
-            up = Vector3.UnitZ;   // 方向接近竖直时换 up，避免 look-at 退化
-
-        var view = Matrix4x4.CreateLookAt(position, position + direction, up);
-
-        Matrix4x4 proj;
-        if (light.Type == LightType.Spot)
-        {
-            float fov = MathF.Max(light.OuterConeAngle * 2f, 0.02f);
-            proj = Matrix4x4.CreatePerspectiveFieldOfView(fov, 1f, 0.1f, MathF.Max(light.Range, 0.1f));
-        }
-        else
-        {
-            // 平行光：正交投影（近似，固定包围盒）
-            proj = Matrix4x4.CreateOrthographic(40f, 40f, 0.1f, 60f);
-        }
-
-        return view * proj;
+        _passesInitialized = true;
     }
 
     private void SyncProxyStates(SceneSnapshot snapshot)
@@ -674,6 +402,52 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
         return new StaticMeshRenderState(api, objectBuffer, objectBindGroup);
     }
 
+    private ShadowDepthPass.ShadowInfo ComputeShadowInfo(SceneSnapshot snapshot)
+    {
+        foreach (ref readonly var obj in snapshot.Objects.Span)
+        {
+            if (obj.Category != SceneCategory.Light)
+                continue;
+
+            var light = snapshot.Lights[obj.PayloadIndex];
+            if (!light.CastShadow || light.Type is not (LightType.Directional or LightType.Spot))
+                continue;
+
+            var position = obj.WorldTransform.Translation;
+            var direction = Vector3.TransformNormal(new Vector3(0f, 0f, -1f), obj.WorldTransform);
+            return new ShadowDepthPass.ShadowInfo
+            {
+                HasShadow = true,
+                ViewProjection = ComputeLightViewProjection(light, position, direction),
+                LightProxyId = obj.ProxyId,
+            };
+        }
+        return default;
+    }
+
+    private static Matrix4x4 ComputeLightViewProjection(LightPayload light, Vector3 position, Vector3 direction)
+    {
+        var up = Vector3.UnitY;
+        if (MathF.Abs(Vector3.Dot(direction, up)) > 0.99f)
+            up = Vector3.UnitZ;   // 方向接近竖直时换 up，避免 look-at 退化
+
+        var view = Matrix4x4.CreateLookAt(position, position + direction, up);
+
+        Matrix4x4 proj;
+        if (light.Type == LightType.Spot)
+        {
+            float fov = MathF.Max(light.OuterConeAngle * 2f, 0.02f);
+            proj = Matrix4x4.CreatePerspectiveFieldOfView(fov, 1f, 0.1f, MathF.Max(light.Range, 0.1f));
+        }
+        else
+        {
+            // 平行光：正交投影（近似，固定包围盒）
+            proj = Matrix4x4.CreateOrthographic(40f, 40f, 0.1f, 60f);
+        }
+
+        return view * proj;
+    }
+
     private void EnsureBindGroupLayouts()
     {
         if (_pipelineLayout != null)
@@ -799,22 +573,6 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
         };
         _sampler = api.DeviceCreateSampler(device, ref samplerDesc);
 
-        // 阴影比较采样器
-        var shadowSamplerDesc = new SamplerDescriptor
-        {
-            AddressModeU = AddressMode.ClampToEdge,
-            AddressModeV = AddressMode.ClampToEdge,
-            AddressModeW = AddressMode.ClampToEdge,
-            MagFilter = FilterMode.Linear,
-            MinFilter = FilterMode.Linear,
-            MipmapFilter = MipmapFilterMode.Nearest,
-            LodMinClamp = 0f,
-            LodMaxClamp = 0f,
-            Compare = CompareFunction.Less,
-            MaxAnisotropy = 1,
-        };
-        _shadowSampler = api.DeviceCreateSampler(device, ref shadowSamplerDesc);
-
         // fallback 纹理：白（底色/遮罩）、平面法线、黑（自发光/MR）
         _whiteTexture = CreateTextureGPUResource(1, 1, new byte[] { 255, 255, 255, 255 });
         _normalTexture = CreateTextureGPUResource(1, 1, new byte[] { 128, 128, 255, 255 });
@@ -822,45 +580,6 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
 
         // shader 编译缓存
         _shaderCache = new MaterialShaderCache(_webGpu, _pipelineLayout);
-
-        // 阴影贴图（深度目标，1024×1024）+ 阴影 pass 占位深度纹理（1×1）
-        _shadowMap = new TextureRenderTarget(-1, api, device, 1024, 1024, TextureFormat.Depth24Plus, isDepth: true);
-        _dummyDepthMap = new TextureRenderTarget(-2, api, device, 1, 1, TextureFormat.Depth24Plus, isDepth: true);
-
-        // 帧 uniform（group0，跨相机复用）
-        var frameBufferDesc = new BufferDescriptor
-        {
-            Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-            Size = (ulong)sizeof(FrameUniformData),
-            MappedAtCreation = false,
-        };
-        _frameBuffer = api.DeviceCreateBuffer(device, ref frameBufferDesc);
-
-        // 前向 pass 的 group0：uniform + 阴影贴图（采样）+ 比较采样器
-        BindGroupEntry* frameBindEntries = stackalloc BindGroupEntry[3];
-        frameBindEntries[0] = new BindGroupEntry { Binding = 0, Buffer = _frameBuffer, Offset = 0, Size = (ulong)sizeof(FrameUniformData) };
-        frameBindEntries[1] = new BindGroupEntry { Binding = 1, TextureView = _shadowMap.View };
-        frameBindEntries[2] = new BindGroupEntry { Binding = 2, Sampler = _shadowSampler };
-        var frameBindGroupDesc = new BindGroupDescriptor
-        {
-            Layout = _frameLayout,
-            EntryCount = (nuint)3,
-            Entries = frameBindEntries,
-        };
-        _frameBindGroup = api.DeviceCreateBindGroup(device, ref frameBindGroupDesc);
-
-        // 阴影 pass 的 group0：uniform + 占位深度纹理 + 比较采样器（阴影 pass 只写不采样阴影贴图）
-        BindGroupEntry* shadowFrameEntries = stackalloc BindGroupEntry[3];
-        shadowFrameEntries[0] = new BindGroupEntry { Binding = 0, Buffer = _frameBuffer, Offset = 0, Size = (ulong)sizeof(FrameUniformData) };
-        shadowFrameEntries[1] = new BindGroupEntry { Binding = 1, TextureView = _dummyDepthMap.View };
-        shadowFrameEntries[2] = new BindGroupEntry { Binding = 2, Sampler = _shadowSampler };
-        var shadowFrameBindGroupDesc = new BindGroupDescriptor
-        {
-            Layout = _frameLayout,
-            EntryCount = (nuint)3,
-            Entries = shadowFrameEntries,
-        };
-        _shadowFrameBindGroup = api.DeviceCreateBindGroup(device, ref shadowFrameBindGroupDesc);
 
         // 引擎默认材质（Unlit 白）
         _defaultMaterialGpu = CreateMaterialGPUResource(new Material { ShadingModel = ShadingModel.Unlit, BaseColor = Vector4.One });
@@ -871,6 +590,12 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
         var api = _webGpu?.Api;
         if (api == null)
             return;
+
+        _shadowDepthPass?.Dispose();
+        _shadowDepthPass = null;
+        _forwardPass?.Dispose();
+        _forwardPass = null;
+        _passesInitialized = false;
 
         _shaderCache?.Dispose();
         _shaderCache = null;
@@ -886,22 +611,6 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
 
         if (_defaultMaterialGpu != null) _defaultMaterialGpu.Dispose();
         _defaultMaterialGpu = null;
-
-        if (_frameBindGroup != null) api.BindGroupRelease(_frameBindGroup);
-        if (_frameBuffer != null) api.BufferRelease(_frameBuffer);
-        _frameBindGroup = null;
-        _frameBuffer = null;
-
-        if (_shadowFrameBindGroup != null) api.BindGroupRelease(_shadowFrameBindGroup);
-        if (_shadowMap != null) _shadowMap.Dispose();
-        if (_dummyDepthMap != null) _dummyDepthMap.Dispose();
-        if (_depthTarget != null) _depthTarget.Dispose();
-        if (_shadowSampler != null) api.SamplerRelease(_shadowSampler);
-        _shadowFrameBindGroup = null;
-        _shadowMap = null;
-        _dummyDepthMap = null;
-        _depthTarget = null;
-        _shadowSampler = null;
 
         if (_whiteTexture != null) _whiteTexture.Dispose();
         if (_normalTexture != null) _normalTexture.Dispose();
@@ -926,19 +635,4 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
     }
 
     public void Dispose() => ReleaseResources();
-
-    private struct VisibleLight
-    {
-        public int ProxyId;
-        public Vector3 Position;
-        public Vector3 Direction;
-        public LightPayload Payload;
-    }
-
-    private struct ShadowInfo
-    {
-        public bool HasShadow;
-        public Matrix4x4 ViewProjection;
-        public int LightProxyId;
-    }
 }

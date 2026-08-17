@@ -14,7 +14,8 @@ FScene / FSceneProxy / FSceneRenderer 模式。
 
 当前处于**早期原型阶段**：渲染管线已能绘制静态网格（三角形），场景对象（网格/光源）经统一快照通道
 传入渲染线程并做视锥剔除；场景代理由 SceneGen 源生成器生成；材质系统（Material/MaterialInstance、
-shader 编译缓存）、前向光照着色（Blinn-Phong）、法线贴图与阴影贴图已落地，节点图编辑器与 PBR 尚未实现。
+shader 编译缓存）、前向光照着色（Blinn-Phong）、帧图（RenderGraph）、法线贴图与阴影贴图已落地，
+节点图编辑器与 PBR 尚未实现。
 
 ## 解决方案结构
 
@@ -33,8 +34,8 @@ Spark.Engine.slnx
 │  ├─ Spark.Engine.Desktop/  桌面平台后端（net11.0，Silk.NET.Windowing）
 │  └─ Spark.Engine.Editor/   编辑器（net11.0，空壳）
 ├─ Demo/
-│  ├─ Demo/                  空类库
-│  └─ Demo.Desktop/          可运行演示（三角形 + 点光源）
+│  ├─ Demo/                  演示内容类库（场景搭建 + WallSwinger，平台无关）
+│  └─ Demo.Desktop/          桌面入口（引导 + 平台启动，引用 Demo）
 └─ Doc/                      设计文档
 ```
 
@@ -166,7 +167,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 - `EngineApplication`：主循环（窗口事件 → 同步上下文 → 世界更新 → 填 `SceneSnapshot` → 提交）、
   `InitializeCallback`（初始化回调）、`ResourceManager`（资源自动上传 + GPU 延迟释放）、`ExitGame`；窗口在 `Run` 时创建
-- `Demo.Desktop`：游戏逻辑写在 `InitializeCallback` 里 → 创建 World → 相机 Actor → 三角形网格 → 材质（+实例）→ 点光源 → 渲染
+- `Demo`（类库，平台无关）：演示内容——`DemoApp.Initialize` 搭建 World / 相机 / 网格 / 材质 / 光源；`Demo.Desktop` 作为桌面入口只做引导 + 平台选择
 
 ### 13. 材质系统 + 光照着色（P0~P3）
 
@@ -188,6 +189,18 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - 多 pass shader：`ShaderPass`（Forward/ShadowDepth/DepthOnly）+ 缓存键 `(MaterialShaderKey, ShaderPass)`，
   同一材质按 pass 编多份 shader；阴影贴图已落地（ShadowDepth pass → 前向采样，ADR-22，见 [ShadowMapping-Design.md](./ShadowMapping-Design.md)）
 
+### 15. 帧图（RenderGraph）
+
+- `RenderGraph`（声明式依赖图）：`RegisterTexture`（transient）/ `ImportTexture`（external）/ `AddPass`
+  （声明读写 + 执行回调）/ `Compile`（建依赖边 + 拓扑排序 + 环检测 + 简化剔除）/ `Execute`
+  （分配 transient → 按拓扑序执行 pass → 帧末释放 transient）
+- `RenderGraphContext`：pass 执行时把句柄解析成真实 GPU 对象（`GetRenderTarget` / `GetTextureView` / `GetTransientTarget`）
+- `TransientResourcePool`：帧内 transient 纹理分配/释放（Phase B：每帧新建、帧末统一释放，别名复用留待 Phase C）
+- 两 pass 已落地：`ShadowDepthPass`（写 transient 深度贴图）+ `ForwardPass`（采样阴影贴图 → 写 backbuffer），
+  取代原 `ForwardRenderer` 里手写的 `RenderShadowMap` / `DrawView` 命令式顺序
+- 窗口 backbuffer 作为 external 资源经 `BeginRenderSession()`（acquire/present）接入，而非 `GetTextureView`
+- 详见 [RenderGraph-Design.md](./RenderGraph-Design.md)（目标架构 + Phase B 实现落地与踩坑经验）
+
 ### 验证状态
 
 | 能力 | 编译 | 运行 |
@@ -199,6 +212,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | 材质系统（Material/MaterialInstance + shader 编译缓存） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 前向光照着色（Blinn-Phong） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 阴影贴图（ShadowDepth pass + 前向采样） | ✅ | ✅（本地 GPU 环境验证通过） |
+| RenderGraph 声明式多 pass 编排（ShadowDepth → Forward） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 法线贴图（Normal Mapping，导数法 TBN） | ✅ | ✅（本地 GPU 环境验证通过） |
 
 ---
@@ -223,8 +237,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 4. **`TextureRenderTarget`**：离屏渲染目标（无交换链），解锁后处理链/阴影贴图/小地图/编辑器预览。
 5. **材质系统 + 纹理采样 + 实际光照着色（部分落地）**：P0~P3 已实现（结构化材质 + shader 编译缓存 +
    Blinn-Phong 前向着色 + 法线贴图）；节点图（P4）、PBR 未实现。
-6. **帧内渲染依赖 / 拓扑排序**：后处理链（相机 A 渲到贴图 → 相机 B 采样）、阴影贴图的
-   pass 顺序。当前只保证"填写顺序 = 渲染顺序"。
+6. **帧内渲染依赖 / 拓扑排序（已落地 RenderGraph 核心）**：`RenderGraph` 已实现声明依赖 + 拓扑排序 +
+   生命周期 + 简化剔除，取代"填写顺序 = 渲染顺序"；后处理链（相机 A 渲到贴图 → 相机 B 采样）待接入。
 7. **剔除加速结构 + 遮挡剔除**：基础球-视锥剔除已实现；BVH/八叉树/遮挡剔除未实现。
 
 ### P3 —— 引擎完善

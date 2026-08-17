@@ -4,7 +4,8 @@
 > 作为后续多阴影/软阴影/级联阴影的基础。
 > 关联代码：`Src/Spark.Engine/Render/Pipeline/Forward/ForwardRenderer.cs`、`MaterialShaderCache.cs`、
 > `ShaderPass.cs`、`Shaders/ForwardShadeLit.wgsl`、`Shaders/ForwardDepthFragment.wgsl`、
-> `Src/Spark.Engine/Render/Pipeline/TextureRenderTarget.cs`。
+> `Src/Spark.Engine/Render/Pipeline/TextureRenderTarget.cs`、
+> `Src/Spark.Engine/Render/RenderGraph/Passes/ShadowDepthPass.cs`。
 
 ## 1. 目标与范围
 
@@ -19,7 +20,8 @@
 ```
 Render(SceneSnapshot)
   ├─ ComputeShadowInfo：找第一个 CastShadow 的聚光/平行光，算 light view-proj
-  ├─ RenderShadowMap：深度-only pass，把 CastShadow 网格渲进 1024×1024 Depth24Plus 贴图
+  ├─ ShadowDepthPass：向 RenderGraph 声明并执行深度-only pass
+  │    └─ 把 CastShadow 网格渲进 1024×1024 Depth24Plus 贴图
   └─ 前向 pass：挂深度缓冲（视口尺寸）+ 采样阴影贴图（textureSampleCompare）
 ```
 
@@ -28,9 +30,10 @@ Render(SceneSnapshot)
 | 组件 | 职责 |
 |---|---|
 | `TextureRenderTarget`（isDepth=true） | 离屏深度目标（阴影贴图 + 前向深度缓冲共用此抽象） |
-| `RenderShadowMap` | 阴影 pass：`FrameUniforms.view_proj = 光源 VP`，`ShaderPass.ShadowDepth`，深度附件 Clear 1.0 |
+| `ShadowDepthPass` | 阴影 pass：`FrameUniforms.view_proj = 光源 VP`，`ShaderPass.ShadowDepth`，深度附件 Clear 1.0 |
 | `FrameUniforms` | 增 `shadow_view_proj`（光源 VP）+ `shadow_light`（lights 数组下标，0xFFFFFFFF=无阴影） |
 | group0 布局 | binding0 帧 uniform + binding1 阴影贴图（`texture_depth_2d`）+ binding2 比较采样器（`Compare=Less`） |
+| group1/2/3 | 每次阴影 draw 绑定对象、材质参数、材质纹理；无材质时使用引擎默认材质 |
 | `shade_lit` | 对 `i == shadow_light` 的光源采样阴影：`shadow = textureSampleCompare(...)`，乘进光照 |
 | `StaticMeshComponent.CastShadow` | 写进 header 的 `Visibility.CastShadow`，阴影 pass 据此收集 caster |
 | 前向深度缓冲 | `EnsureDepthTarget` 按视口尺寸懒建/重建，深度测试 `Less`（保证近处三角形盖住远处墙） |
@@ -66,6 +69,26 @@ Render(SceneSnapshot)
 7. **调试方法**：WebGPU 校验错误逐条修（每条都精确指向问题）；`ParamDebug` 日志打材质参数/ShadingModel/
    TextureFlags 确认材质正确；`ShaderDump` 直接 dump 生成的 WGSL 确认纹理采样与 shade_lit 都在。
    这三步能快速把「视觉不对」收敛到「哪一层不对」（材质参数 / shader 生成 / 深度 / 阴影比较）。
+### 4.1 显式 PipelineLayout 的 bind group 完整性
+
+本管线固定使用四组布局：group0 帧、group1 对象、group2 材质参数、group3 材质纹理。
+`ShadowDepthPass` 曾只设置 group0/1，在 `wgpuRenderPassEncoderEnd` 触发：
+
+```text
+Incompatible bind group at index 2 in the current render pipeline
+Assigned bind group layout not found (internal error)
+```
+
+`RenderPassEncoderEnd` 只是延迟校验的报错点，真正缺陷在此前的 draw 状态组装；随后出现的
+`panic in a function that cannot unwind` 是 Rust panic 穿过 C ABI 后的次生 abort，不是另一个根因。
+修复规则是：阴影绘制解析实际 `MaterialGPUResource`，缺失时回退默认材质，并在 draw 前始终设置
+group1/2/3。即使普通深度 shader 没有读取材质参数，masked 变体仍会通过 group3 采样遮罩纹理；
+统一绑定四组可以保持所有材质变体与显式布局兼容。
+
+排查同类错误时按以下顺序进行：先把日志中的 `index N` 映射到固定组职责，再比较
+`DeviceCreatePipelineLayout`、`DeviceCreateBindGroup` 和 draw 前 `SetBindGroup` 使用的布局对象及索引，
+最后检查 BindGroup 是否被提前释放。修复后至少执行一次包含投影光源和 caster 的运行验证；仅 build
+通过不能覆盖 WebGPU 的 draw-time validation。
 
 ## 5. 现状与后续
 

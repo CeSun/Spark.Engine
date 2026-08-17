@@ -1,10 +1,12 @@
 # Spark.Engine RenderGraph 设计
 
-> 状态：设计（未实现）。本文描述帧图（RenderGraph / RDG）的目标架构与分阶段实施计划，
-> 用于把渲染从「命令式按顺序执行」升级为「声明式依赖图」，解锁阴影/后处理等多 pass 链。
-> 决策记录：见 §7；UE/Unity 对比：见 §8；未决事项：见 §9。
-> 关联代码：`Src/Spark.Engine/Render/Pipeline/IRenderPipeline.cs`、`RenderTarget.cs`、`RenderTargetRegistry.cs`、
-> `Src/Spark.Engine/Render/Pipeline/Forward/ForwardRenderer.cs`、`ShaderPass.cs`。
+> 状态：已实现（Phase B 核心：声明依赖 + 拓扑排序 + 生命周期 + 简化剔除；别名复用与 barrier 未落地）。
+> 本文描述帧图（RenderGraph / RDG）的目标架构、分阶段实施计划，以及 Phase B 落地后的实现结构与踩坑经验。
+> 决策记录：见 §7；UE/Unity 对比：见 §8；未决事项：见 §9；实现落地与踩坑：见 §10。
+> 关联代码：`Src/Spark.Engine/Render/RenderGraph/`（`RenderGraph.cs`、`RenderPass.cs`、`RenderPassBuilder.cs`、
+> `RenderGraphContext.cs`、`RenderGraphResource.cs`、`TextureResource.cs`、`TextureResourceDesc.cs`、
+> `ResourceAccess.cs`、`TransientResourcePool.cs`、`Passes/ShadowDepthPass.cs`、`Passes/ForwardPass.cs`）、
+> `Src/Spark.Engine/Render/Pipeline/Forward/ForwardRenderer.cs`。
 
 ## 1. 背景与目标
 
@@ -113,7 +115,7 @@ public readonly struct RenderGraphContext
 |---|---|
 | `IRenderPipeline` | 管线实现内部每帧建一个 `RenderGraph`（或由 `ForwardRenderer` 持有） |
 | `RenderTarget`（抽象）/ `Viewport` | **external 资源**：窗口 backbuffer 导入图，作为最终 pass 的写目标 |
-| `TextureRenderTarget`（**未实现，P2-4**） | **transient 资源的 GPU 载体**：RDG 的前置依赖，必须先补 |
+| `TextureRenderTarget`（已实现） | **transient 资源的 GPU 载体**：RDG 的前置依赖（阶段 A），已落地 |
 | `RenderTargetSession` | pass 的 begin/end 语义：窗口=acquire/present，贴图=绑定/留待采样 |
 | `RenderTargetRegistry` | external 资源（持久贴图/窗口）的跨线程注册表，图只引用其 Id |
 | `ShaderPass` | 图的 pass 与 shader pass 一一对应：ShadowDepth pass 取 `ShaderPass.ShadowDepth` 的 pipeline |
@@ -250,13 +252,45 @@ classDiagram
 
 ## 9. 未决事项 / 后续阶段
 
-- **`TextureRenderTarget` 与 `RenderTarget` 的关系**：是否复用 `RenderTarget` 抽象（窗口/贴图统一），还是 RDG 内部独立一套纹理载体——倾向前者（ADR-6 已统一渲染目标）。
-- **多相机 / 多视口**：同一帧多相机（分屏/编辑器视图）各自的图是独立还是合并；backbuffer 的 import 边界怎么定。
+- **多相机 / 多视口**：同一帧多相机（分屏/编辑器视图）各自的图是独立还是合并；backbuffer 的 import
+  边界怎么定。当前每个 forward pass 各自 `BeginRenderSession`（acquire/present），多相机写同一 backbuffer
+  时需收口为「每帧 acquire 一次、present 一次」（见 §10 踩坑 1）。
 - **buffer 资源**：当前只有纹理；Compute pass 需要 `GraphicsBuffer`/storage buffer 的 transient 版本（P18 需扩展到 buffer）。
-- **别名 vs 移动端 GMEM**：tile-based GPU 的 on-chip 附件复用与主存别名是两套，是否都要支持。
+- **别名复用（Phase C）**：存活区间不重叠的 transient 纹理共用物理内存（含移动端 tile-based GMEM 的 on-chip
+  复用与主存别名两套）；当前 `TransientResourcePool` 每帧新建/释放，不做别名。
+- **barrier 与 pass 级剔除（Phase D）**：当前剔除是简化版（仅「无消费者的纯 transient 写 pass」），
+  `FirstWrite/LastRead` 对多 pass 读写的覆盖不完整。
 - **异步 compute / 并行 pass**：图给出并行机会后，是否接入 WebGPU compute queue 重叠。
 - **图编译缓存**：跨帧缓存拓扑与资源池，避免每帧全量重建（UE/Unity 都做了）。
-- **与 `SceneRenderer` 现状的过渡**：`ForwardRenderer` 是「先命令式跑通阴影，再迁到 RDG」，还是直接一步到位 RDG——建议前者（见 README 二、P2-6）。
+
+## 10. 实现落地与踩坑经验（Phase B，2026-08-17）
+
+Phase B 已实现并跑通「ShadowDepth → Forward」两 pass（见 [ShadowMapping-Design.md](./ShadowMapping-Design.md)）。
+实现与本文设计的两点差异：
+
+- `RenderPass` 是**具体密封类**（`name + setup/execute 委托`），不是 §3.2 的抽象基类——更轻量，pass 不持有
+  GPU 资源，资源在 `RenderGraphContext` 里按句柄解析。
+- 别名复用（Phase C）与 barrier（Phase D）**未落地**；`TransientResourcePool` 目前每帧新建、帧末统一释放。
+
+以下经验都源自 wgpu 的 draw-time validation 崩溃（报错点常是 `RenderPassEncoderEnd`，见
+[ShadowMapping-Design.md §4.1](./ShadowMapping-Design.md#41-显式-pipelinelayout-的-bind-group-完整性)）：
+
+1. **窗口 backbuffer 是 external 资源，必须走 `BeginRenderSession()`（acquire/present），不能走
+   `GetTextureView()`**。`RenderGraphContext.GetTextureView` 只对 `TextureRenderTarget`（离屏）有效，
+   对 `Viewport` 会抛异常。pass 里的统一写法：
+   `using var session = target.BeginRenderSession(); if (!session.IsValid) return;`，颜色附件用
+   `session.FrameTexture.View`，present 在 session 释放时执行（提交之后）。
+2. **transient 资源 + 缓存的 bind group = 悬垂视图**。Phase B 的阴影贴图每帧新建、帧末释放，若 forward
+   pass 的 group0 bind group 只建一次，第 2 帧起就引用已释放的旧视图（阴影永远停在第 1 帧且泄漏）。
+   规则：**凡引用 transient 资源的 bind group，必须随该资源每帧重建**，或把该资源改为 persistent 而非 transient。
+3. **bind group 必须「完整 + 类型正确」**。显式 `PipelineLayout` 声明了几个组，draw 前就要为管线实际用到的
+   每个组 set 一个兼容 bind group（含 fallback）；且每个 binding 的资源类型要与布局一致——深度槽绑深度纹理、
+   `SamplerBindingType.Comparison` 槽绑 `Compare≠Undefined` 的比较采样器，不能用颜色纹理/过滤采样器顶替。
+4. **帧级 bind group 按「有无阴影」分流**：有阴影用含阴影贴图的 group0，无阴影用含 1×1 占位深度纹理的
+   group0，避免 set 一个 null bind group。
+5. **排查顺序**：把日志里的 `index N` 映射到固定组职责（group0 帧 / group1 对象 / group2 材质参数 / group3
+   材质纹理）→ 比对 `DeviceCreatePipelineLayout`、`DeviceCreateBindGroup`、draw 前 `SetBindGroup` 三处的
+   布局对象与索引 → 检查 bind group 是否被提前释放。仅 build 通过不能覆盖 draw-time validation。
 
 ---
 

@@ -1,0 +1,280 @@
+using Microsoft.Extensions.Logging;
+using Spark.Engine.Builder;
+using Spark.Engine.Render.Pipeline;
+
+namespace Spark.Engine.Render.RenderGraph;
+
+/// <summary>
+/// 帧图（RenderGraph / RDG）：渲染代码只声明每个 pass 读什么、写什么，
+/// 引擎从图推导执行顺序、资源生命周期、pass 剔除。
+/// 概念源自 EA Frostbite 2017 FrameGraph 论文。
+///
+/// 使用模式：
+/// <code>
+/// var graph = new RenderGraph(webGpu, logger);
+/// var shadowDepth = graph.RegisterTexture(new TextureResourceDesc(...));
+/// var backbuffer = graph.ImportTexture(viewport);
+/// graph.AddPass("ShadowDepth", setup: b => b.Write(shadowDepth), execute: ctx => { ... });
+/// graph.AddPass("Forward", setup: b => { b.Read(shadowDepth); b.Write(backbuffer); }, execute: ctx => { ... });
+/// graph.Compile();
+/// graph.Execute();
+/// </code>
+/// </summary>
+public sealed class RenderGraph : IDisposable
+{
+    private readonly WebGPUContext _webGpu;
+    private readonly ILogger? _logger;
+    private readonly TransientResourcePool _pool;
+
+    // 资源注册表（Id → TextureResource）
+    private readonly Dictionary<int, TextureResource> _resources = new();
+
+    // 按注册序的 pass 列表
+    private readonly List<RenderPass> _passes = new();
+
+    // 编译结果：拓扑排序后的执行序
+    private readonly List<RenderPass> _executionOrder = new();
+
+    private int _nextId = 100_000; // 从高值开始，避免与 RenderTarget.Id（从 1 递增）冲突
+    private bool _compiled;
+
+    public RenderGraph(WebGPUContext webGpu, ILogger? logger = null)
+    {
+        _webGpu = webGpu;
+        _logger = logger;
+        _pool = new TransientResourcePool(webGpu);
+    }
+
+    /// <summary>注册一个 transient 纹理资源（图管理生命周期）。</summary>
+    public RenderGraphResource RegisterTexture(in TextureResourceDesc desc)
+    {
+        var id = _nextId++;
+        var resource = new TextureResource(id, desc);
+        _resources[id] = resource;
+        return resource.Handle;
+    }
+
+    /// <summary>导入一个外部渲染目标（如窗口 backbuffer），图只引用不管理生命周期。</summary>
+    public RenderGraphResource ImportTexture(RenderTarget externalTarget)
+    {
+        var resource = new TextureResource(externalTarget.Id, externalTarget);
+        _resources[externalTarget.Id] = resource;
+        return resource.Handle;
+    }
+
+    /// <summary>添加一个声明式 pass。</summary>
+    public void AddPass(string name, Action<RenderPassBuilder>? setup, Action<RenderGraphContext>? execute)
+    {
+        var pass = new RenderPass(name, setup, execute);
+        _passes.Add(pass);
+    }
+
+    /// <summary>
+    /// 编译图：建依赖边 → 拓扑排序 → 算存活区间 → 剔除。
+    /// </summary>
+    public void Compile()
+    {
+        _compiled = false;
+        _executionOrder.Clear();
+
+        // 1. 运行所有 pass 的 setup，收集读写声明
+        foreach (var pass in _passes)
+            pass.RunSetup();
+
+        // 2. 建依赖边：pass A 写 R、pass B 读 R → A→B 边
+        //    同时算每个 transient 资源的存活区间
+        var adjList = new Dictionary<int, List<int>>();   // pass index → 后继列表
+        var inDegree = new int[_passes.Count];
+        for (int i = 0; i < _passes.Count; i++)
+            adjList[i] = new List<int>();
+
+        for (int i = 0; i < _passes.Count; i++)
+        {
+            foreach (var (resource, _) in _passes[i].Writes)
+            {
+                if (_resources.TryGetValue(resource.Id, out var tex) && !tex.IsExternal)
+                {
+                    tex.FirstWrite = System.Math.Min(tex.FirstWrite, i);
+                    tex.LastRead = System.Math.Max(tex.LastRead, i);
+                }
+
+                // 寻找读此资源的 pass
+                for (int j = i + 1; j < _passes.Count; j++)
+                {
+                    bool reads = false;
+                    foreach (var (readRes, _) in _passes[j].Reads)
+                    {
+                        if (readRes.Id == resource.Id)
+                        {
+                            reads = true;
+                            break;
+                        }
+                    }
+                    if (reads)
+                    {
+                        adjList[i].Add(j);
+                        inDegree[j]++;
+                    }
+                }
+            }
+
+            // 读取的资源也要更新 LastRead（即使 pass j 只读不写）
+            foreach (var (resource, _) in _passes[i].Reads)
+            {
+                if (_resources.TryGetValue(resource.Id, out var tex) && !tex.IsExternal)
+                    tex.LastRead = System.Math.Max(tex.LastRead, i);
+            }
+
+            // 显式依赖：DependsOn 引用的资源所在 pass → 本 pass
+            foreach (var depRes in _passes[i].ExplicitDependencies)
+            {
+                for (int j = 0; j < _passes.Count; j++)
+                {
+                    if (j == i) continue;
+                    bool writesDep = false;
+                    foreach (var (writeRes, _) in _passes[j].Writes)
+                    {
+                        if (writeRes.Id == depRes.Id)
+                        {
+                            writesDep = true;
+                            break;
+                        }
+                    }
+                    if (writesDep && j < i)
+                    {
+                        adjList[j].Add(i);
+                        inDegree[i]++;
+                    }
+                }
+            }
+        }
+
+        // 3. 拓扑排序（Kahn 算法）
+        var queue = new Queue<int>();
+        for (int i = 0; i < _passes.Count; i++)
+        {
+            if (inDegree[i] == 0)
+                queue.Enqueue(i);
+        }
+
+        while (queue.Count > 0)
+        {
+            var idx = queue.Dequeue();
+            _passes[idx].ExecutionOrder = _executionOrder.Count;
+            _executionOrder.Add(_passes[idx]);
+
+            foreach (var next in adjList[idx])
+            {
+                inDegree[next]--;
+                if (inDegree[next] == 0)
+                    queue.Enqueue(next);
+            }
+        }
+
+        // 环检测
+        if (_executionOrder.Count != _passes.Count)
+        {
+            int unprocessed = _passes.Count - _executionOrder.Count;
+            _logger?.LogError("RenderGraph compile error: {Count} pass(es) have circular dependencies", unprocessed);
+            throw new InvalidOperationException(
+                $"RenderGraph has circular dependencies ({unprocessed} pass(es) unprocessed)");
+        }
+
+        // 4. 剔除：transient 资源无任何消费者 → 生产它的 pass 可被跳过（级联）
+        //    消费者 = 在 LastRead 之后仍然读此资源的 pass
+        //    简化实现：如果 transient 资源的 Writes 有 pass、但 Reads 列表中无其他 pass 读它 → 剔除
+        //    Phase B 简化：只有当 transient 资源的 LastRead == FirstWrite（只有写、无其他 pass 读）
+        //    且该资源不是任何 pass 的 read 目标时才剔除
+        var consumedResources = new HashSet<int>();
+        foreach (var pass in _executionOrder)
+        {
+            foreach (var (resource, _) in pass.Reads)
+                consumedResources.Add(resource.Id);
+        }
+
+        foreach (var pass in _executionOrder)
+        {
+            bool hasUnconsumedWrite = false;
+            foreach (var (resource, _) in pass.Writes)
+            {
+                if (_resources.TryGetValue(resource.Id, out var tex) && !tex.IsExternal)
+                {
+                    if (!consumedResources.Contains(resource.Id))
+                        hasUnconsumedWrite = true;
+                }
+            }
+            // 只剔除纯粹生产 transient 资源但无输出到 external 的 pass
+            // 不剔除任何写 external 资源的 pass
+            bool writesExternal = false;
+            foreach (var (resource, _) in pass.Writes)
+            {
+                if (_resources.TryGetValue(resource.Id, out var tex) && tex.IsExternal)
+                {
+                    writesExternal = true;
+                    break;
+                }
+            }
+            if (hasUnconsumedWrite && !writesExternal)
+            {
+                pass.IsCulled = true;
+                _logger?.LogDebug("RenderGraph: culled pass '{Pass}'", pass.Name);
+            }
+        }
+
+        _compiled = true;
+        _logger?.LogDebug("RenderGraph compiled: {PassCount} passes, {ResourceCount} resources",
+            _executionOrder.Count, _resources.Count);
+    }
+
+    /// <summary>
+    /// 执行图：按拓扑序执行 pass；帧末释放 transient 资源。
+    /// </summary>
+    public void Execute()
+    {
+        if (!_compiled)
+            throw new InvalidOperationException("RenderGraph must be compiled before execution");
+
+        var context = new RenderGraphContext(_webGpu, _resources);
+
+        // 分配 transient 资源
+        foreach (var resource in _resources.Values)
+        {
+            if (resource.IsExternal) continue;
+            resource.TransientTarget = _pool.Allocate(resource.Desc);
+        }
+
+        // 按拓扑序执行 pass
+        foreach (var pass in _executionOrder)
+        {
+            if (pass.IsCulled)
+                continue;
+
+            _logger?.LogTrace("RenderGraph: executing pass '{Pass}'", pass.Name);
+            pass.ExecuteAction?.Invoke(context);
+        }
+
+        // 帧末释放 transient 资源
+        _pool.ReleaseAll();
+        foreach (var resource in _resources.Values)
+        {
+            if (!resource.IsExternal)
+                resource.TransientTarget = null;
+        }
+    }
+
+    /// <summary>重置图（下一帧重新构建）。</summary>
+    public void Reset()
+    {
+        _resources.Clear();
+        _passes.Clear();
+        _executionOrder.Clear();
+        _nextId = 100_000;
+        _compiled = false;
+    }
+
+    public void Dispose()
+    {
+        _pool.Dispose();
+        Reset();
+    }
+}
