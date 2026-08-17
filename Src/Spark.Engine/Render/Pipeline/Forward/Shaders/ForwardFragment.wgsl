@@ -9,6 +9,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 {{MR_TEXTURE}}
 
     var n = normalize(in.world_normal);
+{{NORMAL_TEXTURE}}
     var color = base.rgb;
 {{SHADING}}
     color = color + mp.emissive.rgb * mp.emissive.w;

@@ -17,6 +17,23 @@ public static class MaterialShaderCodegen
     private static readonly string FragmentTemplate = LoadShader("ForwardFragment.wgsl");
     private static readonly string DepthFragmentTemplate = LoadShader("ForwardDepthFragment.wgsl");
 
+    /// <summary>法线贴图片段：屏幕空间导数法计算 TBN（无需切线顶点属性）→ 采样法线纹理 → 覆盖 n。</summary>
+    private const string NormalMapCode =
+        "    var dp1 = dpdx(in.world_pos);\n" +
+        "    var dp2 = dpdy(in.world_pos);\n" +
+        "    var duv1 = dpdx(in.uv);\n" +
+        "    var duv2 = dpdy(in.uv);\n" +
+        "    var nrm = normalize(in.world_normal);\n" +
+        "    var dp2perp = cross(dp2, nrm);\n" +
+        "    var dp1perp = cross(nrm, dp1);\n" +
+        "    var tangent = dp2perp * duv1.x + dp1perp * duv2.x;\n" +
+        "    var bitangent = dp2perp * duv1.y + dp1perp * duv2.y;\n" +
+        "    var invmax = inverseSqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));\n" +
+        "    var tbn = mat3x3f(tangent * invmax, bitangent * invmax, nrm);\n" +
+        "    var n_ts = textureSample(normal_tex, samp, in.uv).rgb * 2.0 - 1.0;\n" +
+        "    n_ts = vec3f(n_ts.x * mp.normal_strength.x, n_ts.y * mp.normal_strength.x, n_ts.z);\n" +
+        "    n = normalize(tbn * normalize(n_ts));";
+
     /// <summary>按材质 key + pass 生成完整 WGSL 源码（纯函数）。</summary>
     public static string Generate(MaterialShaderKey key, ShaderPass pass)
     {
@@ -51,6 +68,10 @@ public static class MaterialShaderCodegen
         .Replace("{{MR_TEXTURE}}",
             key.TextureFlags.HasFlag(TextureFlags.MetallicRoughness)
                 ? "    var mr = textureSample(mr_tex, samp, in.uv);\n    metallic = mr.r;\n    roughness = mr.g;"
+                : "")
+        .Replace("{{NORMAL_TEXTURE}}",
+            key.TextureFlags.HasFlag(TextureFlags.Normal)
+                ? NormalMapCode
                 : "")
         .Replace("{{SHADING}}",
             key.ShadingModel == ShadingModel.Unlit

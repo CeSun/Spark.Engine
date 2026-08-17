@@ -1,4 +1,6 @@
 using System.Numerics;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Spark.Engine.Actors;
 using Spark.Engine.Builder;
 using Spark.Engine.Components;
@@ -21,6 +23,15 @@ var game = builder.Build();
 // 游戏初始化逻辑全部写在初始化回调里（Run 时、窗口创建后、主循环前执行）
 game.InitializeCallback = app =>
 {
+    // 加载图片 → RGBA8 Texture2D（ImageSharp 解码 jpg）
+    Texture2D LoadTexture(string path)
+    {
+        using var image = Image.Load<Rgba32>(path);
+        var rgba = new byte[image.Width * image.Height * 4];
+        image.CopyPixelDataTo(rgba);
+        return new Texture2D((uint)image.Width, (uint)image.Height, rgba);
+    }
+
     // 创建世界
     var world = new World();
     app.WorldContext.CurrentWorld = world;
@@ -88,33 +99,66 @@ game.InitializeCallback = app =>
     meshActorRight.AddOwnedComponent(new StaticMeshComponent { Mesh = meshRight, Material = materialRight });
     world.AddActor(meshActorRight);
 
-    // 背景墙（接收阴影、不投射）：z=-4 的大四边形，朝 +Z
+    // 背景墙 mesh（左右两墙共享）：局部坐标（中心在原点），由 RelativeLocation 定位到 z=-4
     var wallNormal = new Vector3(0f, 0f, 1f);
     var wallMesh = new StaticMesh(
         new[]
         {
-            new StaticMeshVertex(new Vector3(-3f, -2f, -4f), Vector3.One, new Vector2(0f, 0f), wallNormal),
-            new StaticMeshVertex(new Vector3(3f, -2f, -4f), Vector3.One, new Vector2(1f, 0f), wallNormal),
-            new StaticMeshVertex(new Vector3(3f, 2f, -4f), Vector3.One, new Vector2(1f, 1f), wallNormal),
-            new StaticMeshVertex(new Vector3(-3f, 2f, -4f), Vector3.One, new Vector2(0f, 1f), wallNormal),
+            new StaticMeshVertex(new Vector3(-1.5f, -2f, 0f), Vector3.One, new Vector2(0f, 0f), wallNormal),
+            new StaticMeshVertex(new Vector3(1.5f, -2f, 0f), Vector3.One, new Vector2(1f, 0f), wallNormal),
+            new StaticMeshVertex(new Vector3(1.5f, 2f, 0f), Vector3.One, new Vector2(1f, 1f), wallNormal),
+            new StaticMeshVertex(new Vector3(-1.5f, 2f, 0f), Vector3.One, new Vector2(0f, 1f), wallNormal),
         },
         new uint[] { 0, 1, 2, 0, 2, 3 });
 
-    var wallMaterial = new Material
+    // 加载真实砖墙贴图：颜色贴图 + 法线贴图（jpg → RGBA8）
+    var wallColorTexture = LoadTexture(@"C:\Users\cesun\Downloads\brickwall.jpg");
+    var wallNormalTexture = LoadTexture(@"C:\Users\cesun\Downloads\brickwall_normal.jpg");
+
+    // 左墙：有法线贴图
+    var wallWithNormal = new Material
     {
         ShadingModel = ShadingModel.Lit,
-        BaseColor = new Vector4(0.6f, 0.6f, 0.6f, 1f),
+        BaseColor = Vector4.One,
         Roughness = 0.9f,
+        BaseColorTexture = wallColorTexture,
+        NormalTexture = wallNormalTexture,
     };
 
-    var wallActor = new Actor();
-    wallActor.AddOwnedComponent(new StaticMeshComponent { Mesh = wallMesh, Material = wallMaterial, CastShadow = false });
-    world.AddActor(wallActor);
+    // 右墙：无法线贴图（对照）
+    var wallWithoutNormal = new Material
+    {
+        ShadingModel = ShadingModel.Lit,
+        BaseColor = Vector4.One,
+        Roughness = 0.9f,
+        BaseColorTexture = wallColorTexture,
+    };
 
-    // 聚光光源（CastShadow）：偏移到 (0.5, 0, 0)、朝 -Z 照射，把两个三角形投到背景墙上
+    var leftWall = new StaticMeshComponent
+    {
+        Mesh = wallMesh,
+        Material = wallWithNormal,
+        CastShadow = false,
+        RelativeLocation = new Vector3(-2f, 0f, -4f),
+    };
+    var leftWallActor = new Actor();
+    leftWallActor.AddOwnedComponent(leftWall);
+    world.AddActor(leftWallActor);
+
+    var rightWall = new StaticMeshComponent
+    {
+        Mesh = wallMesh,
+        Material = wallWithoutNormal,
+        CastShadow = false,
+        RelativeLocation = new Vector3(2f, 0f, -4f),
+    };
+    var rightWallActor = new Actor();
+    rightWallActor.AddOwnedComponent(rightWall);
+    world.AddActor(rightWallActor);
+
+    // 聚光光源（CastShadow）：朝 -Z 照射，把两个三角形投到背景墙上；固定偏移到 (0.5, 0, 0)
     // （光源与相机错开，阴影才会投到三角形侧面可见的位置）
-    var lightActor = new Actor();
-    lightActor.AddOwnedComponent(new SpotLightComponent
+    var spotLight = new SpotLightComponent
     {
         RelativeLocation = new Vector3(0.5f, 0f, 0f),
         Color = Vector3.One,
@@ -123,8 +167,32 @@ game.InitializeCallback = app =>
         InnerConeAngle = 0.5f,
         OuterConeAngle = 1.1f,
         CastShadow = true,
-    });
+    };
+    var lightActor = new Actor();
+    lightActor.AddOwnedComponent(spotLight);
     world.AddActor(lightActor);
+
+    // 让两堵墙一起绕自身中心（Y 轴）左右摆动：墙面法线方向持续变化，观察不同方向受光
+    world.AddActor(new WallSwinger(leftWall, rightWall));
 };
 
 game.Run();
+
+/// <summary>每帧让多堵墙一起绕自身中心（Y 轴）左右摆动，使墙面法线方向持续变化，观察不同方向受光。</summary>
+public sealed class WallSwinger : Actor
+{
+    private readonly StaticMeshComponent[] _walls;
+    private float _time;
+
+    public WallSwinger(params StaticMeshComponent[] walls) => _walls = walls;
+
+    public override void Update(float deltaTime)
+    {
+        _time += deltaTime;
+        // 摆动幅度约 ±51°，避免转到背面；光源固定，墙面法线变化 → 受光角度随之变化
+        float angle = MathF.Sin(_time * 0.8f) * 0.9f;
+        var rotation = Quaternion.CreateFromYawPitchRoll(angle, 0f, 0f);
+        foreach (var wall in _walls)
+            wall.RelativeRotation = rotation;
+    }
+}
