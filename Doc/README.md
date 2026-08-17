@@ -202,7 +202,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - `TransientResourcePool`：帧内 transient 纹理分配/释放（Phase B：每帧新建、帧末统一释放，别名复用留待 Phase C）
 - 两 pass 已落地：`ShadowDepthPass`（写 transient 深度贴图）+ `BlinnPhongPass`（采样阴影贴图 → 写 backbuffer），
   取代原 `BlinnPhongRenderer` 里手写的 `RenderShadowMap` / `DrawView` 命令式顺序
-- 窗口 backbuffer 作为 external 资源经 `BeginRenderSession()`（acquire/present）接入，而非 `GetTextureView`
+- 窗口 backbuffer 作为 external 资源接入：`RenderGraph.Execute` 帧级 acquire/present 各一次（多相机/多 pass
+  共享同一帧），pass 经 `GetTextureView` 取 acquire 的视图，不再各自 acquire/present
 - 详见 [RenderGraph-Design.md](./RenderGraph-Design.md)（目标架构 + Phase B 实现落地与踩坑经验）
 
 ### 验证状态

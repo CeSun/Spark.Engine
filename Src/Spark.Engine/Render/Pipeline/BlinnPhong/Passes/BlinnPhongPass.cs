@@ -138,13 +138,13 @@ internal sealed unsafe class BlinnPhongPass
 
         var target = ctx.GetRenderTarget(backbuffer);
 
-        // 开始渲染会话：窗口目标 acquire swapchain（present 在 session 释放时执行），离屏目标绑定持久视图
-        using var session = target.BeginRenderSession();
-        if (!session.IsValid)
+        // backbuffer 已由 RenderGraph.Execute 帧级 acquire（多相机/多 pass 共享同一帧），这里只取视图。
+        // acquire 失败（surface lost / 未配置）时视图为空，跳过本 pass。
+        var colorView = ctx.GetTextureView(backbuffer);
+        if (colorView == null)
             return;
 
         var colorFormat = target.Format;
-        var colorView = session.FrameTexture.View;
 
         // 帧 uniform
         var shadowVp = shadowDepth.HasValue ? ctx.GetTransientTarget(shadowDepth.Value) : null;

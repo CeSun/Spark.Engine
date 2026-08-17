@@ -29,7 +29,7 @@ public readonly unsafe struct RenderGraphContext
             throw new InvalidOperationException($"Resource {resource.Id} not found in graph");
 
         if (tex.IsExternal)
-            return GetExternalTextureView(tex.ExternalTarget!);
+            return GetExternalTextureView(tex);
 
         var target = tex.TransientTarget
             ?? throw new InvalidOperationException($"Transient resource {resource.Id} has no allocated target");
@@ -61,16 +61,21 @@ public readonly unsafe struct RenderGraphContext
             ?? throw new InvalidOperationException($"Transient resource {resource.Id} has no allocated target");
     }
 
-    private static TextureView* GetExternalTextureView(RenderTarget target)
+    private static TextureView* GetExternalTextureView(TextureResource tex)
     {
-        // 对于 Viewport 外部目标，需要在执行时 acquire（通过 BeginRenderSession）
-        // 对于已有的 TextureRenderTarget，直接返回 View
+        var target = tex.ExternalTarget
+            ?? throw new InvalidOperationException("External resource has no render target");
+
+        // 离屏纹理目标：持久视图直接返回
         if (target is TextureRenderTarget texTarget)
             return texTarget.View;
 
-        // Viewport 等窗口目标的视图在 session 内获取，不在这里直接返回
-        throw new InvalidOperationException(
-            $"External resource of type {target.GetType().Name} does not have a directly accessible TextureView. " +
-            "Use GetRenderTarget() and BeginRenderSession() instead.");
+        // Viewport：从帧级 session 取 acquire 的视图（RenderGraph.Execute 已每帧 acquire 一次）
+        var session = tex.ExternalSession;
+        if (session.HasValue && session.Value.IsValid)
+            return session.Value.FrameTexture.View;
+
+        // acquire 失败（surface lost / 未配置），返回 null 让调用方跳过本 pass
+        return null;
     }
 }

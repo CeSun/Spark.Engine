@@ -4,14 +4,15 @@ using SixLabors.ImageSharp.PixelFormats;
 using Spark.Engine;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
+using Spark.Engine.Render.Common;
 using Spark.Engine.Resources;
 using Spark.Engine.Worlds;
 
 namespace Demo;
 
 /// <summary>
-/// 演示内容：构建世界、相机、两个三角形 + 两堵砖墙 + 投影聚光灯，并让墙左右摆动。
-/// 平台无关——只依赖 Spark.Engine 核心；各平台入口（桌面/编辑器）在 InitializeCallback 里调用
+/// 演示内容：构建世界、两个相机（两个窗口不同视角观察同一场景）、两个三角形 + 两堵砖墙 + 投影聚光灯，
+/// 并让墙左右摆动。平台无关——只依赖 Spark.Engine 核心；各平台入口（桌面/编辑器）在 InitializeCallback 里调用
 /// <see cref="Initialize"/>。
 /// </summary>
 public static class DemoApp
@@ -37,14 +38,16 @@ public static class DemoApp
         app.WorldContext.CurrentWorld = world;
         world.Scene.ResourceManager = app.ResourceManager;
 
-        // 创建相机 Actor，绑定主视口
-        var cameraActor = new Actor();
-        var camera = new CameraComponent();
-        cameraActor.AddOwnedComponent(camera);
-        world.AddActor(cameraActor);
+        // 两个窗口、两个不同视角，观察同一场景（验证 RenderGraph 帧级 acquire/present 收口）
+        var mainWindow = app.WindowManager.MainWindow;
+        var mainViewport = app.WindowManager.GetViewport(mainWindow)!;
 
-        var viewport = app.WindowManager.GetViewport(app.WindowManager.MainWindow);
-        camera.RenderTarget = viewport;
+        // 第二个窗口：右侧上方俯看同一场景
+        var secondWindow = app.WindowManager.CreateWindow("Spark Engine — 侧面视角", 800, 600);
+        var secondViewport = app.WindowManager.GetViewport(secondWindow)!;
+
+        AddCamera(world, mainViewport, eye: new Vector3(0f, 0f, 1.5f), lookAt: new Vector3(0f, 0f, -2f));
+        AddCamera(world, secondViewport, eye: new Vector3(3.5f, 1.5f, 1.5f), lookAt: new Vector3(0f, 0f, -2.5f));
 
         // 2x2 纹理：红 / 绿 / 蓝 / 白（RGBA8）
         var texture = new Texture2D(2, 2, new byte[]
@@ -174,5 +177,21 @@ public static class DemoApp
 
         // 让两堵墙一起绕自身中心（Y 轴）左右摆动：墙面法线方向持续变化，观察不同方向受光
         world.AddActor(new WallSwinger(leftWall, rightWall));
+    }
+
+    /// <summary>创建相机 Actor 并摆到指定视角（WorldTransform = R·T，GetViewMatrix = Invert(WorldTransform)）。</summary>
+    private static void AddCamera(World world, RenderTarget target, Vector3 eye, Vector3 lookAt)
+    {
+        var camera = new CameraComponent { RenderTarget = target };
+
+        // 用 lookAt 的逆反推相机位姿：view = Invert(cameraWorld)，cameraWorld 的旋转即相机朝向、平移即 eye
+        var view = Matrix4x4.CreateLookAt(eye, lookAt, Vector3.UnitY);
+        Matrix4x4.Invert(view, out var cameraWorld);
+        camera.RelativeLocation = eye;
+        camera.RelativeRotation = Quaternion.CreateFromRotationMatrix(cameraWorld);
+
+        var actor = new Actor();
+        actor.AddOwnedComponent(camera);
+        world.AddActor(actor);
     }
 }

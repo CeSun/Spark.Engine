@@ -57,9 +57,18 @@ Assigned bind group layout not found (internal error)
 - 砖墙贴图从 `Downloads` 绝对路径移入 `Demo/Demo.Desktop/Assets/`，csproj 增加 `Content` + 复制到输出目录
 - `Program.cs` 改为 `Path.Combine(AppContext.BaseDirectory, "Assets", fileName)` 加载
 
+## 阶段 5：acquire/present 收口（多相机写同一 backbuffer）
+
+- 把 acquire/present 从 pass 上移到 `RenderGraph.Execute` 帧级：帧首对每个 external `Viewport` 只
+  `BeginRenderSession()` 一次，帧末 `finally` 里 dispose session（内部 present）一次
+- `BlinnPhongPass` 不再各自 `BeginRenderSession`，改为经 `RenderGraphContext.GetTextureView(backbuffer)`
+  取帧级 acquire 的视图；acquire 失败（surface lost / 未配置）时返回 null，pass 直接跳过
+- 多相机/多 pass 写同一 backbuffer 时共享同一次 acquire 与 present，消除「每 pass 一次 acquire/present」
+  造成的覆盖/交错与重复 present
+
 ## 遗留待办
 
 - **运行时验证**：需本地 GPU 环境（本会话在沙箱内无法跑通 `dotnet build`——命名管道被禁，MSBuild/Roslyn 报
   `MSB3883 Access to \\.\pipe\LOCAL\dotnet_... denied`，非代码问题）
-- **多相机 / 多视口**：每个 forward pass 各自 acquire/present，多相机写同一 backbuffer 需收口为每帧 acquire 一次
+- **多相机 acquire/present 收口**：✅ 已收口（见阶段 5）；真正的「分屏 / 一 surface 多视口」仍是 P3 待办
 - **别名复用（Phase C）** 与 **barrier / pass 级剔除（Phase D）**：当前剔除是简化版

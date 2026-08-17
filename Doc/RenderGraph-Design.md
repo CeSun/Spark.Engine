@@ -117,7 +117,7 @@ public readonly struct RenderGraphContext
 | `IRenderPipeline` | 管线实现内部每帧建一个 `RenderGraph`（或由 `BlinnPhongRenderer` 持有） |
 | `RenderTarget`（抽象）/ `Viewport` | **external 资源**：窗口 backbuffer 导入图，作为最终 pass 的写目标 |
 | `TextureRenderTarget`（已实现） | **transient 资源的 GPU 载体**：RDG 的前置依赖（阶段 A），已落地 |
-| `RenderTargetSession` | pass 的 begin/end 语义：窗口=acquire/present，贴图=绑定/留待采样 |
+| `RenderTargetSession` | 帧级 begin/end 语义：窗口=帧首 acquire / 帧末 present（各一次），贴图=绑定/留待采样 |
 | `RenderTargetRegistry` | external 资源（持久贴图/窗口）的跨线程注册表，图只引用其 Id |
 | `ShaderPass` | 图的 pass 与 shader pass 一一对应：ShadowDepth pass 取 `ShaderPass.ShadowDepth` 的 pipeline |
 | `MaterialShaderCache.GetPipeline(key, pass, format)` | pass 执行时按 (材质 key, pass, 目标 format) 取 pipeline |
@@ -253,9 +253,9 @@ classDiagram
 
 ## 9. 未决事项 / 后续阶段
 
-- **多相机 / 多视口**：同一帧多相机（分屏/编辑器视图）各自的图是独立还是合并；backbuffer 的 import
-  边界怎么定。当前每个 forward pass 各自 `BeginRenderSession`（acquire/present），多相机写同一 backbuffer
-  时需收口为「每帧 acquire 一次、present 一次」（见 §10 踩坑 1）。
+- **多相机 / 多视口**：✅ acquire/present 已收口到 `RenderGraph.Execute` 帧级（每帧 acquire/present 各一次，
+  多相机写同一 backbuffer 共享同一帧，pass 经 `GetTextureView` 取视图）。仍待：分屏 / 一 surface 多视口时
+  各 viewport 的图是独立还是合并、backbuffer import 边界（P3）。
 - **buffer 资源**：当前只有纹理；Compute pass 需要 `GraphicsBuffer`/storage buffer 的 transient 版本（P18 需扩展到 buffer）。
 - **别名复用（Phase C）**：存活区间不重叠的 transient 纹理共用物理内存（含移动端 tile-based GMEM 的 on-chip
   复用与主存别名两套）；当前 `TransientResourcePool` 每帧新建/释放，不做别名。
@@ -276,11 +276,11 @@ Phase B 已实现并跑通「ShadowDepth → Forward」两 pass（见 [ShadowMap
 以下经验都源自 wgpu 的 draw-time validation 崩溃（报错点常是 `RenderPassEncoderEnd`，见
 [ShadowMapping-Design.md §4.1](./ShadowMapping-Design.md#41-显式-pipelinelayout-的-bind-group-完整性)）：
 
-1. **窗口 backbuffer 是 external 资源，必须走 `BeginRenderSession()`（acquire/present），不能走
-   `GetTextureView()`**。`RenderGraphContext.GetTextureView` 只对 `TextureRenderTarget`（离屏）有效，
-   对 `Viewport` 会抛异常。pass 里的统一写法：
-   `using var session = target.BeginRenderSession(); if (!session.IsValid) return;`，颜色附件用
-   `session.FrameTexture.View`，present 在 session 释放时执行（提交之后）。
+1. **窗口 backbuffer 是 external 资源，acquire/present 收口到帧级**。`RenderGraph.Execute` 帧首对每个
+   external `Viewport` 只 `BeginRenderSession()`（acquire）一次、帧末 dispose session（present）一次；
+   pass 里经 `ctx.GetTextureView(backbuffer)` 取 acquire 的视图，`if (colorView == null) return;` 跳过
+   acquire 失败（surface lost）的帧，颜色附件用 `colorView`。多相机/多 pass 写同一 backbuffer 时共享
+   同一次 acquire/present，避免各自 acquire 造成的覆盖/交错与重复 present。
 2. **transient 资源 + 缓存的 bind group = 悬垂视图**。Phase B 的阴影贴图每帧新建、帧末释放，若 forward
    pass 的 group0 bind group 只建一次，第 2 帧起就引用已释放的旧视图（阴影永远停在第 1 帧且泄漏）。
    规则：**凡引用 transient 资源的 bind group，必须随该资源每帧重建**，或把该资源改为 persistent 而非 transient。

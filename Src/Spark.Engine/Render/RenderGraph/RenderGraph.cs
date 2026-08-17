@@ -227,7 +227,8 @@ public sealed class RenderGraph : IDisposable
     }
 
     /// <summary>
-    /// 执行图：按拓扑序执行 pass；帧末释放 transient 资源。
+    /// 执行图：帧首 acquire external Viewport（一次/帧），按拓扑序执行 pass，帧末 present + 释放 transient 资源。
+    /// 多相机/多 pass 写同一 backbuffer 时共享同一次 acquire，不再各自 acquire/present。
     /// </summary>
     public void Execute()
     {
@@ -243,22 +244,46 @@ public sealed class RenderGraph : IDisposable
             resource.TransientTarget = _pool.Allocate(resource.Desc);
         }
 
-        // 按拓扑序执行 pass
-        foreach (var pass in _executionOrder)
-        {
-            if (pass.IsCulled)
-                continue;
-
-            _logger?.LogTrace("RenderGraph: executing pass '{Pass}'", pass.Name);
-            pass.ExecuteAction?.Invoke(context);
-        }
-
-        // 帧末释放 transient 资源
-        _pool.ReleaseAll();
+        // 帧级 acquire：external Viewport 目标每帧只 acquire 一次（多相机共享同一 backbuffer）
         foreach (var resource in _resources.Values)
         {
-            if (!resource.IsExternal)
-                resource.TransientTarget = null;
+            if (!resource.IsExternal || resource.ExternalTarget is not Viewport viewport)
+                continue;
+            resource.ExternalSession = viewport.BeginRenderSession();
+        }
+
+        try
+        {
+            // 按拓扑序执行 pass
+            foreach (var pass in _executionOrder)
+            {
+                if (pass.IsCulled)
+                    continue;
+
+                _logger?.LogTrace("RenderGraph: executing pass '{Pass}'", pass.Name);
+                pass.ExecuteAction?.Invoke(context);
+            }
+        }
+        finally
+        {
+            // 帧末释放 transient 资源
+            _pool.ReleaseAll();
+            foreach (var resource in _resources.Values)
+            {
+                if (!resource.IsExternal)
+                    resource.TransientTarget = null;
+            }
+
+            // 帧末 present：dispose 帧级 session（内部 present），并清理引用
+            foreach (var resource in _resources.Values)
+            {
+                var session = resource.ExternalSession;
+                if (session.HasValue)
+                {
+                    session.Value.Dispose();
+                    resource.ExternalSession = null;
+                }
+            }
         }
     }
 

@@ -28,6 +28,12 @@ internal sealed class TextureResource
     /// <summary>外部导入的渲染目标（如 Viewport backbuffer）。</summary>
     public RenderTarget? ExternalTarget { get; set; }
 
+    /// <summary>
+    /// 帧级 acquire 会话（仅 external Viewport）。由 <see cref="RenderGraph.Execute"/> 在帧首 acquire 一次、
+    /// 帧末 dispose（内部 present），多相机/多 pass 共享同一 backbuffer，不再各自 acquire/present。
+    /// </summary>
+    public RenderTargetSession? ExternalSession { get; set; }
+
     /// <summary>生命周期区间（编译后设置）：第一个写 pass 的执行序索引。</summary>
     public int FirstWrite { get; set; } = int.MaxValue;
 
