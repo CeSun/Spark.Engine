@@ -1,6 +1,6 @@
 # Spark.Engine 材质系统设计
 
-> 状态：P0~P3 已实现（本文记录设计；P4 节点图待实现）。本文描述"UE 式材质系统"的目标架构与分阶段实施计划，
+> 状态：P0~P3 已实现（本文记录设计；P4 节点图待实现）。法线贴图（§9）已随 P2 落地，PBR 仍待实现。
 > 对应 [README](./README.md) 二、P2-5「材质系统 + 纹理采样 + 实际光照着色」。
 > 决策记录：见 §12（ADR-13~20）；UE 对比：见 §13；未决事项：见 §14。
 > 关联代码：`Src/Spark.Engine/Render/Resources/Material.cs`、`MaterialGPUResource.cs`、`ResourceManager.cs`、
@@ -365,8 +365,9 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 - **着色模型**：v1 先实现 `Lit`（Blinn-Phong，点光/平行光/聚光 + 衰减 + 法线/粗糙度），
   `Unlit` 直接返回 albedo；`PBR`（Metallic-Roughness）作为 `MaterialParamsUniform` 已含
   metallic/roughness 的顺延扩展（§14 决策）。
-- **法线贴图**：有 `NormalTexture` 时在 fs 里采样并 `normal = normalize(TBN * sampled)`，`NormalStrength`
-  控制混合强度。
+- **法线贴图**（已实现）：有 `NormalTexture` 时（`TextureFlags.Normal` 置位），片元里用屏幕空间导数法
+  （`dpdx`/`dpdy` 对世界坐标与 UV 求导）构建 TBN，无需切线顶点属性；采样法线纹理 `*2-1` 还原到 [-1,1]，
+  按 `NormalStrength` 缩放 xy 后经 TBN 变换到世界空间，覆盖几何法线传入 `shade_lit`。
 
 ## 10. 材质实例化与参数上传（P3）
 

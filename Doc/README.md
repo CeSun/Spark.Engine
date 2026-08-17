@@ -14,7 +14,7 @@ FScene / FSceneProxy / FSceneRenderer 模式。
 
 当前处于**早期原型阶段**：渲染管线已能绘制静态网格（三角形），场景对象（网格/光源）经统一快照通道
 传入渲染线程并做视锥剔除；场景代理由 SceneGen 源生成器生成；材质系统（Material/MaterialInstance、
-shader 编译缓存）、前向光照着色（Blinn-Phong）与阴影贴图已落地，节点图编辑器、法线贴图与 PBR 尚未实现。
+shader 编译缓存）、前向光照着色（Blinn-Phong）、法线贴图与阴影贴图已落地，节点图编辑器与 PBR 尚未实现。
 
 ## 解决方案结构
 
@@ -175,7 +175,9 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - `MaterialShaderCodegen` 按 key 生成 WGSL（模板为嵌入式资源 `Render/Pipeline/Forward/Shaders/Forward*.wgsl`）；
   `MaterialShaderCache` 缓存 ShaderModule + RenderPipeline（按 target format）
 - 绑定组四层：group0 帧 / group1 对象 / group2 材质参数 / group3 材质纹理（5 槽恒绑定 + fallback 纹理，ADR-15/16）
-- 光照：`shade_lit`（Blinn-Phong，点光/平行光/聚光）+ 自发光 + MetallicRoughness/Mask 纹理；法线贴图/PBR 待实现
+- 光照：`shade_lit`（Blinn-Phong，点光/平行光/聚光）+ 自发光 + MetallicRoughness/Mask 纹理
+- 法线贴图：`TextureFlags.Normal` 开关 + 屏幕空间导数法 TBN（无需切线顶点属性）采样法线纹理，`NormalStrength`
+  控制强度；PBR 待实现
 - `StaticMeshComponent.Material` 走 `[ScenePayload]` 资源降级（`MaterialId`）+ `ResourceManager` 自动上传（ADR-19）
 
 ### 14. 管线抽象（IRenderPipeline）
@@ -197,6 +199,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | 材质系统（Material/MaterialInstance + shader 编译缓存） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 前向光照着色（Blinn-Phong） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 阴影贴图（ShadowDepth pass + 前向采样） | ✅ | ✅（本地 GPU 环境验证通过） |
+| 法线贴图（Normal Mapping，导数法 TBN） | ✅ | ✅（本地 GPU 环境验证通过） |
 
 ---
 
@@ -219,7 +222,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 4. **`TextureRenderTarget`**：离屏渲染目标（无交换链），解锁后处理链/阴影贴图/小地图/编辑器预览。
 5. **材质系统 + 纹理采样 + 实际光照着色（部分落地）**：P0~P3 已实现（结构化材质 + shader 编译缓存 +
-   Blinn-Phong 前向着色）；节点图（P4）、法线贴图、PBR 未实现。
+   Blinn-Phong 前向着色 + 法线贴图）；节点图（P4）、PBR 未实现。
 6. **帧内渲染依赖 / 拓扑排序**：后处理链（相机 A 渲到贴图 → 相机 B 采样）、阴影贴图的
    pass 顺序。当前只保证"填写顺序 = 渲染顺序"。
 7. **剔除加速结构 + 遮挡剔除**：基础球-视锥剔除已实现；BVH/八叉树/遮挡剔除未实现。
