@@ -1,4 +1,4 @@
-using Spark.Engine.Render.Resources;
+using Spark.Engine.Resources;
 
 namespace Spark.Engine.Render;
 

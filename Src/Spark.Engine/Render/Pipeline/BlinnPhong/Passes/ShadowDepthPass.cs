@@ -3,12 +3,12 @@ using Microsoft.Extensions.Logging;
 using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
 using Spark.Engine.Math;
-using Spark.Engine.Render.Pipeline;
-using Spark.Engine.Render.Pipeline.Forward;
+using Spark.Engine.Render.Common;
+using Spark.Engine.Render.RenderGraph;
 using Spark.Engine.Render.Resources;
 using Buffer = Silk.NET.WebGPU.Buffer;
 
-namespace Spark.Engine.Render.RenderGraph.Passes;
+namespace Spark.Engine.Render.Pipeline.BlinnPhong.Passes;
 
 /// <summary>
 /// 阴影深度 pass：用光源 VP 把 CastShadow 的静态网格渲进深度贴图。
@@ -104,7 +104,7 @@ internal sealed unsafe class ShadowDepthPass
     /// <summary>
     /// 创建 RenderGraph pass 并返回 shadow depth 资源句柄。
     /// </summary>
-    public RenderGraphResource AddToGraph(RenderGraph graph, TextureResourceDesc shadowDesc, SceneSnapshot snapshot, in ShadowInfo shadow)
+    public RenderGraphResource AddToGraph(RenderGraph.RenderGraph graph, TextureResourceDesc shadowDesc, SceneSnapshot snapshot, in ShadowInfo shadow)
     {
         // in 参数不能被 lambda 捕获，先拷贝到局部变量
         var sh = shadow;
@@ -231,7 +231,7 @@ internal sealed unsafe class ShadowDepthPass
         _shadowSampler = null;
     }
 
-    /// <summary>阴影信息（由 ForwardRenderer 计算）。</summary>
+    /// <summary>阴影信息（由 BlinnPhongRenderer 计算）。</summary>
     internal struct ShadowInfo
     {
         public bool HasShadow;

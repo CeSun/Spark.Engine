@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using Spark.Engine.Render.Pipeline;
-using Spark.Engine.Render.Resources;
+using Spark.Engine.Render.Common;
+using Spark.Engine.Resources;
 
 namespace Spark.Engine.Builder;
 

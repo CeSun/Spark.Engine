@@ -1,6 +1,6 @@
 using Silk.NET.WebGPU;
 
-namespace Spark.Engine.Render.Pipeline;
+namespace Spark.Engine.Render.Common;
 
 /// <summary>
 /// 引擎视角的交换链封装。持有原生 <c>Surface*</c>，对外只暴露只读状态与操作，裸指针永不外泄。

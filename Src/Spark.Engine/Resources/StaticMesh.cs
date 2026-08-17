@@ -1,7 +1,7 @@
 using System.Numerics;
 using Spark.Engine.Math;
 
-namespace Spark.Engine.Render.Resources;
+namespace Spark.Engine.Resources;
 
 /// <summary>静态网格顶点：位置 + 颜色 + UV + 法线（interleaved，stride 44 字节）。</summary>
 public readonly struct StaticMeshVertex

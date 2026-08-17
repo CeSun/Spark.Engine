@@ -1,4 +1,4 @@
-namespace Spark.Engine.Render.Resources;
+namespace Spark.Engine.Resources;
 
 /// <summary>
 /// shader 变体的值类型 key：由材质的静态属性（着色模型/混合模式/双面/纹理开关）折叠而成，

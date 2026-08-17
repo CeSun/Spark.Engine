@@ -1,4 +1,5 @@
 using Silk.NET.WebGPU;
+using Spark.Engine.Resources;
 using Buffer = Silk.NET.WebGPU.Buffer;
 
 namespace Spark.Engine.Render.Resources;

@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace Spark.Engine.Render.Resources;
+namespace Spark.Engine.Resources;
 
 /// <summary>着色模型：决定生成 WGSL 的着色片段。</summary>
 public enum ShadingModel : byte

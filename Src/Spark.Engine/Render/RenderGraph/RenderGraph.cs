@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Spark.Engine.Builder;
-using Spark.Engine.Render.Pipeline;
+using Spark.Engine.Render.Common;
 
 namespace Spark.Engine.Render.RenderGraph;
 

@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spark.Engine.Render.Pipeline.Forward;
+namespace Spark.Engine.Render.Pipeline.BlinnPhong;
 
 /// <summary>光照 uniform 数组容量（与 WGSL <c>array&lt;Light, 16&gt;</c> 同步）。</summary>
 public static class ShaderConstants

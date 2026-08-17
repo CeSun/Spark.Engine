@@ -24,9 +24,13 @@ Spark.Engine.slnx
 ├─ Src/
 │  ├─ Spark.Engine/          核心引擎库（net10.0，唯一 WebGPU 依赖点）
 │  │  ├─ Math/               包围球/视锥（渲染线程剔除）
-│  │  ├─ Render/             场景同步（根）+ Resources（资源）+ Pipeline（管线）
-│  │  │  ├─ Resources/       资源：StaticMesh/Texture2D/Material + GPU 表示 + ResourceManager
-│  │  │  └─ Pipeline/        管线：RenderTarget/RenderSurface（共享）；Forward/（ForwardRenderer + shader）
+│  │  ├─ Resources/          CPU 侧资源资产：StaticMesh/Texture2D/Material + ResourceManager
+│  │  ├─ Render/             场景同步（Scene/SceneProxy/SceneSnapshot）
+│  │  │  ├─ Common/          通用渲染类型：RenderTarget/RenderSurface/RenderTargetRegistry/Viewport/TextureRenderTarget/FrameTexture
+│  │  │  ├─ Resources/       GPU 资源（IGPUResource + Mesh/Texture/Material GPU 表示）
+│  │  │  ├─ Pipeline/        管线抽象（IRenderPipeline/ShaderPass）+ BlinnPhong/
+│  │  │  │  └─ BlinnPhong/   Blinn-Phong 管线（BlinnPhongRenderer + shader + Passes/）
+│  │  │  └─ RenderGraph/     帧图（RenderGraph + 资源句柄/池）
 │  │  ├─ Components/         组件（含 LightComponent 基类 + Point/Directional/Spot 光源、StaticMeshComponent）
 │  │  ├─ Threads/            RenderThread（外壳）/EngineSynchronizationContext
 │  │  └─ Worlds/             World（含 Scene）/WorldContext
@@ -42,7 +46,7 @@ Spark.Engine.slnx
 ## 架构分层
 
 ```
-Demo（入口：EngineBuilder → InitializeWebGPU → UseDesktop → UseForward → Build → Run）
+Demo（入口：EngineBuilder → InitializeWebGPU → UseDesktop → UseBlinnPhong → Build → Run）
   │
   ▼
 EngineApplication（主循环：窗口事件 → 同步上下文 → 世界更新 → 填场景快照 → 提交）
@@ -52,7 +56,7 @@ EngineApplication（主循环：窗口事件 → 同步上下文 → 世界更�
        │
        ▼
 RenderThread（线程外壳 → IRenderPipeline，DI 注入）
-  └─ ForwardRenderer : IRenderPipeline（上传处理 → 生命周期 diff → acquire → 剔除 → clear → draw → present → 延迟删除）
+  └─ BlinnPhongRenderer : IRenderPipeline（上传处理 → 生命周期 diff → acquire → 剔除 → clear → draw → present → 延迟删除）
        ├─ RenderTargetRegistry（窗口视口注册表）
        ├─ IGPUResource 注册表（单注册表：几何/纹理/材质，上传一次）
        ├─ StaticMeshRenderState 注册表（每实例 object uniform，按 ProxyId）
@@ -70,7 +74,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - `InitializeWebGPU()`：创建 instance 并注册 `WebGPUContext`；首个 surface 创建后按兼容性选择
   adapter，再创建 device/queue
 - `UseDesktop()`：注册 `IWindowBackend`（桌面实现）
-- `UseForward()`：注册 `IRenderPipeline → ForwardRenderer`（前向渲染管线）
+- `UseBlinnPhong()`：注册 `IRenderPipeline → BlinnPhongRenderer`（Blinn-Phong 前向渲染管线）
 - `EngineOptions`：`Width`/`Height`/`TargetFrameRate`
 
 ### 2. 平台抽象层
@@ -130,7 +134,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 ### 8. 多线程
 
 - `RenderThread`：线程外壳（循环 + 异常兜底 + 释放），只依赖 `IRenderPipeline`（DI 注入，换管线不改本类）
-- `IRenderPipeline` / `ForwardRenderer`：管线抽象与具体前向实现；上传处理 → 生命周期 diff（新增/存活/销毁）
+- `IRenderPipeline` / `BlinnPhongRenderer`：管线抽象与具体 Blinn-Phong 实现；上传处理 → 生命周期 diff（新增/存活/销毁）
   → 分组 → acquire → 剔除 → clear → draw → present → 延迟删除（ADR-7）
 - `EngineSynchronizationContext`：`Post`/`Send` 把异步回调封送到主引擎线程
 
@@ -151,7 +155,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - `StaticMeshComponent`：持有网格 + 材质 + `StaticMeshSceneProxy`，每帧同步世界变换与包围球
 - `MeshGPUResource`：顶点/索引缓冲（**几何，按 MeshId 上传一次**）
 - `StaticMeshRenderState`：每实例 object uniform（world + 法线矩阵）+ bind group（按 `ProxyId` 生命周期管理）
-- `ForwardRenderer` 视锥剔除：`Frustum`（Gribb-Hartmann 提取）+ `BoundingSphere`，逐相机剔除 → 按类别分流
+- `BlinnPhongRenderer` 视锥剔除：`Frustum`（Gribb-Hartmann 提取）+ `BoundingSphere`，逐相机剔除 → 按类别分流
 - WGSL 由 `MaterialShaderCodegen` 按材质 key 生成，`MaterialShaderCache` 缓存 ShaderModule/RenderPipeline
 - draw：每相机一个 render pass（首个 clear、后续 Load 叠加），`clip = viewProj × world × position`
 
@@ -159,7 +163,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 - `LightComponent`（抽象基类，`[SceneProxy]`）→ `PointLightComponent`/`DirectionalLightComponent`/
   `SpotLightComponent` 构造时固定 `Type` → 生成统一的 `LightSceneProxy`/`LightPayload` → `Scene` →
-  `SceneSnapshot.Lights`（+ header 包围球）→ `ForwardRenderer` 剔除/收集
+  `SceneSnapshot.Lights`（+ header 包围球）→ `BlinnPhongRenderer` 剔除/收集
 - 光源与网格走同一套快照通道；每帧把可见光打包进 group0 帧 uniform（`MAX_LIGHTS` 上限）
 - 光照着色（Blinn-Phong，点光/平行光/聚光 + 衰减）在片元着色器 `shade_lit` 里一次完成（前向着色）
 
@@ -173,7 +177,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 - `Material`（静态属性 + 默认参数）与 `MaterialInstance : Material`（参数覆写）——实例不产生新 shader（ADR-13）
 - `MaterialShaderKey`（值类型）折叠静态属性（着色模型/混合/双面/纹理开关）→ 编译缓存，跨资产共享（ADR-14）
-- `MaterialShaderCodegen` 按 key 生成 WGSL（模板为嵌入式资源 `Render/Pipeline/Forward/Shaders/Forward*.wgsl`）；
+- `MaterialShaderCodegen` 按 key 生成 WGSL（模板为嵌入式资源 `Render/Pipeline/BlinnPhong/Shaders/Forward*.wgsl`）；
   `MaterialShaderCache` 缓存 ShaderModule + RenderPipeline（按 target format）
 - 绑定组四层：group0 帧 / group1 对象 / group2 材质参数 / group3 材质纹理（5 槽恒绑定 + fallback 纹理，ADR-15/16）
 - 光照：`shade_lit`（Blinn-Phong，点光/平行光/聚光）+ 自发光 + MetallicRoughness/Mask 纹理
@@ -184,8 +188,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 ### 14. 管线抽象（IRenderPipeline）
 
 - `IRenderPipeline`：可替换的「消费 `SceneSnapshot` → 提交绘制」契约（`Render` + `IDisposable`）
-- `ForwardRenderer : IRenderPipeline`：当前唯一实现（前向渲染）；`RenderThread` 只依赖接口（DI 注入）
-- 换管线 = 换 DI 注册：`UseForward()` ↔ 未来的 `UseDeferred()`，渲染线程/场景同步零改动（ADR-21）
+- `BlinnPhongRenderer : IRenderPipeline`：当前唯一实现（Blinn-Phong 前向渲染）；`RenderThread` 只依赖接口（DI 注入）
+- 换管线 = 换 DI 注册：`UseBlinnPhong()` ↔ 未来的 `UseDeferred()`，渲染线程/场景同步零改动（ADR-21）
 - 多 pass shader：`ShaderPass`（Forward/ShadowDepth/DepthOnly）+ 缓存键 `(MaterialShaderKey, ShaderPass)`，
   同一材质按 pass 编多份 shader；阴影贴图已落地（ShadowDepth pass → 前向采样，ADR-22，见 [ShadowMapping-Design.md](./ShadowMapping-Design.md)）
 
@@ -196,8 +200,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
   （分配 transient → 按拓扑序执行 pass → 帧末释放 transient）
 - `RenderGraphContext`：pass 执行时把句柄解析成真实 GPU 对象（`GetRenderTarget` / `GetTextureView` / `GetTransientTarget`）
 - `TransientResourcePool`：帧内 transient 纹理分配/释放（Phase B：每帧新建、帧末统一释放，别名复用留待 Phase C）
-- 两 pass 已落地：`ShadowDepthPass`（写 transient 深度贴图）+ `ForwardPass`（采样阴影贴图 → 写 backbuffer），
-  取代原 `ForwardRenderer` 里手写的 `RenderShadowMap` / `DrawView` 命令式顺序
+- 两 pass 已落地：`ShadowDepthPass`（写 transient 深度贴图）+ `BlinnPhongPass`（采样阴影贴图 → 写 backbuffer），
+  取代原 `BlinnPhongRenderer` 里手写的 `RenderShadowMap` / `DrawView` 命令式顺序
 - 窗口 backbuffer 作为 external 资源经 `BeginRenderSession()`（acquire/present）接入，而非 `GetTextureView`
 - 详见 [RenderGraph-Design.md](./RenderGraph-Design.md)（目标架构 + Phase B 实现落地与踩坑经验）
 
@@ -212,7 +216,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | 材质系统（Material/MaterialInstance + shader 编译缓存） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 前向光照着色（Blinn-Phong） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 阴影贴图（ShadowDepth pass + 前向采样） | ✅ | ✅（本地 GPU 环境验证通过） |
-| RenderGraph 声明式多 pass 编排（ShadowDepth → Forward） | ✅ | ✅（本地 GPU 环境验证通过） |
+| RenderGraph 声明式多 pass 编排（ShadowDepth → BlinnPhong） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 法线贴图（Normal Mapping，导数法 TBN） | ✅ | ✅（本地 GPU 环境验证通过） |
 
 ---
@@ -227,7 +231,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 1. **资源生命周期（部分落地）**：GPU 几何在 `StaticMesh` 被 `Dispose`/GC 回收时，经 `ResourceManager`
    延迟释放（渲染线程帧末 drain，ADR-7）；CPU 顶点/索引仍常驻（由 .NET GC 管理），磁盘流式加载与
    CPU 数据驱逐留待 P3-9。
-2. **ADR-7 延迟删除队列（收尾）**：已落地于场景代理状态（`ForwardRenderer._pendingDelete`）；
+2. **ADR-7 延迟删除队列（收尾）**：已落地于场景代理状态（`BlinnPhongRenderer._pendingDelete`）；
    待补：`RenderTargetRegistry` 仍直接 Remove，窗口视口销毁未走延迟删除。
 3. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，只重算/提交变化的对象，
    静态对象复用上一帧快照（当前每帧全量快照）。
@@ -267,14 +271,14 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - **P4 懒重配**：surface 尺寸/PresentMode/lost 变化在 acquire 前检查并重配
 - **P5 所有权单向**：平台层创建/销毁 `RenderSurface`，渲染系统只引用
 - **P6 渲染目标统一**：相机输出不限于窗口，`RenderTarget` 抽象统一窗口与贴图
-- **P7 一条通道，分类 payload**：所有场景对象共用 `SceneProxy → SceneSnapshot → ForwardRenderer`
+- **P7 一条通道，分类 payload**：所有场景对象共用 `SceneProxy → SceneSnapshot → BlinnPhongRenderer`
   单通道，差异只在 payload 结构与渲染侧消费者
 - **P8 静态上传一次，动态每帧快照**：几何/纹理上传一次；变换/包围盒/光源参数/骨骼姿态每帧快照
 - **P9 稳定 ID + 生命周期 diff**：`ProxyId` + 集合比对得出新增/存活/销毁
 - **P10 剔除归渲染线程**：逻辑线程提交完整对象集 + bounds，渲染线程按相机剔除
 - **P11 语义手写、样板生成**：component 是唯一权威（字段/默认值/Bounds 规则手写）；proxy/payload/
   快照登记点等传输样板由 SceneGen 源生成器产出
-- **P17 管线可替换**：`IRenderPipeline` 抽象 + DI 注册切换（`UseForward`/未来的 `UseDeferred`），
+- **P17 管线可替换**：`IRenderPipeline` 抽象 + DI 注册切换（`UseBlinnPhong`/未来的 `UseDeferred`），
   渲染线程与场景同步只依赖接口
 
 > 材质系统原则 P12~P16（shader 缓存 / 静态动态分离 / 材质即资源 / 绑定组分层 / 结构化参数先行）见
@@ -294,7 +298,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | ADR-5 | `RenderSurface` 由平台层创建/销毁 |
 | ADR-6 | 渲染目标统一 `RenderTarget` 抽象 |
 | ADR-7 | 资源销毁走延迟删除队列（**已落地于场景代理状态**，视口销毁待接入） |
-| ADR-8 | 所有场景对象共用 `SceneProxy → SceneSnapshot → ForwardRenderer` 单通道 |
+| ADR-8 | 所有场景对象共用 `SceneProxy → SceneSnapshot → BlinnPhongRenderer` 单通道 |
 | ADR-9 | 静态数据 upload-once 资源注册表，动态数据每帧值快照 |
 | ADR-10 | 场景对象用稳定 `ProxyId` + 集合 diff 表达新增/存活/销毁 |
 | ADR-11 | 剔除归渲染线程：逻辑提交完整对象集 + bounds，渲染线程按相机剔除 |
@@ -307,7 +311,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | ADR-18 | P0~P3 用固定参数集 + WGSL 模板 codegen，节点图 codegen 后置（P4） |
 | ADR-19 | `MaterialInstance : Material`，组件成员统一类型 `Material?`，v1 不引入 `IMaterial` |
 | ADR-20 | 先 `Lit`(Blinn-Phong)，`PBR` 作为 metallic/roughness 已就绪的顺延扩展 |
-| ADR-21 | 管线抽象 `IRenderPipeline` + DI 注册切换（`UseForward`），渲染线程只依赖接口 |
+| ADR-21 | 管线抽象 `IRenderPipeline` + DI 注册切换（`UseBlinnPhong`），渲染线程只依赖接口 |
 
 ## 构建与运行
 

@@ -1,5 +1,5 @@
 using System.Numerics;
-using Spark.Engine.Render.Pipeline;
+using Spark.Engine.Render.Common;
 
 namespace Spark.Engine.Platforms;
 

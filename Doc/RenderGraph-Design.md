@@ -5,12 +5,13 @@
 > 决策记录：见 §7；UE/Unity 对比：见 §8；未决事项：见 §9；实现落地与踩坑：见 §10。
 > 关联代码：`Src/Spark.Engine/Render/RenderGraph/`（`RenderGraph.cs`、`RenderPass.cs`、`RenderPassBuilder.cs`、
 > `RenderGraphContext.cs`、`RenderGraphResource.cs`、`TextureResource.cs`、`TextureResourceDesc.cs`、
-> `ResourceAccess.cs`、`TransientResourcePool.cs`、`Passes/ShadowDepthPass.cs`、`Passes/ForwardPass.cs`）、
-> `Src/Spark.Engine/Render/Pipeline/Forward/ForwardRenderer.cs`。
+> `ResourceAccess.cs`、`TransientResourcePool.cs`）、
+> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/BlinnPhongRenderer.cs`、
+> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/Passes/ShadowDepthPass.cs`、`BlinnPhongPass.cs`。
 
 ## 1. 背景与目标
 
-当前渲染器是**单 pass 前向**：`ForwardRenderer` 每个相机只有一个颜色 render pass（连深度缓冲都没有），
+当前渲染器是**单 pass 前向**：`BlinnPhongRenderer` 每个相机只有一个颜色 render pass（连深度缓冲都没有），
 片元里 `shade_lit` 一次遍历所有光。多 pass 能力只推进到了 shader 侧——`ShaderPass`（Forward/ShadowDepth/
 DepthOnly）已能按 pass 编出正确 WGSL（ADR-22），但**渲染器仍只画 `Forward`**。
 
@@ -113,7 +114,7 @@ public readonly struct RenderGraphContext
 
 | 现有抽象 | 在 RDG 里的角色 |
 |---|---|
-| `IRenderPipeline` | 管线实现内部每帧建一个 `RenderGraph`（或由 `ForwardRenderer` 持有） |
+| `IRenderPipeline` | 管线实现内部每帧建一个 `RenderGraph`（或由 `BlinnPhongRenderer` 持有） |
 | `RenderTarget`（抽象）/ `Viewport` | **external 资源**：窗口 backbuffer 导入图，作为最终 pass 的写目标 |
 | `TextureRenderTarget`（已实现） | **transient 资源的 GPU 载体**：RDG 的前置依赖（阶段 A），已落地 |
 | `RenderTargetSession` | pass 的 begin/end 语义：窗口=acquire/present，贴图=绑定/留待采样 |
@@ -146,7 +147,7 @@ graph.Execute();   // 按拓扑序跑；帧末释放 shadowDepth
 ```
 
 没有 RDG 时，`shadowDepth` 的创建、两条 pass 的顺序、`shadowDepth` 的释放、以及「没有灯投影子就跳过」
-全都得手写在 `ForwardRenderer.Render` 里；有 RDG 后这些由编译期统一处理。
+全都得手写在 `BlinnPhongRenderer.Render` 里；有 RDG 后这些由编译期统一处理。
 
 ## 5. 核心类图
 
@@ -189,7 +190,7 @@ classDiagram
     class Viewport {
         +窗口实现（有交换链）
     }
-    class ForwardRenderer {
+    class BlinnPhongRenderer {
         +Render(SceneSnapshot)
     }
     class IRenderPipeline {
@@ -205,8 +206,8 @@ classDiagram
     TextureRenderTarget --|> RenderTarget
     Viewport --|> RenderTarget
     RenderGraph --> RenderTarget : external 导入
-    ForwardRenderer ..|> IRenderPipeline
-    ForwardRenderer --> RenderGraph : 每帧构建
+    BlinnPhongRenderer ..|> IRenderPipeline
+    BlinnPhongRenderer --> RenderGraph : 每帧构建
 ```
 
 ## 6. 分阶段计划

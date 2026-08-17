@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Silk.NET.Core.Contexts;
 using Silk.NET.WebGPU;
-using Spark.Engine.Render.Pipeline;
+using Spark.Engine.Render.Common;
 using System;
 using System.Threading;
 

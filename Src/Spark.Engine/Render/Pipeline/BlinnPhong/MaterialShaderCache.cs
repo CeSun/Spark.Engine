@@ -1,9 +1,9 @@
 using System.Text;
 using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
-using Spark.Engine.Render.Resources;
+using Spark.Engine.Resources;
 
-namespace Spark.Engine.Render.Pipeline.Forward;
+namespace Spark.Engine.Render.Pipeline.BlinnPhong;
 
 /// <summary>
 /// shader 编译产物缓存（进程内，ADR-14）：按 (MaterialShaderKey, ShaderPass) 共享 ShaderModule，

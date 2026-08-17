@@ -3,26 +3,28 @@ using Microsoft.Extensions.Logging;
 using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
 using Spark.Engine.Math;
+using Spark.Engine.Render.Common;
+using Spark.Engine.Render.Pipeline.BlinnPhong.Passes;
 using Spark.Engine.Render.RenderGraph;
-using Spark.Engine.Render.RenderGraph.Passes;
 using Spark.Engine.Render.Resources;
+using Spark.Engine.Resources;
 using Buffer = Silk.NET.WebGPU.Buffer;
 
-namespace Spark.Engine.Render.Pipeline.Forward;
+namespace Spark.Engine.Render.Pipeline.BlinnPhong;
 
 /// <summary>
-/// 前向渲染管线（Forward）：消费 <see cref="SceneSnapshot"/>，做生命周期 diff（新增/存活/销毁 + ADR-7 延迟删除）、
+/// Blinn-Phong 前向渲染管线：消费 <see cref="SceneSnapshot"/>，做生命周期 diff（新增/存活/销毁 + ADR-7 延迟删除）、
 /// 视锥剔除并提交绘制（对应 UE 的 FSceneRenderer 输入侧）。
 ///
-/// 使用 <see cref="RenderGraph.RenderGraph"/> 声明式编排 ShadowDepth + Forward 两个 pass：
+/// 使用 <see cref="RenderGraph.RenderGraph"/> 声明式编排 ShadowDepth + BlinnPhong 两个 pass：
 /// - ShadowDepth pass：第一个投影阴影的聚光/平行光 → transient 深度贴图
-/// - Forward pass：采样阴影贴图，完整着色 → backbuffer
+/// - BlinnPhong pass：采样阴影贴图，完整着色 → backbuffer
 ///
 /// 绑定组四层：group0 帧（+ 阴影贴图/比较采样器）/ group1 对象 / group2 材质参数 / group3 材质纹理。
 /// </summary>
-public unsafe sealed class ForwardRenderer : IRenderPipeline
+public unsafe sealed class BlinnPhongRenderer : IRenderPipeline
 {
-    private readonly ILogger<ForwardRenderer> _logger;
+    private readonly ILogger<BlinnPhongRenderer> _logger;
     private readonly WebGPUContext? _webGpu;
     private readonly RenderTargetRegistry _targets;
     private readonly ResourceManager _resourceManager;
@@ -61,11 +63,11 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
 
     // RenderGraph pass 实例（复用）
     private ShadowDepthPass? _shadowDepthPass;
-    private ForwardPass? _forwardPass;
+    private BlinnPhongPass? _blinnPhongPass;
     private bool _passesInitialized;
 
-    public ForwardRenderer(
-        ILogger<ForwardRenderer> logger,
+    public BlinnPhongRenderer(
+        ILogger<BlinnPhongRenderer> logger,
         WebGPUContext? webGpu,
         RenderTargetRegistry targets,
         ResourceManager resourceManager)
@@ -101,7 +103,7 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
             shadowDepth = _shadowDepthPass!.AddToGraph(graph, shadowDesc, snapshot, shadow);
         }
 
-        // 前向 pass：每个相机目标组一个 pass
+        // Blinn-Phong 基础 pass：每个相机目标组一个 pass
         foreach (var group in snapshot.Cameras.GroupBy(c => c.TargetId))
         {
             if (!_targets.TryGet(group.Key, out var target) || target == null)
@@ -113,7 +115,7 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
             bool first = true;
             foreach (var camera in group)
             {
-                _forwardPass!.AddToGraph(graph, backbuffer, shadowDepth, snapshot, camera, clear: first);
+                _blinnPhongPass!.AddToGraph(graph, backbuffer, shadowDepth, snapshot, camera, clear: first);
                 first = false;
             }
         }
@@ -135,10 +137,10 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
             _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger);
         _shadowDepthPass.Initialize();
 
-        _forwardPass = new ForwardPass(
+        _blinnPhongPass = new BlinnPhongPass(
             _webGpu!, _shaderCache!, _frameLayout,
             _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger);
-        _forwardPass.Initialize();
+        _blinnPhongPass.Initialize();
 
         _passesInitialized = true;
     }
@@ -593,8 +595,8 @@ public unsafe sealed class ForwardRenderer : IRenderPipeline
 
         _shadowDepthPass?.Dispose();
         _shadowDepthPass = null;
-        _forwardPass?.Dispose();
-        _forwardPass = null;
+        _blinnPhongPass?.Dispose();
+        _blinnPhongPass = null;
         _passesInitialized = false;
 
         _shaderCache?.Dispose();

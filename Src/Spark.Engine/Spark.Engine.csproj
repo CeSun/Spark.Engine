@@ -22,8 +22,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Render\Pipeline\Forward\Shaders\*.wgsl" />
-    <EmbeddedResource Include="Render\Pipeline\Forward\Shaders\*.wgsl" />
+    <None Remove="Render\Pipeline\BlinnPhong\Shaders\*.wgsl" />
+    <EmbeddedResource Include="Render\Pipeline\BlinnPhong\Shaders\*.wgsl" />
   </ItemGroup>
 
 </Project>

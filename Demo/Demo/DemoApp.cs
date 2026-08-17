@@ -4,7 +4,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using Spark.Engine;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
-using Spark.Engine.Render.Resources;
+using Spark.Engine.Resources;
 using Spark.Engine.Worlds;
 
 namespace Demo;

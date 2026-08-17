@@ -3,8 +3,8 @@
 > 状态：P0~P3 已实现（本文记录设计；P4 节点图待实现）。法线贴图（§9）已随 P2 落地，PBR 仍待实现。
 > 对应 [README](./README.md) 二、P2-5「材质系统 + 纹理采样 + 实际光照着色」。
 > 决策记录：见 §12（ADR-13~20）；UE 对比：见 §13；未决事项：见 §14。
-> 关联代码：`Src/Spark.Engine/Render/Resources/Material.cs`、`MaterialGPUResource.cs`、`ResourceManager.cs`、
-> `Src/Spark.Engine/Render/Pipeline/Forward/ForwardRenderer.cs`、`MaterialShaderCodegen.cs`、`MaterialShaderCache.cs`、
+> 关联代码：`Src/Spark.Engine/Resources/Material.cs`、`Src/Spark.Engine/Render/Resources/MaterialGPUResource.cs`、`Src/Spark.Engine/Resources/ResourceManager.cs`、
+> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/BlinnPhongRenderer.cs`、`MaterialShaderCodegen.cs`、`MaterialShaderCache.cs`、
 > `Src/Spark.Engine/Render/Pipeline/IRenderPipeline.cs`、`Src/Spark.Engine/Components/StaticMeshComponent.cs`、
 > `Src/Spark.Engine.SceneGen/SceneProxyGenerator.cs`。
 
@@ -58,7 +58,7 @@
 └──────────────┼───────────────────────────────────────────┘
                ▼  DualFrameBuffer<SceneSnapshot>（双缓冲）
 ┌──────────────┴───────────────────────────────────────────┐
-│  ForwardRenderer : IRenderPipeline（渲染线程）            │
+│  BlinnPhongRenderer : IRenderPipeline（渲染线程）            │
 │    ├─ ProcessUploads：case Material/MaterialInstance       │
 │    │     → 解析有效参数 → 算 MaterialShaderKey            │
 │    │     → MaterialShaderCache 取/编译变体（缓存共享）     │
@@ -76,7 +76,7 @@ A. Material/MaterialInstance 数据模型 + 参数覆写解析（纯函数，无
    ↓
 B. MaterialShaderKey + WGSL 模板 codegen + MaterialShaderCache           ← P1
    ↓
-C. 绑定组四层重构 + ForwardRenderer.DrawStaticMesh 改造（替换硬编码 shader）← P1
+C. 绑定组四层重构 + BlinnPhongRenderer.DrawStaticMesh 改造（替换硬编码 shader）← P1
    ↓
 D. 光源 uniform buffer + Lit/Blinn-Phong 着色（消费 _visibleLights）     ← P2
    ↓
@@ -348,11 +348,11 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 1. **`StaticMeshComponent`**：删除 `Texture`/`MaterialId` 占位，改为
    `[ScenePayload] public Material? Material { get; set; }`。生成器自动降级为 `MaterialId` 进
    `StaticMeshPayload`，并在 `SyncProxy` 里 `ResourceManager.EnsureUploaded(Material)`——与 `Mesh` 完全同套路。
-2. **`ResourceManager` / `ForwardRenderer.ProcessUploads`**：新增
+2. **`ResourceManager` / `BlinnPhongRenderer.ProcessUploads`**：新增
    `case Material material: ...`（现有代码已留 `// 未来：case Material material:` 注释）。渲染线程：
    解析有效 shader key → 查/编译变体 → 建 `MaterialGPUResource`（group2 params buffer + group3 纹理
    bind group），入 `_gpuResources[material.ResourceId]`。
-3. **`ForwardRenderer.DrawStaticMesh`**：从"写死 `_renderPipeline` + 2 组"改为
+3. **`BlinnPhongRenderer.DrawStaticMesh`**：从"写死 `_renderPipeline` + 2 组"改为
    "按 `payload.MaterialId` 取 `MaterialGPUResource` → `SetPipeline(variant.Pipeline)` →
    `SetBindGroup(0..3)` → draw"。未指定材质/未上传时回退引擎内置 DefaultMaterial（ADR-17）。
 4. **纹理上传复用**：材质引用的 `Texture2D` 仍各自走 `ProcessUploads` 的 `case Texture2D`；
@@ -360,7 +360,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 
 ## 9. 光照着色（P2）
 
-- **光源 buffer**：渲染线程每帧把 `_visibleLights`（已剔除，`ForwardRenderer` 已有）打包进 group0 的
+- **光源 buffer**：渲染线程每帧把 `_visibleLights`（已剔除，`BlinnPhongRenderer` 已有）打包进 group0 的
   固定容量 uniform/storage buffer（`MAX_LIGHTS` 上限，超限按强度排序截断），随 pass 上传。
 - **着色模型**：v1 先实现 `Lit`（Blinn-Phong，点光/平行光/聚光 + 衰减 + 法线/粗糙度），
   `Unlit` 直接返回 albedo；`PBR`（Metallic-Roughness）作为 `MaterialParamsUniform` 已含
@@ -453,9 +453,10 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 - 本文承接 [README](./README.md) 二、P2-5，将其展开为资产模型（§4）、编译缓存（§5）、绑定组
   （§6）、着色（§9）与实例化（§10）的具体设计。
 - 单通道集成（§8）完全复用 [SceneSync-Design.md](./SceneSync-Design.md) 的 `SceneProxy → SceneSnapshot
-  → ForwardRenderer` 机制与 `ISceneResource` 资源降级，不新增同步机制。
+  → BlinnPhongRenderer` 机制与 `ISceneResource` 资源降级，不新增同步机制。
 - 四层绑定组重构（§6）是对 [RenderPipeline-Design.md](./RenderPipeline-Design.md) 现有 group0/group1
   布局的演进；相机矩阵下沉 group0 与"帧由相机驱动"（ADR-1）一致。
-- 命名空间按职责拆为三层：根 `Spark.Engine.Render`（场景同步数据通道）、`Render.Resources`（资源）、
-  `Render.Pipeline`（共享管线设施）+ `Render.Pipeline.Forward`（前向渲染器与 shader，ADR-21）。
-  管线经 `IRenderPipeline` 抽象 + `UseForward()` DI 注册，换管线只改注册、渲染线程零改动。
+- 命名空间按职责分层：根 `Spark.Engine.Render`（场景同步数据通道）、`Spark.Engine.Resources`（CPU 侧资源）、
+  `Render.Common`（通用渲染类型）、`Render.Resources`（GPU 资源）、`Render.RenderGraph`（帧图）、
+  `Render.Pipeline`（管线抽象）+ `Render.Pipeline.BlinnPhong`（Blinn-Phong 渲染器与 shader/pass，ADR-21）。
+  管线经 `IRenderPipeline` 抽象 + `UseBlinnPhong()` DI 注册，换管线只改注册、渲染线程零改动。

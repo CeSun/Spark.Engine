@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace Spark.Engine.Render.Resources;
+namespace Spark.Engine.Resources;
 
 /// <summary>
 /// 资源管理器（逻辑侧）：协调「上传」与「GPU 表示延迟释放」的通用生命周期。

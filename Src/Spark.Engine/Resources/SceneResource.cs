@@ -1,4 +1,4 @@
-namespace Spark.Engine.Render.Resources;
+namespace Spark.Engine.Resources;
 
 /// <summary>
 /// 可上传场景资源基类：统一实现 ISceneResource（ResourceId）、IDisposable/终结器（经注入的释放回调

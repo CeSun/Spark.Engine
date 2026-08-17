@@ -1,10 +1,10 @@
-using Spark.Engine.Render.Resources;
+using Spark.Engine.Resources;
 
-namespace Spark.Engine.Render.Pipeline.Forward;
+namespace Spark.Engine.Render.Pipeline.BlinnPhong;
 
 /// <summary>
 /// 材质 WGSL 代码生成（模板 + 占位替换，纯函数可单测）。
-/// 模板以嵌入式资源形式存放于 <c>Render/Pipeline/Forward/Shaders/*.wgsl</c>（首次访问时加载并缓存），
+/// 模板以嵌入式资源形式存放于 <c>Render/Pipeline/BlinnPhong/Shaders/*.wgsl</c>（首次访问时加载并缓存），
 /// 由 <see cref="MaterialShaderKey"/> 折叠材质静态属性、<see cref="ShaderPass"/> 决定着色片段，
 /// 生成完整 WGSL 模块；绑定组布局固定（4 组），只有 shader 代码随 (key, pass) 变。
 /// </summary>

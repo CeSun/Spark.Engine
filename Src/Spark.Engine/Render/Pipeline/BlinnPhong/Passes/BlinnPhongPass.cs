@@ -3,19 +3,19 @@ using Microsoft.Extensions.Logging;
 using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
 using Spark.Engine.Math;
-using Spark.Engine.Render.Pipeline;
-using Spark.Engine.Render.Pipeline.Forward;
+using Spark.Engine.Render.Common;
+using Spark.Engine.Render.RenderGraph;
 using Spark.Engine.Render.Resources;
 using Buffer = Silk.NET.WebGPU.Buffer;
 
-namespace Spark.Engine.Render.RenderGraph.Passes;
+namespace Spark.Engine.Render.Pipeline.BlinnPhong.Passes;
 
 /// <summary>
-/// 前向渲染 pass：完整着色（shade_lit），输出颜色到 backbuffer 或离屏目标。
+/// Blinn-Phong 基础渲染 pass：完整着色（shade_lit），输出颜色到 backbuffer 或离屏目标。
 /// 对应 <see cref="ShaderPass.Forward"/>。
 /// group0 帧 uniform + 阴影贴图采样 / group1 对象 / group2 材质参数 / group3 材质纹理。
 /// </summary>
-internal sealed unsafe class ForwardPass
+internal sealed unsafe class BlinnPhongPass
 {
     private readonly WebGPUContext _webGpu;
     private readonly MaterialShaderCache _shaderCache;
@@ -43,7 +43,7 @@ internal sealed unsafe class ForwardPass
     // 无阴影时的占位深度纹理（group0 binding 1 必须是深度纹理，不能用颜色纹理）
     private TextureRenderTarget? _dummyDepthMap;
 
-    public ForwardPass(
+    public BlinnPhongPass(
         WebGPUContext webGpu,
         MaterialShaderCache shaderCache,
         BindGroupLayout* frameLayout,
@@ -103,7 +103,7 @@ internal sealed unsafe class ForwardPass
     /// shadowDepth 为 null 时跳过阴影采样。
     /// </summary>
     public void AddToGraph(
-        RenderGraph graph,
+        RenderGraph.RenderGraph graph,
         RenderGraphResource backbuffer,
         RenderGraphResource? shadowDepth,
         SceneSnapshot snapshot,
@@ -114,7 +114,7 @@ internal sealed unsafe class ForwardPass
         var cam = camera;
         var sd = shadowDepth;
 
-        graph.AddPass($"Forward(Target={cam.TargetId})",
+        graph.AddPass($"BlinnPhong(Target={cam.TargetId})",
             setup: builder =>
             {
                 if (sd.HasValue)

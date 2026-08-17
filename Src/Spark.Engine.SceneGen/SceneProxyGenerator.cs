@@ -21,7 +21,7 @@ public sealed class SceneProxyGenerator : IIncrementalGenerator
 {
     private const string SceneProxyAttributeName = "Spark.Engine.Render.SceneProxyAttribute";
     private const string ScenePayloadAttributeName = "Spark.Engine.Render.ScenePayloadAttribute";
-    private const string SceneResourceInterfaceName = "Spark.Engine.Render.Resources.ISceneResource";
+    private const string SceneResourceInterfaceName = "Spark.Engine.Resources.ISceneResource";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {

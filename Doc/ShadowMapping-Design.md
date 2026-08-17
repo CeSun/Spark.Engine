@@ -2,10 +2,10 @@
 
 > 状态：已实现（前向渲染器内的单阴影贴图）。本文记录实现结构与**本次调试踩坑经验**，
 > 作为后续多阴影/软阴影/级联阴影的基础。
-> 关联代码：`Src/Spark.Engine/Render/Pipeline/Forward/ForwardRenderer.cs`、`MaterialShaderCache.cs`、
+> 关联代码：`Src/Spark.Engine/Render/Pipeline/BlinnPhong/BlinnPhongRenderer.cs`、`MaterialShaderCache.cs`、
 > `ShaderPass.cs`、`Shaders/ForwardShadeLit.wgsl`、`Shaders/ForwardDepthFragment.wgsl`、
-> `Src/Spark.Engine/Render/Pipeline/TextureRenderTarget.cs`、
-> `Src/Spark.Engine/Render/RenderGraph/Passes/ShadowDepthPass.cs`。
+> `Src/Spark.Engine/Render/Common/TextureRenderTarget.cs`、
+> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/Passes/ShadowDepthPass.cs`。
 
 ## 1. 目标与范围
 

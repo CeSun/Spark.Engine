@@ -1,6 +1,6 @@
 using Silk.NET.WebGPU;
 
-namespace Spark.Engine.Render.Pipeline;
+namespace Spark.Engine.Render.Common;
 
 /// <summary>
 /// 离屏渲染目标（无交换链）：GPU 纹理 + 视图，可作颜色附件或深度附件（阴影贴图）。

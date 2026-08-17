@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace Spark.Engine.Render.Pipeline;
+namespace Spark.Engine.Render.Common;
 
 /// <summary>
 /// 渲染目标注册表（窗口视口与离屏贴图统一登记）。

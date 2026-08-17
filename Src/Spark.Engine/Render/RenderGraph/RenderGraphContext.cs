@@ -1,6 +1,6 @@
 using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
-using Spark.Engine.Render.Pipeline;
+using Spark.Engine.Render.Common;
 
 namespace Spark.Engine.Render.RenderGraph;
 

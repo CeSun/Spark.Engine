@@ -1,6 +1,6 @@
 using Spark.Engine.Builder;
 using Spark.Engine.Platforms;
-using Spark.Engine.Render.Pipeline;
+using Spark.Engine.Render.Common;
 using System.Numerics;
 using SNW = Silk.NET.Windowing;
 

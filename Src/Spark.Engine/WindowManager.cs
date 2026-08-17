@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Spark.Engine.Platforms;
-using Spark.Engine.Render.Pipeline;
+using Spark.Engine.Render.Common;
 
 namespace Spark.Engine;
 

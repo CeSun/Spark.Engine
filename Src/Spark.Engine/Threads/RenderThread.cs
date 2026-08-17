@@ -6,7 +6,7 @@ namespace Spark.Engine.Threads;
 
 /// <summary>
 /// 渲染线程外壳：只负责线程生命周期与异常兜底；渲染逻辑在 <see cref="IRenderPipeline"/> 的实现里。
-/// 管线经 DI 注入（如 <c>UseForward()</c> 注册的 ForwardRenderer），换管线无需改动本类。
+/// 管线经 DI 注入（如 <c>UseBlinnPhong()</c> 注册的 BlinnPhongRenderer），换管线无需改动本类。
 /// </summary>
 public class RenderThread
 {
