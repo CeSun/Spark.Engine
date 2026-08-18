@@ -36,7 +36,7 @@ public static class UIDemoOverlay
         };
 
         int counter = 0;
-        var counterLabel = new UILabel { Text = "Clicks: 0", TextColor = new Vector4(0.85f, 0.92f, 1f, 0.95f) };
+        var counterLabel = new UILabel { Text = "Clicks: 0", TextColor = new Vector4(0.85f, 0.92f, 1f, 0.95f), FixedSize = new UISize(0f, 20f) };
         body.AddChild(counterLabel);
 
         var button = new UIButton
@@ -64,10 +64,11 @@ public static class UIDemoOverlay
         {
             Text = "Enable option",
             TextColor = new Vector4(0.85f, 0.92f, 1f, 0.9f),
+            FixedSize = new UISize(0f, 20f),
         };
         body.AddChild(checkbox);
 
-        var sliderLabel = new UILabel { Text = "Value: 0.50", TextColor = new Vector4(0.85f, 0.92f, 1f, 0.85f) };
+        var sliderLabel = new UILabel { Text = "Value: 0.50", TextColor = new Vector4(0.85f, 0.92f, 1f, 0.85f), FixedSize = new UISize(0f, 20f) };
         body.AddChild(sliderLabel);
 
         var slider = new UISlider

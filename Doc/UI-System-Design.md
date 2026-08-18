@@ -144,6 +144,8 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 
 4. **单遍布局无内容自适应**：`FixedSize`（null 或分量 ≤0 = 填充）只支持「固定 or 填充」，fill 子元素均分剩余空间，
    无「按内容包裹」；表现为复选框方块在其 fill 区域内垂直居中、与文字错开。后续需两阶段 `Measure`/`Arrange`。
+   当前缓解：(a) `UICheckbox` 的文字已改为与方框垂直居中对齐（不再上对齐）；(b) Demo 里 label/checkbox 显式
+   指定 `FixedSize` 高度，避免被当 fill 撑满。
 
 5. **`Math` 命名空间遮蔽**：`Spark.Engine.Math` 命名空间会遮蔽 `System.Math`，UI 代码需写全限定 `System.Math`。
 

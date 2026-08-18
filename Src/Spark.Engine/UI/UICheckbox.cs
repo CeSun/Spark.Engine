@@ -32,7 +32,10 @@ public sealed class UICheckbox : UIElement
             ui.DrawRect(targetId, new Vector2(boxX + inset, boxY + inset), new Vector2(box - inset * 2f, box - inset * 2f), CheckColor);
         }
 
-        ui.Text.DrawText(ui, targetId, Text, new Vector2(boxX + box + 6f, Bounds.Y + Padding.Top), TextColor);
+        // 文字与方框垂直居中对齐（此前用 Bounds.Y + Padding.Top 上对齐，与居中方块错开）
+        float textHeight = ui.Text.Measure(Text).Y;
+        float textY = boxY + (box - textHeight) * 0.5f;
+        ui.Text.DrawText(ui, targetId, Text, new Vector2(boxX + box + 6f, textY), TextColor);
     }
 
     protected internal override void OnMouseClick()
