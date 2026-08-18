@@ -14,8 +14,8 @@ FScene / FSceneProxy / FSceneRenderer 模式。
 
 当前处于**早期原型阶段**：渲染管线已能绘制静态网格（三角形），场景对象（网格/光源）经统一快照通道
 传入渲染线程并做视锥剔除；场景代理由 SceneGen 源生成器生成；材质系统（Material/MaterialInstance、
-shader 编译缓存）、前向光照着色（Blinn-Phong）、帧图（RenderGraph）、法线贴图与阴影贴图已落地，
-节点图编辑器与 PBR 尚未实现。
+shader 编译缓存）、前向光照着色（Blinn-Phong）、帧图（RenderGraph）、法线贴图与阴影贴图已落地；
+保留模式 UI 系统（控件树 + 输入 + 字符串级文本 + overlay 渲染）也已实现。节点图编辑器与 PBR 尚未实现。
 
 ## 解决方案结构
 
@@ -31,6 +31,8 @@ Spark.Engine.slnx
 │  │  │  ├─ Pipeline/        管线抽象（IRenderPipeline/ShaderPass）+ BlinnPhong/
 │  │  │  │  └─ BlinnPhong/   Blinn-Phong 管线（BlinnPhongRenderer + shader + Passes/）
 │  │  │  └─ RenderGraph/     帧图（RenderGraph + 资源句柄/池）
+│  │  ├─ Input/              输入抽象（Key/KeyMask/MouseButton/WindowInput/InputState/InputManager）
+│  │  ├─ UI/                 保留模式控件树（UIElement/UIStackPanel/UILabel/UIButton/UITextBox/UICheckbox/UISlider/UIManager/TextRenderer…）
 │  │  ├─ Components/         组件（含 LightComponent 基类 + Point/Directional/Spot 光源、StaticMeshComponent）
 │  │  ├─ Threads/            RenderThread（外壳）/EngineSynchronizationContext
 │  │  └─ Worlds/             World（含 Scene）/WorldContext
@@ -211,6 +213,24 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
   （定义 → 可执行图）；运行时 `BlinnPhongRenderer` 仍命令式建图，未来编辑器以配置层为入口
 - 详见 [RenderGraph-Design.md](./RenderGraph-Design.md)（目标架构 + Phase B 实现落地与踩坑经验）
 
+### 16. UI 系统（保留模式控件树 + overlay 渲染）
+
+- 与 3D 场景解耦的**并行子系统**：不进 `SceneProxy`/`SceneCategory` 通道，经 `IGraphOverlay` 挂到
+  RenderGraph，在场景 pass 之后、写入同一 backbuffer 的最后一次绘制（共享帧级 acquire/present）
+- **逻辑线程**：`UIManager`（基元收口 + 每窗口 `UICanvas` + 纹理上传队列）→ 每帧 `canvas.Update(input)`
+  （Arrange 布局 + 命中测试/事件路由）→ `canvas.Paint(ui)` 产出屏幕空间 `UIPrimitive` → 拷贝进
+  `SceneSnapshot.UIPrimitives`（值快照）
+- **控件树**（保留模式，对齐 Slate/WPF/UGUI）：`UIElement`（Arrange/Paint/HitTest + 事件钩子）、
+  `UIStackPanel`（垂直/水平盒子布局）、`UIPanel`/`UILabel`/`UIButton`/`UITextBox`/`UICheckbox`/`UISlider`/
+  `UITheme`；单遍布局：`FixedSize ≤ 0` = 沿主轴拉伸填充
+- **输入系统**（平台无关，`Input/`）：`Key`/`MouseButton` 引擎枚举 + 位掩码，`WindowInput` → `InputManager`
+  → 每帧 `InputState`（down/pressed/released 三态 + 文本）；Silk 枚举在 Desktop 层映射
+- **文本渲染**（字符串级 v1）：`TextRenderer` 用 SixLabors 把整段文本栅格化为白字透明底 RGBA8，按字符串
+  缓存纹理；`MeasureBounds` 取含 descender/悬突的实际包围盒当纹理尺寸
+- **渲染线程**：`UIRenderer`（多纹理按 `TextureId` 分批、动态顶点/索引缓冲、白纹理 + 纹理注册表、
+  256 对齐纹理上传）经 `UseUI()` 注册为 `IGraphOverlay`
+- 详见 [UI-System-Design.md](./UI-System-Design.md)（架构 + 数据流 + 踩坑经验）
+
 ### 验证状态
 
 | 能力 | 编译 | 运行 |
@@ -224,6 +244,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | 阴影贴图（ShadowDepth pass + 前向采样） | ✅ | ✅（本地 GPU 环境验证通过） |
 | RenderGraph 声明式多 pass 编排（ShadowDepth → BlinnPhong） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 法线贴图（Normal Mapping，导数法 TBN） | ✅ | ✅（本地 GPU 环境验证通过） |
+| UI 系统（控件树 + 输入 + 文本 + overlay 渲染 + 交互） | ✅ | ✅（本地 GPU 环境验证通过） |
 
 ---
 
@@ -339,3 +360,4 @@ dotnet run --project Demo/Demo.Desktop
 - [MaterialSystem-Design.md](./MaterialSystem-Design.md) — 材质系统设计（资产模型/shader 缓存/绑定组/着色/实例化/多 pass）
 - [RenderGraph-Design.md](./RenderGraph-Design.md) — 帧图（RenderGraph）设计（声明式依赖图/资源生命周期/别名复用）
 - [ShadowMapping-Design.md](./ShadowMapping-Design.md) — 阴影贴图设计（多 pass 阴影 + 踩坑经验）
+- [UI-System-Design.md](./UI-System-Design.md) — UI 系统设计（控件树/输入/文本/overlay 渲染 + 踩坑经验）

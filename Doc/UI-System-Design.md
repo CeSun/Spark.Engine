@@ -1,9 +1,8 @@
 # UI 系统设计（UI System Design）
 
-> 状态：P0~P5 已实现，`dotnet build Spark.Engine.slnx` 0 错误。文字拉伸/错位问题已定位为
-> **第三处渲染 bug：`SetVertexBuffer(offset)` 与 `DrawIndexed(baseVertex)` 双重偏移叠加**（见「踩坑经验」），
-> 现已修复为「只用 SetVertexBuffer offset，baseVertex 恒为 0」。运行时渲染正确性需本地复跑确认。
-> 本文与当前代码同步，记录**实际落地形态**与已知偏差。
+> 状态：P0~P5 已实现，`dotnet build Spark.Engine.slnx` 0 错误。文字渲染问题（拉伸/错位/裁剪）已全部定位并修复
+> （见「踩坑经验」1/2/2b/6）；复选框文字对齐、Demo 控件显式高度、输入框光标闪烁也已落地。
+> 画面已在本机 GPU 环境复跑确认；剩余为 P6 打磨项。本文与当前代码同步，记录**实际落地形态**与已知偏差。
 
 ## 概述
 
@@ -50,7 +49,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | `UIPanel` | UIPanel.cs | 纯色矩形叶节点 |
 | `UILabel` | UILabel.cs | 文本标签（`Text`/`TextColor`） |
 | `UIButton` | UIButton.cs | 按钮（背景 + 文本 + 悬停/按下态 + `Clicked` 回调） |
-| `UITextBox` | UITextBox.cs | 单行输入框（焦点 + 文本输入 + 编辑键 + 光标） |
+| `UITextBox` | UITextBox.cs | 单行输入框（焦点 + 文本输入 + 编辑键 + 光标闪烁） |
 | `UICheckbox` | UICheckbox.cs | 复选框（`IsChecked` + `CheckedChanged`） |
 | `UISlider` | UISlider.cs | 滑杆（拖拽取值 0..1 + `ValueChanged`） |
 | `UICanvas` | UICanvas.cs | 每窗口画布：`Update(input)`（Arrange+路由）+ `Paint(ui)` + 焦点 |
@@ -156,11 +155,10 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 
 ## 已知限制 / 后续（P6+）
 
-- **运行时文字渲染已定位并修复**：累计四处——(1) bytesPerRow 未 256 对齐；(2) 多纹理批次顶点互相覆盖；
-  (3) `SetVertexBuffer(offset)` 与 `DrawIndexed(baseVertex)` 双重偏移叠加；(4) 文本纹理尺寸用 `MeasureSize` 未含
-  descender/悬突导致裁剪（改用 `MeasureBounds`）。均需本地复跑确认画面。
+- **文字渲染**：四处 bug 已修复（见踩坑 1/2/2b/6），画面已复跑确认。
 - 字形图集（替代字符串级纹理）；嵌入默认字体（替代系统字体，跨平台一致）。
-- 内容自适应尺寸（两阶段 Measure/Arrange）；`UIImage`、`UIProgressBar`、`UIScrollBox`、`UIComboBox` 等控件。
+- 内容自适应尺寸（两阶段 Measure/Arrange）——当前 `UIStackPanel` 无 `FixedSize` 的子元素仍会被当 fill 均分
+  剩余空间；`UIImage`、`UIProgressBar`、`UIScrollBox`、`UIComboBox` 等控件。
 - scissor 裁剪、滚动容器、停靠布局、多窗口 UI、脏标记增量绘制。
 
 ## 分阶段计划（现状）
@@ -175,8 +173,8 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | P5 | 完整控件 + 主题 + 编辑器接入（UICheckbox/UISlider/UITheme/EditorLayout） | ✅ 编译通过 |
 | P6 | 打磨（字形图集/裁剪/滚动/嵌入字体/增量绘制） | ⏳ 待做 |
 
-> 说明：以上「编译通过」指 `dotnet build Spark.Engine.slnx` 0 错误；**运行时渲染正确性**受沙箱无 GPU 限制，
-> 需本地环境验证（当前文字渲染存在待解决项，见「已知限制」）。
+> 说明：以上「编译通过」指 `dotnet build Spark.Engine.slnx` 0 错误；渲染层文字 bug 与交互细节
+> （复选框对齐、光标闪烁）已修复并在本机 GPU 环境复跑确认，剩余为 P6 打磨项。
 
 ## 关联文档
 
