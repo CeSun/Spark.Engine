@@ -61,15 +61,16 @@ public sealed class TextRenderer
 
     private int CreateTexture(UIManager ui, string text)
     {
-        var size = TextMeasurer.MeasureSize(text, new TextOptions(_font) { Dpi = Dpi });
-        int width = System.Math.Max(1, (int)System.MathF.Ceiling(size.Width));
-        int height = System.Math.Max(1, (int)System.MathF.Ceiling(size.Height));
+        var options = new RichTextOptions(_font) { Dpi = Dpi, Origin = new PointF(0f, 0f) };
+        // MeasureBounds 给出含下伸部(descender)与右侧悬突的实际墨水包围盒；MeasureSize 只给
+        // 「前向宽度 × 行高」，用它当纹理尺寸会把底部/右侧的像素裁掉。ceil(Right/Bottom) 覆盖完整包围盒，
+        // 再各留 1px 余量，避免抗锯齿边缘被裁。
+        var bounds = TextMeasurer.MeasureBounds(text, options);
+        int width = System.Math.Max(1, (int)System.MathF.Ceiling(bounds.Right) + 1);
+        int height = System.Math.Max(1, (int)System.MathF.Ceiling(bounds.Bottom) + 1);
 
         using var image = new Image<Rgba32>(width, height);
-        image.Mutate(ctx => ctx.DrawText(
-            new RichTextOptions(_font) { Dpi = Dpi, Origin = new PointF(0f, 0f) },
-            text,
-            Color.White));
+        image.Mutate(ctx => ctx.DrawText(options, text, Color.White));
 
         var rgba = new byte[width * height * 4];
         image.CopyPixelDataTo(rgba);

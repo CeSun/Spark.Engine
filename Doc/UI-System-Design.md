@@ -147,10 +147,16 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 
 5. **`Math` 命名空间遮蔽**：`Spark.Engine.Math` 命名空间会遮蔽 `System.Math`，UI 代码需写全限定 `System.Math`。
 
+6. **文字底部/右侧被裁掉几像素**：`TextRenderer.CreateTexture` 用 `MeasureSize`（前向宽度 × 行高）当纹理尺寸，
+   但该值不含下伸部（descender，如 `g/p/y`）与右侧悬突，导致底部和右侧的像素被裁。修复：改用
+   `MeasureBounds`（实际墨水包围盒）取 `ceil(Right)+1` / `ceil(Bottom)+1` 作为纹理尺寸，并复用同一 `RichTextOptions`
+   （`Origin=(0,0)`）做测量与绘制，保证测量和光栅化一致。
+
 ## 已知限制 / 后续（P6+）
 
-- **运行时文字渲染已定位并修复**：累计三处渲染 bug——(1) bytesPerRow 未 256 对齐；(2) 多纹理批次顶点互相覆盖；
-  (3) `SetVertexBuffer(offset)` 与 `DrawIndexed(baseVertex)` 双重偏移叠加。均已修复，需本地复跑确认画面。
+- **运行时文字渲染已定位并修复**：累计四处——(1) bytesPerRow 未 256 对齐；(2) 多纹理批次顶点互相覆盖；
+  (3) `SetVertexBuffer(offset)` 与 `DrawIndexed(baseVertex)` 双重偏移叠加；(4) 文本纹理尺寸用 `MeasureSize` 未含
+  descender/悬突导致裁剪（改用 `MeasureBounds`）。均需本地复跑确认画面。
 - 字形图集（替代字符串级纹理）；嵌入默认字体（替代系统字体，跨平台一致）。
 - 内容自适应尺寸（两阶段 Measure/Arrange）；`UIImage`、`UIProgressBar`、`UIScrollBox`、`UIComboBox` 等控件。
 - scissor 裁剪、滚动容器、停靠布局、多窗口 UI、脏标记增量绘制。
