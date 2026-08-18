@@ -1,8 +1,8 @@
 # UI 系统设计（UI System Design）
 
-> 状态：P0~P5 已实现，`dotnet build Spark.Engine.slnx` 0 错误。**运行时验证存在未解决项**——
-> 文字渲染在本地观察到错乱（拉伸/错位），已定位并修复两处渲染 bug（见「踩坑经验」），
-> 但用户反馈画面无变化，根因待进一步定位（需确认重新构建 + 是否还有第三处问题）。
+> 状态：P0~P5 已实现，`dotnet build Spark.Engine.slnx` 0 错误。文字拉伸/错位问题已定位为
+> **第三处渲染 bug：`SetVertexBuffer(offset)` 与 `DrawIndexed(baseVertex)` 双重偏移叠加**（见「踩坑经验」），
+> 现已修复为「只用 SetVertexBuffer offset，baseVertex 恒为 0」。运行时渲染正确性需本地复跑确认。
 > 本文与当前代码同步，记录**实际落地形态**与已知偏差。
 
 ## 概述
@@ -132,6 +132,13 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 2. **多纹理批次顶点互相覆盖 → 只剩最后一批**：`UIRenderer` 按 `TextureId` 分批，最初每批都写顶点缓冲 offset 0，
    后批覆盖前批，导致只有最后画的控件显示。修复：累积 offset + `baseVertex`。见 ADR-27。
 
+2b. **（本次根因）`SetVertexBuffer(offset)` 与 `DrawIndexed(baseVertex)` 双重偏移**：上一项修复时，顶点写入用
+   `QueueWriteBuffer` 累积 byte offset，绘制时**同时**传了 `SetVertexBuffer(offset=byteOffset)` 和
+   `DrawIndexed(baseVertex=vertexOffset)`。WebGPU 里两者是「二选一」的同一偏移——最终取址为
+   `offset + (index + baseVertex) × stride`，叠加后每批实际读到 `2×vertexOffset` 处的顶点：第一批（offset=0）碰巧正确，
+   之后每批都错位，表现为文字被拉伸到别的控件的矩形、部分元素消失。修复：只保留 `SetVertexBuffer(offset)`，
+   `baseVertex` 恒为 0。
+
 3. **字符串级文本的代价**：比字形图集实现简单，但「一段文本一张纹理」，编辑器里动态/大量文本会占纹理，
    后续需替换为字形图集（共享一张图集 + 按字形 UV 引用）。
 
@@ -142,8 +149,8 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 
 ## 已知限制 / 后续（P6+）
 
-- **运行时文字渲染待验证/待修复**：bytesPerRow 对齐 + 批次 offset 已修，但用户反馈画面无变化——
-  需先确认是否重新构建运行；若仍异常，需继续定位（可能点：wgpu 校验、纹理视图、UV 方向）。
+- **运行时文字渲染已定位并修复**：累计三处渲染 bug——(1) bytesPerRow 未 256 对齐；(2) 多纹理批次顶点互相覆盖；
+  (3) `SetVertexBuffer(offset)` 与 `DrawIndexed(baseVertex)` 双重偏移叠加。均已修复，需本地复跑确认画面。
 - 字形图集（替代字符串级纹理）；嵌入默认字体（替代系统字体，跨平台一致）。
 - 内容自适应尺寸（两阶段 Measure/Arrange）；`UIImage`、`UIProgressBar`、`UIScrollBox`、`UIComboBox` 等控件。
 - scissor 裁剪、滚动容器、停靠布局、多窗口 UI、脏标记增量绘制。

@@ -187,10 +187,14 @@ public unsafe sealed class UIRenderer : IGraphOverlay
         }
 
         uint quadCount = (uint)(vertexCount / 4);
+
         api.RenderPassEncoderSetBindGroup(pass, 0, GetBindGroup(textureId), (nuint)0, null);
+        // 顶点已写入缓冲的 byteOffset 处，SetVertexBuffer 的 offset 已承载偏移，
+        // 因此 DrawIndexed 的 baseVertex 必须为 0，否则会与 SetVertexBuffer 的 offset 双重叠加，
+        // 导致每批实际读取 2×vertexOffset 处的顶点（文字被拉伸/错位）。
         api.RenderPassEncoderSetVertexBuffer(pass, 0, _vertexBuffer, byteOffset, byteSize);
         api.RenderPassEncoderSetIndexBuffer(pass, _indexBuffer, IndexFormat.Uint32, 0, (ulong)(quadCount * 6 * sizeof(uint)));
-        api.RenderPassEncoderDrawIndexed(pass, quadCount * 6, 1, 0, vertexOffset, 0);
+        api.RenderPassEncoderDrawIndexed(pass, quadCount * 6, 1, 0, 0, 0);
     }
 
     /// <summary>取纹理对应的 bind group；id ≤ 0 或未上传时回退白纹理。</summary>
