@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using System.Text;
 using Spark.Engine.Input;
@@ -10,6 +11,9 @@ public sealed class UITextBox : UIElement
     private readonly StringBuilder _buffer = new();
     private int _cursor;
     private bool _focused;
+
+    /// <summary>光标闪烁计时：可见 530ms / 隐藏 530ms（与 Windows 默认闪烁周期一致）。</summary>
+    private readonly Stopwatch _blinkTimer = Stopwatch.StartNew();
 
     public Vector4 BackgroundColor { get; set; } = new Vector4(0.10f, 0.12f, 0.16f, 1f);
 
@@ -42,7 +46,7 @@ public sealed class UITextBox : UIElement
         float textY = rect.Y + Padding.Top;
         ui.Text.DrawText(ui, targetId, text, new Vector2(textX, textY), TextColor);
 
-        if (_focused)
+        if (_focused && IsCursorVisible())
         {
             float cursorX = textX + ui.Text.Measure(_buffer.ToString(0, _cursor)).X;
             float cursorHeight = ui.Text.Measure(" ").Y;
@@ -50,16 +54,30 @@ public sealed class UITextBox : UIElement
         }
     }
 
-    protected internal override void OnFocusChanged(bool focused) => _focused = focused;
+    /// <summary>光标闪烁相位：可见 530ms 后隐藏 530ms 循环。</summary>
+    private bool IsCursorVisible()
+    {
+        const long OnMs = 530;
+        return _blinkTimer.ElapsedMilliseconds % (OnMs * 2) < OnMs;
+    }
+
+    protected internal override void OnFocusChanged(bool focused)
+    {
+        _focused = focused;
+        if (focused)
+            _blinkTimer.Restart();
+    }
 
     protected internal override void OnTextInput(string text)
     {
         _buffer.Insert(_cursor, text);
         _cursor += text.Length;
+        _blinkTimer.Restart();
     }
 
     protected internal override void OnKeyDown(Key key)
     {
+        _blinkTimer.Restart(); // 任意按键都让光标立即可见并重置闪烁周期
         switch (key)
         {
             case Key.Backspace when _cursor > 0:
