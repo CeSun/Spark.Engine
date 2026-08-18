@@ -170,7 +170,13 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
                         if (_gpuResources.ContainsKey(mesh.ResourceId))
                             continue; // 已上传（ResourceManager 去重后的兜底）
 
-                        _gpuResources[mesh.ResourceId] = CreateMeshGPUResource(mesh);
+                        _gpuResources[mesh.ResourceId] = CreateMeshGPUResource(mesh.Vertices, mesh.Indices);
+                        break;
+                    case SkeletalMesh skeletal:
+                        if (_gpuResources.ContainsKey(skeletal.ResourceId))
+                            continue;
+
+                        _gpuResources[skeletal.ResourceId] = CreateMeshGPUResource(skeletal.Vertices, skeletal.Indices);
                         break;
                     case Texture2D texture:
                         if (_gpuResources.ContainsKey(texture.ResourceId))
@@ -193,15 +199,15 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         }
     }
 
-    /// <summary>几何上传（按 MeshId 一次）：顶点/索引缓冲。</summary>
-    private MeshGPUResource CreateMeshGPUResource(StaticMesh mesh)
+    /// <summary>几何上传（按 MeshId 一次）：顶点/索引缓冲（T = 顶点格式，决定 stride）。</summary>
+    private MeshGPUResource CreateMeshGPUResource<T>(T[] vertices, uint[] indices) where T : unmanaged
     {
         var api = _webGpu!.Api;
         var device = _webGpu.Device;
         var queue = _webGpu.Queue;
 
-        ulong vertexSize = (ulong)(mesh.Vertices.Length * sizeof(StaticMeshVertex));
-        ulong indexSize = (ulong)(mesh.Indices.Length * sizeof(uint));
+        ulong vertexSize = (ulong)(vertices.Length * sizeof(T));
+        ulong indexSize = (ulong)(indices.Length * sizeof(uint));
 
         var vertexDesc = new BufferDescriptor
         {
@@ -210,7 +216,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             MappedAtCreation = false,
         };
         Buffer* vertexBuffer = api.DeviceCreateBuffer(device, ref vertexDesc);
-        fixed (StaticMeshVertex* data = mesh.Vertices)
+        fixed (T* data = vertices)
         {
             api.QueueWriteBuffer(queue, vertexBuffer, 0, data, (nuint)vertexSize);
         }
@@ -222,7 +228,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             MappedAtCreation = false,
         };
         Buffer* indexBuffer = api.DeviceCreateBuffer(device, ref indexDesc);
-        fixed (uint* data = mesh.Indices)
+        fixed (uint* data = indices)
         {
             api.QueueWriteBuffer(queue, indexBuffer, 0, data, (nuint)indexSize);
         }
@@ -231,7 +237,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             api,
             vertexBuffer,
             indexBuffer,
-            (uint)mesh.Indices.Length,
+            (uint)indices.Length,
             IndexFormat.Uint32,
             vertexSize,
             indexSize);

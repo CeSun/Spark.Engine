@@ -16,9 +16,10 @@ namespace Spark.Engine.Render.Pipeline.BlinnPhong;
 /// 视锥剔除并提交绘制（对应 UE 的 FSceneRenderer 输入侧）。
 ///
 /// 继承 <see cref="SceneRenderPipeline"/>——通用场景基建（上传 / 实例同步 / 延迟删除 / 帧图主循环）在基类，
-/// 本类只写「材质着色 + 两个 stage + 图怎么连」：
+/// 本类只写「材质着色 + 三个 stage + 图怎么连」：
 /// - ShadowDepth stage：第一个投影阴影的聚光/平行光 → transient 深度贴图
 /// - BlinnPhong stage：采样阴影贴图，完整着色 → backbuffer
+/// - SkeletalMesh stage：蒙皮骨骼网格，完整着色 → backbuffer（首版无阴影）
 ///
 /// 绑定组四层：group0 帧（+ 阴影贴图/比较采样器）/ group1 对象 / group2 材质参数 / group3 材质纹理。
 /// </summary>
@@ -30,6 +31,8 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
     private BindGroupLayout* _materialParamsLayout;
     private BindGroupLayout* _materialTexturesLayout;
     private PipelineLayout* _pipelineLayout;
+    private BindGroupLayout* _skinnedObjectLayout;
+    private PipelineLayout* _skinnedPipelineLayout;
     private Sampler* _sampler;
 
     // fallback 纹理（材质上传时解析纹理槽位用）
@@ -46,6 +49,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
     // stage 实例（复用，跨帧持有 GPU 资源）
     private ShadowDepthStage? _shadowDepthStage;
     private BlinnPhongStage? _blinnPhongStage;
+    private SkeletalMeshStage? _skeletalMeshStage;
     private bool _stagesInitialized;
 
     public BlinnPhongRenderer(
@@ -92,6 +96,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
             foreach (var camera in group)
             {
                 _blinnPhongStage!.AddToGraph(graph, backbuffer, shadowDepth, snapshot, camera, clear: first);
+                _skeletalMeshStage!.AddToGraph(graph, backbuffer, shadowDepth, snapshot, camera, clear: false);
                 first = false;
             }
         }
@@ -108,6 +113,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
 
         _shadowDepthStage = RegisterStage(new ShadowDepthStage(ctx));
         _blinnPhongStage = RegisterStage(new BlinnPhongStage(ctx));
+        _skeletalMeshStage = RegisterStage(new SkeletalMeshStage(ctx));
 
         _stagesInitialized = true;
     }
@@ -168,7 +174,18 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
     }
 
     /// <inheritdoc />
+    protected override bool SupportsCategory(SceneCategory category)
+        => category is SceneCategory.StaticMesh or SceneCategory.SkeletalMesh;
+
+    /// <inheritdoc />
     protected override IPerInstanceState CreateRenderState(in SceneObjectHeader header)
+    {
+        return header.Category == SceneCategory.SkeletalMesh
+            ? CreateSkeletalMeshRenderState()
+            : CreateStaticMeshRenderState();
+    }
+
+    private StaticMeshRenderState CreateStaticMeshRenderState()
     {
         var api = _webGpu!.Api;
         var device = _webGpu.Device;
@@ -197,6 +214,41 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         BindGroup* objectBindGroup = api.DeviceCreateBindGroup(device, ref bindGroupDesc);
 
         return new StaticMeshRenderState(api, objectBuffer, objectBindGroup);
+    }
+
+    private SkeletalMeshRenderState CreateSkeletalMeshRenderState()
+    {
+        var api = _webGpu!.Api;
+        var device = _webGpu.Device;
+
+        var objectDesc = new BufferDescriptor
+        {
+            Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+            Size = (ulong)sizeof(ObjectUniformData),
+            MappedAtCreation = false,
+        };
+        Buffer* objectBuffer = api.DeviceCreateBuffer(device, ref objectDesc);
+
+        var boneDesc = new BufferDescriptor
+        {
+            Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+            Size = (ulong)(SkeletalMeshConstants.MaxBones * sizeof(Matrix4x4)),
+            MappedAtCreation = false,
+        };
+        Buffer* boneBuffer = api.DeviceCreateBuffer(device, ref boneDesc);
+
+        BindGroupEntry* entries = stackalloc BindGroupEntry[2];
+        entries[0] = new BindGroupEntry { Binding = 0, Buffer = objectBuffer, Offset = 0, Size = (ulong)sizeof(ObjectUniformData) };
+        entries[1] = new BindGroupEntry { Binding = 1, Buffer = boneBuffer, Offset = 0, Size = (ulong)(SkeletalMeshConstants.MaxBones * sizeof(Matrix4x4)) };
+        var bindGroupDesc = new BindGroupDescriptor
+        {
+            Layout = _skinnedObjectLayout,
+            EntryCount = (nuint)2,
+            Entries = entries,
+        };
+        BindGroup* objectBindGroup = api.DeviceCreateBindGroup(device, ref bindGroupDesc);
+
+        return new SkeletalMeshRenderState(api, objectBuffer, boneBuffer, objectBindGroup);
     }
 
     private ShadowDepthStage.ShadowInfo ComputeShadowInfo(SceneSnapshot snapshot)
@@ -301,6 +353,33 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         var objectLayoutDesc = new BindGroupLayoutDescriptor { EntryCount = (nuint)1, Entries = &objectEntry };
         _objectLayout = api.DeviceCreateBindGroupLayout(device, ref objectLayoutDesc);
 
+        // 蒙皮 group1：对象 uniform（binding0）+ 骨骼矩阵 uniform（binding1）
+        BindGroupLayoutEntry* skinnedObjectEntries = stackalloc BindGroupLayoutEntry[2];
+        skinnedObjectEntries[0] = new BindGroupLayoutEntry
+        {
+            Binding = 0,
+            Visibility = ShaderStage.Vertex,
+            Buffer = new BufferBindingLayout
+            {
+                Type = BufferBindingType.Uniform,
+                HasDynamicOffset = false,
+                MinBindingSize = (ulong)sizeof(ObjectUniformData),
+            },
+        };
+        skinnedObjectEntries[1] = new BindGroupLayoutEntry
+        {
+            Binding = 1,
+            Visibility = ShaderStage.Vertex,
+            Buffer = new BufferBindingLayout
+            {
+                Type = BufferBindingType.Uniform,
+                HasDynamicOffset = false,
+                MinBindingSize = (ulong)(SkeletalMeshConstants.MaxBones * sizeof(Matrix4x4)),
+            },
+        };
+        var skinnedObjectLayoutDesc = new BindGroupLayoutDescriptor { EntryCount = (nuint)2, Entries = skinnedObjectEntries };
+        _skinnedObjectLayout = api.DeviceCreateBindGroupLayout(device, ref skinnedObjectLayoutDesc);
+
         // group2：材质参数 uniform
         var paramsEntry = new BindGroupLayoutEntry
         {
@@ -354,6 +433,19 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         };
         _pipelineLayout = api.DeviceCreatePipelineLayout(device, ref pipelineLayoutDesc);
 
+        // 蒙皮 pipeline layout：group0 + 蒙皮 group1 + group2 + group3
+        BindGroupLayout** skinnedLayouts = stackalloc BindGroupLayout*[4];
+        skinnedLayouts[0] = _frameLayout;
+        skinnedLayouts[1] = _skinnedObjectLayout;
+        skinnedLayouts[2] = _materialParamsLayout;
+        skinnedLayouts[3] = _materialTexturesLayout;
+        var skinnedPipelineLayoutDesc = new PipelineLayoutDescriptor
+        {
+            BindGroupLayoutCount = (nuint)4,
+            BindGroupLayouts = skinnedLayouts,
+        };
+        _skinnedPipelineLayout = api.DeviceCreatePipelineLayout(device, ref skinnedPipelineLayoutDesc);
+
         // 共享采样器（材质纹理）
         var samplerDesc = new SamplerDescriptor
         {
@@ -376,7 +468,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         _blackTexture = CreateTextureGPUResource(1, 1, new byte[] { 0, 0, 0, 255 });
 
         // shader 编译缓存
-        _shaderCache = new MaterialShaderCache(_webGpu, _pipelineLayout);
+        _shaderCache = new MaterialShaderCache(_webGpu, _pipelineLayout, _skinnedPipelineLayout);
 
         // 引擎默认材质（Unlit 白）
         _defaultMaterialGpu = CreateMaterialGPUResource(new Material { ShadingModel = ShadingModel.Unlit, BaseColor = Vector4.One });
@@ -390,6 +482,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         // stage 已由基类 Dispose 统一释放（RegisterStage 注册），这里只清字段
         _shadowDepthStage = null;
         _blinnPhongStage = null;
+        _skeletalMeshStage = null;
         _stagesInitialized = false;
 
         _shaderCache?.Dispose();
@@ -409,14 +502,18 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         if (_materialTexturesLayout != null) api.BindGroupLayoutRelease(_materialTexturesLayout);
         if (_materialParamsLayout != null) api.BindGroupLayoutRelease(_materialParamsLayout);
         if (_objectLayout != null) api.BindGroupLayoutRelease(_objectLayout);
+        if (_skinnedObjectLayout != null) api.BindGroupLayoutRelease(_skinnedObjectLayout);
         if (_frameLayout != null) api.BindGroupLayoutRelease(_frameLayout);
         if (_pipelineLayout != null) api.PipelineLayoutRelease(_pipelineLayout);
+        if (_skinnedPipelineLayout != null) api.PipelineLayoutRelease(_skinnedPipelineLayout);
 
         _sampler = null;
         _materialTexturesLayout = null;
         _materialParamsLayout = null;
         _objectLayout = null;
+        _skinnedObjectLayout = null;
         _frameLayout = null;
         _pipelineLayout = null;
+        _skinnedPipelineLayout = null;
     }
 }

@@ -34,10 +34,48 @@ public static class MaterialShaderCodegen
         "    n_ts = vec3f(n_ts.x * mp.normal_strength.x, n_ts.y * mp.normal_strength.x, n_ts.z);\n" +
         "    n = normalize(tbn * normalize(n_ts));";
 
-    /// <summary>按材质 key + pass 生成完整 WGSL 源码（纯函数）。</summary>
-    public static string Generate(MaterialShaderKey key, ShaderPass pass)
+    // ———————————— 蒙皮占位（{{...}} 由 skinned 开关替换）————————————
+
+    /// <summary>骨骼矩阵 uniform（group1 binding1），容量与 <see cref="SkeletalMeshConstants.MaxBones"/> 同步。</summary>
+    private static string BoneStruct => $"\nstruct BoneMatrices {{\n    m : array<mat4x4f, {SkeletalMeshConstants.MaxBones}>,\n}};";
+
+    private const string BoneBinding = "\n@group(1) @binding(1) var<uniform> bones : BoneMatrices;";
+
+    private const string BoneHelper =
+        "\nfn boneIndex(packed : u32, i : u32) -> u32 {\n    return (packed >> (i * 8u)) & 0xFFu;\n}\n";
+
+    private const string Skinning =
+        "    var skin = bones.m[boneIndex(in.bone_indices, 0u)] * in.bone_weights.x\n" +
+        "             + bones.m[boneIndex(in.bone_indices, 1u)] * in.bone_weights.y\n" +
+        "             + bones.m[boneIndex(in.bone_indices, 2u)] * in.bone_weights.z\n" +
+        "             + bones.m[boneIndex(in.bone_indices, 3u)] * in.bone_weights.w;\n" +
+        "    var local_pos = (skin * vec4f(in.position, 1.0)).xyz;\n" +
+        "    var local_normal = (skin * vec4f(in.normal, 0.0)).xyz;\n";
+
+    private const string NoSkinning =
+        "    var local_pos = in.position;\n" +
+        "    var local_normal = in.normal;\n";
+
+    private const string VertexBoneAttrs = "\n    @location(4) bone_indices : u32,\n    @location(5) bone_weights  : vec4f";
+
+    /// <summary>按材质 key + pass（+ 是否蒙皮）生成完整 WGSL 源码（纯函数）。</summary>
+    public static string Generate(MaterialShaderKey key, ShaderPass pass, bool skinned = false)
     {
         string header = HeaderTemplate.Replace("{{MAX_LIGHTS}}", MaxLights.ToString());
+        header = skinned
+            ? header
+                .Replace("{{BONE_STRUCT}}", BoneStruct)
+                .Replace("{{VERTEX_BONE_ATTRS}}", VertexBoneAttrs)
+                .Replace("{{BONE_BINDING}}", BoneBinding)
+                .Replace("{{BONE_HELPER}}", BoneHelper)
+                .Replace("{{SKINNING}}", Skinning)
+            : header
+                .Replace("{{BONE_STRUCT}}", "")
+                .Replace("{{VERTEX_BONE_ATTRS}}", "")
+                .Replace("{{BONE_BINDING}}", "")
+                .Replace("{{BONE_HELPER}}", "")
+                .Replace("{{SKINNING}}", NoSkinning);
+
         var sb = new System.Text.StringBuilder(header);
 
         switch (pass)

@@ -1,6 +1,8 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Silk.NET.WebGPU;
 using Spark.Engine.Render.Resources;
+using Spark.Engine.Resources;
 
 namespace Spark.Engine.Render.Pipeline.BlinnPhong.Stages;
 
@@ -22,11 +24,10 @@ internal abstract unsafe class StaticMeshStage : IRenderStage
     public abstract void Dispose();
 
     /// <summary>解析物体材质（MaterialId → MaterialGPUResource，缺失回退默认材质）。</summary>
-    protected MaterialGPUResource ResolveMaterial(in SceneObjectHeader obj, SceneSnapshot snapshot)
+    protected MaterialGPUResource ResolveMaterial(int materialId)
     {
-        var payload = snapshot.StaticMeshes[obj.PayloadIndex];
-        if (payload.MaterialId != 0 &&
-            Ctx.GpuResources.TryGetValue(payload.MaterialId, out var mg) && mg is MaterialGPUResource m)
+        if (materialId != 0 &&
+            Ctx.GpuResources.TryGetValue(materialId, out var mg) && mg is MaterialGPUResource m)
             return m;
 
         return Ctx.DefaultMaterialGpu;
@@ -41,7 +42,7 @@ internal abstract unsafe class StaticMeshStage : IRenderStage
         if (!Ctx.ProxyStates.TryGetValue(obj.ProxyId, out var state) || state is not StaticMeshRenderState meshState)
             return;
 
-        var material = ResolveMaterial(obj, snapshot);
+        var material = ResolveMaterial(payload.MaterialId);
 
         Matrix4x4.Invert(obj.WorldTransform, out var invWorld);
         ObjectUniformData objectData = new()
@@ -57,6 +58,45 @@ internal abstract unsafe class StaticMeshStage : IRenderStage
         var api = Ctx.WebGpu.Api;
         api.RenderPassEncoderSetPipeline(pass, pipeline);
         api.RenderPassEncoderSetBindGroup(pass, 1, meshState.ObjectBindGroup, (nuint)0, null);
+        api.RenderPassEncoderSetBindGroup(pass, 2, material.ParamsBindGroup, (nuint)0, null);
+        api.RenderPassEncoderSetBindGroup(pass, 3, material.TexturesBindGroup, (nuint)0, null);
+        api.RenderPassEncoderSetVertexBuffer(pass, 0, mesh.VertexBuffer, 0, mesh.VertexBufferSize);
+        api.RenderPassEncoderSetIndexBuffer(pass, mesh.IndexBuffer, mesh.IndexFormat, 0, mesh.IndexBufferSize);
+        api.RenderPassEncoderDrawIndexed(pass, mesh.IndexCount, 1, 0, 0, 0);
+    }
+
+    /// <summary>共用的骨骼蒙皮 draw：写 object/骨骼 uniform，set skinned pipeline + 四组 bind group + draw。</summary>
+    protected void DrawSkeletalMesh(RenderPassEncoder* pass, in SceneObjectHeader obj, SceneSnapshot snapshot, ShaderPass shaderPass, TextureFormat format)
+    {
+        var payload = snapshot.SkeletalMeshes[obj.PayloadIndex];
+        if (!Ctx.GpuResources.TryGetValue(payload.MeshId, out var gpu) || gpu is not MeshGPUResource mesh)
+            return;
+        if (!Ctx.ProxyStates.TryGetValue(obj.ProxyId, out var state) || state is not SkeletalMeshRenderState skelState)
+            return;
+
+        var material = ResolveMaterial(payload.MaterialId);
+
+        Matrix4x4.Invert(obj.WorldTransform, out var invWorld);
+        ObjectUniformData objectData = new()
+        {
+            World = obj.WorldTransform,
+            NormalMatrix = Matrix4x4.Transpose(invWorld),
+        };
+        ObjectUniformData* objectPtr = &objectData;
+        Ctx.WebGpu.Api.QueueWriteBuffer(Ctx.WebGpu.Queue, skelState.ObjectBuffer, 0, objectPtr, (nuint)sizeof(ObjectUniformData));
+
+        var bones = payload.BoneMatrices;
+        var boneSpan = MemoryMarshal.CreateSpan(ref bones[0], SkeletalMeshConstants.MaxBones);
+        fixed (Matrix4x4* bonePtr = boneSpan)
+        {
+            Ctx.WebGpu.Api.QueueWriteBuffer(Ctx.WebGpu.Queue, skelState.BoneBuffer, 0, bonePtr, (nuint)(SkeletalMeshConstants.MaxBones * sizeof(Matrix4x4)));
+        }
+
+        var pipeline = Ctx.ShaderCache.GetSkinnedPipeline(material.ShaderKey, shaderPass, format);
+
+        var api = Ctx.WebGpu.Api;
+        api.RenderPassEncoderSetPipeline(pass, pipeline);
+        api.RenderPassEncoderSetBindGroup(pass, 1, skelState.ObjectBindGroup, (nuint)0, null);
         api.RenderPassEncoderSetBindGroup(pass, 2, material.ParamsBindGroup, (nuint)0, null);
         api.RenderPassEncoderSetBindGroup(pass, 3, material.TexturesBindGroup, (nuint)0, null);
         api.RenderPassEncoderSetVertexBuffer(pass, 0, mesh.VertexBuffer, 0, mesh.VertexBufferSize);

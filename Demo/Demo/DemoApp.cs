@@ -175,8 +175,46 @@ public static class DemoApp
         lightActor.AddOwnedComponent(spotLight);
         world.AddActor(lightActor);
 
+        // 骨骼网格：两段"手臂"条带，关节在原点，绕 Z 轴弯曲（GPU 蒙皮）
+        var armComponent = new SkeletalMeshComponent
+        {
+            Mesh = CreateSkeletalArm(),
+            Material = new Material
+            {
+                ShadingModel = ShadingModel.Lit,
+                BaseColor = new Vector4(1f, 0.4f, 0.2f, 1f),
+                Roughness = 0.6f,
+            },
+            RelativeLocation = new Vector3(0f, 0f, -2f),
+        };
+        var armActor = new Actor();
+        armActor.AddOwnedComponent(armComponent);
+        world.AddActor(armActor);
+        world.AddActor(new SkeletalAnimator(armComponent));
+
         // 让两堵墙一起绕自身中心（Y 轴）左右摆动：墙面法线方向持续变化，观察不同方向受光
         world.AddActor(new WallSwinger(leftWall, rightWall));
+    }
+
+    /// <summary>两段骨骼"手臂"条带：下段绑 bone0，上段绑 bone1，关节在原点，bind pose 为单位阵。</summary>
+    private static SkeletalMesh CreateSkeletalArm()
+    {
+        var normal = new Vector3(0f, 0f, 1f);
+        var vertices = new SkeletalMeshVertex[]
+        {
+            // 下段（bone 0）
+            new SkeletalMeshVertex(new Vector3(-0.15f, -1f, 0f), Vector3.One, new Vector2(0f, 0f), normal, 0u, new Vector4(1f, 0f, 0f, 0f)),
+            new SkeletalMeshVertex(new Vector3(0.15f, -1f, 0f), Vector3.One, new Vector2(1f, 0f), normal, 0u, new Vector4(1f, 0f, 0f, 0f)),
+            new SkeletalMeshVertex(new Vector3(0.15f, 0f, 0f), Vector3.One, new Vector2(1f, 1f), normal, 0u, new Vector4(1f, 0f, 0f, 0f)),
+            new SkeletalMeshVertex(new Vector3(-0.15f, 0f, 0f), Vector3.One, new Vector2(0f, 1f), normal, 0u, new Vector4(1f, 0f, 0f, 0f)),
+            // 上段（bone 1）
+            new SkeletalMeshVertex(new Vector3(-0.15f, 0f, 0f), Vector3.One, new Vector2(0f, 0f), normal, 1u, new Vector4(1f, 0f, 0f, 0f)),
+            new SkeletalMeshVertex(new Vector3(0.15f, 0f, 0f), Vector3.One, new Vector2(1f, 0f), normal, 1u, new Vector4(1f, 0f, 0f, 0f)),
+            new SkeletalMeshVertex(new Vector3(0.15f, 1f, 0f), Vector3.One, new Vector2(1f, 1f), normal, 1u, new Vector4(1f, 0f, 0f, 0f)),
+            new SkeletalMeshVertex(new Vector3(-0.15f, 1f, 0f), Vector3.One, new Vector2(0f, 1f), normal, 1u, new Vector4(1f, 0f, 0f, 0f)),
+        };
+        var indices = new uint[] { 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7 };
+        return new SkeletalMesh(vertices, indices, new[] { Matrix4x4.Identity, Matrix4x4.Identity });
     }
 
     /// <summary>创建相机 Actor 并摆到指定视角（WorldTransform = R·T，GetViewMatrix = Invert(WorldTransform)）。</summary>

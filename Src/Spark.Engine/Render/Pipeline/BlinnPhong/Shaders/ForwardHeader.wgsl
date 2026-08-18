@@ -32,11 +32,13 @@ struct MaterialParamsUniform {
     normal_strength    : vec4f,
 };
 
+{{BONE_STRUCT}}
+
 struct VertexInput {
     @location(0) position : vec3f,
     @location(1) color    : vec3f,
     @location(2) uv       : vec2f,
-    @location(3) normal   : vec3f,
+    @location(3) normal   : vec3f,{{VERTEX_BONE_ATTRS}}
 };
 
 struct VertexOutput {
@@ -51,6 +53,7 @@ struct VertexOutput {
 @group(0) @binding(1) var shadow_map  : texture_depth_2d;
 @group(0) @binding(2) var shadow_samp : sampler_comparison;
 @group(1) @binding(0) var<uniform> obj   : ObjectUniforms;
+{{BONE_BINDING}}
 @group(2) @binding(0) var<uniform> mp    : MaterialParamsUniform;
 @group(3) @binding(0) var base_color_tex : texture_2d<f32>;
 @group(3) @binding(1) var normal_tex     : texture_2d<f32>;
@@ -59,13 +62,16 @@ struct VertexOutput {
 @group(3) @binding(4) var mask_tex       : texture_2d<f32>;
 @group(3) @binding(5) var samp           : sampler;
 
+{{BONE_HELPER}}
+
 @vertex
 fn vs_main(in : VertexInput) -> VertexOutput {
     var out : VertexOutput;
-    var world_pos = obj.world * vec4f(in.position, 1.0);
+{{SKINNING}}
+    var world_pos = obj.world * vec4f(local_pos, 1.0);
     out.clip_position = frame.view_proj * world_pos;
     out.world_pos = world_pos.xyz;
-    out.world_normal = (obj.normal_mat * vec4f(in.normal, 0.0)).xyz;
+    out.world_normal = (obj.normal_mat * vec4f(local_normal, 0.0)).xyz;
     out.uv = in.uv;
     out.color = in.color;
     return out;

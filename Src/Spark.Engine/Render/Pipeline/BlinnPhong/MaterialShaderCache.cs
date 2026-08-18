@@ -6,8 +6,8 @@ using Spark.Engine.Resources;
 namespace Spark.Engine.Render.Pipeline.BlinnPhong;
 
 /// <summary>
-/// shader 编译产物缓存（进程内，ADR-14）：按 (MaterialShaderKey, ShaderPass) 共享 ShaderModule，
-/// 按 ((key, pass), target format) 共享 RenderPipeline。静态属性相同的材质、同一 pass 复用同一编译产物。
+/// shader 编译产物缓存（进程内，ADR-14）：按 (MaterialShaderKey, ShaderPass, 是否蒙皮) 共享 ShaderModule，
+/// 按 ((key, pass, skinned), target format) 共享 RenderPipeline。静态属性相同的材质、同一 pass 复用同一编译产物。
 /// </summary>
 public unsafe sealed class MaterialShaderCache : IDisposable
 {
@@ -30,40 +30,49 @@ public unsafe sealed class MaterialShaderCache : IDisposable
 
     private readonly WebGPUContext _webGpu;
     private readonly PipelineLayout* _pipelineLayout;
-    private readonly Dictionary<(MaterialShaderKey Key, ShaderPass Pass), MaterialVariant> _variants = new();
+    private readonly PipelineLayout* _skinnedPipelineLayout;
+    private readonly Dictionary<(MaterialShaderKey Key, ShaderPass Pass, bool Skinned), MaterialVariant> _variants = new();
 
-    public MaterialShaderCache(WebGPUContext webGpu, PipelineLayout* pipelineLayout)
+    public MaterialShaderCache(WebGPUContext webGpu, PipelineLayout* pipelineLayout, PipelineLayout* skinnedPipelineLayout)
     {
         _webGpu = webGpu;
         _pipelineLayout = pipelineLayout;
+        _skinnedPipelineLayout = skinnedPipelineLayout;
     }
 
-    /// <summary>取该 key + pass + 目标格式的 RenderPipeline（缺则编译并缓存）。</summary>
+    /// <summary>取静态网格该 key + pass + 目标格式的 RenderPipeline（缺则编译并缓存）。</summary>
     public RenderPipeline* GetPipeline(MaterialShaderKey key, ShaderPass pass, TextureFormat format)
+        => GetPipeline(key, pass, format, skinned: false);
+
+    /// <summary>取骨骼蒙皮该 key + pass + 目标格式的 RenderPipeline（顶点带骨骼索引/权重 + group1 骨骼矩阵）。</summary>
+    public RenderPipeline* GetSkinnedPipeline(MaterialShaderKey key, ShaderPass pass, TextureFormat format)
+        => GetPipeline(key, pass, format, skinned: true);
+
+    private RenderPipeline* GetPipeline(MaterialShaderKey key, ShaderPass pass, TextureFormat format, bool skinned)
     {
-        var variant = GetOrCreateVariant(key, pass);
+        var variant = GetOrCreateVariant(key, pass, skinned);
         if (variant.Pipelines.TryGetValue(format, out var cached))
             return (RenderPipeline*)cached;
 
-        var pipeline = CreatePipeline(key, pass, variant.ShaderModule, format);
+        var pipeline = CreatePipeline(key, pass, variant.ShaderModule, format, skinned);
         variant.Pipelines[format] = (nint)pipeline;
         return pipeline;
     }
 
-    private MaterialVariant GetOrCreateVariant(MaterialShaderKey key, ShaderPass pass)
+    private MaterialVariant GetOrCreateVariant(MaterialShaderKey key, ShaderPass pass, bool skinned)
     {
-        var cacheKey = (key, pass);
+        var cacheKey = (key, pass, skinned);
         if (!_variants.TryGetValue(cacheKey, out var variant))
         {
-            variant = new MaterialVariant { ShaderModule = CreateShaderModule(key, pass) };
+            variant = new MaterialVariant { ShaderModule = CreateShaderModule(key, pass, skinned) };
             _variants[cacheKey] = variant;
         }
         return variant;
     }
 
-    private ShaderModule* CreateShaderModule(MaterialShaderKey key, ShaderPass pass)
+    private ShaderModule* CreateShaderModule(MaterialShaderKey key, ShaderPass pass, bool skinned)
     {
-        string source = MaterialShaderCodegen.Generate(key, pass);
+        string source = MaterialShaderCodegen.Generate(key, pass, skinned);
         byte[] codeBytes = Encoding.UTF8.GetBytes(source);
 
         fixed (byte* codePtr = codeBytes)
@@ -78,7 +87,7 @@ public unsafe sealed class MaterialShaderCache : IDisposable
         }
     }
 
-    private RenderPipeline* CreatePipeline(MaterialShaderKey key, ShaderPass pass, ShaderModule* shaderModule, TextureFormat format)
+    private RenderPipeline* CreatePipeline(MaterialShaderKey key, ShaderPass pass, ShaderModule* shaderModule, TextureFormat format, bool skinned)
     {
         var api = _webGpu.Api;
         var device = _webGpu.Device;
@@ -88,19 +97,41 @@ public unsafe sealed class MaterialShaderCache : IDisposable
 
         fixed (byte* vsPtr = vsEntry, fsPtr = fsEntry)
         {
-            VertexAttribute* attributes = stackalloc VertexAttribute[4];
-            attributes[0] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 0, ShaderLocation = 0 };
-            attributes[1] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 12, ShaderLocation = 1 };
-            attributes[2] = new VertexAttribute { Format = VertexFormat.Float32x2, Offset = 24, ShaderLocation = 2 };
-            attributes[3] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 32, ShaderLocation = 3 };
-
-            var vertexLayout = new VertexBufferLayout
+            VertexBufferLayout vertexLayout;
+            if (skinned)
             {
-                ArrayStride = (ulong)sizeof(StaticMeshVertex),
-                StepMode = VertexStepMode.Vertex,
-                AttributeCount = (nuint)4,
-                Attributes = attributes,
-            };
+                VertexAttribute* attributes = stackalloc VertexAttribute[6];
+                attributes[0] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 0, ShaderLocation = 0 };
+                attributes[1] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 12, ShaderLocation = 1 };
+                attributes[2] = new VertexAttribute { Format = VertexFormat.Float32x2, Offset = 24, ShaderLocation = 2 };
+                attributes[3] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 32, ShaderLocation = 3 };
+                attributes[4] = new VertexAttribute { Format = VertexFormat.Uint32, Offset = 44, ShaderLocation = 4 };
+                attributes[5] = new VertexAttribute { Format = VertexFormat.Float32x4, Offset = 48, ShaderLocation = 5 };
+
+                vertexLayout = new VertexBufferLayout
+                {
+                    ArrayStride = (ulong)sizeof(SkeletalMeshVertex),
+                    StepMode = VertexStepMode.Vertex,
+                    AttributeCount = (nuint)6,
+                    Attributes = attributes,
+                };
+            }
+            else
+            {
+                VertexAttribute* attributes = stackalloc VertexAttribute[4];
+                attributes[0] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 0, ShaderLocation = 0 };
+                attributes[1] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 12, ShaderLocation = 1 };
+                attributes[2] = new VertexAttribute { Format = VertexFormat.Float32x2, Offset = 24, ShaderLocation = 2 };
+                attributes[3] = new VertexAttribute { Format = VertexFormat.Float32x3, Offset = 32, ShaderLocation = 3 };
+
+                vertexLayout = new VertexBufferLayout
+                {
+                    ArrayStride = (ulong)sizeof(StaticMeshVertex),
+                    StepMode = VertexStepMode.Vertex,
+                    AttributeCount = (nuint)4,
+                    Attributes = attributes,
+                };
+            }
 
             var vertexState = new VertexState
             {
@@ -126,7 +157,6 @@ public unsafe sealed class MaterialShaderCache : IDisposable
             };
 
             // 深度状态：前向与深度 pass 共用（写深度 + Less 测试 + 禁用 stencil）
-            // stencil 比较函数必须为有效值（Always），读写掩码默认 0 = 禁用 stencil
             var depthStencil = new DepthStencilState
             {
                 Format = TextureFormat.Depth24Plus,
@@ -160,7 +190,6 @@ public unsafe sealed class MaterialShaderCache : IDisposable
                     WriteMask = ColorWriteMask.All,
                 };
 
-                // 半透明：标准 alpha 混合
                 if (key.BlendMode == BlendMode.Translucent)
                 {
                     BlendState* blend = stackalloc BlendState[1];
@@ -192,7 +221,6 @@ public unsafe sealed class MaterialShaderCache : IDisposable
             }
             else
             {
-                // 深度 pass：无颜色附件，仅写深度（masked 材质在片元 discard）
                 fragmentState = new FragmentState
                 {
                     Module = shaderModule,
@@ -204,7 +232,7 @@ public unsafe sealed class MaterialShaderCache : IDisposable
 
             var pipelineDesc = new RenderPipelineDescriptor
             {
-                Layout = _pipelineLayout,
+                Layout = skinned ? _skinnedPipelineLayout : _pipelineLayout,
                 Vertex = vertexState,
                 Primitive = primitiveState,
                 Multisample = multisampleState,

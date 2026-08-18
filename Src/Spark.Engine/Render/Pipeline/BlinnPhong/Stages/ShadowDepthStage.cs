@@ -110,12 +110,12 @@ internal sealed unsafe class ShadowDepthStage : StaticMeshStage
         FrameUniformData* framePtr = &frameUniform;
         api.QueueWriteBuffer(queue, _frameBuffer, 0, framePtr, (nuint)sizeof(FrameUniformData));
 
-        // 剔除：只渲 CastShadow 的静态网格，用光源视锥
+        // 剔除：渲 CastShadow 的静态网格 + 骨骼网格，用光源视锥
         var frustum = Frustum.FromViewProjection(shadow.ViewProjection);
         var visibleObjects = new List<SceneObjectHeader>();
         foreach (ref readonly var obj in snapshot.Objects.Span)
         {
-            if (obj.Category != SceneCategory.StaticMesh)
+            if (obj.Category is not (SceneCategory.StaticMesh or SceneCategory.SkeletalMesh))
                 continue;
             if ((obj.Visibility & VisibilityFlags.CastShadow) == 0)
                 continue;
@@ -145,7 +145,12 @@ internal sealed unsafe class ShadowDepthStage : StaticMeshStage
         api.RenderPassEncoderSetBindGroup(pass, 0, _frameBindGroup, (nuint)0, null);
 
         foreach (var obj in visibleObjects)
-            DrawStaticMesh(pass, obj, snapshot, ShaderPass.ShadowDepth, shadowTarget.Format);
+        {
+            if (obj.Category == SceneCategory.SkeletalMesh)
+                DrawSkeletalMesh(pass, obj, snapshot, ShaderPass.ShadowDepth, shadowTarget.Format);
+            else
+                DrawStaticMesh(pass, obj, snapshot, ShaderPass.ShadowDepth, shadowTarget.Format);
+        }
 
         api.RenderPassEncoderEnd(pass);
 

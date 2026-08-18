@@ -8,7 +8,8 @@ public enum SceneCategory : byte
 {
     StaticMesh = 1,
     Light = 2,
-    // 未来：SkeletalMesh / InstancedMesh / ParticleSystem / Decal ...
+    SkeletalMesh = 3,
+    // 未来：InstancedMesh / ParticleSystem / Decal ...
 }
 
 /// <summary>场景对象的可见性/阴影标记（快照 header 携带，渲染线程据此剔除与分桶）。</summary>
