@@ -1,32 +1,19 @@
 using System.Numerics;
-using Microsoft.Extensions.Logging;
 using Silk.NET.WebGPU;
-using Spark.Engine.Builder;
 using Spark.Engine.Math;
 using Spark.Engine.Render.Common;
 using Spark.Engine.Render.RenderGraph;
-using Spark.Engine.Render.Resources;
 using Buffer = Silk.NET.WebGPU.Buffer;
 
-namespace Spark.Engine.Render.Pipeline.BlinnPhong.Passes;
+namespace Spark.Engine.Render.Pipeline.BlinnPhong.Stages;
 
 /// <summary>
-/// Blinn-Phong 基础渲染 pass：完整着色（shade_lit），输出颜色到 backbuffer 或离屏目标。
+/// Blinn-Phong 基础渲染 stage：完整着色（shade_lit），输出颜色到 backbuffer 或离屏目标。
 /// 对应 <see cref="ShaderPass.Forward"/>。
 /// group0 帧 uniform + 阴影贴图采样 / group1 对象 / group2 材质参数 / group3 材质纹理。
 /// </summary>
-internal sealed unsafe class BlinnPhongPass : IRenderPass
+internal sealed unsafe class BlinnPhongStage : StaticMeshStage
 {
-    private readonly WebGPUContext _webGpu;
-    private readonly MaterialShaderCache _shaderCache;
-    private readonly BindGroupLayout* _frameLayout;
-
-    // per-proxy object uniform 缓存
-    private readonly Dictionary<int, StaticMeshRenderState> _proxyStates;
-    private readonly Dictionary<int, IGPUResource> _gpuResources;
-    private readonly MaterialGPUResource _defaultMaterialGpu;
-    private readonly ILogger? _logger;
-
     // 每帧 uniform buffer（group0，跨相机复用）
     private Buffer* _frameBuffer;
     private BindGroup* _frameBindGroup;       // 有阴影贴图
@@ -43,31 +30,18 @@ internal sealed unsafe class BlinnPhongPass : IRenderPass
     // 无阴影时的占位深度纹理（group0 binding 1 必须是深度纹理，不能用颜色纹理）
     private TextureRenderTarget? _dummyDepthMap;
 
-    public BlinnPhongPass(
-        WebGPUContext webGpu,
-        MaterialShaderCache shaderCache,
-        BindGroupLayout* frameLayout,
-        Dictionary<int, StaticMeshRenderState> proxyStates,
-        Dictionary<int, IGPUResource> gpuResources,
-        MaterialGPUResource defaultMaterialGpu,
-        ILogger? logger)
+    public BlinnPhongStage(BlinnPhongStageContext ctx)
+        : base(ctx)
     {
-        _webGpu = webGpu;
-        _shaderCache = shaderCache;
-        _frameLayout = frameLayout;
-        _proxyStates = proxyStates;
-        _gpuResources = gpuResources;
-        _defaultMaterialGpu = defaultMaterialGpu;
-        _logger = logger;
     }
 
     /// <summary>
     /// 初始化 GPU 资源（帧 uniform buffer、bind group、占位深度纹理）。
     /// </summary>
-    public void Initialize()
+    public override void Initialize()
     {
-        var api = _webGpu.Api;
-        var device = _webGpu.Device;
+        var api = Ctx.WebGpu.Api;
+        var device = Ctx.WebGpu.Device;
 
         // 无阴影时的占位深度纹理（group0 binding 1 必须是深度纹理）
         _dummyDepthMap = new TextureRenderTarget(-12, api, device, 1, 1, TextureFormat.Depth24Plus, isDepth: true);
@@ -132,9 +106,9 @@ internal sealed unsafe class BlinnPhongPass : IRenderPass
         in CameraSnapshot camera,
         bool clear)
     {
-        var api = _webGpu.Api;
-        var device = _webGpu.Device;
-        var queue = _webGpu.Queue;
+        var api = Ctx.WebGpu.Api;
+        var device = Ctx.WebGpu.Device;
+        var queue = Ctx.WebGpu.Queue;
 
         var target = ctx.GetRenderTarget(backbuffer);
 
@@ -205,8 +179,8 @@ internal sealed unsafe class BlinnPhongPass : IRenderPass
 
     private void EnsureFrameBindGroup(TextureView* shadowTextureView)
     {
-        var api = _webGpu.Api;
-        var device = _webGpu.Device;
+        var api = Ctx.WebGpu.Api;
+        var device = Ctx.WebGpu.Device;
 
         if (shadowTextureView != null)
         {
@@ -224,7 +198,7 @@ internal sealed unsafe class BlinnPhongPass : IRenderPass
             frameBindEntries[2] = new BindGroupEntry { Binding = 2, Sampler = _shadowSampler };
             var frameBindGroupDesc = new BindGroupDescriptor
             {
-                Layout = _frameLayout,
+                Layout = Ctx.FrameLayout,
                 EntryCount = (nuint)3,
                 Entries = frameBindEntries,
             };
@@ -239,7 +213,7 @@ internal sealed unsafe class BlinnPhongPass : IRenderPass
             entries[2] = new BindGroupEntry { Binding = 2, Sampler = _shadowSampler };
             var desc = new BindGroupDescriptor
             {
-                Layout = _frameLayout,
+                Layout = Ctx.FrameLayout,
                 EntryCount = (nuint)3,
                 Entries = entries,
             };
@@ -348,58 +322,20 @@ internal sealed unsafe class BlinnPhongPass : IRenderPass
         return view * proj;
     }
 
-    private void DrawStaticMesh(RenderPassEncoder* pass, in SceneObjectHeader obj, SceneSnapshot snapshot, ShaderPass shaderPass, TextureFormat format)
-    {
-        var payload = snapshot.StaticMeshes[obj.PayloadIndex];
-        if (!_gpuResources.TryGetValue(payload.MeshId, out var gpu) || gpu is not MeshGPUResource mesh)
-            return;
-        if (!_proxyStates.TryGetValue(obj.ProxyId, out var state))
-            return;
-
-        MaterialGPUResource? material = null;
-        if (payload.MaterialId != 0)
-        {
-            if (_gpuResources.TryGetValue(payload.MaterialId, out var mg) && mg is MaterialGPUResource m)
-                material = m;
-        }
-        material ??= _defaultMaterialGpu;
-
-        Matrix4x4.Invert(obj.WorldTransform, out var invWorld);
-        ObjectUniformData objectData = new()
-        {
-            World = obj.WorldTransform,
-            NormalMatrix = Matrix4x4.Transpose(invWorld),
-        };
-        ObjectUniformData* objectPtr = &objectData;
-        _webGpu.Api.QueueWriteBuffer(_webGpu.Queue, state.ObjectBuffer, 0, objectPtr, (nuint)sizeof(ObjectUniformData));
-
-        var pipeline = _shaderCache.GetPipeline(material!.ShaderKey, shaderPass, format);
-
-        var api = _webGpu.Api;
-        api.RenderPassEncoderSetPipeline(pass, pipeline);
-        api.RenderPassEncoderSetBindGroup(pass, 1, state.ObjectBindGroup, (nuint)0, null);
-        api.RenderPassEncoderSetBindGroup(pass, 2, material.ParamsBindGroup, (nuint)0, null);
-        api.RenderPassEncoderSetBindGroup(pass, 3, material.TexturesBindGroup, (nuint)0, null);
-        api.RenderPassEncoderSetVertexBuffer(pass, 0, mesh.VertexBuffer, 0, mesh.VertexBufferSize);
-        api.RenderPassEncoderSetIndexBuffer(pass, mesh.IndexBuffer, mesh.IndexFormat, 0, mesh.IndexBufferSize);
-        api.RenderPassEncoderDrawIndexed(pass, mesh.IndexCount, 1, 0, 0, 0);
-    }
-
     private void EnsureDepthTarget(uint width, uint height)
     {
         if (width == 0 || height == 0) return;
         if (_depthTarget != null && _depthWidth == width && _depthHeight == height) return;
 
         _depthTarget?.Dispose();
-        _depthTarget = new TextureRenderTarget(-11, _webGpu.Api, _webGpu.Device, width, height, TextureFormat.Depth24Plus, isDepth: true);
+        _depthTarget = new TextureRenderTarget(-11, Ctx.WebGpu.Api, Ctx.WebGpu.Device, width, height, TextureFormat.Depth24Plus, isDepth: true);
         _depthWidth = width;
         _depthHeight = height;
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
-        var api = _webGpu?.Api;
-        if (api == null) return;
+        var api = Ctx.WebGpu.Api;
 
         if (_frameBindGroup != null) api.BindGroupRelease(_frameBindGroup);
         if (_noShadowBindGroup != null) api.BindGroupRelease(_noShadowBindGroup);

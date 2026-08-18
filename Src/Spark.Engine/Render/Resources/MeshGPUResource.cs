@@ -54,7 +54,7 @@ public unsafe sealed class MeshGPUResource : IGPUResource
 /// 静态网格实例的渲染侧状态（按 ProxyId 生命周期管理，ADR-7 延迟删除）：
 /// 每实例 object uniform（world + 法线矩阵，group1）与 bind group。
 /// </summary>
-public unsafe sealed class StaticMeshRenderState : IDisposable
+public unsafe sealed class StaticMeshRenderState : IPerInstanceState
 {
     private readonly WebGPU _api;
 

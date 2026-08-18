@@ -14,7 +14,7 @@ namespace Spark.Engine.Render.Pipeline;
 /// 帧图主循环骨架 / 几何与纹理 GPU 上传）收口到这里。
 ///
 /// 子类只需实现两个抽象点，即可得到一条可替换管线：
-/// 1. <see cref="EnsurePipelineResources"/> —— 一次性建绑定组布局 / shader 缓存 / 材质默认资源 / pass 实例；
+/// 1. <see cref="EnsurePipelineResources"/> —— 一次性建绑定组布局 / shader 缓存 / 材质默认资源 / stage 实例；
 /// 2. <see cref="BuildGraph"/> —— 每帧声明「用哪些 pass、资源怎么连」。
 ///
 /// 换管线（Blinn-Phong / 延迟 …）= 换 DI 注册（ADR-21），渲染线程与本基类零改动。
@@ -29,18 +29,18 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
     /// <summary>GPU 资源单注册表（按 ResourceId 上传一次：几何/纹理/材质）。</summary>
     protected readonly Dictionary<int, IGPUResource> _gpuResources = new();
 
-    /// <summary>渲染侧每实例状态（按 ProxyId），静态网格为 object uniform（group1）+ bind group。</summary>
-    protected readonly Dictionary<int, StaticMeshRenderState> _proxyStates = new();
+    /// <summary>渲染侧每实例状态（按 ProxyId，具体类别由 <see cref="SupportsCategory"/> / <see cref="CreateRenderState"/> 决定）。</summary>
+    protected readonly Dictionary<int, IPerInstanceState> _proxyStates = new();
 
     // ADR-7 延迟删除队列（帧末批量释放）
-    private readonly Queue<StaticMeshRenderState> _pendingDelete = new();
+    private readonly Queue<IPerInstanceState> _pendingDelete = new();
 
     // 帧内复用
     private readonly HashSet<int> _liveProxyIds = new();
     private readonly List<int> _removedProxyIds = new();
 
-    // 已注册的 pass（基类统一 Initialize / Dispose）
-    private readonly List<IRenderPass> _passes = new();
+    // 已注册的 stage（基类统一 Initialize / Dispose）
+    private readonly List<IRenderStage> _stages = new();
 
     // 首帧已 dump 图结构（可视化/调试用，仅输出一次避免刷屏）
     private bool _graphDumped;
@@ -88,12 +88,12 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
     /// <summary>一次性建管线特有资源：绑定组布局 / shader 缓存 / 材质默认资源 / pass 实例（可重入，内部自行 guard）。</summary>
     protected abstract void EnsurePipelineResources();
 
-    /// <summary>注册一个 pass：立即 <see cref="IRenderPass.Initialize"/>，并交基类统一释放。返回 pass 便于子类保存引用。</summary>
-    protected T RegisterPass<T>(T pass) where T : IRenderPass
+    /// <summary>注册一个 stage：立即 <see cref="IRenderStage.Initialize"/>，并交基类统一释放。返回 stage 便于子类保存引用。</summary>
+    protected T RegisterStage<T>(T stage) where T : IRenderStage
     {
-        pass.Initialize();
-        _passes.Add(pass);
-        return pass;
+        stage.Initialize();
+        _stages.Add(stage);
+        return stage;
     }
 
     /// <summary>每帧声明本管线的图：注册/导入资源 + 添加 pass（只声明读写，顺序由图推导）。</summary>
@@ -109,7 +109,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         _liveProxyIds.Clear();
         foreach (ref readonly var obj in snapshot.Objects.Span)
         {
-            if (obj.Category == SceneCategory.StaticMesh)
+            if (SupportsCategory(obj.Category))
                 _liveProxyIds.Add(obj.ProxyId);
         }
 
@@ -126,11 +126,14 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
                 _pendingDelete.Enqueue(state);
         }
 
-        // 新增：本帧快照有但本地无 → 创建实例状态（子类决定 bind group 布局）
-        foreach (var proxyId in _liveProxyIds)
+        // 新增：本帧快照有但本地无 → 按类别创建实例状态（子类决定 bind group 布局）
+        foreach (ref readonly var obj in snapshot.Objects.Span)
         {
-            if (!_proxyStates.ContainsKey(proxyId))
-                _proxyStates[proxyId] = CreateStaticMeshRenderState();
+            if (!SupportsCategory(obj.Category))
+                continue;
+            if (_proxyStates.ContainsKey(obj.ProxyId))
+                continue;
+            _proxyStates[obj.ProxyId] = CreateRenderState(obj);
         }
     }
 
@@ -280,8 +283,11 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         return created.View;
     }
 
-    /// <summary>创建每实例静态网格状态（子类决定 object bind group 布局）。</summary>
-    protected abstract StaticMeshRenderState CreateStaticMeshRenderState();
+    /// <summary>本管线是否跟踪该类别对象的实例状态（默认只静态网格；子类覆盖以支持更多类别）。</summary>
+    protected virtual bool SupportsCategory(SceneCategory category) => category == SceneCategory.StaticMesh;
+
+    /// <summary>创建每实例渲染状态（子类按 <paramref name="header"/> 的类别决定 bind group 布局）。</summary>
+    protected abstract IPerInstanceState CreateRenderState(in SceneObjectHeader header);
 
     /// <summary>创建材质 GPU 资源（子类决定 group2/group3 布局与纹理槽位）。</summary>
     protected abstract MaterialGPUResource CreateMaterialGPUResource(Material material);
@@ -292,10 +298,10 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         if (_webGpu?.Api == null)
             return;
 
-        // 先释放 pass（子类字段仍指向它们，Dispose 后再由 ReleasePipelineResources 清空字段）
-        for (int i = _passes.Count - 1; i >= 0; i--)
-            _passes[i].Dispose();
-        _passes.Clear();
+        // 先释放 stage（子类字段仍指向它们，Dispose 后再由 ReleasePipelineResources 清空字段）
+        for (int i = _stages.Count - 1; i >= 0; i--)
+            _stages[i].Dispose();
+        _stages.Clear();
 
         ReleasePipelineResources();
         ReleaseSceneResources();

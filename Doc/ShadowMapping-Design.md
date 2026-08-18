@@ -5,7 +5,7 @@
 > 关联代码：`Src/Spark.Engine/Render/Pipeline/BlinnPhong/BlinnPhongRenderer.cs`、`MaterialShaderCache.cs`、
 > `ShaderPass.cs`、`Shaders/ForwardShadeLit.wgsl`、`Shaders/ForwardDepthFragment.wgsl`、
 > `Src/Spark.Engine/Render/Common/TextureRenderTarget.cs`、
-> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/Passes/ShadowDepthPass.cs`。
+> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/Stages/ShadowDepthStage.cs`。
 
 ## 1. 目标与范围
 
@@ -20,7 +20,7 @@
 ```
 Render(SceneSnapshot)
   ├─ ComputeShadowInfo：找第一个 CastShadow 的聚光/平行光，算 light view-proj
-  ├─ ShadowDepthPass：向 RenderGraph 声明并执行深度-only pass
+  ├─ ShadowDepthStage：向 RenderGraph 声明并执行深度-only pass
   │    └─ 把 CastShadow 网格渲进 1024×1024 Depth24Plus 贴图
   └─ 前向 pass：挂深度缓冲（视口尺寸）+ 采样阴影贴图（textureSampleCompare）
 ```
@@ -30,7 +30,7 @@ Render(SceneSnapshot)
 | 组件 | 职责 |
 |---|---|
 | `TextureRenderTarget`（isDepth=true） | 离屏深度目标（阴影贴图 + 前向深度缓冲共用此抽象） |
-| `ShadowDepthPass` | 阴影 pass：`FrameUniforms.view_proj = 光源 VP`，`ShaderPass.ShadowDepth`，深度附件 Clear 1.0 |
+| `ShadowDepthStage` | 阴影 stage：`FrameUniforms.view_proj = 光源 VP`，`ShaderPass.ShadowDepth`，深度附件 Clear 1.0 |
 | `FrameUniforms` | 增 `shadow_view_proj`（光源 VP）+ `shadow_light`（lights 数组下标，0xFFFFFFFF=无阴影） |
 | group0 布局 | binding0 帧 uniform + binding1 阴影贴图（`texture_depth_2d`）+ binding2 比较采样器（`Compare=Less`） |
 | group1/2/3 | 每次阴影 draw 绑定对象、材质参数、材质纹理；无材质时使用引擎默认材质 |
@@ -72,7 +72,7 @@ Render(SceneSnapshot)
 ### 4.1 显式 PipelineLayout 的 bind group 完整性
 
 本管线固定使用四组布局：group0 帧、group1 对象、group2 材质参数、group3 材质纹理。
-`ShadowDepthPass` 曾只设置 group0/1，在 `wgpuRenderPassEncoderEnd` 触发：
+`ShadowDepthStage` 曾只设置 group0/1，在 `wgpuRenderPassEncoderEnd` 触发：
 
 ```text
 Incompatible bind group at index 2 in the current render pipeline

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
 using Spark.Engine.Render.Common;
-using Spark.Engine.Render.Pipeline.BlinnPhong.Passes;
+using Spark.Engine.Render.Pipeline.BlinnPhong.Stages;
 using Spark.Engine.Render.RenderGraph;
 using Spark.Engine.Render.Resources;
 using Spark.Engine.Resources;
@@ -16,9 +16,9 @@ namespace Spark.Engine.Render.Pipeline.BlinnPhong;
 /// 视锥剔除并提交绘制（对应 UE 的 FSceneRenderer 输入侧）。
 ///
 /// 继承 <see cref="SceneRenderPipeline"/>——通用场景基建（上传 / 实例同步 / 延迟删除 / 帧图主循环）在基类，
-/// 本类只写「材质着色 + 两个 pass + 图怎么连」：
-/// - ShadowDepth pass：第一个投影阴影的聚光/平行光 → transient 深度贴图
-/// - BlinnPhong pass：采样阴影贴图，完整着色 → backbuffer
+/// 本类只写「材质着色 + 两个 stage + 图怎么连」：
+/// - ShadowDepth stage：第一个投影阴影的聚光/平行光 → transient 深度贴图
+/// - BlinnPhong stage：采样阴影贴图，完整着色 → backbuffer
 ///
 /// 绑定组四层：group0 帧（+ 阴影贴图/比较采样器）/ group1 对象 / group2 材质参数 / group3 材质纹理。
 /// </summary>
@@ -43,10 +43,10 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
     // 引擎默认材质（未指定/未上传材质时回退，ADR-17）
     private MaterialGPUResource? _defaultMaterialGpu;
 
-    // RenderGraph pass 实例（复用）
-    private ShadowDepthPass? _shadowDepthPass;
-    private BlinnPhongPass? _blinnPhongPass;
-    private bool _passesInitialized;
+    // stage 实例（复用，跨帧持有 GPU 资源）
+    private ShadowDepthStage? _shadowDepthStage;
+    private BlinnPhongStage? _blinnPhongStage;
+    private bool _stagesInitialized;
 
     public BlinnPhongRenderer(
         ILogger<BlinnPhongRenderer> logger,
@@ -61,7 +61,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
     protected override void EnsurePipelineResources()
     {
         EnsureBindGroupLayouts();
-        EnsurePasses();
+        EnsureStages();
     }
 
     /// <inheritdoc />
@@ -76,7 +76,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         {
             var shadowDesc = new TextureResourceDesc(1024, 1024, TextureFormat.Depth24Plus,
                 TextureUsage.RenderAttachment | TextureUsage.TextureBinding);
-            shadowDepth = _shadowDepthPass!.AddToGraph(graph, shadowDesc, snapshot, shadow);
+            shadowDepth = _shadowDepthStage!.AddToGraph(graph, shadowDesc, snapshot, shadow);
         }
 
         // Blinn-Phong 基础 pass：每个相机目标组一个 pass
@@ -91,26 +91,25 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
             bool first = true;
             foreach (var camera in group)
             {
-                _blinnPhongPass!.AddToGraph(graph, backbuffer, shadowDepth, snapshot, camera, clear: first);
+                _blinnPhongStage!.AddToGraph(graph, backbuffer, shadowDepth, snapshot, camera, clear: first);
                 first = false;
             }
         }
     }
 
-    private void EnsurePasses()
+    private void EnsureStages()
     {
-        if (_passesInitialized)
+        if (_stagesInitialized)
             return;
 
-        _shadowDepthPass = RegisterPass(new ShadowDepthPass(
+        var ctx = new BlinnPhongStageContext(
             _webGpu!, _shaderCache!, _frameLayout,
-            _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger));
+            _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger);
 
-        _blinnPhongPass = RegisterPass(new BlinnPhongPass(
-            _webGpu!, _shaderCache!, _frameLayout,
-            _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger));
+        _shadowDepthStage = RegisterStage(new ShadowDepthStage(ctx));
+        _blinnPhongStage = RegisterStage(new BlinnPhongStage(ctx));
 
-        _passesInitialized = true;
+        _stagesInitialized = true;
     }
 
     /// <inheritdoc />
@@ -169,7 +168,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
     }
 
     /// <inheritdoc />
-    protected override StaticMeshRenderState CreateStaticMeshRenderState()
+    protected override IPerInstanceState CreateRenderState(in SceneObjectHeader header)
     {
         var api = _webGpu!.Api;
         var device = _webGpu.Device;
@@ -200,7 +199,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         return new StaticMeshRenderState(api, objectBuffer, objectBindGroup);
     }
 
-    private ShadowDepthPass.ShadowInfo ComputeShadowInfo(SceneSnapshot snapshot)
+    private ShadowDepthStage.ShadowInfo ComputeShadowInfo(SceneSnapshot snapshot)
     {
         foreach (ref readonly var obj in snapshot.Objects.Span)
         {
@@ -213,7 +212,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
 
             var position = obj.WorldTransform.Translation;
             var direction = Vector3.TransformNormal(new Vector3(0f, 0f, -1f), obj.WorldTransform);
-            return new ShadowDepthPass.ShadowInfo
+            return new ShadowDepthStage.ShadowInfo
             {
                 HasShadow = true,
                 ViewProjection = ComputeLightViewProjection(light, position, direction),
@@ -388,10 +387,10 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
     {
         var api = _webGpu!.Api;
 
-        // pass 已由基类 Dispose 统一释放（RegisterPass 注册），这里只清字段
-        _shadowDepthPass = null;
-        _blinnPhongPass = null;
-        _passesInitialized = false;
+        // stage 已由基类 Dispose 统一释放（RegisterStage 注册），这里只清字段
+        _shadowDepthStage = null;
+        _blinnPhongStage = null;
+        _stagesInitialized = false;
 
         _shaderCache?.Dispose();
         _shaderCache = null;

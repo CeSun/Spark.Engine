@@ -1,63 +1,37 @@
 using System.Numerics;
-using Microsoft.Extensions.Logging;
 using Silk.NET.WebGPU;
-using Spark.Engine.Builder;
 using Spark.Engine.Math;
 using Spark.Engine.Render.Common;
 using Spark.Engine.Render.RenderGraph;
-using Spark.Engine.Render.Resources;
 using Buffer = Silk.NET.WebGPU.Buffer;
 
-namespace Spark.Engine.Render.Pipeline.BlinnPhong.Passes;
+namespace Spark.Engine.Render.Pipeline.BlinnPhong.Stages;
 
 /// <summary>
-/// 阴影深度 pass：用光源 VP 把 CastShadow 的静态网格渲进深度贴图。
+/// 阴影深度 stage：用光源 VP 把 CastShadow 的静态网格渲进深度贴图。
 /// 对应 <see cref="ShaderPass.ShadowDepth"/>。
 /// </summary>
-internal sealed unsafe class ShadowDepthPass : IRenderPass
+internal sealed unsafe class ShadowDepthStage : StaticMeshStage
 {
-    private readonly WebGPUContext _webGpu;
-    private readonly MaterialShaderCache _shaderCache;
-    private readonly BindGroupLayout* _frameLayout;
-
     // 阴影 pass 的 group0（不含阴影贴图本身，用占位深度纹理）
     private Buffer* _frameBuffer;
     private BindGroup* _frameBindGroup;
     private TextureRenderTarget? _dummyDepthMap;
     private Sampler* _shadowSampler;
 
-    // per-proxy object uniform 缓存
-    private readonly Dictionary<int, StaticMeshRenderState> _proxyStates;
-    private readonly Dictionary<int, IGPUResource> _gpuResources;
-    private readonly MaterialGPUResource _defaultMaterialGpu;
-    private readonly ILogger? _logger;
-
-    public ShadowDepthPass(
-        WebGPUContext webGpu,
-        MaterialShaderCache shaderCache,
-        BindGroupLayout* frameLayout,
-        Dictionary<int, StaticMeshRenderState> proxyStates,
-        Dictionary<int, IGPUResource> gpuResources,
-        MaterialGPUResource defaultMaterialGpu,
-        ILogger? logger)
+    public ShadowDepthStage(BlinnPhongStageContext ctx)
+        : base(ctx)
     {
-        _webGpu = webGpu;
-        _shaderCache = shaderCache;
-        _frameLayout = frameLayout;
-        _proxyStates = proxyStates;
-        _gpuResources = gpuResources;
-        _defaultMaterialGpu = defaultMaterialGpu;
-        _logger = logger;
     }
 
     /// <summary>
     /// 初始化 GPU 资源（帧 uniform buffer、bind group、占位纹理、采样器）。
     /// 在 EnsureBindGroupLayouts 完成后调用。
     /// </summary>
-    public void Initialize()
+    public override void Initialize()
     {
-        var api = _webGpu.Api;
-        var device = _webGpu.Device;
+        var api = Ctx.WebGpu.Api;
+        var device = Ctx.WebGpu.Device;
 
         // 占位深度纹理（1×1，避免同 pass 边写边采样）
         _dummyDepthMap = new TextureRenderTarget(-10, api, device, 1, 1, TextureFormat.Depth24Plus, isDepth: true);
@@ -94,7 +68,7 @@ internal sealed unsafe class ShadowDepthPass : IRenderPass
         shadowFrameEntries[2] = new BindGroupEntry { Binding = 2, Sampler = _shadowSampler };
         var shadowFrameBindGroupDesc = new BindGroupDescriptor
         {
-            Layout = _frameLayout,
+            Layout = Ctx.FrameLayout,
             EntryCount = (nuint)3,
             Entries = shadowFrameEntries,
         };
@@ -119,9 +93,9 @@ internal sealed unsafe class ShadowDepthPass : IRenderPass
 
     private void Execute(RenderGraphContext ctx, RenderGraphResource shadowDepth, SceneSnapshot snapshot, in ShadowInfo shadow)
     {
-        var api = _webGpu.Api;
-        var device = _webGpu.Device;
-        var queue = _webGpu.Queue;
+        var api = Ctx.WebGpu.Api;
+        var device = Ctx.WebGpu.Device;
+        var queue = Ctx.WebGpu.Queue;
 
         var shadowTarget = ctx.GetTransientTarget(shadowDepth);
 
@@ -179,47 +153,9 @@ internal sealed unsafe class ShadowDepthPass : IRenderPass
         api.QueueSubmit(queue, (nuint)1, &commandBuffer);
     }
 
-    private void DrawStaticMesh(RenderPassEncoder* pass, in SceneObjectHeader obj, SceneSnapshot snapshot, ShaderPass shaderPass, TextureFormat format)
+    public override void Dispose()
     {
-        var payload = snapshot.StaticMeshes[obj.PayloadIndex];
-        if (!_gpuResources.TryGetValue(payload.MeshId, out var gpu) || gpu is not MeshGPUResource mesh)
-            return;
-        if (!_proxyStates.TryGetValue(obj.ProxyId, out var state))
-            return;
-
-        MaterialGPUResource? material = null;
-        if (payload.MaterialId != 0)
-        {
-            if (_gpuResources.TryGetValue(payload.MaterialId, out var mg) && mg is MaterialGPUResource m)
-                material = m;
-        }
-        material ??= _defaultMaterialGpu;
-
-        Matrix4x4.Invert(obj.WorldTransform, out var invWorld);
-        ObjectUniformData objectData = new()
-        {
-            World = obj.WorldTransform,
-            NormalMatrix = Matrix4x4.Transpose(invWorld),
-        };
-        ObjectUniformData* objectPtr = &objectData;
-        _webGpu.Api.QueueWriteBuffer(_webGpu.Queue, state.ObjectBuffer, 0, objectPtr, (nuint)sizeof(ObjectUniformData));
-
-        var pipeline = _shaderCache.GetPipeline(material.ShaderKey, shaderPass, format);
-
-        var api = _webGpu.Api;
-        api.RenderPassEncoderSetPipeline(pass, pipeline);
-        api.RenderPassEncoderSetBindGroup(pass, 1, state.ObjectBindGroup, (nuint)0, null);
-        api.RenderPassEncoderSetBindGroup(pass, 2, material.ParamsBindGroup, (nuint)0, null);
-        api.RenderPassEncoderSetBindGroup(pass, 3, material.TexturesBindGroup, (nuint)0, null);
-        api.RenderPassEncoderSetVertexBuffer(pass, 0, mesh.VertexBuffer, 0, mesh.VertexBufferSize);
-        api.RenderPassEncoderSetIndexBuffer(pass, mesh.IndexBuffer, mesh.IndexFormat, 0, mesh.IndexBufferSize);
-        api.RenderPassEncoderDrawIndexed(pass, mesh.IndexCount, 1, 0, 0, 0);
-    }
-
-    public void Dispose()
-    {
-        var api = _webGpu?.Api;
-        if (api == null) return;
+        var api = Ctx.WebGpu.Api;
 
         if (_frameBindGroup != null) api.BindGroupRelease(_frameBindGroup);
         if (_frameBuffer != null) api.BufferRelease(_frameBuffer);

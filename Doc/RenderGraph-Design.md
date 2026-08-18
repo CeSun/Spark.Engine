@@ -7,7 +7,7 @@
 > `RenderGraphContext.cs`、`RenderGraphResource.cs`、`TextureResource.cs`、`TextureResourceDesc.cs`、
 > `ResourceAccess.cs`、`TransientResourcePool.cs`）、
 > `Src/Spark.Engine/Render/Pipeline/BlinnPhong/BlinnPhongRenderer.cs`、
-> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/Passes/ShadowDepthPass.cs`、`BlinnPhongPass.cs`。
+> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/Stages/ShadowDepthStage.cs`、`BlinnPhongStage.cs`。
 
 ## 1. 背景与目标
 
