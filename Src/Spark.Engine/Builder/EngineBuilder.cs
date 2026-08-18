@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Spark.Engine.Input;
 using Spark.Engine.Render.Common;
 using Spark.Engine.Resources;
+using Spark.Engine.UI;
 
 namespace Spark.Engine.Builder;
 
@@ -36,6 +38,8 @@ public class EngineBuilder
 
         builder.Services.AddSingleton(new ResourceManager());
         builder.Services.AddSingleton(new RenderTargetRegistry());
+        builder.Services.AddSingleton(new InputManager());
+        builder.Services.AddSingleton(new UIManager());
         builder.Services.AddSingleton(sp => new WindowManager(sp, sp.GetRequiredService<RenderTargetRegistry>()));
 
         return builder;

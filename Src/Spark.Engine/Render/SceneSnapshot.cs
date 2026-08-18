@@ -1,5 +1,6 @@
 using System.Numerics;
 using Spark.Engine.Math;
+using Spark.Engine.UI;
 
 namespace Spark.Engine.Render;
 
@@ -22,11 +23,15 @@ public sealed partial class SceneSnapshot
     /// <summary>场景对象统一 header（剔除热数据）。</summary>
     public readonly FrameBuffer<SceneObjectHeader> Objects = new();
 
+    /// <summary>UI 绘制基元（屏幕空间，每帧由逻辑线程填充；与场景对象解耦，ADR-22/23）。</summary>
+    public readonly FrameBuffer<UIPrimitive> UIPrimitives = new();
+
     /// <summary>每帧复用时归零全部缓冲。</summary>
     public void Clear()
     {
         Cameras.Clear();
         Objects.Clear();
+        UIPrimitives.Clear();
         ClearPayloads();
     }
 

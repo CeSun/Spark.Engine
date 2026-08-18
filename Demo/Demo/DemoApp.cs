@@ -49,6 +49,10 @@ public static class DemoApp
         AddCamera(world, mainViewport, eye: new Vector3(0f, 0f, 1.5f), lookAt: new Vector3(0f, 0f, -2f));
         AddCamera(world, secondViewport, eye: new Vector3(3.5f, 1.5f, 1.5f), lookAt: new Vector3(0f, 0f, -2.5f));
 
+        // P2 演示：保留模式控件树（面板 + 盒子布局，验证布局与绘制）
+        var uiCanvas = app.UIManager.GetOrCreateCanvas(mainViewport.Id);
+        uiCanvas.Root = UIDemoOverlay.Build();
+
         // 2x2 纹理：红 / 绿 / 蓝 / 白（RGBA8）
         var texture = new Texture2D(2, 2, new byte[]
         {

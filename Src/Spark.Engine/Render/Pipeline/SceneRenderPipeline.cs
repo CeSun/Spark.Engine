@@ -45,16 +45,20 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
     // 首帧已 dump 图结构（可视化/调试用，仅输出一次避免刷屏）
     private bool _graphDumped;
 
+    private readonly IReadOnlyList<IGraphOverlay> _overlays;
+
     protected SceneRenderPipeline(
         ILogger logger,
         WebGPUContext? webGpu,
         RenderTargetRegistry targets,
-        ResourceManager resourceManager)
+        ResourceManager resourceManager,
+        IEnumerable<IGraphOverlay> overlays)
     {
         _logger = logger;
         _webGpu = webGpu;
         _targets = targets;
         _resourceManager = resourceManager;
+        _overlays = overlays.ToArray();
     }
 
     /// <inheritdoc />
@@ -70,6 +74,11 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         // 命令式构建 RenderGraph（运行时直建，不依赖编辑器侧的引脚/定义/装配器）
         using var graph = new RenderGraph.RenderGraph(_webGpu, _logger);
         BuildGraph(graph, snapshot);
+
+        // 覆盖层（UI/后处理）在场景 pass 之后追加，共享同一帧 acquire/present（ADR-24）
+        foreach (var overlay in _overlays)
+            overlay.AppendToGraph(graph, snapshot);
+
         graph.Compile();
 
         // 首帧 dump 图结构（Mermaid），便于可视化排查 pass 依赖 / 资源流向
@@ -262,11 +271,23 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         };
         Texture* gpuTexture = api.DeviceCreateTexture(device, ref textureDesc);
 
-        var copyDest = new ImageCopyTexture { Texture = gpuTexture, MipLevel = 0, Origin = default, Aspect = TextureAspect.All };
-        var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = width * 4, RowsPerImage = height };
-        fixed (byte* data = rgba8)
+        // WebGPU 要求 bytesPerRow 对齐 256（COPY_BYTES_PER_ROW_ALIGNMENT）；rgba8 是紧密排列，
+        // 需重排为对齐 stride（行尾补零，不被采样）。
+        uint rowBytes = width * 4;
+        uint alignedRowBytes = (rowBytes + 255u) & ~255u;
+        byte[] upload = rgba8;
+        if (alignedRowBytes != rowBytes)
         {
-            api.QueueWriteTexture(queue, ref copyDest, data, (nuint)rgba8.Length, ref dataLayout, ref size);
+            upload = new byte[alignedRowBytes * height];
+            for (uint y = 0; y < height; y++)
+                Array.Copy(rgba8, (int)(y * rowBytes), upload, (int)(y * alignedRowBytes), (int)rowBytes);
+        }
+
+        var copyDest = new ImageCopyTexture { Texture = gpuTexture, MipLevel = 0, Origin = default, Aspect = TextureAspect.All };
+        var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = alignedRowBytes, RowsPerImage = height };
+        fixed (byte* data = upload)
+        {
+            api.QueueWriteTexture(queue, ref copyDest, data, (nuint)upload.Length, ref dataLayout, ref size);
         }
 
         TextureView* view = api.TextureCreateView(gpuTexture, (TextureViewDescriptor*)null);
@@ -311,6 +332,9 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
 
         ReleasePipelineResources();
         ReleaseSceneResources();
+
+        foreach (var overlay in _overlays)
+            overlay.Dispose();
     }
 
     /// <summary>释放通用场景资源（几何/纹理/材质注册表 + 每实例状态 + 延迟删除队列）。</summary>

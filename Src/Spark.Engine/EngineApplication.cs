@@ -2,10 +2,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spark.Engine.Builder;
 using Spark.Engine.Components;
+using Spark.Engine.Input;
 using Spark.Engine.Render;
 using Spark.Engine.Render.Common;
 using Spark.Engine.Resources;
 using Spark.Engine.Threads;
+using Spark.Engine.UI;
 using Spark.Engine.Worlds;
 using System.Diagnostics;
 
@@ -31,6 +33,10 @@ public class EngineApplication
 
     private readonly ResourceManager _resourceManager;
 
+    private readonly InputManager _input;
+
+    private readonly UIManager _ui;
+
     public DualFrameBuffer<SceneSnapshot> DualFrameBuffer => _dualFrameBuffer;
 
     public WindowManager WindowManager { get; private set; }
@@ -43,6 +49,12 @@ public class EngineApplication
 
     /// <summary>资源管理器（按 ResourceId 去重的自动上传 + GPU 表示延迟释放）。</summary>
     public ResourceManager ResourceManager => _resourceManager;
+
+    /// <summary>输入管理器（每帧聚合窗口输入，产出 InputState）。</summary>
+    public InputManager Input => _input;
+
+    /// <summary>UI 管理器（逻辑线程侧 UI 入口，每帧收集屏幕空间绘制基元）。</summary>
+    public UIManager UIManager => _ui;
 
     /// <summary>初始化回调：Run 时在窗口创建后、主循环开始前执行一次（供组合根写入游戏逻辑）。</summary>
     public Action<EngineApplication>? InitializeCallback { get; set; }
@@ -66,6 +78,10 @@ public class EngineApplication
         _engineSynchronizationContext = new EngineSynchronizationContext();
 
         _resourceManager = serviceProvider.GetRequiredService<ResourceManager>();
+
+        _input = serviceProvider.GetService<InputManager>() ?? new InputManager();
+
+        _ui = serviceProvider.GetService<UIManager>() ?? new UIManager();
 
         RenderTargets = serviceProvider.GetService<RenderTargetRegistry>() ?? new RenderTargetRegistry();
 
@@ -113,6 +129,8 @@ public class EngineApplication
 
                 WindowManager.UpdateWindow();
 
+                _input.Update(WindowManager.Windows);
+
                 _engineSynchronizationContext.Update();
 
                 OnUpdate(deltaTime);
@@ -146,6 +164,24 @@ public class EngineApplication
         snapshot.Clear();
         snapshot.DeltaTime = deltaTime;
         snapshot.FrameIndex++;
+
+        // UI：布局 + 绘制每窗口画布（控件树 → 基元）
+        foreach (var window in WindowManager.Windows)
+        {
+            var viewport = WindowManager.GetViewport(window);
+            if (viewport == null)
+                continue;
+
+            var canvas = _ui.GetOrCreateCanvas(viewport.Id);
+            canvas.Size = window.Size;
+            canvas.Update(_input.GetState(window));
+            canvas.Paint(_ui);
+        }
+
+        // UI 绘制基元（与场景解耦：无世界时也能绘制 UI 覆盖层）
+        foreach (ref readonly var primitive in _ui.Primitives.Span)
+            snapshot.UIPrimitives.Add(primitive);
+        _ui.Clear();
 
         if (WorldContext.CurrentWorld is not World world)
             return;

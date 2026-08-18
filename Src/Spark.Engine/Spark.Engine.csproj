@@ -13,6 +13,8 @@
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="SixLabors.Fonts" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" />
     <PackageReference Include="Silk.NET.WebGPU" />
     <PackageReference Include="Silk.NET.WebGPU.Native.WGPU" />
   </ItemGroup>
@@ -24,6 +26,8 @@
   <ItemGroup>
     <None Remove="Render\Pipeline\BlinnPhong\Shaders\*.wgsl" />
     <EmbeddedResource Include="Render\Pipeline\BlinnPhong\Shaders\*.wgsl" />
+    <None Remove="Render\UI\*.wgsl" />
+    <EmbeddedResource Include="Render\UI\*.wgsl" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,9 @@
 using Spark.Engine.Builder;
+using Spark.Engine.Input;
 using Spark.Engine.Platforms;
 using Spark.Engine.Render.Common;
 using System.Numerics;
+using SilkInput = Silk.NET.Input;
 using SNW = Silk.NET.Windowing;
 
 namespace Spark.Engine.Desktop;
@@ -14,7 +16,13 @@ public class DesktopWindow : IWindow
 
     private RenderSurface? _surface;
 
+    private readonly WindowInput _input = new();
+
+    private SilkInput.IInputContext? _inputContext;
+
     public RenderSurface? Surface => _surface;
+
+    public WindowInput Input => _input;
 
     public Vector2 Size { get => (Vector2)_window.Size; set => _window.Size = new Silk.NET.Maths.Vector2D<int>((int)value.X, (int)value.Y); }
 
@@ -58,10 +66,15 @@ public class DesktopWindow : IWindow
 
         var framebuffer = FramebufferSize;
         _surface.Resize((uint)framebuffer.X, (uint)framebuffer.Y);
+
+        InitializeInput();
     }
 
     public void Uninitialize()
     {
+        _inputContext?.Dispose();
+        _inputContext = null;
+
         // RenderSurface 由渲染线程经 DisposeSurface 延迟释放（ADR-7），这里只释放 Silk 窗口
         _window.Dispose();
     }
@@ -70,5 +83,69 @@ public class DesktopWindow : IWindow
     {
         _surface?.Dispose();
         _surface = null;
+    }
+
+    /// <summary>建立输入上下文并订阅鼠标/键盘事件，映射到引擎枚举后写入 <see cref="_input"/>。</summary>
+    private void InitializeInput()
+    {
+        try
+        {
+            var context = SilkInput.InputWindowExtensions.CreateInput(_window);
+
+            if (context.Mice.Count > 0)
+            {
+                var mouse = context.Mice[0];
+                _input.MousePosition = mouse.Position;
+                mouse.MouseDown += (_, button) => SetButton(button, down: true);
+                mouse.MouseUp += (_, button) => SetButton(button, down: false);
+                mouse.MouseMove += (_, position) =>
+                {
+                    _input.MouseDelta += position - _input.MousePosition;
+                    _input.MousePosition = position;
+                };
+                mouse.Scroll += (_, wheel) => _input.ScrollDelta += wheel.Y;
+            }
+
+            if (context.Keyboards.Count > 0)
+            {
+                var keyboard = context.Keyboards[0];
+                keyboard.KeyDown += (_, key, _) => SetKey(key, down: true);
+                keyboard.KeyUp += (_, key, _) => SetKey(key, down: false);
+                keyboard.KeyChar += (_, character) => _input.Text.Append(character);
+            }
+
+            _inputContext = context;
+        }
+        catch
+        {
+            // 输入是尽力而为：无可用输入后端（罕见）时窗口仍可用，只是没有输入事件。
+            _inputContext = null;
+        }
+    }
+
+    private void SetButton(SilkInput.MouseButton button, bool down)
+    {
+        int index = button switch
+        {
+            SilkInput.MouseButton.Left => 0,
+            SilkInput.MouseButton.Right => 1,
+            SilkInput.MouseButton.Middle => 2,
+            SilkInput.MouseButton.Button4 => 3,
+            SilkInput.MouseButton.Button5 => 4,
+            SilkInput.MouseButton.Button6 => 5,
+            SilkInput.MouseButton.Button7 => 6,
+            SilkInput.MouseButton.Button8 => 7,
+            _ => -1,
+        };
+
+        if (index >= 0)
+            _input.Buttons.Set((MouseButton)index, down);
+    }
+
+    private void SetKey(SilkInput.Key key, bool down)
+    {
+        var mapped = SilkInputMapper.MapKey(key);
+        if (mapped != Key.Unknown)
+            _input.KeysDown.Set(mapped, down);
     }
 }

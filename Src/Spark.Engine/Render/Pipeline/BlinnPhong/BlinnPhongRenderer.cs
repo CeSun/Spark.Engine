@@ -56,8 +56,9 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         ILogger<BlinnPhongRenderer> logger,
         WebGPUContext? webGpu,
         RenderTargetRegistry targets,
-        ResourceManager resourceManager)
-        : base(logger, webGpu, targets, resourceManager)
+        ResourceManager resourceManager,
+        IEnumerable<IGraphOverlay> overlays)
+        : base(logger, webGpu, targets, resourceManager, overlays)
     {
     }
 

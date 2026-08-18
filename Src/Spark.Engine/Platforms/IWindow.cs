@@ -1,10 +1,14 @@
 using System.Numerics;
+using Spark.Engine.Input;
 using Spark.Engine.Render.Common;
 
 namespace Spark.Engine.Platforms;
 
 public interface IWindow
 {
+    /// <summary>本窗口的原始输入缓冲（平台层在 <see cref="PollEvents"/> 时填充）。</summary>
+    WindowInput Input { get; }
+
     /// <summary>窗口逻辑尺寸（像素）。</summary>
     Vector2 Size { get; set; }
 
