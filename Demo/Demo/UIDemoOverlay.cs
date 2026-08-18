@@ -3,36 +3,49 @@ using Spark.Engine.UI;
 
 namespace Demo;
 
-/// <summary>P2~P4 演示：保留模式控件树（面板 + 盒子布局 + 文本标签 + 按钮 + 输入框），验证布局、绘制、文本与交互。</summary>
+/// <summary>P2~P4 演示：保留模式控件树（停靠布局 + 盒子布局 + 文本标签 + 按钮 + 输入框），验证布局、绘制、文本与交互。</summary>
 public static class UIDemoOverlay
 {
     public static UIElement Build()
     {
-        var root = new UIStackPanel
+        // 停靠布局：顶部标题条（Top）+ 底部状态栏（Bottom）+ 中部主体（Fill）
+        var dock = new UIDockPanel
         {
-            Orientation = UIOrientation.Vertical,
             Padding = UIEdgeInsets.All(12f),
-            Spacing = 8f,
             BackgroundColor = new Vector4(0.08f, 0.08f, 0.10f, 0.92f),
         };
 
-        // 标题条
+        // 标题条（Top 停靠）
         var header = new UIStackPanel
         {
             Orientation = UIOrientation.Horizontal,
             FixedSize = new UISize(0f, 28f),
             Padding = UIEdgeInsets.HorizontalVertical(8f, 4f),
             BackgroundColor = new Vector4(0.05f, 0.25f, 0.55f, 1f),
+            Dock = UIDock.Top,
         };
         header.AddChild(new UILabel { Text = "Spark.Engine UI", TextColor = new Vector4(1f, 1f, 1f, 1f) });
-        root.AddChild(header);
+        dock.AddChild(header);
 
-        // 主体：计数器标签 + 按钮 + 输入框
+        // 状态栏（Bottom 停靠）
+        var status = new UIStackPanel
+        {
+            Orientation = UIOrientation.Horizontal,
+            FixedSize = new UISize(0f, 24f),
+            Padding = UIEdgeInsets.HorizontalVertical(8f, 4f),
+            BackgroundColor = new Vector4(0.05f, 0.20f, 0.40f, 1f),
+            Dock = UIDock.Bottom,
+        };
+        status.AddChild(new UILabel { Text = "Status: Ready", TextColor = new Vector4(0.85f, 0.92f, 1f, 0.9f) });
+        dock.AddChild(status);
+
+        // 中部主体（Fill，最后一个子元素填满剩余区域）
         var body = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
             Padding = UIEdgeInsets.HorizontalVertical(4f, 2f),
             Spacing = 6f,
+            Dock = UIDock.Fill,
         };
 
         int counter = 0;
@@ -79,7 +92,7 @@ public static class UIDemoOverlay
         };
         body.AddChild(slider);
 
-        root.AddChild(body);
-        return root;
+        dock.AddChild(body);
+        return dock;
     }
 }

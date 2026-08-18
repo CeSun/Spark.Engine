@@ -46,6 +46,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | `UIManager` | UIManager.cs | 基元收口 + 画布注册表 + 默认 `TextRenderer` + 纹理上传队列 |
 | `UIElement` | UIElement.cs | 控件树基类：`Arrange`/`Paint`/`HitTest` + 事件钩子 + `Focusable` |
 | `UIStackPanel` | UIStackPanel.cs | 盒子布局容器（`UIOrientation` 垂直/水平 + `Spacing` + 背景） |
+| `UIDockPanel` | UIDockPanel.cs | 停靠布局容器（`UIDock` Top/Bottom/Left/Right/Fill + `LastChildFill` + 背景） |
 | `UIPanel` | UIPanel.cs | 纯色矩形叶节点 |
 | `UILabel` | UILabel.cs | 文本标签（`Text`/`TextColor`） |
 | `UIButton` | UIButton.cs | 按钮（背景 + 文本 + 悬停/按下态 + `Clicked` 回调） |
@@ -82,8 +83,9 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 |---|---|---|---|
 | 基础 | `UIElement`（控件树基类） | ✅ | 父子关系/布局/绘制/命中测试/事件钩子 |
 | 布局 | `UIStackPanel` | ✅ | 垂直/水平盒子布局 |
+| 布局 | `UIDockPanel` | ✅ | 边缘停靠布局（Top/Bottom/Left/Right/Fill） |
 | 布局 | `UIPanel` | ✅ | 纯色矩形叶节点 |
-| 布局 | `UIGridPanel` / `UIWrapPanel` / `UIDockPanel` | ⏳ | 网格 / 自动换行 / 停靠布局 |
+| 布局 | `UIGridPanel` / `UIWrapPanel` | ⏳ | 网格 / 自动换行布局 |
 | 布局 | `UIScrollBox` | ⏳ | 滚动容器（scissor 裁剪 + 滚动条） |
 | 显示 | `UILabel` | ✅ | 文本标签 |
 | 显示 | `UIImage` | ⏳ | 图片 / 九宫格（9-slice） |
@@ -121,6 +123,12 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 - ✅ 垂直/水平、`Spacing`、`Padding`、`BackgroundColor`、交叉轴默认拉伸、fill 均分剩余空间。
 - ⏳ 主轴/交叉轴对齐（Start/Center/End/Stretch）、`Wrap` 自动换行、内容自适应（两阶段 Measure/Arrange，
   不再把无 `FixedSize` 的子元素当 fill 撑满）、子元素间距覆盖、溢出裁剪。
+
+#### `UIDockPanel`
+- ✅ `UIDock`（Left/Top/Right/Bottom/Fill）+ `LastChildFill`、`BackgroundColor`、`Padding`；子元素按声明顺序
+  依次停靠到边缘（Top/Bottom 占满剩余宽度、Left/Right 占满剩余高度），停靠厚度取 `FixedSize`，
+  最后一个可见子元素填满剩余中央区域（对齐 WPF `DockPanel`）。
+- ⏳ 可拖拽分隔条（splitter）调整各区域大小、浮动/重新吸附（完整 IDE 式停靠）。
 
 #### `UIPanel`
 - ✅ 纯色矩形。
@@ -308,7 +316,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | P3 | 字体/文本（TextRenderer 字符串级 + UILabel + 多纹理渲染器） | ✅ |
 | P4 | 交互（HitTest + 事件路由 + UIButton/UITextBox） | ✅ |
 | P5 | 完整控件 + 主题 + 编辑器接入（UICheckbox/UISlider/UITheme/EditorLayout） | ✅ |
-| P6 | 内容自适应布局（两阶段 Measure/Arrange）+ 布局控件（Grid/Wrap/Dock） | ⏳ |
+| P6 | 内容自适应布局（两阶段 Measure/Arrange）+ 布局控件（Grid/Wrap） | ⏳ |
 | P7 | 文本框进阶（选择/复制粘贴/词删除/Undo/剪贴板/IME/多行/掩码） | ⏳ |
 | P8 | 更多控件（UIImage/ProgressBar/Radio/Combo/Spinner/Scroll/Tree/List/Tab/Menu/Window/Tooltip） | ⏳ |
 | P9 | 渲染打磨（字形图集/嵌入字体/scissor 裁剪/圆角边框阴影/九宫格/增量绘制/DPI） | ⏳ |

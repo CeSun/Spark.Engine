@@ -26,6 +26,9 @@ public abstract class UIElement
     /// <summary>固定尺寸；null 或某分量 ≤ 0 表示沿该轴拉伸填充。</summary>
     public UISize? FixedSize { get; set; }
 
+    /// <summary>停靠方向（仅在 <see cref="UIDockPanel"/> 布局内有效）。</summary>
+    public UIDock Dock { get; set; } = UIDock.Fill;
+
     /// <summary>布局后的绝对矩形（窗口逻辑像素）。</summary>
     public UIRect Bounds { get; private set; }
 
