@@ -15,7 +15,8 @@ public sealed class UIManager
     private readonly FrameBuffer<UIPrimitive> _primitives = new();
     private readonly Dictionary<int, UICanvas> _canvases = new();
     private readonly ConcurrentQueue<UITextureUpload> _pendingTextures = new();
-    private readonly Stack<UIRect> _clipStack = new();
+    // 按 targetId 隔离的裁剪栈：多窗口/多 overlay pass 时不会互相污染 push/pop 状态。
+    private readonly Dictionary<int, Stack<UIRect>> _clipStacks = new();
     private TextRenderer? _text;
 
     /// <summary>本帧待绘制的基元（游戏/编辑器代码在 OnUpdate 期间写入）。</summary>
@@ -36,36 +37,49 @@ public sealed class UIManager
         return canvas;
     }
 
-    /// <summary>清空本帧基元（FillFrameData 拷贝进快照后调用）。</summary>
+    /// <summary>清空本帧基元与所有 target 的裁剪栈（FillFrameData 拷贝进快照后调用）。</summary>
     public void Clear()
     {
         _primitives.Clear();
-        _clipStack.Clear();
+        foreach (var stack in _clipStacks.Values)
+            stack.Clear();
     }
 
-    // ———————————— 裁剪栈（P6 scissor 支持）————————————
+    // ———————————— 裁剪栈（P6 scissor 支持，按 targetId 隔离）————————————
 
-    /// <summary>压入一个裁剪矩形（与当前栈顶取交集）。</summary>
-    public void PushClip(UIRect rect)
+    private Stack<UIRect> GetStack(int targetId)
     {
-        if (_clipStack.Count > 0)
+        if (!_clipStacks.TryGetValue(targetId, out var stack))
         {
-            var current = _clipStack.Peek();
+            stack = new Stack<UIRect>();
+            _clipStacks[targetId] = stack;
+        }
+        return stack;
+    }
+
+    /// <summary>压入一个裁剪矩形（与当前栈顶取交集），作用于指定 targetId。</summary>
+    public void PushClip(int targetId, UIRect rect)
+    {
+        var stack = GetStack(targetId);
+        if (stack.Count > 0)
+        {
+            var current = stack.Peek();
             rect = Intersect(current, rect);
         }
 
-        _clipStack.Push(rect);
+        stack.Push(rect);
     }
 
-    /// <summary>弹出最近的裁剪矩形。</summary>
-    public void PopClip()
+    /// <summary>弹出指定 targetId 最近的裁剪矩形。</summary>
+    public void PopClip(int targetId)
     {
-        if (_clipStack.Count > 0)
-            _clipStack.Pop();
+        if (_clipStacks.TryGetValue(targetId, out var stack) && stack.Count > 0)
+            stack.Pop();
     }
 
-    /// <summary>当前有效裁剪区（栈为空时表示无裁剪）。</summary>
-    public UIRect? CurrentClip => _clipStack.Count > 0 ? _clipStack.Peek() : null;
+    /// <summary>指定 targetId 当前有效裁剪区（栈为空时表示无裁剪）。</summary>
+    public UIRect? CurrentClip(int targetId)
+        => _clipStacks.TryGetValue(targetId, out var stack) && stack.Count > 0 ? stack.Peek() : null;
 
     private static UIRect Intersect(UIRect a, UIRect b)
     {
@@ -78,10 +92,10 @@ public sealed class UIManager
         return new UIRect(x, y, w, h);
     }
 
-    /// <summary>画一个着色矩形（采样整张纹理 × 颜色），自动注入当前裁剪栈信息。</summary>
+    /// <summary>画一个着色矩形（采样整张纹理 × 颜色），自动注入当前 targetId 的裁剪栈信息。</summary>
     public void DrawRect(int targetId, Vector2 position, Vector2 size, Vector4 color)
     {
-        var clip = CurrentClip;
+        var clip = CurrentClip(targetId);
         _primitives.Add(new UIPrimitive
         {
             TargetId = targetId,

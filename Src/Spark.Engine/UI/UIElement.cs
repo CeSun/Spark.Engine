@@ -44,8 +44,42 @@ public abstract class UIElement
     public void AddChild(UIElement child)
     {
         ArgumentNullException.ThrowIfNull(child);
+
+        // 禁止自挂自
+        if (child == this)
+            throw new InvalidOperationException("UIElement cannot be its own parent (cycle).");
+
+        // 环检测：沿祖先链上行，若命中 child 则会形成环（child → ... → this → child）
+        for (var ancestor = this; ancestor != null; ancestor = ancestor.Parent)
+        {
+            if (ancestor == child)
+                throw new InvalidOperationException($"Adding UIElement would create a cycle (child is an ancestor of this).");
+        }
+
+        // 重挂：若 child 已有父节点，先从旧父节点摘除，避免双份布局/绘制/事件
+        if (child.Parent is { } oldParent && oldParent != this)
+            oldParent._children.Remove(child);
+
         child.Parent = this;
         _children.Add(child);
+    }
+
+    /// <summary>移除直接子元素；成功移除返回 true。</summary>
+    public bool RemoveChild(UIElement child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        if (!_children.Remove(child))
+            return false;
+        child.Parent = null;
+        return true;
+    }
+
+    /// <summary>清空所有直接子元素（断开 Parent 反向引用）。</summary>
+    public void ClearChildren()
+    {
+        foreach (var child in _children)
+            child.Parent = null;
+        _children.Clear();
     }
 
     /// <summary>
@@ -94,21 +128,26 @@ public abstract class UIElement
     {
     }
 
-    /// <summary>绘制自身与子元素（深度优先，先父后子 → 子绘制在上层）。</summary>
+    /// <summary>绘制自身与子元素（深度优先，先父后子 → 子绘制在上层）。裁剪栈 push/pop 用 try/finally 保证异常时平衡。</summary>
     public void Paint(UIManager ui, int targetId)
     {
         if (!Visible)
             return;
 
         if (ClipToBounds)
-            ui.PushClip(Bounds);
+            ui.PushClip(targetId, Bounds);
 
-        OnPaint(ui, targetId);
-        foreach (var child in _children)
-            child.Paint(ui, targetId);
-
-        if (ClipToBounds)
-            ui.PopClip();
+        try
+        {
+            OnPaint(ui, targetId);
+            foreach (var child in _children)
+                child.Paint(ui, targetId);
+        }
+        finally
+        {
+            if (ClipToBounds)
+                ui.PopClip(targetId);
+        }
     }
 
     protected virtual void OnPaint(UIManager ui, int targetId)
@@ -116,12 +155,18 @@ public abstract class UIElement
     }
 
     /// <summary>
-    /// 命中测试：返回点下方的「最上层最深」元素（子先于自身，倒序）。
-    /// 不命中返回 null。
+    /// 命中测试：返回点下方的「最上层最深」元素（子先于自身，倒序）。不命中返回 null。
+    /// <para>P6 设计决策：HitTest 受 <see cref="ClipToBounds"/> 约束——若本元素裁剪且点不在自身矩形内，
+    /// 则整棵子树都不可命中（即便子元素的可视 Bounds 数学上包含该点，它在视觉上已超出裁剪边界，
+    /// 不应接收点击）。</para>
     /// </summary>
     public UIElement? HitTest(Vector2 point)
     {
         if (!Visible)
+            return null;
+
+        // 裁剪约束：点不在本元素 Bounds 内时，本元素及其子树都不可命中
+        if (ClipToBounds && !Bounds.Contains(point))
             return null;
 
         for (int i = _children.Count - 1; i >= 0; i--)

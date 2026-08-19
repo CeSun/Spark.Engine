@@ -1,9 +1,19 @@
 # UI 系统设计（UI System Design）
 
-> 状态：P0~P6 已实现。P6 新增两阶段 Measure/Arrange 布局、scissor 裁剪、Tab 焦点导航、焦点环可视化、
-> UIGridPanel/UIWrapPanel 布局容器。文字渲染问题（拉伸/错位/裁剪）已全部定位并修复
-> （见「踩坑经验」1/2/2b/6）；复选框文字对齐、Demo 控件显式高度、输入框光标闪烁也已落地。
-> 画面已在本机 GPU 环境复跑确认；剩余为 P7+ 打磨项。本文与当前代码同步，记录**实际落地形态**与已知偏差。
+> 状态：P0~P6 已实现（P6 原轮已在本机 GPU 复跑确认）+ **P6-fix 补丁轮已落地（仅编译验证，尚未验收）**。
+> P6 原有两阶段 Measure/Arrange、scissor 裁剪、Tab 焦点导航、焦点环可视化、UIGridPanel/UIWrapPanel 布局容器。
+> 文字渲染问题（拉伸/错位/裁剪）已全部定位并修复（见「踩坑经验」1/2/2b/6/6b）；
+> 复选框文字对齐、Demo 控件显式高度、输入框光标闪烁也已落地。
+>
+> **P6-fix 补丁**（本次）修复了文档标 ✅ 但实际未达标的项：UIGridPanel.Auto 尺寸传递、RowSpan/ColumnSpan、
+> 附加属性实例化（修复静态字典泄漏）、HitTest 受 ClipToBounds 约束（P6.2 设计决策落地）、裁剪栈按 targetId 隔离、
+> UIElement.RemoveChild/ClearChildren/重挂自动摘除旧父/环检测、TextRenderer 全墨水包围盒（含负 Left/Top）+ 原点补偿。
+>
+> **验收状态：⚠ 未验收。** 本轮仅完成代码改动 + `dotnet build` 全量编译通过（0 错 0 警）。
+> 验收场景已就绪（`Demo/Demo/VerifyHub.cs` + `GridPanelVerifyOverlay` / `ClipHitTestVerifyOverlay` /
+> `TreeOpsVerifyOverlay` / `TextBoundsVerifyOverlay`），但**尚未由用户在本机运行 Demo.Desktop 逐场景目视确认**。
+> 各场景的验收点见对应文件头注释与「踩坑经验」7~10/6b。运行方式：`dotnet run --project Demo\Demo.Desktop`。
+> 剩余为 P7+ 打磨项。本文与当前代码同步，记录**实际落地形态**与已知偏差。
 
 ## 概述
 
@@ -87,7 +97,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | 布局 | `UIStackPanel` | ✅ | 两阶段 Measure/Arrange + 垂直/水平盒子布局（缺对齐/裁剪） |
 | 布局 | `UIDockPanel` | ✅ | 两阶段 Measure/Arrange + 边缘停靠布局（缺分隔条/浮动重吸附） |
 | 布局 | `UIPanel` | 🔶 | 纯色矩形叶节点（缺圆角/边框/渐变） |
-| 布局 | `UIGridPanel` | ✅ | 网格布局（Fixed/Star/Auto + Row/Column 附加属性） |
+| 布局 | `UIGridPanel` | ✅ | 网格布局（Fixed/Star/Auto + Row/Column 附加属性 + **RowSpan/ColumnSpan**；P6-fix：Auto 尺寸从 Measure 传到 Arrange、附加属性实例化） |
 | 布局 | `UIWrapPanel` | ✅ | 自动换行布局（水平/垂直 + ItemSpacing/LineSpacing） |
 | 布局 | `UIScrollBox` | ⏳ | 滚动容器（依赖 scissor 裁剪 + 滚动条） |
 | 显示 | `UILabel` | ✅ | 文本标签 + Measure 自适应（缺对齐/换行） |
@@ -296,6 +306,29 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
    但该值不含下伸部（descender，如 `g/p/y`）与右侧悬突，导致底部和右侧的像素被裁。修复：改用
    `MeasureBounds`（实际墨水包围盒）取 `ceil(Right)+1` / `ceil(Bottom)+1` 作为纹理尺寸，并复用同一 `RichTextOptions`
    （`Origin=(0,0)`）做测量与绘制，保证测量和光栅化一致。
+
+6b. **文字顶部/左侧被裁掉（P6-fix）**：踩坑6 只覆盖了底部/右侧（`ceil(Right)+1` / `ceil(Bottom)+1` + `Origin=(0,0)` 不变）。
+   `MeasureBounds` 的 `Left`/`Top` 可能为负（斜体左侧悬突、`Å/É` 等 ascender 超出线高、组合符上附加符号），
+   此时字形像素画到纹理边界外仍被裁，且有亚像素错位。修复：纹理覆盖全包围盒 `[ceil(Right-Left)+2] × [ceil(Bottom-Top)+2]`，
+   四向各留 1px 抗锯齿余量；绘制 `Origin` 平移到 `(1-Left, 1-Top)`；`DrawText` 用偏移 `(Left-1, Top-1)` 放置四边形，
+   使墨水精准落到 `position`。见 `TextBoundsVerifyOverlay`。
+
+7. **UIGridPanel.Auto 塌陷（P6-fix）**：旧版 `OnMeasure` 收集了 Auto track 尺寸，但 `OnArrange.ResolveSizes` 把 Auto
+   一律置 0（源码挂着 `// TODO: 完善 Auto 尺寸的传递`），导致 Auto 单元格塌陷为 0 像素、子元素不可见，但文档却标 ✅。
+   修复：Measure 把 Auto 尺寸缓存到实例字段 `_measureRowAutoSizes`/`_measureColAutoSizes`，Arrange 直接复用；
+   Arrange 未先经过 Measure 时回退为 0（Auto 塌陷，文档化）。见 `GridPanelVerifyOverlay`。
+
+8. **UIGridPanel 附加属性静态字典泄漏 + 跨画布串数据（P6-fix）**：旧版 `_rows`/`_cols` 是 `static Dictionary`，
+   元素销毁后条目永不回收，多个 UIGridPanel 实例共用同一字典互相串数据。修复：改为实例字段字典；
+   新增 `SetRowSpan`/`SetColumnSpan`（默认 1），Arrange 合并多轨为联合矩形。见 `GridPanelVerifyOverlay`。
+
+9. **裁剪栈全局单例（P6-fix）**：旧版 `UIManager._clipStack` 是单例 `Stack<UIRect>`，多窗口/多 overlay pass 连续
+   Paint 时前一个画布的 PushClip 残留会错误交集到后一个画布。修复：改为 `Dictionary<int, Stack<UIRect>>` 按 `targetId`
+   隔离；`PushClip`/`PopClip`/`CurrentClip` 均带 `targetId` 参数。`UIElement.Paint` 改用 try/finally 保证异常时 push/pop 平衡。
+
+10. **UIElement 树操作不完整（P6-fix）**：旧版只有 `AddChild`，无 `RemoveChild`，且不检查重复挂载/环。
+    修复：新增 `RemoveChild`/`ClearChildren`；`AddChild` 自动从旧父 `_children` 摘除（避免双份布局/绘制/事件）；
+    自挂自或把后代挂到祖先会抛 `InvalidOperationException`（环检测）。见 `TreeOpsVerifyOverlay`。
 
 ## 当前问题与差距分析
 
@@ -549,7 +582,7 @@ public UIRect CurrentClip { get; }
 **验收标准**：
 - [ ] `ClipToBounds = true` 的容器，子元素超出部分不可见
 - [ ] 嵌套裁剪正确（子裁剪区 ⊆ 父裁剪区）
-- [ ] 裁剪不影响 HitTest（HitTest 仍需检查裁剪区外的元素？→ 设计决策：HitTest 也受裁剪约束）
+- [x] ~~裁剪不影响 HitTest（HitTest 仍需检查裁剪区外的元素？→ 设计决策：HitTest 也受裁剪约束）~~ → P6-fix 已落地：`UIElement.HitTest` 在 `ClipToBounds && !Bounds.Contains(point)` 时整棵子树返回 null，超界元素不可命中（见 `ClipHitTestVerifyOverlay`）
 
 #### 6.3 焦点导航增强
 

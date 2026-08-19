@@ -38,9 +38,18 @@ public struct UIGridDefinition
 }
 
 /// <summary>
-/// 网格布局容器（P6）：按 <see cref="RowDefinitions"/> 和 <see cref="ColumnDefinitions"/> 划分网格，
-/// 子元素通过附加属性 <see cref="GetRow"/>/<see cref="GetColumn"/> 定位到指定单元格。
+/// 网格布局容器（P6 修复版）：按 <see cref="RowDefinitions"/> 和 <see cref="ColumnDefinitions"/> 划分网格，
+/// 子元素通过实例级附加属性 <see cref="SetRow"/>/<see cref="SetColumn"/>/
+/// <see cref="SetRowSpan"/>/<see cref="SetColumnSpan"/> 定位到指定单元格。
 /// 支持 Fixed / Proportional(Star) / Auto 三种尺寸模式。
+/// <para>
+/// Auto 尺寸在 Measure 阶段确定并缓存到实例，供 Arrange 直接复用（旧版 Arrange 把 Auto 置 0 导致单元格塌陷）。
+/// 行列 span 在 Arrange 时合并为跨越多个 track 的联合矩形。
+/// </para>
+/// <para>
+/// 已知限制：仅 <see cref="GetRow"/>/<see cref="GetColumn"/> 直接子元素生效；span&gt;1 的子元素不参与 Auto
+/// 尺寸的计算（WPF 语义更复杂，本版简化为「span 只占位，不撑大 Auto 轨」）。
+/// </para>
 /// </summary>
 public sealed class UIGridPanel : UIElement
 {
@@ -50,49 +59,70 @@ public sealed class UIGridPanel : UIElement
     /// <summary>背景色（alpha = 0 表示透明）。</summary>
     public Vector4 BackgroundColor { get; set; }
 
-    /// <summary>单元格间距。</summary>
+    /// <summary>单元格间距（同时作用于行列；影响 Star 剩余空间与 track 偏移）。</summary>
     public float CellSpacing { get; set; }
 
     public IList<UIGridDefinition> RowDefinitions => _rowDefs;
     public IList<UIGridDefinition> ColumnDefinitions => _colDefs;
 
-    // 附加属性：子元素的行列索引
-    private static readonly Dictionary<UIElement, int> _rows = new();
-    private static readonly Dictionary<UIElement, int> _cols = new();
+    // 实例级附加属性（修复旧版 static 字典：元素销毁后条目永不回收 + 多 Grid 互相串数据）。
+    private readonly Dictionary<UIElement, int> _rows = new();
+    private readonly Dictionary<UIElement, int> _cols = new();
+    private readonly Dictionary<UIElement, int> _rowSpans = new();
+    private readonly Dictionary<UIElement, int> _colSpans = new();
 
-    public static void SetRow(UIElement element, int row) => _rows[element] = row;
-    public static int GetRow(UIElement element) => _rows.TryGetValue(element, out var r) ? r : 0;
+    public void SetRow(UIElement element, int row) => _rows[element] = row;
+    public int GetRow(UIElement element) => _rows.TryGetValue(element, out var r) ? r : 0;
 
-    public static void SetColumn(UIElement element, int col) => _cols[element] = col;
-    public static int GetColumn(UIElement element) => _cols.TryGetValue(element, out var c) ? c : 0;
+    public void SetColumn(UIElement element, int col) => _cols[element] = col;
+    public int GetColumn(UIElement element) => _cols.TryGetValue(element, out var c) ? c : 0;
+
+    /// <summary>行跨度（默认 1）。</summary>
+    public void SetRowSpan(UIElement element, int span) => _rowSpans[element] = System.Math.Max(1, span);
+    public int GetRowSpan(UIElement element) => _rowSpans.TryGetValue(element, out var s) ? s : 1;
+
+    /// <summary>列跨度（默认 1）。</summary>
+    public void SetColumnSpan(UIElement element, int span) => _colSpans[element] = System.Math.Max(1, span);
+    public int GetColumnSpan(UIElement element) => _colSpans.TryGetValue(element, out var s) ? s : 1;
+
+    // Measure 阶段缓存的 Auto track 尺寸，供 Arrange 复用。Arrange 未经过 Measure 时回退为 0（Auto 塌陷）。
+    private float[]? _measureRowAutoSizes;
+    private float[]? _measureColAutoSizes;
 
     protected override UISize OnMeasure(UISize availableSize)
     {
         if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
             return fs;
 
-        // 测量所有子元素，收集每行/列的 Auto 尺寸
-        var rowAutoSizes = new float[_rowDefs.Count];
-        var colAutoSizes = new float[_colDefs.Count];
+        // 测量子元素（无限约束），收集 span==1 子元素对 Auto 轨的贡献
+        var rowAutoSizes = new float[System.Math.Max(1, _rowDefs.Count)];
+        var colAutoSizes = new float[System.Math.Max(1, _colDefs.Count)];
 
         foreach (var child in Children)
         {
             if (!child.Visible) continue;
-            int row = System.Math.Clamp(GetRow(child), 0, System.Math.Max(0, _rowDefs.Count - 1));
-            int col = System.Math.Clamp(GetColumn(child), 0, System.Math.Max(0, _colDefs.Count - 1));
+            int row = ClampIndex(GetRow(child), _rowDefs.Count);
+            int col = ClampIndex(GetColumn(child), _colDefs.Count);
+            int rowSpan = GetRowSpan(child);
+            int colSpan = GetColumnSpan(child);
 
             var childAvail = new UISize(float.PositiveInfinity, float.PositiveInfinity);
             var desired = child.Measure(childAvail);
 
-            if (row < _rowDefs.Count && _rowDefs[row].Type == UIGridUnitType.Auto)
+            // span==1 才参与 Auto 轨尺寸：多轨 span 的内容宽度难以归到单轨，简化跳过
+            if (rowSpan == 1 && row < _rowDefs.Count && _rowDefs[row].Type == UIGridUnitType.Auto)
                 rowAutoSizes[row] = System.Math.Max(rowAutoSizes[row], desired.Height);
-            if (col < _colDefs.Count && _colDefs[col].Type == UIGridUnitType.Auto)
+            if (colSpan == 1 && col < _colDefs.Count && _colDefs[col].Type == UIGridUnitType.Auto)
                 colAutoSizes[col] = System.Math.Max(colAutoSizes[col], desired.Width);
         }
 
-        // 计算总尺寸
-        float totalW = ComputeTotalSize(_colDefs, colAutoSizes, availableSize.Width);
-        float totalH = ComputeTotalSize(_rowDefs, rowAutoSizes, availableSize.Height);
+        _measureRowAutoSizes = rowAutoSizes;
+        _measureColAutoSizes = colAutoSizes;
+
+        // 测量阶段尺寸：Auto 用内容尺寸，Star 在有限约束下取「剩余」（与 Arrange 一致），
+        // 无限约束下 Star 取 0（塌陷）。这里用 availableSize 同时算宽高。
+        float totalW = ComputeDesiredTrackTotal(_colDefs, colAutoSizes, availableSize.Width);
+        float totalH = ComputeDesiredTrackTotal(_rowDefs, rowAutoSizes, availableSize.Height);
 
         totalW += Padding.Left + Padding.Right;
         totalH += Padding.Top + Padding.Bottom;
@@ -110,29 +140,35 @@ public sealed class UIGridPanel : UIElement
     {
         var content = ContentRect;
 
-        // 解析行列实际尺寸
-        var rowSizes = ResolveSizes(_rowDefs, content.Height);
-        var colSizes = ResolveSizes(_colDefs, content.Width);
+        // 复用 Measure 阶段的 Auto 尺寸；若无（Arrange 未先经过 Measure），Auto 回退为 0
+        var rowAutoSizes = _measureRowAutoSizes ?? new float[System.Math.Max(1, _rowDefs.Count)];
+        var colAutoSizes = _measureColAutoSizes ?? new float[System.Math.Max(1, _colDefs.Count)];
 
-        // 计算累积偏移
-        var rowOffsets = new float[rowSizes.Length + 1];
-        var colOffsets = new float[colSizes.Length + 1];
-        for (int i = 0; i < rowSizes.Length; i++)
-            rowOffsets[i + 1] = rowOffsets[i] + rowSizes[i] + CellSpacing;
-        for (int i = 0; i < colSizes.Length; i++)
-            colOffsets[i + 1] = colOffsets[i] + colSizes[i] + CellSpacing;
+        var rowSizes = ResolveTrackSizes(_rowDefs, rowAutoSizes, content.Height);
+        var colSizes = ResolveTrackSizes(_colDefs, colAutoSizes, content.Width);
 
-        // 安置子元素
+        // 累积偏移（每两个 track 之间一个 CellSpacing）
+        var rowOffsets = ComputeOffsets(rowSizes, CellSpacing);
+        var colOffsets = ComputeOffsets(colSizes, CellSpacing);
+
         foreach (var child in Children)
         {
             if (!child.Visible) continue;
-            int row = System.Math.Clamp(GetRow(child), 0, System.Math.Max(0, rowSizes.Length - 1));
-            int col = System.Math.Clamp(GetColumn(child), 0, System.Math.Max(0, colSizes.Length - 1));
+            int row = ClampIndex(GetRow(child), rowSizes.Length);
+            int col = ClampIndex(GetColumn(child), colSizes.Length);
+            int rowSpan = System.Math.Max(1, GetRowSpan(child));
+            int colSpan = System.Math.Max(1, GetColumnSpan(child));
+
+            int rowEnd = System.Math.Min(rowSizes.Length, row + rowSpan);
+            int colEnd = System.Math.Min(colSizes.Length, col + colSpan);
 
             float x = content.X + colOffsets[col];
             float y = content.Y + rowOffsets[row];
-            float w = col < colSizes.Length ? colSizes[col] : 0f;
-            float h = row < rowSizes.Length ? rowSizes[row] : 0f;
+            // 联合矩形 = [colStart, colEnd) 的 track+spacing，但末段不再多算一个 spacing
+            float w = (colOffsets[colEnd] - colOffsets[col]) - CellSpacing;
+            float h = (rowOffsets[rowEnd] - rowOffsets[row]) - CellSpacing;
+            if (w < 0f) w = 0f;
+            if (h < 0f) h = 0f;
 
             child.Arrange(new UIRect(x, y, w, h));
         }
@@ -144,13 +180,16 @@ public sealed class UIGridPanel : UIElement
             ui.DrawRect(targetId, new Vector2(Bounds.X, Bounds.Y), new Vector2(Bounds.Width, Bounds.Height), BackgroundColor);
     }
 
-    private static float ComputeTotalSize(List<UIGridDefinition> defs, float[] autoSizes, float available)
+    /// <summary>计算一轴的期望总尺寸（Fixed + Auto + Star 剩余；无限约束下 Star 取 0）。</summary>
+    private float ComputeDesiredTrackTotal(List<UIGridDefinition> defs, float[] autoSizes, float available)
     {
         float fixedSum = 0f;
         float autoSum = 0f;
         float starSum = 0f;
+        int n = defs.Count;
+        float spacingTotal = CellSpacing * System.Math.Max(0, n - 1);
 
-        for (int i = 0; i < defs.Count; i++)
+        for (int i = 0; i < n; i++)
         {
             switch (defs[i].Type)
             {
@@ -166,38 +205,41 @@ public sealed class UIGridPanel : UIElement
             }
         }
 
-        float remaining = System.Math.Max(0f, available - fixedSum - autoSum);
-        float total = fixedSum + autoSum;
-        if (starSum > 0f)
-            total += remaining; // star 消耗所有剩余空间
+        float used = fixedSum + autoSum + spacingTotal;
+        float total = used;
+        if (starSum > 0f && !float.IsPositiveInfinity(available))
+            total += System.Math.Max(0f, available - used); // Star 消耗剩余
+
+        // 有限约束下不超过可用空间
+        if (!float.IsPositiveInfinity(available))
+            total = System.Math.Min(total, available);
 
         return total;
     }
 
-    private static float[] ResolveSizes(List<UIGridDefinition> defs, float totalAvailable)
+    /// <summary>Arrange 阶段解析一轴所有 track 的最终尺寸：Fixed 取值、Auto 取缓存、Star 按比例分剩余。</summary>
+    private float[] ResolveTrackSizes(List<UIGridDefinition> defs, float[] autoSizes, float totalAvailable)
     {
-        if (defs.Count == 0)
+        int n = defs.Count;
+        if (n == 0)
             return [];
 
-        var sizes = new float[defs.Count];
-        float fixedSum = 0f;
-        float autoSum = 0f;
+        var sizes = new float[n];
+        float spacingTotal = CellSpacing * System.Math.Max(0, n - 1);
+        float used = spacingTotal;
         float starSum = 0f;
 
-        // Pass 1: 计算 Fixed 和 Auto
-        for (int i = 0; i < defs.Count; i++)
+        for (int i = 0; i < n; i++)
         {
             switch (defs[i].Type)
             {
                 case UIGridUnitType.Fixed:
                     sizes[i] = defs[i].Value;
-                    fixedSum += defs[i].Value;
+                    used += sizes[i];
                     break;
                 case UIGridUnitType.Auto:
-                    // Auto 尺寸已在 Measure 阶段确定，这里用 DesiredSize 或回退
-                    // 简化：Auto 在 Arrange 时无法重新 Measure，使用 0 作为占位
-                    // 实际上应该在 Measure 阶段缓存 auto 尺寸
-                    sizes[i] = 0f; // 将在下面修正
+                    sizes[i] = i < autoSizes.Length ? autoSizes[i] : 0f;
+                    used += sizes[i];
                     break;
                 case UIGridUnitType.Proportional:
                     starSum += defs[i].Value;
@@ -205,27 +247,10 @@ public sealed class UIGridPanel : UIElement
             }
         }
 
-        // 对于 Auto，我们需要从子元素的 DesiredSize 推断
-        // 但由于 Arrange 不重新 Measure，我们依赖 Measure 阶段的缓存
-        // 这里简化处理：Auto 尺寸在 Measure 时已计算并体现在 totalAvailable 中
-        // 重新计算 auto 总和
-        autoSum = 0f;
-        for (int i = 0; i < defs.Count; i++)
-        {
-            if (defs[i].Type == UIGridUnitType.Auto)
-            {
-                // 从 Measure 阶段的 DesiredSize 推断不太可行
-                // 简化：Auto 视为 0，由 star 填充剩余
-                // TODO: 完善 Auto 尺寸的传递
-                sizes[i] = 0f;
-            }
-        }
-
-        // Pass 2: 分配 Star
-        float remaining = System.Math.Max(0f, totalAvailable - fixedSum - autoSum);
         if (starSum > 0f)
         {
-            for (int i = 0; i < defs.Count; i++)
+            float remaining = System.Math.Max(0f, totalAvailable - used);
+            for (int i = 0; i < n; i++)
             {
                 if (defs[i].Type == UIGridUnitType.Proportional)
                     sizes[i] = remaining * (defs[i].Value / starSum);
@@ -234,4 +259,15 @@ public sealed class UIGridPanel : UIElement
 
         return sizes;
     }
+
+    private static float[] ComputeOffsets(float[] sizes, float spacing)
+    {
+        var offsets = new float[sizes.Length + 1];
+        for (int i = 0; i < sizes.Length; i++)
+            offsets[i + 1] = offsets[i] + sizes[i] + spacing;
+        return offsets;
+    }
+
+    private static int ClampIndex(int value, int count)
+        => count <= 0 ? 0 : System.Math.Clamp(value, 0, count - 1);
 }

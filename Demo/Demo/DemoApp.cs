@@ -49,9 +49,15 @@ public static class DemoApp
         AddCamera(world, mainViewport, eye: new Vector3(0f, 0f, 1.5f), lookAt: new Vector3(0f, 0f, -2f));
         AddCamera(world, secondViewport, eye: new Vector3(3.5f, 1.5f, 1.5f), lookAt: new Vector3(0f, 0f, -2.5f));
 
-        // P6 验证：自适应布局 + 裁剪 + 焦点导航（切换回原 Demo 改为 UIDemoOverlay.Build()）
+        // P6-fix 验收 Hub：按钮切换 4 个验收场景（Grid Auto/Span、Clip+HitTest、控件树操作、文本包围盒）
+        // 切换方式：按钮 Clicked 调用 switchTo → 清焦点 + 替换 canvas.Root（下一帧 Update 生效）。
         var uiCanvas = app.UIManager.GetOrCreateCanvas(mainViewport.Id);
-        uiCanvas.Root = P6VerifyOverlay.Build();
+        Action<Spark.Engine.UI.UIElement> switchTo = root =>
+        {
+            uiCanvas.ClearFocus();
+            uiCanvas.Root = root;
+        };
+        uiCanvas.Root = VerifyHub.Build(switchTo);
 
         // 2x2 纹理：红 / 绿 / 蓝 / 白（RGBA8）
         var texture = new Texture2D(2, 2, new byte[]
