@@ -13,9 +13,10 @@ public enum UIDock
 }
 
 /// <summary>
-/// 停靠布局容器（对齐 WPF `DockPanel` 语义）：子元素按声明顺序依次停靠到内容区边缘——
-/// Top/Bottom 占满剩余宽度、Left/Right 占满剩余高度，停靠方向的厚度由 <see cref="UIElement.FixedSize"/>
-/// 决定；最后一个可见子元素（<see cref="LastChildFill"/>，默认开启）填满剩余中央区域。
+/// 停靠布局容器（P6 两阶段 Measure/Arrange，对齐 WPF <c>DockPanel</c> 语义）：
+/// Phase 1 (Measure)：按声明顺序依次测量子元素；
+/// Phase 2 (Arrange)：Top/Bottom 占满剩余宽度、Left/Right 占满剩余高度，
+/// 停靠厚度取子元素 DesiredSize 或 FixedSize；最后一个可见子元素填满剩余中央区域。
 /// </summary>
 public sealed class UIDockPanel : UIElement
 {
@@ -24,6 +25,61 @@ public sealed class UIDockPanel : UIElement
 
     /// <summary>背景色（alpha = 0 表示透明）。</summary>
     public Vector4 BackgroundColor { get; set; }
+
+    protected override UISize OnMeasure(UISize availableSize)
+    {
+        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
+            return fs;
+
+        // DockPanel 的 Measure 比较复杂：需要模拟 Arrange 过程来确定总尺寸
+        // 简化策略：累加所有非 Fill 子元素的厚度，Fill 子元素取可用空间
+        float totalWidth = Padding.Left + Padding.Right;
+        float totalHeight = Padding.Top + Padding.Bottom;
+
+        foreach (var child in Children)
+        {
+            if (!child.Visible)
+                continue;
+
+            var childAvail = new UISize(
+                System.Math.Max(0f, availableSize.Width - totalWidth),
+                System.Math.Max(0f, availableSize.Height - totalHeight));
+
+            var desired = child.Measure(childAvail);
+
+            UIDock dock = child.Dock;
+            switch (dock)
+            {
+                case UIDock.Left:
+                case UIDock.Right:
+                    totalWidth += desired.Width > 0f ? desired.Width : 0f;
+                    break;
+                case UIDock.Top:
+                case UIDock.Bottom:
+                    totalHeight += desired.Height > 0f ? desired.Height : 0f;
+                    break;
+                case UIDock.Fill:
+                    // Fill 不增加尺寸，它消耗剩余空间
+                    break;
+            }
+        }
+
+        float w = totalWidth;
+        float h = totalHeight;
+
+        if (FixedSize is { } fsv)
+        {
+            if (fsv.Width > 0f) w = fsv.Width;
+            if (fsv.Height > 0f) h = fsv.Height;
+        }
+
+        if (!float.IsPositiveInfinity(availableSize.Width))
+            w = System.Math.Min(w, availableSize.Width);
+        if (!float.IsPositiveInfinity(availableSize.Height))
+            h = System.Math.Min(h, availableSize.Height);
+
+        return new UISize(w, h);
+    }
 
     protected override void OnPaint(UIManager ui, int targetId)
     {
@@ -77,17 +133,18 @@ public sealed class UIDockPanel : UIElement
         }
     }
 
-    /// <summary>按停靠方向计算子元素矩形；厚度取自 <see cref="UIElement.FixedSize"/>（未指定则为 0）。</summary>
+    /// <summary>按停靠方向计算子元素矩形；厚度取自 DesiredSize 或 FixedSize。</summary>
     private static UIRect ArrangeChild(UIElement child, UIDock dock, UIRect remaining)
     {
-        var fixedSize = child.FixedSize;
-        float width = 0f;
-        float height = 0f;
-        if (fixedSize is { } fs)
-        {
+        // 优先使用 DesiredSize（来自 Measure），回退到 FixedSize
+        float width = child.DesiredSize.Width > 0f ? child.DesiredSize.Width : 0f;
+        float height = child.DesiredSize.Height > 0f ? child.DesiredSize.Height : 0f;
+
+        // 如果 DesiredSize 为 0（fill），尝试 FixedSize
+        if (width <= 0f && child.FixedSize is { } fs)
             width = System.Math.Max(0f, fs.Width);
-            height = System.Math.Max(0f, fs.Height);
-        }
+        if (height <= 0f && child.FixedSize is { } fs2)
+            height = System.Math.Max(0f, fs2.Height);
 
         return dock switch
         {

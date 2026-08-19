@@ -144,21 +144,25 @@ public unsafe sealed class UIRenderer : IGraphOverlay
         var pass = api.CommandEncoderBeginRenderPass(encoder, ref renderPassDesc);
         api.RenderPassEncoderSetPipeline(pass, GetPipeline(target.Format));
 
-        // 按纹理分批（保持顺序），每批一次 upload + draw；顶点写入累积 offset，避免批次间互相覆盖
+        // 按 (纹理, ScissorRect) 分批（保持顺序），每批一次 upload + draw；
+        // 顶点写入累积 offset，避免批次间互相覆盖。P6: scissor 变化时也需拆分批次。
         int start = 0;
         int vertexOffset = 0;
         while (start < _targetPrimitives.Count)
         {
             int textureId = _targetPrimitives[start].TextureId;
+            var scissor = _targetPrimitives[start].ScissorRect;
             int end = start;
-            while (end < _targetPrimitives.Count && _targetPrimitives[end].TextureId == textureId)
+            while (end < _targetPrimitives.Count
+                   && _targetPrimitives[end].TextureId == textureId
+                   && _targetPrimitives[end].ScissorRect == scissor)
                 end++;
 
             _vertices.Clear();
             for (int i = start; i < end; i++)
                 AppendQuad(_targetPrimitives[i], width, height);
 
-            DrawBatch(pass, textureId, vertexOffset, _vertices.Count);
+            DrawBatch(pass, api, textureId, vertexOffset, _vertices.Count, scissor, width, height);
             vertexOffset += _vertices.Count;
 
             start = end;
@@ -170,25 +174,46 @@ public unsafe sealed class UIRenderer : IGraphOverlay
         api.QueueSubmit(_webGpu.Queue, (nuint)1, &commandBuffer);
     }
 
-    /// <summary>把当前批次顶点写到 <paramref name="vertexOffset"/> 处并绘制（同一 pass 内按纹理切换 bind group）。</summary>
-    private void DrawBatch(RenderPassEncoder* pass, int textureId, int vertexOffset, int vertexCount)
+    /// <summary>把当前批次顶点写到 <paramref name="vertexOffset"/> 处并绘制（同一 pass 内按纹理/scissor 切换）。</summary>
+    private void DrawBatch(RenderPassEncoder* pass, Silk.NET.WebGPU.WebGPU api, int textureId, int vertexOffset, int vertexCount, Vector4 scissorRect, float targetWidth, float targetHeight)
     {
         if (vertexCount == 0)
             return;
 
-        var api = _webGpu!.Api;
         var span = CollectionsMarshal.AsSpan(_vertices);
         ulong byteOffset = (ulong)vertexOffset * (ulong)sizeof(UIVertex);
         ulong byteSize = (ulong)vertexCount * (ulong)sizeof(UIVertex);
 
         fixed (UIVertex* vertexPtr = span)
         {
-            api.QueueWriteBuffer(_webGpu.Queue, _vertexBuffer, byteOffset, vertexPtr, (nuint)byteSize);
+            api.QueueWriteBuffer(_webGpu!.Queue, _vertexBuffer, byteOffset, vertexPtr, (nuint)byteSize);
         }
 
         uint quadCount = (uint)(vertexCount / 4);
 
         api.RenderPassEncoderSetBindGroup(pass, 0, GetBindGroup(textureId), (nuint)0, null);
+
+        // P6: 设置 scissor rect（逻辑像素 → 物理像素，WebGPU 要求整数且 ≥0）
+        if (scissorRect.Z > 0f && scissorRect.W > 0f)
+        {
+            int sx = System.Math.Max(0, (int)scissorRect.X);
+            int sy = System.Math.Max(0, (int)scissorRect.Y);
+            int sw = System.Math.Max(0, (int)scissorRect.Z);
+            int sh = System.Math.Max(0, (int)scissorRect.W);
+            // 确保不超出目标尺寸
+            sw = System.Math.Min(sw, (int)targetWidth - sx);
+            sh = System.Math.Min(sh, (int)targetHeight - sy);
+            if (sw > 0 && sh > 0)
+                api.RenderPassEncoderSetScissorRect(pass, (uint)sx, (uint)sy, (uint)sw, (uint)sh);
+            else
+                api.RenderPassEncoderSetScissorRect(pass, 0, 0, (uint)targetWidth, (uint)targetHeight);
+        }
+        else
+        {
+            // 无裁剪：重置为全视口
+            api.RenderPassEncoderSetScissorRect(pass, 0, 0, (uint)targetWidth, (uint)targetHeight);
+        }
+
         // 顶点已写入缓冲的 byteOffset 处，SetVertexBuffer 的 offset 已承载偏移，
         // 因此 DrawIndexed 的 baseVertex 必须为 0，否则会与 SetVertexBuffer 的 offset 双重叠加，
         // 导致每批实际读取 2×vertexOffset 处的顶点（文字被拉伸/错位）。

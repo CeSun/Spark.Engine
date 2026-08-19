@@ -3,9 +3,14 @@ using Spark.Engine.Input;
 
 namespace Spark.Engine.UI;
 
-/// <summary>水平滑杆：拖拽拇指在 0..1 之间取值。</summary>
+/// <summary>水平滑杆（P6 自适应）：拖拽拇指在 0..1 之间取值。
+/// Measure 时报告最小高度（拇指尺寸），宽度默认 fill。</summary>
 public sealed class UISlider : UIElement
 {
+    private const float DefaultThumbSize = 14f;
+    private const float DefaultTrackHeight = 6f;
+    private const float MinHeight = 18f;
+
     private bool _dragging;
 
     public float Value { get; set; }
@@ -18,6 +23,22 @@ public sealed class UISlider : UIElement
 
     /// <summary>值变化回调。</summary>
     public Action<float>? ValueChanged { get; set; }
+
+    public UISlider()
+    {
+        Focusable = true;
+    }
+
+    protected override UISize OnMeasure(UISize availableSize)
+    {
+        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
+            return fs;
+
+        float w = FixedSize is { } fsv && fsv.Width > 0f ? fsv.Width : 0f; // 宽度默认 fill
+        float h = FixedSize is { } fsv2 && fsv2.Height > 0f ? fsv2.Height : MinHeight;
+
+        return new UISize(w, h);
+    }
 
     protected override void OnPaint(UIManager ui, int targetId)
     {
@@ -54,6 +75,26 @@ public sealed class UISlider : UIElement
     {
         if (button == MouseButton.Left)
             _dragging = false;
+    }
+
+    protected internal override void OnKeyDown(Key key)
+    {
+        const float step = 0.05f;
+        switch (key)
+        {
+            case Key.Left:
+                SetValue(System.Math.Max(0f, Value - step));
+                break;
+            case Key.Right:
+                SetValue(System.Math.Min(1f, Value + step));
+                break;
+            case Key.Home:
+                SetValue(0f);
+                break;
+            case Key.End:
+                SetValue(1f);
+                break;
+        }
     }
 
     private void SetValue(float value)

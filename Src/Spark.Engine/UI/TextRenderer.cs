@@ -49,6 +49,7 @@ public sealed class TextRenderer
         }
 
         var size = _textureSizes[textureId];
+        var clip = ui.CurrentClip;
         ui.Primitives.Add(new UIPrimitive
         {
             TargetId = targetId,
@@ -56,6 +57,7 @@ public sealed class TextRenderer
             UV = new Vector4(0f, 0f, 1f, 1f),
             Color = color,
             TextureId = textureId,
+            ScissorRect = clip.HasValue ? new Vector4(clip.Value.X, clip.Value.Y, clip.Value.Width, clip.Value.Height) : default,
         });
     }
 

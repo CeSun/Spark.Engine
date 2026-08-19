@@ -15,6 +15,7 @@ public sealed class UIManager
     private readonly FrameBuffer<UIPrimitive> _primitives = new();
     private readonly Dictionary<int, UICanvas> _canvases = new();
     private readonly ConcurrentQueue<UITextureUpload> _pendingTextures = new();
+    private readonly Stack<UIRect> _clipStack = new();
     private TextRenderer? _text;
 
     /// <summary>本帧待绘制的基元（游戏/编辑器代码在 OnUpdate 期间写入）。</summary>
@@ -36,11 +37,51 @@ public sealed class UIManager
     }
 
     /// <summary>清空本帧基元（FillFrameData 拷贝进快照后调用）。</summary>
-    public void Clear() => _primitives.Clear();
+    public void Clear()
+    {
+        _primitives.Clear();
+        _clipStack.Clear();
+    }
 
-    /// <summary>画一个着色矩形（采样整张纹理 × 颜色）。</summary>
+    // ———————————— 裁剪栈（P6 scissor 支持）————————————
+
+    /// <summary>压入一个裁剪矩形（与当前栈顶取交集）。</summary>
+    public void PushClip(UIRect rect)
+    {
+        if (_clipStack.Count > 0)
+        {
+            var current = _clipStack.Peek();
+            rect = Intersect(current, rect);
+        }
+
+        _clipStack.Push(rect);
+    }
+
+    /// <summary>弹出最近的裁剪矩形。</summary>
+    public void PopClip()
+    {
+        if (_clipStack.Count > 0)
+            _clipStack.Pop();
+    }
+
+    /// <summary>当前有效裁剪区（栈为空时表示无裁剪）。</summary>
+    public UIRect? CurrentClip => _clipStack.Count > 0 ? _clipStack.Peek() : null;
+
+    private static UIRect Intersect(UIRect a, UIRect b)
+    {
+        float x = System.Math.Max(a.X, b.X);
+        float y = System.Math.Max(a.Y, b.Y);
+        float right = System.Math.Min(a.Right, b.Right);
+        float bottom = System.Math.Min(a.Bottom, b.Bottom);
+        float w = System.Math.Max(0f, right - x);
+        float h = System.Math.Max(0f, bottom - y);
+        return new UIRect(x, y, w, h);
+    }
+
+    /// <summary>画一个着色矩形（采样整张纹理 × 颜色），自动注入当前裁剪栈信息。</summary>
     public void DrawRect(int targetId, Vector2 position, Vector2 size, Vector4 color)
     {
+        var clip = CurrentClip;
         _primitives.Add(new UIPrimitive
         {
             TargetId = targetId,
@@ -48,6 +89,7 @@ public sealed class UIManager
             UV = new Vector4(0f, 0f, 1f, 1f),
             Color = color,
             TextureId = 0,
+            ScissorRect = clip.HasValue ? new Vector4(clip.Value.X, clip.Value.Y, clip.Value.Width, clip.Value.Height) : default,
         });
     }
 

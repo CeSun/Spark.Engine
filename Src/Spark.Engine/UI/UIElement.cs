@@ -4,9 +4,12 @@ using Spark.Engine.Input;
 namespace Spark.Engine.UI;
 
 /// <summary>
-/// 保留模式控件树节点基类（对齐 Slate/WPF/UGUI）：父子关系 + 布局（Arrange）+ 绘制（Paint）+ 命中测试 + 事件钩子。
-/// 布局用单遍「分配矩形」模型（根画布给全窗矩形，容器沿主轴给子元素分配），
-/// 尺寸由 <see cref="FixedSize"/> 表达：null 或分量 ≤ 0 表示沿该轴拉伸填充。
+/// 保留模式控件树节点基类（对齐 Slate/WPF/UGUI）：父子关系 + 两阶段布局（Measure/Arrange）+
+/// 绘制（Paint）+ 命中测试 + 事件钩子。
+/// <para>
+/// 布局协议：容器先调用子元素 <see cref="Measure"/> 收集期望尺寸，再在 <see cref="Arrange"/> 中按策略分配最终矩形。
+/// 向后兼容：未重写 <see cref="Measure"/> 的子元素保持原有 fill 语义（<see cref="FixedSize"/> 有值则用固定值，否则返回零表示 fill）。
+/// </para>
 /// </summary>
 public abstract class UIElement
 {
@@ -29,14 +32,55 @@ public abstract class UIElement
     /// <summary>停靠方向（仅在 <see cref="UIDockPanel"/> 布局内有效）。</summary>
     public UIDock Dock { get; set; } = UIDock.Fill;
 
+    /// <summary>是否裁剪子元素到自身边界（启用后子元素超出部分不可见）。</summary>
+    public bool ClipToBounds { get; set; }
+
     /// <summary>布局后的绝对矩形（窗口逻辑像素）。</summary>
     public UIRect Bounds { get; private set; }
+
+    /// <summary>上一次 Measure 的结果（供容器在 Arrange 阶段使用）。</summary>
+    public UISize DesiredSize { get; private set; }
 
     public void AddChild(UIElement child)
     {
         ArgumentNullException.ThrowIfNull(child);
         child.Parent = this;
         _children.Add(child);
+    }
+
+    /// <summary>
+    /// 测量阶段：报告自身在给定可用空间内的期望尺寸。
+    /// 容器在 Arrange 前调用此方法收集子元素的期望尺寸。
+    /// </summary>
+    /// <param name="availableSize">父容器提供的可用空间（分量可为 <see cref="float.PositiveInfinity"/> 表示无约束）。</param>
+    /// <returns>期望尺寸（分量为 0 表示沿该轴 fill）。</returns>
+    public UISize Measure(UISize availableSize)
+    {
+        if (!Visible)
+        {
+            DesiredSize = default;
+            return default;
+        }
+
+        var desired = OnMeasure(availableSize);
+        DesiredSize = desired;
+        return desired;
+    }
+
+    /// <summary>
+    /// 测量阶段的实际实现。默认行为：有 <see cref="FixedSize"/> 则返回固定值（≤0 的分量视为 fill 返回 0），
+    /// 否则返回 (0,0) 表示两轴均 fill。子类应重写以报告内容驱动的期望尺寸。
+    /// </summary>
+    protected virtual UISize OnMeasure(UISize availableSize)
+    {
+        if (FixedSize is { } fs)
+        {
+            float w = fs.Width > 0f ? fs.Width : 0f;
+            float h = fs.Height > 0f ? fs.Height : 0f;
+            return new UISize(w, h);
+        }
+
+        return new UISize(0f, 0f);
     }
 
     /// <summary>把自身安置到给定矩形，并布局子元素。</summary>
@@ -56,9 +100,15 @@ public abstract class UIElement
         if (!Visible)
             return;
 
+        if (ClipToBounds)
+            ui.PushClip(Bounds);
+
         OnPaint(ui, targetId);
         foreach (var child in _children)
             child.Paint(ui, targetId);
+
+        if (ClipToBounds)
+            ui.PopClip();
     }
 
     protected virtual void OnPaint(UIManager ui, int targetId)
@@ -133,4 +183,13 @@ public abstract class UIElement
 
     /// <summary>内容矩形 = 自身矩形减去内边距。</summary>
     protected UIRect ContentRect => Bounds.Deflate(Padding);
+
+    /// <summary>
+    /// 当前布局上下文的文本渲染器（由 <see cref="UICanvas"/> 在布局前注入）。
+    /// 仅在 Measure/Arrange 期间有效，用于叶子控件测量文本尺寸。
+    /// </summary>
+    internal TextRenderer? LayoutTextRenderer { get; set; }
+
+    /// <summary>获取布局文本渲染器（供子类 Measure 使用）。</summary>
+    protected TextRenderer? GetTextRenderer() => LayoutTextRenderer ?? Parent?.LayoutTextRenderer;
 }

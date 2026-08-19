@@ -174,7 +174,7 @@ public class EngineApplication
 
             var canvas = _ui.GetOrCreateCanvas(viewport.Id);
             canvas.Size = window.Size;
-            canvas.Update(_input.GetState(window));
+            canvas.Update(_input.GetState(window), _ui.Text);
             canvas.Paint(_ui);
         }
 

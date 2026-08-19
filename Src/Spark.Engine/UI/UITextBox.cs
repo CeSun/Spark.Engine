@@ -30,9 +30,29 @@ public sealed class UITextBox : UIElement
         }
     }
 
+    private const float DefaultMinHeight = 24f;
+
     public UITextBox()
     {
         Focusable = true;
+    }
+
+    protected override UISize OnMeasure(UISize availableSize)
+    {
+        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
+            return fs;
+
+        var textRenderer = GetTextRenderer();
+        float textW = 0f;
+        if (textRenderer != null && _buffer.Length > 0)
+        {
+            textW = textRenderer.Measure(_buffer.ToString()).X;
+        }
+
+        float w = FixedSize is { } fsv && fsv.Width > 0f ? fsv.Width : System.Math.Max(60f, textW + Padding.Left + Padding.Right + 10f);
+        float h = FixedSize is { } fsv2 && fsv2.Height > 0f ? fsv2.Height : DefaultMinHeight;
+
+        return new UISize(w, h);
     }
 
     protected override void OnPaint(UIManager ui, int targetId)

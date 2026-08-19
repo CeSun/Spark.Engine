@@ -10,8 +10,10 @@ public enum UIOrientation
 }
 
 /// <summary>
-/// 盒子布局容器：沿主轴顺序排列子元素（固定尺寸优先，剩余空间均分给拉伸子元素），
-/// 交叉轴默认拉伸填充；可选背景色。
+/// 盒子布局容器（P6 两阶段 Measure/Arrange）：
+/// Phase 1 (Measure)：沿主轴给子元素无限约束，收集期望尺寸；
+/// Phase 2 (Arrange)：固定尺寸优先，剩余空间按比例分配给 fill 子元素；交叉轴默认拉伸填充。
+/// 可选背景色。
 /// </summary>
 public sealed class UIStackPanel : UIElement
 {
@@ -22,10 +24,85 @@ public sealed class UIStackPanel : UIElement
     /// <summary>背景色（alpha = 0 表示透明）。</summary>
     public Vector4 BackgroundColor { get; set; }
 
+    protected override UISize OnMeasure(UISize availableSize)
+    {
+        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
+            return fs;
+
+        bool vertical = Orientation == UIOrientation.Vertical;
+        float mainSum = 0f;
+        float crossMax = 0f;
+        int visibleCount = 0;
+
+        foreach (var child in Children)
+        {
+            if (!child.Visible)
+                continue;
+
+            var childAvail = vertical
+                ? new UISize(availableSize.Width, float.PositiveInfinity)
+                : new UISize(float.PositiveInfinity, availableSize.Height);
+
+            var desired = child.Measure(childAvail);
+            float main = vertical ? desired.Height : desired.Width;
+            float cross = vertical ? desired.Width : desired.Height;
+
+            // fill 子元素（main==0）在 measure 阶段不贡献主轴尺寸
+            if (main > 0f)
+                mainSum += main;
+            if (cross > 0f)
+                crossMax = System.Math.Max(crossMax, cross);
+
+            visibleCount++;
+        }
+
+        float spacingTotal = Spacing * System.Math.Max(0, visibleCount - 1);
+        mainSum += spacingTotal;
+
+        // 如果有 fill 子元素且可用空间有限，main 方向应取可用空间（fill 会撑满）
+        bool hasFillMain = false;
+        foreach (var child in Children)
+        {
+            if (!child.Visible) continue;
+            float m = vertical ? child.DesiredSize.Height : child.DesiredSize.Width;
+            if (m <= 0f) { hasFillMain = true; break; }
+        }
+
+        float effectiveMain = mainSum;
+        if (hasFillMain)
+        {
+            float availMain = vertical ? availableSize.Height : availableSize.Width;
+            if (!float.IsPositiveInfinity(availMain))
+                effectiveMain = System.Math.Max(mainSum, availMain - (vertical ? Padding.Top + Padding.Bottom : Padding.Left + Padding.Right));
+        }
+
+        // 加上 Padding
+        float totalW = vertical ? crossMax + Padding.Left + Padding.Right : effectiveMain + Padding.Left + Padding.Right;
+        float totalH = vertical ? effectiveMain + Padding.Top + Padding.Bottom : crossMax + Padding.Top + Padding.Bottom;
+
+        // 有 FixedSize 的分量用固定值覆盖
+        if (FixedSize is { } fsv)
+        {
+            if (fsv.Width > 0f) totalW = fsv.Width;
+            if (fsv.Height > 0f) totalH = fsv.Height;
+        }
+
+        // 不超过可用空间（有限约束时）
+        if (!float.IsPositiveInfinity(availableSize.Width))
+            totalW = System.Math.Min(totalW, availableSize.Width);
+        if (!float.IsPositiveInfinity(availableSize.Height))
+            totalH = System.Math.Min(totalH, availableSize.Height);
+
+        return new UISize(totalW, totalH);
+    }
+
     protected override void OnArrange()
     {
         var content = ContentRect;
         bool vertical = Orientation == UIOrientation.Vertical;
+
+        // Phase 1: Measure（如果尚未在本帧调用过，这里补调；正常流程由父容器在 Measure 中已调用）
+        // 注意：Arrange 阶段不再重复 Measure，直接使用 DesiredSize
 
         int visibleCount = 0;
         int fillCount = 0;
@@ -35,7 +112,7 @@ public sealed class UIStackPanel : UIElement
             if (!child.Visible)
                 continue;
             visibleCount++;
-            float main = GetMain(child, vertical);
+            float main = vertical ? child.DesiredSize.Height : child.DesiredSize.Width;
             if (main > 0f)
                 fixedSum += main;
             else
@@ -54,8 +131,8 @@ public sealed class UIStackPanel : UIElement
             if (!child.Visible)
                 continue;
 
-            float main = GetMain(child, vertical);
-            float cross = GetCross(child, vertical);
+            float main = vertical ? child.DesiredSize.Height : child.DesiredSize.Width;
+            float cross = vertical ? child.DesiredSize.Width : child.DesiredSize.Height;
             if (main <= 0f)
                 main = fillShare;
             if (cross <= 0f)
@@ -75,10 +152,4 @@ public sealed class UIStackPanel : UIElement
         if (BackgroundColor.W > 0f)
             ui.DrawRect(targetId, new Vector2(Bounds.X, Bounds.Y), new Vector2(Bounds.Width, Bounds.Height), BackgroundColor);
     }
-
-    private static float GetMain(UIElement child, bool vertical)
-        => child.FixedSize is { } size ? (vertical ? size.Height : size.Width) : 0f;
-
-    private static float GetCross(UIElement child, bool vertical)
-        => child.FixedSize is { } size ? (vertical ? size.Width : size.Height) : 0f;
 }

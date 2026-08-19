@@ -22,4 +22,10 @@ public struct UIPrimitive
 
     /// <summary>纹理 ID：0 = 内置白色纹理（纯色）；&gt;0 = 已上传的 UI 纹理（文本/图片）。</summary>
     public int TextureId;
+
+    /// <summary>
+    /// Scissor 裁剪矩形（P6）：x, y, width, height（窗口逻辑像素）。
+    /// Width ≤ 0 或 Height ≤ 0 表示无裁剪。由 <see cref="UIManager"/> 在添加基元时从裁剪栈注入。
+    /// </summary>
+    public Vector4 ScissorRect;
 }

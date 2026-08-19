@@ -3,7 +3,8 @@ using Spark.Engine.Input;
 
 namespace Spark.Engine.UI;
 
-/// <summary>按钮：背景 + 文本，带悬停/按下视觉反馈与点击回调。</summary>
+/// <summary>按钮（P6 自适应）：背景 + 文本，带悬停/按下视觉反馈与点击回调。
+/// Measure 时按文本+Padding 报告期望尺寸，不设 FixedSize 时自动包裹。</summary>
 public sealed class UIButton : UIElement
 {
     private bool _hovered;
@@ -21,6 +22,40 @@ public sealed class UIButton : UIElement
 
     /// <summary>点击回调（鼠标在按钮上按下并抬起时触发一次）。</summary>
     public Action? Clicked { get; set; }
+
+    public UIButton()
+    {
+        Focusable = true;
+    }
+
+    protected override UISize OnMeasure(UISize availableSize)
+    {
+        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
+            return fs;
+
+        var textRenderer = GetTextRenderer();
+        float textW = 0f, textH = 0f;
+        if (textRenderer != null && !string.IsNullOrEmpty(Text))
+        {
+            var textSize = textRenderer.Measure(Text);
+            textW = textSize.X;
+            textH = textSize.Y;
+        }
+
+        float w = textW + Padding.Left + Padding.Right;
+        float h = textH + Padding.Top + Padding.Bottom;
+
+        // 最小高度保证可点击区域
+        if (h < 20f) h = 20f;
+
+        if (FixedSize is { } fsv)
+        {
+            if (fsv.Width > 0f) w = fsv.Width;
+            if (fsv.Height > 0f) h = fsv.Height;
+        }
+
+        return new UISize(w, h);
+    }
 
     protected override void OnPaint(UIManager ui, int targetId)
     {
@@ -48,6 +83,12 @@ public sealed class UIButton : UIElement
     {
         if (button == MouseButton.Left)
             _pressed = false;
+    }
+
+    protected internal override void OnKeyDown(Key key)
+    {
+        if (key == Key.Enter || key == Key.Space)
+            Clicked?.Invoke();
     }
 
     protected internal override void OnMouseClick() => Clicked?.Invoke();
