@@ -59,6 +59,30 @@ public class EngineApplication
     /// <summary>初始化回调：Run 时在窗口创建后、主循环开始前执行一次（供组合根写入游戏逻辑）。</summary>
     public Action<EngineApplication>? InitializeCallback { get; set; }
 
+    /// <summary>
+    /// 创建一个离屏渲染视图（供 <see cref="UI.UIRenderView"/> 控件显示引擎画面）。
+    /// 返回的 <see cref="TextureRenderTarget"/> 已注册到 <see cref="RenderTargets"/> 与 <see cref="UIManager"/>，
+    /// 相机可将其作为 <c>RenderTarget</c> 渲染，UI 控件通过 <c>Id</c> 采样显示。
+    /// 销毁请调用 <see cref="DestroyRenderView"/>。
+    /// </summary>
+    public unsafe TextureRenderTarget CreateRenderView(uint width, uint height)
+    {
+        var webGpu = ServiceProvider.GetRequiredService<WebGPUContext>();
+        var id = RenderTargets.AllocateId();
+        var target = new TextureRenderTarget(
+            id, webGpu.Api, webGpu.Device, width, height, Silk.NET.WebGPU.TextureFormat.Rgba8Unorm, isDepth: false);
+        RenderTargets.Register(target);
+        _ui.RegisterRenderView(id, width, height);
+        return target;
+    }
+
+    /// <summary>销毁渲染视图：注销 UI 注册并延迟释放 GPU 纹理（渲染线程帧末）。</summary>
+    public void DestroyRenderView(TextureRenderTarget target)
+    {
+        _ui.UnregisterRenderView(target.Id);
+        RenderTargets.Remove(target.Id);
+    }
+
     private volatile bool _isClosing;
 
     public bool IsClosing

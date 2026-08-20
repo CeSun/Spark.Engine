@@ -4,8 +4,10 @@ using SixLabors.ImageSharp.PixelFormats;
 using Spark.Engine;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
+using Spark.Engine.Platforms;
 using Spark.Engine.Render.Common;
 using Spark.Engine.Resources;
+using Spark.Engine.UI;
 using Spark.Engine.Worlds;
 
 namespace Demo;
@@ -43,7 +45,7 @@ public static class DemoApp
         var mainViewport = app.WindowManager.GetViewport(mainWindow)!;
 
         // 第二个窗口：右侧上方俯看同一场景
-        var secondWindow = app.WindowManager.CreateWindow("Spark Engine — 侧面视角", 800, 600);
+        var secondWindow = app.WindowManager.CreateWindow("Spark Engine - Side View", 800, 600);
         var secondViewport = app.WindowManager.GetViewport(secondWindow)!;
 
         AddCamera(world, mainViewport, eye: new Vector3(0f, 0f, 1.5f), lookAt: new Vector3(0f, 0f, -2f));
@@ -204,6 +206,36 @@ public static class DemoApp
 
         // 让两堵墙一起绕自身中心（Y 轴）左右摆动：墙面法线方向持续变化，观察不同方向受光
         world.AddActor(new WallSwinger(leftWall, rightWall));
+
+        // ———————— UIRenderView 演示：离屏渲染 + UI 控件显示引擎画面 ————————
+        // 1. 创建离屏渲染目标（注册到 RenderTargets + UIManager）
+        var renderView = app.CreateRenderView(320, 240);
+
+        // 2. 添加一个相机渲染到离屏目标（第三个视角，俯视全景）
+        CameraComponent? offscreenCamera = null;
+        var renderViewControl = new UIRenderView
+        {
+            RenderViewId = renderView.Id,
+            ResolutionScale = 1.5f, // 1.5x 超采样，缩小显示更锐利
+            MaintainAspectRatio = true,
+        };
+
+        // 3. 自适应分辨率：显示区域变化时重建离屏目标（消除放大模糊）
+        renderViewControl.RenderViewResizeRequested = (oldId, width, height) =>
+        {
+            var next = app.CreateRenderView(width, height);
+            if (offscreenCamera != null)
+                offscreenCamera.RenderTarget = next;
+            if (app.RenderTargets.TryGet(oldId, out var oldTarget) && oldTarget is TextureRenderTarget oldTex)
+                app.DestroyRenderView(oldTex); // 延迟释放旧目标（渲染线程帧末）
+            return next.Id;
+        };
+
+        offscreenCamera = AddCamera(world, renderView, eye: new Vector3(-3f, 3f, 3f), lookAt: new Vector3(0f, 0f, -2f));
+
+        // 4. 第三个窗口：整个 UI 画布显示该渲染视图（UIRenderView 控件）
+        var thirdWindow = app.WindowManager.CreateWindow("Spark Engine - Render View Control", 480, 400);
+        RenderViewOverlay.Attach(app, thirdWindow, renderViewControl);
     }
 
     /// <summary>两段骨骼"手臂"条带：下段绑 bone0，上段绑 bone1，关节在原点，bind pose 为单位阵。</summary>
@@ -228,7 +260,7 @@ public static class DemoApp
     }
 
     /// <summary>创建相机 Actor 并摆到指定视角（WorldTransform = R·T，GetViewMatrix = Invert(WorldTransform)）。</summary>
-    private static void AddCamera(World world, RenderTarget target, Vector3 eye, Vector3 lookAt)
+    private static CameraComponent AddCamera(World world, RenderTarget target, Vector3 eye, Vector3 lookAt)
     {
         var camera = new CameraComponent { RenderTarget = target };
 
@@ -241,5 +273,6 @@ public static class DemoApp
         var actor = new Actor();
         actor.AddOwnedComponent(camera);
         world.AddActor(actor);
+        return camera;
     }
 }

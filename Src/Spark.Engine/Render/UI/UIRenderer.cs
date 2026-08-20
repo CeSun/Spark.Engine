@@ -45,10 +45,15 @@ public unsafe sealed class UIRenderer : IGraphOverlay
     private readonly List<UIVertex> _vertices = new();
     private readonly List<UIPrimitive> _targetPrimitives = new();
     private readonly HashSet<int> _targetSet = new();
+    private readonly HashSet<int> _renderViewSet = new();
+    private readonly Dictionary<int, HashSet<int>> _targetRenderViews = new();
 
     // UI 纹理注册表（id → GPU 纹理 + bind group），id 0 为内置白色纹理
     private readonly Dictionary<int, TextureGPUResource> _textures = new();
     private readonly Dictionary<int, nint> _textureBindGroups = new();
+
+    // 渲染视图 bind group 缓存（renderViewId → bind group），用于 UIRenderView 控件
+    private readonly Dictionary<int, nint> _renderViewBindGroups = new();
 
     public UIRenderer(WebGPUContext? webGpu, RenderTargetRegistry targets, ILogger<UIRenderer>? logger, UIManager uiManager)
     {
@@ -70,10 +75,37 @@ public unsafe sealed class UIRenderer : IGraphOverlay
         if (snapshot.UIPrimitives.Count == 0)
             return;
 
-        // 收集本帧有 UI 的目标（按 Primitive.TargetId 去重）
+        // 收集本帧有 UI 的目标（按 Primitive.TargetId 去重）与各目标引用的渲染视图（负 TextureId）
         _targetSet.Clear();
+        _renderViewSet.Clear();
+        _targetRenderViews.Clear();
         foreach (ref readonly var primitive in snapshot.UIPrimitives.Span)
+        {
             _targetSet.Add(primitive.TargetId);
+            if (primitive.TextureId < 0)
+            {
+                int renderViewId = -primitive.TextureId;
+                _renderViewSet.Add(renderViewId);
+                if (!_targetRenderViews.TryGetValue(primitive.TargetId, out var ids))
+                    _targetRenderViews[primitive.TargetId] = ids = new HashSet<int>();
+                ids.Add(renderViewId);
+            }
+        }
+
+        // 渲染视图（UIRenderView 引用的离屏渲染目标）：导入为 external 资源，供 UI pass 采样。
+        // 只有实际引用该渲染视图的目标的 UI pass 才 Read() 声明依赖，
+        // 确保在写该离屏目标的场景 pass 之后执行。
+        var renderViewResources = new Dictionary<int, RenderGraphResource>();
+        foreach (var renderViewId in _renderViewSet)
+        {
+            if (!_targets.TryGet(renderViewId, out var rvTarget) || rvTarget is not TextureRenderTarget)
+            {
+                _logger?.LogDebug("UI overlay: render view {RenderViewId} not found, skipping", renderViewId);
+                continue;
+            }
+
+            renderViewResources[renderViewId] = graph.ImportTexture(rvTarget);
+        }
 
         foreach (var targetId in _targetSet)
         {
@@ -85,14 +117,26 @@ public unsafe sealed class UIRenderer : IGraphOverlay
 
             var backbuffer = graph.ImportTexture(target);
             var tid = targetId;
+            var referencedViews = _targetRenderViews.TryGetValue(targetId, out var viewIds)
+                ? viewIds
+                : (IReadOnlyCollection<int>?)null;
 
             // DependsOn(backbuffer)：本 pass 必须在写该 backbuffer 的场景 pass 之后执行
+            // Read(renderView)：本 pass 采样离屏渲染视图，必须在写该视图的场景 pass 之后执行
             graph.AddPass(
                 $"UIOverlay(Target={tid})",
                 setup: builder =>
                 {
                     builder.DependsOn(backbuffer);
                     builder.Write(backbuffer, ResourceAccess.RenderTarget);
+                    if (referencedViews != null)
+                    {
+                        foreach (var renderViewId in referencedViews)
+                        {
+                            if (renderViewResources.TryGetValue(renderViewId, out var rvResource))
+                                builder.Read(rvResource, ResourceAccess.Sample);
+                        }
+                    }
                 },
                 execute: ctx => Execute(ctx, backbuffer, snapshot, tid));
         }
@@ -222,11 +266,43 @@ public unsafe sealed class UIRenderer : IGraphOverlay
         api.RenderPassEncoderDrawIndexed(pass, quadCount * 6, 1, 0, 0, 0);
     }
 
-    /// <summary>取纹理对应的 bind group；id ≤ 0 或未上传时回退白纹理。</summary>
+    /// <summary>取纹理对应的 bind group；id &lt; 0 表示渲染视图，id = 0 或未上传时回退白纹理。</summary>
     private BindGroup* GetBindGroup(int textureId)
-        => textureId > 0 && _textureBindGroups.TryGetValue(textureId, out var cached)
-            ? (BindGroup*)cached
-            : _bindGroup;
+    {
+        // 渲染视图（负 ID）
+        if (textureId < 0)
+        {
+            int renderViewId = -textureId;
+
+            // 检查目标是否仍然存在
+            if (!_targets.TryGet(renderViewId, out var target) || target is not TextureRenderTarget texTarget)
+            {
+                // 目标已移除，清理缓存的 bind group
+                if (_renderViewBindGroups.Remove(renderViewId, out var stale))
+                {
+                    var api = _webGpu!.Api;
+                    api.BindGroupRelease((BindGroup*)stale);
+                }
+                return _bindGroup;
+            }
+
+            // 检查缓存是否仍然有效（目标可能被重建，View 指针变化）
+            if (_renderViewBindGroups.TryGetValue(renderViewId, out var cached))
+                return (BindGroup*)cached;
+
+            // 创建新的 bind group
+            var newBindGroup = CreateTextureBindGroup(texTarget.View);
+            _renderViewBindGroups[renderViewId] = (nint)newBindGroup;
+            return newBindGroup;
+        }
+
+        // 普通 UI 纹理（正 ID）
+        if (textureId > 0 && _textureBindGroups.TryGetValue(textureId, out var uiCached))
+            return (BindGroup*)uiCached;
+
+        // id = 0 或未找到，回退白纹理
+        return _bindGroup;
+    }
 
     /// <summary>把逻辑线程排队的 UI 纹理上传到 GPU（渲染线程独占）。</summary>
     private void ProcessTextureUploads()
@@ -613,6 +689,12 @@ public unsafe sealed class UIRenderer : IGraphOverlay
             if (bindGroup != 0)
                 api.BindGroupRelease((BindGroup*)bindGroup);
         _textureBindGroups.Clear();
+
+        // 清理渲染视图 bind group（注意：不释放 TextureRenderTarget 本身，它由 RenderTargetRegistry 管理）
+        foreach (var bindGroup in _renderViewBindGroups.Values)
+            if (bindGroup != 0)
+                api.BindGroupRelease((BindGroup*)bindGroup);
+        _renderViewBindGroups.Clear();
 
         foreach (var texture in _textures.Values)
             texture.Dispose();

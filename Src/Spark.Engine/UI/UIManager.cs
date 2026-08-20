@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Numerics;
 using SixLabors.Fonts;
 using Spark.Engine.Render;
+using Spark.Engine.Render.Common;
 
 namespace Spark.Engine.UI;
 
@@ -112,6 +113,64 @@ public sealed class UIManager
 
     /// <summary>渲染线程：取一个待上传的 UI 纹理。</summary>
     public bool TryDequeueTexture(out UITextureUpload upload) => _pendingTextures.TryDequeue(out upload);
+
+    // ———————————— 渲染视图支持（UIRenderView 控件）————————————
+
+    private readonly ConcurrentDictionary<int, RenderViewInfo> _renderViews = new();
+
+    /// <summary>渲染视图信息（仅用于逻辑线程布局计算）。</summary>
+    private readonly struct RenderViewInfo
+    {
+        public readonly uint Width;
+        public readonly uint Height;
+
+        public RenderViewInfo(uint width, uint height)
+        {
+            Width = width;
+            Height = height;
+        }
+    }
+
+    /// <summary>
+    /// 注册一个渲染视图供 UIRenderView 控件使用。
+    /// 应在创建 TextureRenderTarget 后调用，传入其 Id 和尺寸。
+    /// </summary>
+    /// <param name="renderViewId">TextureRenderTarget.Id</param>
+    /// <param name="width">渲染视图宽度</param>
+    /// <param name="height">渲染视图高度</param>
+    public void RegisterRenderView(int renderViewId, uint width, uint height)
+    {
+        _renderViews[renderViewId] = new RenderViewInfo(width, height);
+    }
+
+    /// <summary>注销一个渲染视图。</summary>
+    public void UnregisterRenderView(int renderViewId)
+    {
+        _renderViews.TryRemove(renderViewId, out _);
+    }
+
+    /// <summary>获取渲染视图尺寸（用于布局计算）。未注册时返回 (0, 0)。</summary>
+    public (uint Width, uint Height) GetRenderViewSize(int renderViewId)
+    {
+        if (_renderViews.TryGetValue(renderViewId, out var info))
+            return (info.Width, info.Height);
+        return (0, 0);
+    }
+
+    /// <summary>绘制一个渲染视图到指定位置（发出特殊 UIPrimitive，TextureId 为负值表示渲染视图 ID）。</summary>
+    public void DrawRenderView(int targetId, int renderViewId, Vector2 position, Vector2 size)
+    {
+        var clip = CurrentClip(targetId);
+        _primitives.Add(new UIPrimitive
+        {
+            TargetId = targetId,
+            Rect = new Vector4(position.X, position.Y, size.X, size.Y),
+            UV = new Vector4(0f, 0f, 1f, 1f),
+            Color = Vector4.One,
+            TextureId = -renderViewId, // 负值表示渲染视图 ID
+            ScissorRect = clip.HasValue ? new Vector4(clip.Value.X, clip.Value.Y, clip.Value.Width, clip.Value.Height) : default,
+        });
+    }
 
     private static TextRenderer CreateDefaultTextRenderer()
     {

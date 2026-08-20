@@ -32,7 +32,7 @@ Spark.Engine.slnx
 │  │  │  │  └─ BlinnPhong/   Blinn-Phong 管线（BlinnPhongRenderer + shader + Passes/）
 │  │  │  └─ RenderGraph/     帧图（RenderGraph + 资源句柄/池）
 │  │  ├─ Input/              输入抽象（Key/KeyMask/MouseButton/WindowInput/InputState/InputManager）
-│  │  ├─ UI/                 保留模式控件树（UIElement/UIStackPanel/UILabel/UIButton/UITextBox/UICheckbox/UISlider/UIManager/TextRenderer…）
+│  │  ├─ UI/                 保留模式控件树（UIElement/UIStackPanel/UILabel/UIButton/UITextBox/UICheckbox/UISlider/UIRenderView/UIManager/TextRenderer…）
 │  │  ├─ Components/         组件（含 LightComponent 基类 + Point/Directional/Spot 光源、StaticMeshComponent）
 │  │  ├─ Threads/            RenderThread（外壳）/EngineSynchronizationContext
 │  │  └─ Worlds/             World（含 Scene）/WorldContext
@@ -231,6 +231,17 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
   256 对齐纹理上传）经 `UseUI()` 注册为 `IGraphOverlay`
 - 详见 [UI-System-Design.md](./UI-System-Design.md)（架构 + 数据流 + 踩坑经验）
 
+### 17. 渲染视图控件（UIRenderView，引擎画面显示）
+
+- `UIRenderView`：把离屏 `TextureRenderTarget` 的内容实时显示到 UI 画布（编辑器视口/小地图/分屏预览）
+- **跨线程 ID 引用**：逻辑线程只发 `TextureId = -renderViewId` 基元；渲染线程 `UIRenderer.GetBindGroup`
+  从 `RenderTargetRegistry` 解析真实纹理视图并建 bind group（缓存 + 失效清理）
+- **采样依赖**：UI pass 对实际引用的渲染视图声明 `Read(Sample)`，保证在写该离屏目标的场景 pass 之后执行
+- **自适应分辨率**：`AutoResize`（默认开）随显示区域动态重建离屏目标，`ResolutionScale` 超采样、
+  `ResizeThreshold` 防抖，消除放大模糊；重建走「新建 + ADR-7 延迟销毁旧目标」，当帧生效
+- `EngineApplication.CreateRenderView`/`DestroyRenderView`：离屏目标创建/注册/延迟销毁便捷方法
+- 详见 [UIRenderView-Design.md](./UIRenderView-Design.md)（架构 + 数据流 + 自适应分辨率）
+
 ### 验证状态
 
 | 能力 | 编译 | 运行 |
@@ -245,6 +256,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | RenderGraph 声明式多 pass 编排（ShadowDepth → BlinnPhong） | ✅ | ✅（本地 GPU 环境验证通过） |
 | 法线贴图（Normal Mapping，导数法 TBN） | ✅ | ✅（本地 GPU 环境验证通过） |
 | UI 系统（控件树 + 输入 + 文本 + overlay 渲染 + 交互） | ✅ | ✅（本地 GPU 环境验证通过） |
+| 渲染视图控件（UIRenderView：离屏渲染 → UI 采样 + 自适应分辨率） | ✅ | ✅（本地 GPU 环境冒烟验证通过） |
 
 ---
 
@@ -265,7 +277,10 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 ### P2 —— 渲染能力扩展
 
-4. **`TextureRenderTarget`**：离屏渲染目标（无交换链），解锁后处理链/阴影贴图/小地图/编辑器预览。
+4. **`TextureRenderTarget`**：离屏渲染目标（无交换链）——**已落地**：引擎内部用于阴影/深度贴图
+   （`BlinnPhongStage`/`SkeletalMeshStage` 的 `_depthTarget`），并已接入 `UIRenderView` 渲染视图
+   （`EngineApplication.CreateRenderView`，相机可渲染到离屏目标、UI 采样显示）；后处理链（相机 A
+   渲到贴图 → 相机 B 采样）复用同一机制。
 5. **材质系统 + 纹理采样 + 实际光照着色（部分落地）**：P0~P3 已实现（结构化材质 + shader 编译缓存 +
    Blinn-Phong 前向着色 + 法线贴图）；节点图（P4）、PBR 未实现。
 6. **帧内渲染依赖 / 拓扑排序（已落地 RenderGraph 核心）**：`RenderGraph` 已实现声明依赖 + 拓扑排序 +
@@ -361,3 +376,4 @@ dotnet run --project Demo/Demo.Desktop
 - [RenderGraph-Design.md](./RenderGraph-Design.md) — 帧图（RenderGraph）设计（声明式依赖图/资源生命周期/别名复用）
 - [ShadowMapping-Design.md](./ShadowMapping-Design.md) — 阴影贴图设计（多 pass 阴影 + 踩坑经验）
 - [UI-System-Design.md](./UI-System-Design.md) — UI 系统设计（控件树/输入/文本/overlay 渲染 + 踩坑经验）
+- [UIRenderView-Design.md](./UIRenderView-Design.md) — 渲染视图控件设计（离屏渲染 → UI 采样 + 自适应分辨率）
