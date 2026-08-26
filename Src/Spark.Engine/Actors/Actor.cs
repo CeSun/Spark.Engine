@@ -9,9 +9,9 @@ public class Actor
 
     public World? World => _world;
 
-    public SceneComponent? RootComponent { get; }
-
     private HashSet<ActorComponent> _ownedComponents = [];
+
+    private bool _hasBegunPlay;
 
     /// <summary>所有拥有的组件。</summary>
     public IEnumerable<ActorComponent> Components => _ownedComponents;
@@ -24,6 +24,10 @@ public class Actor
 
         _ownedComponents.Add(component);
         component.Owner = this;
+
+        // actor 已 BeginPlay：补调组件 BeginPlay，否则其代理注册/初始化永不被调用（中6）
+        if (_hasBegunPlay)
+            component.BeginPlay();
     }
 
     public T? GetComponent<T>() where T : ActorComponent
@@ -40,6 +44,7 @@ public class Actor
 
     public virtual void BeginPlay()
     {
+        _hasBegunPlay = true;
         // 副本迭代：组件回调里 AddOwnedComponent 重入不破坏集合（中3）
         foreach (var component in _ownedComponents.ToArray())
             component.BeginPlay();
@@ -53,6 +58,7 @@ public class Actor
 
     public virtual void EndPlay()
     {
+        _hasBegunPlay = false;
         foreach (var component in _ownedComponents.ToArray())
             component.EndPlay();
     }

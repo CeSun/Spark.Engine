@@ -7,10 +7,6 @@ namespace Spark.Engine.Components;
 
 public class SceneComponent : ActorComponent
 {
-    private SceneComponent? _attachParent;
-
-    public SceneComponent? AttachParent => _attachParent;
-
     private List<SceneComponent> _attachChildren = [];
 
     public Vector3 RelativeLocation { get; set; }
