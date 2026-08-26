@@ -156,6 +156,9 @@ internal sealed unsafe class ShadowDepthStage : StaticMeshStage
 
         var commandBuffer = api.CommandEncoderFinish(encoder, (CommandBufferDescriptor*)null);
         api.QueueSubmit(queue, (nuint)1, &commandBuffer);
+        // 命令缓冲/编码器每帧创建，用完必须释放，否则长跑线性泄漏（中10）
+        api.CommandEncoderRelease(encoder);
+        api.CommandBufferRelease(commandBuffer);
     }
 
     public override void Dispose()

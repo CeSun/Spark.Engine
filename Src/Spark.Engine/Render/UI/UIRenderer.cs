@@ -216,6 +216,9 @@ public unsafe sealed class UIRenderer : IGraphOverlay
 
         var commandBuffer = api.CommandEncoderFinish(encoder, (CommandBufferDescriptor*)null);
         api.QueueSubmit(_webGpu.Queue, (nuint)1, &commandBuffer);
+        // 命令缓冲/编码器每帧创建，用完必须释放，否则长跑线性泄漏（中10）
+        api.CommandEncoderRelease(encoder);
+        api.CommandBufferRelease(commandBuffer);
     }
 
     /// <summary>把当前批次顶点写到 <paramref name="vertexOffset"/> 处并绘制（同一 pass 内按纹理/scissor 切换）。</summary>
@@ -250,7 +253,7 @@ public unsafe sealed class UIRenderer : IGraphOverlay
             if (sw > 0 && sh > 0)
                 api.RenderPassEncoderSetScissorRect(pass, (uint)sx, (uint)sy, (uint)sw, (uint)sh);
             else
-                api.RenderPassEncoderSetScissorRect(pass, 0, 0, (uint)targetWidth, (uint)targetHeight);
+                return;   // 裁剪矩形完全越界：跳过该批，不绘制未裁剪内容（中11）
         }
         else
         {

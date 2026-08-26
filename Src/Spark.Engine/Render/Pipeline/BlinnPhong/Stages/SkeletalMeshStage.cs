@@ -134,6 +134,9 @@ internal sealed unsafe class SkeletalMeshStage : StaticMeshStage
 
         var commandBuffer = api.CommandEncoderFinish(encoder, (CommandBufferDescriptor*)null);
         api.QueueSubmit(queue, (nuint)1, &commandBuffer);
+        // 命令缓冲/编码器每帧创建，用完必须释放，否则长跑线性泄漏（中10）
+        api.CommandEncoderRelease(encoder);
+        api.CommandBufferRelease(commandBuffer);
     }
 
     private void EnsureFrameBindGroup(TextureView* shadowTextureView)
@@ -164,6 +167,13 @@ internal sealed unsafe class SkeletalMeshStage : StaticMeshStage
         }
         else if (_noShadowBindGroup == null)
         {
+            // 阴影→无阴影切换：释放遗留的阴影 bind group，防瞬态阴影纹理滞留（中13）
+            if (_frameBindGroup != null)
+            {
+                api.BindGroupRelease(_frameBindGroup);
+                _frameBindGroup = null;
+            }
+
             BindGroupEntry* entries = stackalloc BindGroupEntry[3];
             entries[0] = new BindGroupEntry { Binding = 0, Buffer = _frameBuffer, Offset = 0, Size = (ulong)sizeof(FrameUniformData) };
             entries[1] = new BindGroupEntry { Binding = 1, TextureView = _dummyDepthMap!.View };

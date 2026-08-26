@@ -14,9 +14,10 @@ public unsafe sealed class RenderSurface : IDisposable
     private readonly Surface* _surface;
 
     // 目标配置（窗口侧写入，渲染线程 acquire 时比对并应用）
-    private uint _targetWidth;
-    private uint _targetHeight;
-    private PresentMode _targetPresentMode = PresentMode.Fifo;
+    // volatile：逻辑线程写、渲染线程读，消除跨线程数据竞争（中7）
+    private volatile uint _targetWidth;
+    private volatile uint _targetHeight;
+    private volatile PresentMode _targetPresentMode = PresentMode.Fifo;
 
     // 当前已配置状态
     private uint _width;

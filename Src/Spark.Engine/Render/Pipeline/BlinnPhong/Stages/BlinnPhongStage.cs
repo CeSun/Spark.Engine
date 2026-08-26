@@ -170,6 +170,9 @@ internal sealed unsafe class BlinnPhongStage : StaticMeshStage
 
         var commandBuffer = api.CommandEncoderFinish(encoder, (CommandBufferDescriptor*)null);
         api.QueueSubmit(queue, (nuint)1, &commandBuffer);
+        // 命令缓冲/编码器每帧创建，用完必须释放，否则长跑线性泄漏（中10）
+        api.CommandEncoderRelease(encoder);
+        api.CommandBufferRelease(commandBuffer);
     }
 
     private void EnsureFrameBindGroup(TextureView* shadowTextureView)
@@ -201,6 +204,13 @@ internal sealed unsafe class BlinnPhongStage : StaticMeshStage
         }
         else if (_noShadowBindGroup == null)
         {
+            // 阴影→无阴影切换：释放遗留的阴影 bind group（其引用的瞬态阴影纹理已释放，防滞留）（中13）
+            if (_frameBindGroup != null)
+            {
+                api.BindGroupRelease(_frameBindGroup);
+                _frameBindGroup = null;
+            }
+
             // 无阴影：binding 1 绑占位深度纹理、binding 2 绑 comparison 采样器，保证与 frameLayout 类型一致
             BindGroupEntry* entries = stackalloc BindGroupEntry[3];
             entries[0] = new BindGroupEntry { Binding = 0, Buffer = _frameBuffer, Offset = 0, Size = (ulong)sizeof(FrameUniformData) };
