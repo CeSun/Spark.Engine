@@ -50,6 +50,7 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
     private ShadowDepthStage? _shadowDepthStage;
     private BlinnPhongStage? _blinnPhongStage;
     private SkeletalMeshStage? _skeletalMeshStage;
+    private BlinnPhongStageContext? _stageContext;
     private bool _stagesInitialized;
 
     public BlinnPhongRenderer(
@@ -108,9 +109,10 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         if (_stagesInitialized)
             return;
 
-        var ctx = new BlinnPhongStageContext(
+        _stageContext = new BlinnPhongStageContext(
             _webGpu!, _shaderCache!, _frameLayout,
             _proxyStates, _gpuResources, _defaultMaterialGpu!, _logger);
+        var ctx = _stageContext;
 
         _shadowDepthStage = RegisterStage(new ShadowDepthStage(ctx));
         _blinnPhongStage = RegisterStage(new BlinnPhongStage(ctx));
@@ -484,6 +486,11 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
         _shadowDepthStage = null;
         _blinnPhongStage = null;
         _skeletalMeshStage = null;
+
+        // 静态/骨骼 stage 共用的深度附件随管线释放（S5）
+        _stageContext?.DisposeSharedDepthTargets();
+        _stageContext = null;
+
         _stagesInitialized = false;
 
         _shaderCache?.Dispose();

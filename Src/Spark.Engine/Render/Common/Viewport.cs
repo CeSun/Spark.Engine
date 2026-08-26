@@ -43,7 +43,9 @@ public sealed class Viewport : RenderTarget
 
     public override void Dispose()
     {
-        // 渲染线程帧末调用：延迟释放 RenderSurface（ADR-7）
+        // 渲染线程帧末调用：延迟释放 RenderSurface（ADR-7）。
+        // 原生窗口销毁交回逻辑线程执行（S4 握手，见 RenderTargetRegistry.TryDequeueNativeDisposal），
+        // 因为 Silk/GLFW 的原生窗口必须在创建它的逻辑线程销毁，不能在此渲染线程销毁。
         Window.DisposeSurface();
     }
 }

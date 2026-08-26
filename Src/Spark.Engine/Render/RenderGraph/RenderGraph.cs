@@ -244,16 +244,17 @@ public sealed class RenderGraph : IDisposable
             resource.TransientTarget = _pool.Allocate(resource.Desc);
         }
 
-        // 帧级 acquire：external Viewport 目标每帧只 acquire 一次（多相机共享同一 backbuffer）
-        foreach (var resource in _resources.Values)
-        {
-            if (!resource.IsExternal || resource.ExternalTarget is not Viewport viewport)
-                continue;
-            resource.ExternalSession = viewport.BeginRenderSession();
-        }
-
         try
         {
+            // 帧级 acquire：external Viewport 目标每帧只 acquire 一次（多相机共享同一 backbuffer）。
+            // 收进 try/finally：任一 acquire 抛异常时，已 acquire 的 session 也会在 finally 中 dispose（S3）。
+            foreach (var resource in _resources.Values)
+            {
+                if (!resource.IsExternal || resource.ExternalTarget is not Viewport viewport)
+                    continue;
+                resource.ExternalSession = viewport.BeginRenderSession();
+            }
+
             // 按拓扑序执行 pass
             foreach (var pass in _executionOrder)
             {

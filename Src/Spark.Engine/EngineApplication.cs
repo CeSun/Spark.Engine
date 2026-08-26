@@ -29,6 +29,9 @@ public class EngineApplication
 
     private readonly DualFrameBuffer<SceneSnapshot> _dualFrameBuffer = new(() => new SceneSnapshot());
 
+    /// <summary>单调递增帧号（S6：双缓冲复用两块快照实例，帧号不能在快照上自增，否则每个值出现两次）。</summary>
+    private uint _frameIndex;
+
     private readonly List<CameraComponent> _cameraBuffer = new();
 
     private readonly ResourceManager _resourceManager;
@@ -150,18 +153,26 @@ public class EngineApplication
                 _stopwatch.Restart();
 
                 var buffer = DualFrameBuffer.GetEmptyBuffer();
+                try
+                {
+                    WindowManager.UpdateWindow();
 
-                WindowManager.UpdateWindow();
+                    _input.Update(WindowManager.Windows);
 
-                _input.Update(WindowManager.Windows);
+                    _engineSynchronizationContext.Update();
 
-                _engineSynchronizationContext.Update();
+                    OnUpdate(deltaTime);
 
-                OnUpdate(deltaTime);
+                    FillFrameData(buffer, deltaTime);
 
-                FillFrameData(buffer, deltaTime);
-
-                DualFrameBuffer.SubmitReady();
+                    DualFrameBuffer.SubmitReady();
+                }
+                catch
+                {
+                    // 取缓冲后、提交前任何异常都必须归还槽位，否则连续 2 次后主循环永久卡死（S2）
+                    DualFrameBuffer.Abandon();
+                    throw;
+                }
             }
             catch (Exception ex)
             {
@@ -180,6 +191,10 @@ public class EngineApplication
 
         _renderThread.WaitForExit();
 
+        // 渲染线程退出时释放最后一个已关闭窗口的 surface 并登记原生窗口销毁；
+        // 主循环已结束，这里补一次排空，确保最后一个窗口的原生句柄也正确释放（S4）。
+        WindowManager.ProcessNativeDisposals();
+
         OnUninitialize();
     }
 
@@ -187,7 +202,7 @@ public class EngineApplication
     {
         snapshot.Clear();
         snapshot.DeltaTime = deltaTime;
-        snapshot.FrameIndex++;
+        snapshot.FrameIndex = ++_frameIndex;
 
         // UI：布局 + 绘制每窗口画布（控件树 → 基元）
         foreach (var window in WindowManager.Windows)

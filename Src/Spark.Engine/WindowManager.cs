@@ -49,6 +49,19 @@ public class WindowManager
     /// <summary>获取窗口对应的渲染视口。</summary>
     public Viewport? GetViewport(IWindow window) => _viewports.TryGetValue(window, out var vp) ? vp : null;
 
+    /// <summary>
+    /// 排空渲染线程已释放 surface 的窗口，销毁其原生句柄（逻辑线程执行）。
+    /// Silk/GLFW 原生窗口必须在创建它的逻辑线程销毁，故由渲染线程释放 surface 后经 <see cref="RenderTargetRegistry"/> 回传此处。
+    /// </summary>
+    public void ProcessNativeDisposals()
+    {
+        while (_targets.TryDequeueNativeDisposal(out var window))
+        {
+            if (window != null)
+                window.DisposeNative();
+        }
+    }
+
     private void RemoveWindow(IWindow window)
     {
         if (_windows.Contains(window))
@@ -59,6 +72,9 @@ public class WindowManager
 
     public void UpdateWindow()
     {
+        // 销毁上一帧已被渲染线程释放 surface 的窗口原生句柄（逻辑线程执行，S4 握手）
+        ProcessNativeDisposals();
+
         if (_pendingAddWindows.Count > 0)
         {
             foreach (var window in _pendingAddWindows)

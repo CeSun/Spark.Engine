@@ -20,11 +20,6 @@ internal sealed unsafe class SkeletalMeshStage : StaticMeshStage
     private TextureRenderTarget? _dummyDepthMap;
     private Sampler* _shadowSampler;
 
-    // 深度缓冲（按视口尺寸懒建，与静态 pass 各自独立）
-    private TextureRenderTarget? _depthTarget;
-    private uint _depthWidth;
-    private uint _depthHeight;
-
     public SkeletalMeshStage(BlinnPhongStageContext ctx) : base(ctx) { }
 
     public override void Initialize()
@@ -101,7 +96,8 @@ internal sealed unsafe class SkeletalMeshStage : StaticMeshStage
         FrameUniformData* framePtr = &frameUniform;
         api.QueueWriteBuffer(queue, _frameBuffer, 0, framePtr, (nuint)sizeof(FrameUniformData));
 
-        EnsureDepthTarget(target.Width, target.Height);
+        // 共享深度附件：与静态 pass 共用一份；骨骼 pass 经 DependsOn 排在静态 pass 后，Load 保留静态深度参与遮挡测试（S5）
+        var depthTarget = Ctx.GetSharedDepthTarget(target.Id, target.Width, target.Height);
 
         var encoder = api.DeviceCreateCommandEncoder(device, (CommandEncoderDescriptor*)null);
 
@@ -115,8 +111,8 @@ internal sealed unsafe class SkeletalMeshStage : StaticMeshStage
 
         var depthAttachment = new RenderPassDepthStencilAttachment
         {
-            View = _depthTarget!.View,
-            DepthLoadOp = LoadOp.Clear,
+            View = depthTarget.View,
+            DepthLoadOp = LoadOp.Load,
             DepthStoreOp = StoreOp.Store,
             DepthClearValue = 1.0f,
         };
@@ -280,17 +276,6 @@ internal sealed unsafe class SkeletalMeshStage : StaticMeshStage
         return view * proj;
     }
 
-    private void EnsureDepthTarget(uint width, uint height)
-    {
-        if (width == 0 || height == 0) return;
-        if (_depthTarget != null && _depthWidth == width && _depthHeight == height) return;
-
-        _depthTarget?.Dispose();
-        _depthTarget = new TextureRenderTarget(-21, Ctx.WebGpu.Api, Ctx.WebGpu.Device, width, height, TextureFormat.Depth24Plus, isDepth: true);
-        _depthWidth = width;
-        _depthHeight = height;
-    }
-
     public override void Dispose()
     {
         var api = Ctx.WebGpu.Api;
@@ -299,14 +284,12 @@ internal sealed unsafe class SkeletalMeshStage : StaticMeshStage
         if (_noShadowBindGroup != null) api.BindGroupRelease(_noShadowBindGroup);
         if (_frameBuffer != null) api.BufferRelease(_frameBuffer);
         if (_shadowSampler != null) api.SamplerRelease(_shadowSampler);
-        _depthTarget?.Dispose();
         _dummyDepthMap?.Dispose();
 
         _frameBindGroup = null;
         _noShadowBindGroup = null;
         _frameBuffer = null;
         _shadowSampler = null;
-        _depthTarget = null;
         _dummyDepthMap = null;
     }
 

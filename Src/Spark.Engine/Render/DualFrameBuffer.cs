@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 
 namespace Spark.Engine.Render;
@@ -75,6 +75,21 @@ public sealed class DualFrameBuffer<T> : IDisposable
 
         _emptySlots.Release();
         _readySlotAvailable.Release();
+    }
+
+    /// <summary>
+    /// 归还已取但未提交的空槽（异常路径回滚）：不提交帧，仅把当前写缓冲退回空池。
+    /// 供逻辑线程在 <see cref="GetEmptyBuffer"/> 之后、<see cref="SubmitReady"/> 之前发生异常时调用，防止帧槽泄漏（S2）。
+    /// </summary>
+    public void Abandon()
+    {
+        // 已 Dispose 时静默返回（此时空槽已无意义，避免对已释放信号量 Release）
+        if (Volatile.Read(ref _disposed) != 0)
+            return;
+
+        int idx = Volatile.Read(ref _writingIdx);
+        Volatile.Write(ref _emptyIdx, idx);
+        _emptySlots.Release();
     }
 
     public void Dispose()

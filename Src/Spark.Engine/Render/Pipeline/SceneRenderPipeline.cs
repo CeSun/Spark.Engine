@@ -162,9 +162,16 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             }
         }
 
-        // 被移除的渲染目标（ADR-7：视口 surface 延迟释放）
+        // 被移除的渲染目标（ADR-7：视口 surface 延迟释放；原生窗口销毁交回逻辑线程，S4 握手）
         while (_targets.TryDequeueRemoval(out var target))
+        {
             target?.Dispose();
+
+            // 视口 surface 已释放、渲染线程不再触碰该窗口后，登记其原生窗口由逻辑线程销毁，
+            // 避免在渲染线程销毁 Silk/GLFW 原生窗口（线程亲和性问题）导致的关闭失效。
+            if (target is Viewport viewport)
+                _targets.EnqueueNativeDisposal(viewport.Window);
+        }
     }
 
     private void ProcessUploads()

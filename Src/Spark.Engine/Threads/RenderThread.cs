@@ -37,8 +37,15 @@ public class RenderThread
             try
             {
                 var snapshot = _engineApplication.DualFrameBuffer.GetReadyBuffer();
-                _pipeline.Render(snapshot);
-                _engineApplication.DualFrameBuffer.ReturnEmpty();
+                try
+                {
+                    _pipeline.Render(snapshot);
+                }
+                finally
+                {
+                    // 渲染无论成败都必须归还帧槽，否则空槽泄漏 → 双线程永久死锁（S1）
+                    _engineApplication.DualFrameBuffer.ReturnEmpty();
+                }
             }
             catch (Exception ex)
             {

@@ -29,6 +29,10 @@ public interface IWindow
     /// <summary>释放渲染表面（交换链），由渲染线程帧末延迟调用（ADR-7）。</summary>
     void DisposeSurface();
 
+    /// <summary>销毁原生窗口（GLFW/Win32 句柄），由逻辑线程调用（S4 握手：渲染线程释放 surface 后登记，
+    /// 逻辑线程下一帧经 WindowManager.ProcessNativeDisposals 销毁，避免渲染线程仍在使用窗口时提前销毁）。</summary>
+    void DisposeNative();
+
     void PollEvents();
 
     void Close();

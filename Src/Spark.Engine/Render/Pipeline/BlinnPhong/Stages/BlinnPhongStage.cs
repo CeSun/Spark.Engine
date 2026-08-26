@@ -22,11 +22,6 @@ internal sealed unsafe class BlinnPhongStage : StaticMeshStage
     // 阴影比较采样器（group0 binding 2，必须是 Comparison 类型）
     private Sampler* _shadowSampler;
 
-    // 深度缓冲（按视口尺寸懒建）
-    private TextureRenderTarget? _depthTarget;
-    private uint _depthWidth;
-    private uint _depthHeight;
-
     // 无阴影时的占位深度纹理（group0 binding 1 必须是深度纹理，不能用颜色纹理）
     private TextureRenderTarget? _dummyDepthMap;
 
@@ -135,8 +130,8 @@ internal sealed unsafe class BlinnPhongStage : StaticMeshStage
         FrameUniformData* framePtr = &frameUniform;
         api.QueueWriteBuffer(queue, _frameBuffer, 0, framePtr, (nuint)sizeof(FrameUniformData));
 
-        // 深度缓冲（懒建）
-        EnsureDepthTarget(target.Width, target.Height);
+        // 共享深度附件：静态/骨骼共用一份，静态 pass 负责 Clear、随后骨骼 pass Load，恢复跨类别遮挡（S5）
+        var depthTarget = Ctx.GetSharedDepthTarget(target.Id, target.Width, target.Height);
 
         var encoder = api.DeviceCreateCommandEncoder(device, (CommandEncoderDescriptor*)null);
 
@@ -150,8 +145,8 @@ internal sealed unsafe class BlinnPhongStage : StaticMeshStage
 
         var depthAttachment = new RenderPassDepthStencilAttachment
         {
-            View = _depthTarget!.View,
-            DepthLoadOp = LoadOp.Clear,
+            View = depthTarget.View,
+            DepthLoadOp = clear ? LoadOp.Clear : LoadOp.Load,
             DepthStoreOp = StoreOp.Store,
             DepthClearValue = 1.0f,
         };
@@ -322,17 +317,6 @@ internal sealed unsafe class BlinnPhongStage : StaticMeshStage
         return view * proj;
     }
 
-    private void EnsureDepthTarget(uint width, uint height)
-    {
-        if (width == 0 || height == 0) return;
-        if (_depthTarget != null && _depthWidth == width && _depthHeight == height) return;
-
-        _depthTarget?.Dispose();
-        _depthTarget = new TextureRenderTarget(-11, Ctx.WebGpu.Api, Ctx.WebGpu.Device, width, height, TextureFormat.Depth24Plus, isDepth: true);
-        _depthWidth = width;
-        _depthHeight = height;
-    }
-
     public override void Dispose()
     {
         var api = Ctx.WebGpu.Api;
@@ -345,9 +329,6 @@ internal sealed unsafe class BlinnPhongStage : StaticMeshStage
         _noShadowBindGroup = null;
         _frameBuffer = null;
         _shadowSampler = null;
-
-        _depthTarget?.Dispose();
-        _depthTarget = null;
 
         _dummyDepthMap?.Dispose();
         _dummyDepthMap = null;

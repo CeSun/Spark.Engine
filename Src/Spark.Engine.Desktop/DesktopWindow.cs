@@ -72,17 +72,21 @@ public class DesktopWindow : IWindow
 
     public void Uninitialize()
     {
+        // 只释放输入上下文。原生窗口销毁走 S4 握手：渲染线程释放 surface 后经 RenderTargetRegistry 登记，
+        // 逻辑线程在下一帧 ProcessNativeDisposals 中调 DisposeNative 销毁（Silk/GLFW 原生窗口须在逻辑线程销毁）。
         _inputContext?.Dispose();
         _inputContext = null;
-
-        // RenderSurface 由渲染线程经 DisposeSurface 延迟释放（ADR-7），这里只释放 Silk 窗口
-        _window.Dispose();
     }
 
     public void DisposeSurface()
     {
         _surface?.Dispose();
         _surface = null;
+    }
+
+    public void DisposeNative()
+    {
+        _window.Dispose();
     }
 
     /// <summary>建立输入上下文并订阅鼠标/键盘事件，映射到引擎枚举后写入 <see cref="_input"/>。</summary>
