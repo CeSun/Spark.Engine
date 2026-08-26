@@ -256,10 +256,18 @@ public sealed class RenderGraph : IDisposable
 
         var context = new RenderGraphContext(_webGpu, _resources);
 
-        // 分配 transient 资源
+        // 分配 transient 资源：只分配被未剔除 pass 使用的（被剔除 pass 的产出不再每帧建/毁，中14）
+        var usedByLivePass = new HashSet<int>();
+        foreach (var pass in _executionOrder)
+        {
+            if (pass.IsCulled) continue;
+            foreach (var (res, _) in pass.Writes) usedByLivePass.Add(res.Id);
+            foreach (var (res, _) in pass.Reads) usedByLivePass.Add(res.Id);
+        }
         foreach (var resource in _resources.Values)
         {
             if (resource.IsExternal) continue;
+            if (!usedByLivePass.Contains(resource.Handle.Id)) continue;
             resource.TransientTarget = _pool.Allocate(resource.Desc);
         }
 

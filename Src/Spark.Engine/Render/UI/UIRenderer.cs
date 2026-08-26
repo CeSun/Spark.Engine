@@ -53,7 +53,8 @@ public unsafe sealed class UIRenderer : IGraphOverlay
     private readonly Dictionary<int, nint> _textureBindGroups = new();
 
     // 渲染视图 bind group 缓存（renderViewId → bind group），用于 UIRenderView 控件
-    private readonly Dictionary<int, nint> _renderViewBindGroups = new();
+    // renderViewId → (bind group, 创建时的 View 指针)；目标重建后 View 变化则释放重建（中12）
+    private readonly Dictionary<int, (nint BindGroup, nint View)> _renderViewBindGroups = new();
 
     public UIRenderer(WebGPUContext? webGpu, RenderTargetRegistry targets, ILogger<UIRenderer>? logger, UIManager uiManager)
     {
@@ -284,18 +285,27 @@ public unsafe sealed class UIRenderer : IGraphOverlay
                 if (_renderViewBindGroups.Remove(renderViewId, out var stale))
                 {
                     var api = _webGpu!.Api;
-                    api.BindGroupRelease((BindGroup*)stale);
+                    api.BindGroupRelease((BindGroup*)stale.BindGroup);
                 }
                 return _bindGroup;
             }
 
-            // 检查缓存是否仍然有效（目标可能被重建，View 指针变化）
+            // 缓存命中但 View 指针变化（目标被重建）→ 释放旧 bind group 并重建，防悬垂/泄漏（中12）
             if (_renderViewBindGroups.TryGetValue(renderViewId, out var cached))
-                return (BindGroup*)cached;
+            {
+                if (cached.View == (nint)texTarget.View)
+                    return (BindGroup*)cached.BindGroup;
+
+                var api = _webGpu!.Api;
+                api.BindGroupRelease((BindGroup*)cached.BindGroup);
+                var rebuilt = CreateTextureBindGroup(texTarget.View);
+                _renderViewBindGroups[renderViewId] = ((nint)rebuilt, (nint)texTarget.View);
+                return rebuilt;
+            }
 
             // 创建新的 bind group
             var newBindGroup = CreateTextureBindGroup(texTarget.View);
-            _renderViewBindGroups[renderViewId] = (nint)newBindGroup;
+            _renderViewBindGroups[renderViewId] = ((nint)newBindGroup, (nint)texTarget.View);
             return newBindGroup;
         }
 
@@ -694,9 +704,9 @@ public unsafe sealed class UIRenderer : IGraphOverlay
         _textureBindGroups.Clear();
 
         // 清理渲染视图 bind group（注意：不释放 TextureRenderTarget 本身，它由 RenderTargetRegistry 管理）
-        foreach (var bindGroup in _renderViewBindGroups.Values)
-            if (bindGroup != 0)
-                api.BindGroupRelease((BindGroup*)bindGroup);
+        foreach (var cached in _renderViewBindGroups.Values)
+            if (cached.BindGroup != 0)
+                api.BindGroupRelease((BindGroup*)cached.BindGroup);
         _renderViewBindGroups.Clear();
 
         foreach (var texture in _textures.Values)
