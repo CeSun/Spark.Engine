@@ -290,6 +290,10 @@ public unsafe sealed class UIRenderer : IGraphOverlay
                 return _bindGroup;
             }
 
+            // 渲染视图 GPU 未就绪（延迟创建中，中4）：回退白纹理
+            if (texTarget.View == null)
+                return _bindGroup;
+
             // 缓存命中但 View 指针变化（目标被重建）→ 释放旧 bind group 并重建，防悬垂/泄漏（中12）
             if (_renderViewBindGroups.TryGetValue(renderViewId, out var cached))
             {

@@ -68,6 +68,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             return;
 
         EnsurePipelineResources();
+        ProcessRenderViewCreations();
         ProcessUploads();
         SyncProxyStates(snapshot);
 
@@ -171,6 +172,19 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             // 避免在渲染线程销毁 Silk/GLFW 原生窗口（线程亲和性问题）导致的关闭失效。
             if (target is Viewport viewport)
                 _targets.EnqueueNativeDisposal(viewport.Window);
+        }
+    }
+
+    /// <summary>帧首处理逻辑线程登记的渲染视图延迟创建请求（中4）。</summary>
+    private void ProcessRenderViewCreations()
+    {
+        while (_targets.TryDequeueRenderViewCreation(out var target))
+        {
+            // 已被移除/销毁的目标跳过创建（同帧 Destroy 后残留的请求）
+            if (!_targets.TryGet(target.Id, out var registered) || !ReferenceEquals(registered, target))
+                continue;
+
+            target.EnsureCreated(_webGpu!.Api, _webGpu.Device);
         }
     }
 

@@ -14,6 +14,7 @@ public sealed class RenderTargetRegistry
     private readonly ConcurrentDictionary<int, RenderTarget> _targets = new();
     private readonly ConcurrentQueue<RenderTarget> _pendingRemovals = new();
     private readonly ConcurrentQueue<IWindow> _pendingNativeDisposals = new();
+    private readonly ConcurrentQueue<TextureRenderTarget> _pendingRenderViewCreations = new();
     private int _nextId;
 
     /// <summary>分配一个全局唯一的 TargetId。</summary>
@@ -38,4 +39,10 @@ public sealed class RenderTargetRegistry
 
     /// <summary>逻辑线程 drain 原生窗口销毁队列，调用 <see cref="IWindow.DisposeNative"/>。</summary>
     public bool TryDequeueNativeDisposal(out IWindow? window) => _pendingNativeDisposals.TryDequeue(out window);
+
+    /// <summary>逻辑线程登记渲染视图延迟创建请求（渲染线程帧首处理，中4）。</summary>
+    public void EnqueueRenderViewCreation(TextureRenderTarget target) => _pendingRenderViewCreations.Enqueue(target);
+
+    /// <summary>渲染线程帧首 drain 渲染视图创建队列。</summary>
+    public bool TryDequeueRenderViewCreation(out TextureRenderTarget? target) => _pendingRenderViewCreations.TryDequeue(out target);
 }

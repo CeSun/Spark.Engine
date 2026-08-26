@@ -68,13 +68,13 @@ public class EngineApplication
     /// 相机可将其作为 <c>RenderTarget</c> 渲染，UI 控件通过 <c>Id</c> 采样显示。
     /// 销毁请调用 <see cref="DestroyRenderView"/>。
     /// </summary>
-    public unsafe TextureRenderTarget CreateRenderView(uint width, uint height)
+    public TextureRenderTarget CreateRenderView(uint width, uint height)
     {
-        var webGpu = ServiceProvider.GetRequiredService<WebGPUContext>();
         var id = RenderTargets.AllocateId();
-        var target = new TextureRenderTarget(
-            id, webGpu.Api, webGpu.Device, width, height, Silk.NET.WebGPU.TextureFormat.Rgba8Unorm, isDepth: false);
+        // 延迟创建：GPU 资源经队列由渲染线程帧首创建，逻辑线程不再直接调 WebGPU device（中4）
+        var target = new TextureRenderTarget(id, width, height, Silk.NET.WebGPU.TextureFormat.Rgba8Unorm, isDepth: false);
         RenderTargets.Register(target);
+        RenderTargets.EnqueueRenderViewCreation(target);
         _ui.RegisterRenderView(id, width, height);
         return target;
     }
