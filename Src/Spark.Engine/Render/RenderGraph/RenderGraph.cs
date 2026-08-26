@@ -81,15 +81,20 @@ public sealed class RenderGraph : IDisposable
         foreach (var pass in _passes)
             pass.RunSetup();
 
-        // 2. 建依赖边：pass A 写 R、pass B 读 R → A→B 边
-        //    同时算每个 transient 资源的存活区间
+        // 2. 建依赖边：按资源收集访问事件，同一资源任意两个冲突事件（至少一个写）之间建边，
+        //    补齐 read→write / write→write 边（中8）；DependsOn 用「资源→最后写者」映射（只认注册序在前的写者，中9）。
+        //    同时算每个 transient 资源的存活区间。
         var adjList = new Dictionary<int, List<int>>();   // pass index → 后继列表
         var inDegree = new int[_passes.Count];
         for (int i = 0; i < _passes.Count; i++)
             adjList[i] = new List<int>();
 
+        var accessEvents = new Dictionary<int, List<(int Pass, bool IsWrite)>>();
+        var lastWriter = new Dictionary<int, int>();
+
         for (int i = 0; i < _passes.Count; i++)
         {
+            // 写访问：与所有更早访问冲突（写 vs 读/写）→ 建边
             foreach (var (resource, _) in _passes[i].Writes)
             {
                 if (_resources.TryGetValue(resource.Id, out var tex) && !tex.IsExternal)
@@ -98,54 +103,56 @@ public sealed class RenderGraph : IDisposable
                     tex.LastRead = System.Math.Max(tex.LastRead, i);
                 }
 
-                // 寻找读此资源的 pass
-                for (int j = i + 1; j < _passes.Count; j++)
+                if (accessEvents.TryGetValue(resource.Id, out var events))
                 {
-                    bool reads = false;
-                    foreach (var (readRes, _) in _passes[j].Reads)
-                    {
-                        if (readRes.Id == resource.Id)
-                        {
-                            reads = true;
-                            break;
-                        }
-                    }
-                    if (reads)
-                    {
-                        adjList[i].Add(j);
-                        inDegree[j]++;
-                    }
+                    foreach (var (j, _) in events)
+                        AddDependencyEdge(adjList, inDegree, j, i);
                 }
             }
 
-            // 读取的资源也要更新 LastRead（即使 pass j 只读不写）
+            // 读访问：只与更早的写冲突 → 建边
             foreach (var (resource, _) in _passes[i].Reads)
             {
                 if (_resources.TryGetValue(resource.Id, out var tex) && !tex.IsExternal)
                     tex.LastRead = System.Math.Max(tex.LastRead, i);
-            }
 
-            // 显式依赖：DependsOn 引用的资源所在 pass → 本 pass
-            foreach (var depRes in _passes[i].ExplicitDependencies)
-            {
-                for (int j = 0; j < _passes.Count; j++)
+                if (accessEvents.TryGetValue(resource.Id, out var events))
                 {
-                    if (j == i) continue;
-                    bool writesDep = false;
-                    foreach (var (writeRes, _) in _passes[j].Writes)
+                    foreach (var (j, isWrite) in events)
                     {
-                        if (writeRes.Id == depRes.Id)
-                        {
-                            writesDep = true;
-                            break;
-                        }
-                    }
-                    if (writesDep && j < i)
-                    {
-                        adjList[j].Add(i);
-                        inDegree[i]++;
+                        if (isWrite)
+                            AddDependencyEdge(adjList, inDegree, j, i);
                     }
                 }
+            }
+
+            // 显式依赖：DependsOn 依赖「最后写者」（只认注册序在前的写者），
+            // 避免扫描全部写者连到后注册 pass，与 write→write 边成环（中9）
+            foreach (var depRes in _passes[i].ExplicitDependencies)
+            {
+                if (lastWriter.TryGetValue(depRes.Id, out var writerIdx))
+                    AddDependencyEdge(adjList, inDegree, writerIdx, i);
+            }
+
+            // 登记本 pass 的访问事件与最后写者（供后续 pass 建边）
+            foreach (var (resource, _) in _passes[i].Writes)
+            {
+                if (!accessEvents.TryGetValue(resource.Id, out var events))
+                {
+                    events = new List<(int, bool)>();
+                    accessEvents[resource.Id] = events;
+                }
+                events.Add((i, true));
+                lastWriter[resource.Id] = i;
+            }
+            foreach (var (resource, _) in _passes[i].Reads)
+            {
+                if (!accessEvents.TryGetValue(resource.Id, out var events))
+                {
+                    events = new List<(int, bool)>();
+                    accessEvents[resource.Id] = events;
+                }
+                events.Add((i, false));
             }
         }
 
@@ -224,6 +231,18 @@ public sealed class RenderGraph : IDisposable
         _compiled = true;
         _logger?.LogDebug("RenderGraph compiled: {PassCount} passes, {ResourceCount} resources",
             _executionOrder.Count, _resources.Count);
+    }
+
+    /// <summary>加一条 from→to 依赖边（去重；from == to 忽略）。</summary>
+    private static void AddDependencyEdge(Dictionary<int, List<int>> adjList, int[] inDegree, int from, int to)
+    {
+        if (from == to)
+            return;
+        if (!adjList[from].Contains(to))
+        {
+            adjList[from].Add(to);
+            inDegree[to]++;
+        }
     }
 
     /// <summary>

@@ -40,19 +40,20 @@ public class Actor
 
     public virtual void BeginPlay()
     {
-        foreach (var component in _ownedComponents)
+        // 副本迭代：组件回调里 AddOwnedComponent 重入不破坏集合（中3）
+        foreach (var component in _ownedComponents.ToArray())
             component.BeginPlay();
     }
 
     public virtual void Update(float deltaTime)
     {
-        foreach (var component in _ownedComponents)
+        foreach (var component in _ownedComponents.ToArray())
             component.Update(deltaTime);
     }
 
     public virtual void EndPlay()
     {
-        foreach (var component in _ownedComponents)
+        foreach (var component in _ownedComponents.ToArray())
             component.EndPlay();
     }
 }

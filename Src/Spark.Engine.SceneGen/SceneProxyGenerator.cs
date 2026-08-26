@@ -197,11 +197,13 @@ public sealed class SceneProxyGenerator : IIncrementalGenerator
         sb.AppendLine("        OnBeginPlay();");
         sb.AppendLine("    }");
         sb.AppendLine();
+        // 顺序 = base → OnUpdate → SyncProxy：代理抓取本 tick 用户逻辑之后的状态，
+        // 与 FillFrameData 中相机矩阵（WorldTransform 现算）同相位，消除运动相机下世界滞后 1 tick（中1）
         sb.AppendLine("    public override void Update(float deltaTime)");
         sb.AppendLine("    {");
         sb.AppendLine("        base.Update(deltaTime);");
-        sb.AppendLine("        SyncProxy();");
         sb.AppendLine("        OnUpdate(deltaTime);");
+        sb.AppendLine("        SyncProxy();");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    public override void EndPlay()");

@@ -29,6 +29,14 @@ public class World
     public void RemoveActor(Actor actor)
     {
         if (actor == null) throw new ArgumentNullException(nameof(actor));
+
+        // 同帧 Add 后 Remove：取消添加，actor 从不进入世界，代理不泄漏（中2）
+        if (_pendingAddActors.Remove(actor))
+        {
+            actor.SetWorld(null);
+            return;
+        }
+
         if (!_actors.Contains(actor) || _pendingRemoveActors.Contains(actor))
             return;
 
@@ -37,22 +45,48 @@ public class World
 
     public void Update(float deltaTime)
     {
-        foreach (var actor in _pendingAddActors)
+        // 待添加：对副本迭代 + 只移除已处理项；BeginPlay 重入 Add/Remove 不破坏集合（中3）
+        foreach (var actor in _pendingAddActors.ToArray())
         {
+            if (!_pendingAddActors.Contains(actor))
+                continue;   // 已被同帧 RemoveActor 取消（中2）
+
             _actors.Add(actor);
-            actor.BeginPlay();
+            try
+            {
+                actor.BeginPlay();
+            }
+            catch
+            {
+                // add 侧异常回滚：不留下半注册的 actor（中5）
+                _actors.Remove(actor);
+                _pendingAddActors.Remove(actor);
+                actor.SetWorld(null);
+                throw;
+            }
+            _pendingAddActors.Remove(actor);
         }
-        _pendingAddActors.Clear();
 
-        foreach (var actor in _pendingRemoveActors)
+        // 待移除：对副本迭代 + try/finally 保证列表与 world 一致（中3/中5）
+        foreach (var actor in _pendingRemoveActors.ToArray())
         {
-            actor.EndPlay();
-            _actors.Remove(actor);
-            actor.SetWorld(null);
-        }
-        _pendingRemoveActors.Clear();
+            if (!_pendingRemoveActors.Contains(actor))
+                continue;   // 已被取消
 
-        foreach (var actor in _actors)
+            try
+            {
+                actor.EndPlay();
+            }
+            finally
+            {
+                _actors.Remove(actor);
+                actor.SetWorld(null);
+                _pendingRemoveActors.Remove(actor);
+            }
+        }
+
+        // 更新：副本迭代，回调重入增删不影响本帧集合（中3）
+        foreach (var actor in _actors.ToArray())
         {
             actor.Update(deltaTime);
         }
