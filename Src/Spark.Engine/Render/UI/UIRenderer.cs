@@ -326,8 +326,17 @@ public unsafe sealed class UIRenderer : IGraphOverlay
     {
         while (_uiManager.TryDequeueTexture(out var upload))
         {
-            if (_textures.ContainsKey(upload.Id))
-                continue;
+            // 同一 Id 重复上传时（如 TextRenderer 重建纹理），释放旧 GPU 资源后替换
+            if (_textures.TryGetValue(upload.Id, out var oldTexture))
+            {
+                if (_textureBindGroups.TryGetValue(upload.Id, out var oldBg))
+                {
+                    _webGpu!.Api.BindGroupRelease((BindGroup*)oldBg);
+                    _textureBindGroups.Remove(upload.Id);
+                }
+                oldTexture.Dispose();
+                _textures.Remove(upload.Id);
+            }
 
             var texture = CreateTextureGPUResource(upload.Width, upload.Height, upload.Rgba);
             var bindGroup = CreateTextureBindGroup(texture.View);

@@ -50,12 +50,8 @@ public static class RenderViewOverlay
         });
         dock.AddChild(header);
 
-        // 中部：渲染视图控件（Fill 填满剩余区域，自动保持宽高比 + 自适应分辨率）
-        renderView.BackgroundColor = new Vector4(0.02f, 0.02f, 0.03f, 1f);
-        renderView.Dock = UIDock.Fill;
-        dock.AddChild(renderView);
-
-        // 底部说明
+        // 底部说明（Bottom 必须在 Fill 之前声明，否则 LastChildFill 会把最后一个子元素强制为 Fill，
+        // 导致 status 被安排到 (0,0,0,0) 且文字画到窗口左上角与 header 重叠）
         var status = new UIStackPanel
         {
             Orientation = UIOrientation.Horizontal,
@@ -70,6 +66,12 @@ public static class RenderViewOverlay
             TextColor = new Vector4(0.85f, 0.92f, 1f, 0.9f),
         });
         dock.AddChild(status);
+
+        // 中部：渲染视图控件（Fill 填满剩余区域，自动保持宽高比 + 自适应分辨率）
+        // 作为最后一个子元素声明，符合 LastChildFill 语义
+        renderView.BackgroundColor = new Vector4(0.02f, 0.02f, 0.03f, 1f);
+        renderView.Dock = UIDock.Fill;
+        dock.AddChild(renderView);
 
         return dock;
     }

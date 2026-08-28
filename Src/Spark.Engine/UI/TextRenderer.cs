@@ -29,17 +29,20 @@ public sealed class TextRenderer
         _font = font;
     }
 
-    /// <summary>测量文本的逻辑像素尺寸。</summary>
+    /// <summary>测量文本的逻辑像素尺寸。返回值与 CreateTexture 生成的纹理尺寸**完全一致**，
+    /// 保证布局分配的空间恰好容纳绘制内容，垂直排列时不重叠。</summary>
     public Vector2 Measure(string text)
     {
         if (string.IsNullOrEmpty(text))
             return Vector2.Zero;
 
-        var size = TextMeasurer.MeasureSize(text, new TextOptions(_font) { Dpi = Dpi });
-        return new Vector2(size.Width, size.Height);
+        var bounds = MeasureBounds(text);
+        return new Vector2(
+            System.Math.Max(1, (int)System.MathF.Ceiling(bounds.Right - bounds.Left) + 2),
+            System.Math.Max(1, (int)System.MathF.Ceiling(bounds.Bottom - bounds.Top) + 2));
     }
 
-    /// <summary>在 <paramref name="position"/>（逻辑像素，左上）绘制着色文本。</summary>
+    /// <summary>在 <paramref name="position"/>（逻辑像素，行框左上）绘制着色文本。</summary>
     public void DrawText(UIManager ui, int targetId, string text, Vector2 position, Vector4 color)
     {
         if (string.IsNullOrEmpty(text))
@@ -65,23 +68,30 @@ public sealed class TextRenderer
         });
     }
 
+    /// <summary>取文本紧贴墨水包围盒（相对 Origin=(0,0)，即行框左上角）。</summary>
+    private FontRectangle MeasureBounds(string text)
+    {
+        var options = new RichTextOptions(_font) { Dpi = Dpi, Origin = new PointF(0f, 0f) };
+        return TextMeasurer.MeasureBounds(text, options);
+    }
+
     private int CreateTexture(UIManager ui, string text)
     {
-        // 用与 Measure 一致的文本选项取墨水包围盒。MeasureBounds 返回相对 Origin=(0,0) 的紧贴墨水盒，
-        // 其 Left/Top 可能为负（斜体左侧悬突、Å/É 等 ascender 超出线高、组合符上附加符号）。
-        var measureOptions = new RichTextOptions(_font) { Dpi = Dpi, Origin = new PointF(0f, 0f) };
-        var bounds = TextMeasurer.MeasureBounds(text, measureOptions);
-
-        // 全包围盒 + 四向各 1px 抗锯齿余量；旧版只 ceil(Right/Bottom) 会把负的 Left/Top 裁掉。
+        // MeasureBounds 返回相对 Origin=(0,0)（行框左上角）的紧贴墨水盒。
+        // Left/Top 通常是小的正值（字形左侧 bearing / ascender 顶部距行框顶部的距离），
+        // 也可能是负值（斜体左侧悬突、组合符上附加符号超出）。
+        var bounds = MeasureBounds(text);
         float left = bounds.Left;
         float top = bounds.Top;
         float right = bounds.Right;
         float bottom = bounds.Bottom;
+
+        // 全包围盒 + 四向各 1px 抗锯齿余量（与 Measure 完全一致）。
         int width = System.Math.Max(1, (int)System.MathF.Ceiling(right - left) + 2);
         int height = System.Math.Max(1, (int)System.MathF.Ceiling(bottom - top) + 2);
 
         // 绘制原点平移：让墨水盒 [left,right]×[top,bottom] 落到纹理像素 [1, 1+ceil(right-left)] 区间内，
-        // 左/上各留 1px 余量。这样 ascender/overhang 像素不会画到纹理边界外被裁。
+        // 左/上各留 1px 余量，ascender/overhang 像素不会被纹理边界裁掉。
         var drawOptions = new RichTextOptions(_font)
         {
             Dpi = Dpi,
@@ -94,8 +104,9 @@ public sealed class TextRenderer
         var rgba = new byte[width * height * 4];
         image.CopyPixelDataTo(rgba);
 
-        // DrawText 绘制四边形时，纹理左上角放在 position + offset，
-        // 使纹理内像素 (1,1) 即墨水 (left, top) 落到屏幕 position + (left, top) —— 与文本逻辑原点一致。
+        // 纹理内墨水起点像素 (1,1) 对应逻辑坐标 (left, top)。
+        // 四边形放在 position + (left-1, top-1)，使该像素落到屏幕 position + (left, top)，
+        // 与「position 为行框左上角」的语义一致。
         var offset = new Vector2(left - 1f, top - 1f);
 
         int id = _nextTextureId++;
