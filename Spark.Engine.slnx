@@ -10,4 +10,7 @@
     <Project Path="Src/Spark.Engine/Spark.Engine.csproj" />
     <Project Path="Src/Spark.Engine.SceneGen/Spark.Engine.SceneGen.csproj" />
   </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Spark.Engine.Tests/Spark.Engine.Tests.csproj" />
+  </Folder>
 </Solution>
