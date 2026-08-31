@@ -4,7 +4,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using Spark.Engine;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
-using Spark.Engine.Platforms;
+using Spark.Engine.Editor;
 using Spark.Engine.Render.Common;
 using Spark.Engine.Resources;
 using Spark.Engine.UI;
@@ -13,22 +13,22 @@ using Spark.Engine.Worlds;
 namespace Demo;
 
 /// <summary>
-/// 演示内容：构建世界、两个相机（两个窗口不同视角观察同一场景）、两个三角形 + 两堵砖墙 + 投影聚光灯，
-/// 并让墙左右摆动。平台无关——只依赖 Spark.Engine 核心；各平台入口（桌面/编辑器）在 InitializeCallback 里调用
-/// <see cref="Initialize"/>。
+/// 演示内容：编辑器 MVP 第一步——编辑器布局（菜单栏 + 场景层级面板 + 检查器 + 状态栏）
+/// 叠在 3D 场景之上（左右面板遮挡、中间透明露出场景），场景沿用原 Demo：
+/// 两个三角形 + 两堵砖墙（有/无法线贴图）+ 投影聚光灯 + 骨骼手臂 + 摆墙动画 + UIRenderView 画中画。
 /// </summary>
 public static class DemoApp
 {
-    /// <summary>搭建演示场景（作为 <see cref="EngineApplication.InitializeCallback"/> 使用）。</summary>
+    /// <summary>搭建演示场景与编辑器 UI（作为 <see cref="EngineApplication.InitializeCallback"/> 使用）。</summary>
     public static void Initialize(EngineApplication app)
     {
         // 资源目录：随入口程序输出目录拷贝的 Assets 文件夹（AppContext.BaseDirectory = 入口程序输出目录）
-        var assetsDir = Path.Combine(AppContext.BaseDirectory, "Assets");
+        var assetsDir = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets");
 
         // 加载图片 → RGBA8 Texture2D（ImageSharp 解码 jpg）
         Texture2D LoadTexture(string fileName)
         {
-            var path = Path.Combine(assetsDir, fileName);
+            var path = System.IO.Path.Combine(assetsDir, fileName);
             using var image = Image.Load<Rgba32>(path);
             var rgba = new byte[image.Width * image.Height * 4];
             image.CopyPixelDataTo(rgba);
@@ -40,38 +40,21 @@ public static class DemoApp
         app.WorldContext.CurrentWorld = world;
         world.Scene.ResourceManager = app.ResourceManager;
 
-        // 两个窗口、两个不同视角，观察同一场景（验证 RenderGraph 帧级 acquire/present 收口）
+        // ———— 3D 场景（沿用原 Demo 内容） ————
         var mainWindow = app.WindowManager.MainWindow;
         var mainViewport = app.WindowManager.GetViewport(mainWindow)!;
 
-        // 第二个窗口：右侧上方俯看同一场景
-        var secondWindow = app.WindowManager.CreateWindow("Spark Engine - Side View", 800, 600);
-        var secondViewport = app.WindowManager.GetViewport(secondWindow)!;
-
         AddCamera(world, mainViewport, eye: new Vector3(0f, 0f, 1.5f), lookAt: new Vector3(0f, 0f, -2f));
-        AddCamera(world, secondViewport, eye: new Vector3(3.5f, 1.5f, 1.5f), lookAt: new Vector3(0f, 0f, -2.5f));
 
-        // P6-fix 验收 Hub：按钮切换 4 个验收场景（Grid Auto/Span、Clip+HitTest、控件树操作、文本包围盒）
-        // 切换方式：按钮 Clicked 调用 switchTo → 清焦点 + 清 Overlay + 替换 canvas.Root（下一帧 Update 生效）。
-        var uiCanvas = app.UIManager.GetOrCreateCanvas(mainViewport.Id);
-        Action<Spark.Engine.UI.UIElement> switchTo = root =>
-        {
-            uiCanvas.ClearFocus();
-            uiCanvas.Overlays.Clear();
-            uiCanvas.Root = root;
-        };
-        uiCanvas.Root = VerifyHub.Build(switchTo);
-
-        // 2x2 纹理：红 / 绿 / 蓝 / 白（RGBA8）
+        // 2x2 纹理：红 / 绿 / 蓝 / 白
         var texture = new Texture2D(2, 2, new byte[]
         {
-            255, 0, 0, 255,       // (0,0) 红
-            0, 255, 0, 255,       // (1,0) 绿
-            0, 0, 255, 255,       // (0,1) 蓝
-            255, 255, 255, 255,   // (1,1) 白
+            255, 0, 0, 255,
+            0, 255, 0, 255,
+            0, 0, 255, 255,
+            255, 255, 255, 255,
         });
 
-        // 两个三角形（顶点：位置 + 颜色 + UV + 法线，法线朝 +Z 面向相机/光源）
         var normal = new Vector3(0f, 0f, 1f);
         var meshLeft = new StaticMesh(
             new[]
@@ -91,31 +74,21 @@ public static class DemoApp
             },
             new uint[] { 0, 1, 2 });
 
-        // 左三角：Unlit + 纹理（测试纹理采样，无光照）
         var material = new Material
         {
             ShadingModel = ShadingModel.Unlit,
             BaseColorTexture = texture,
         };
-
-        // 右三角：Unlit + 纯蓝（测试 base color，无光照）
         var materialRight = new Material
         {
             ShadingModel = ShadingModel.Unlit,
             BaseColor = new Vector4(0f, 0f, 1f, 1f),
         };
 
-        // 左三角
-        var meshActorLeft = new Actor();
-        meshActorLeft.AddOwnedComponent(new StaticMeshComponent { Mesh = meshLeft, Material = material });
-        world.AddActor(meshActorLeft);
+        AddMeshActor(world, meshLeft, material);
+        AddMeshActor(world, meshRight, materialRight);
 
-        // 右三角
-        var meshActorRight = new Actor();
-        meshActorRight.AddOwnedComponent(new StaticMeshComponent { Mesh = meshRight, Material = materialRight });
-        world.AddActor(meshActorRight);
-
-        // 背景墙 mesh（左右两墙共享）：局部坐标（中心在原点），由 RelativeLocation 定位到 z=-4
+        // 背景墙（左右两墙共享 mesh）
         var wallNormal = new Vector3(0f, 0f, 1f);
         var wallMesh = new StaticMesh(
             new[]
@@ -127,11 +100,9 @@ public static class DemoApp
             },
             new uint[] { 0, 1, 2, 0, 2, 3 });
 
-        // 加载真实砖墙贴图：颜色贴图 + 法线贴图（jpg → RGBA8）
         var wallColorTexture = LoadTexture("brickwall.jpg");
         var wallNormalTexture = LoadTexture("brickwall_normal.jpg");
 
-        // 左墙：有法线贴图
         var wallWithNormal = new Material
         {
             ShadingModel = ShadingModel.Lit,
@@ -140,8 +111,6 @@ public static class DemoApp
             BaseColorTexture = wallColorTexture,
             NormalTexture = wallNormalTexture,
         };
-
-        // 右墙：无法线贴图（对照）
         var wallWithoutNormal = new Material
         {
             ShadingModel = ShadingModel.Lit,
@@ -172,8 +141,6 @@ public static class DemoApp
         rightWallActor.AddOwnedComponent(rightWall);
         world.AddActor(rightWallActor);
 
-        // 聚光光源（CastShadow）：朝 -Z 照射，把两个三角形投到背景墙上；固定偏移到 (0.5, 0, 0)
-        // （光源与相机错开，阴影才会投到三角形侧面可见的位置）
         var spotLight = new SpotLightComponent
         {
             RelativeLocation = new Vector3(0.5f, 0f, 0f),
@@ -188,7 +155,6 @@ public static class DemoApp
         lightActor.AddOwnedComponent(spotLight);
         world.AddActor(lightActor);
 
-        // 骨骼网格：两段"手臂"条带，关节在原点，绕 Z 轴弯曲（GPU 蒙皮）
         var armComponent = new SkeletalMeshComponent
         {
             Mesh = CreateSkeletalArm(),
@@ -204,39 +170,44 @@ public static class DemoApp
         armActor.AddOwnedComponent(armComponent);
         world.AddActor(armActor);
         world.AddActor(new SkeletalAnimator(armComponent));
-
-        // 让两堵墙一起绕自身中心（Y 轴）左右摆动：墙面法线方向持续变化，观察不同方向受光
         world.AddActor(new WallSwinger(leftWall, rightWall));
 
-        // ———————— UIRenderView 演示：离屏渲染 + UI 控件显示引擎画面 ————————
-        // 1. 创建离屏渲染目标（注册到 RenderTargets + UIManager）
-        var renderView = app.CreateRenderView(320, 240);
+        // ———— 编辑器 UI：菜单栏 + 场景层级面板 + 检查器 + 状态栏，叠在 3D 场景上 ————
+        var editorUi = new EditorUi(world);
+        var uiCanvas = app.UIManager.GetOrCreateCanvas(mainViewport.Id);
+        uiCanvas.Root = editorUi.Root;
 
-        // 2. 添加一个相机渲染到离屏目标（第三个视角，俯视全景）
-        CameraComponent? offscreenCamera = null;
+        // 每帧驱动：层级树结构签名比对 + 检查器/状态栏刷新
+        app.WorldContext.CurrentWorld.AddActor(new EditorRefreshActor(() => editorUi.Refresh()));
+
+        // ———— UIRenderView 画中画：嵌入编辑器中部视口区 ————
+        var renderView = app.CreateRenderView(320, 240);
         var renderViewControl = new UIRenderView
         {
             RenderViewId = renderView.Id,
-            ResolutionScale = 1.5f, // 1.5x 超采样，缩小显示更锐利
+            ResolutionScale = 1.5f,
             MaintainAspectRatio = true,
         };
-
-        // 3. 自适应分辨率：显示区域变化时重建离屏目标（消除放大模糊）
+        CameraComponent? offscreenCamera = null;
         renderViewControl.RenderViewResizeRequested = (oldId, width, height) =>
         {
             var next = app.CreateRenderView(width, height);
             if (offscreenCamera != null)
                 offscreenCamera.RenderTarget = next;
             if (app.RenderTargets.TryGet(oldId, out var oldTarget) && oldTarget is TextureRenderTarget oldTex)
-                app.DestroyRenderView(oldTex); // 延迟释放旧目标（渲染线程帧末）
+                app.DestroyRenderView(oldTex);
             return next.Id;
         };
-
         offscreenCamera = AddCamera(world, renderView, eye: new Vector3(-3f, 3f, 3f), lookAt: new Vector3(0f, 0f, -2f));
 
-        // 4. 第三个窗口：整个 UI 画布显示该渲染视图（UIRenderView 控件）
-        var thirdWindow = app.WindowManager.CreateWindow("Spark Engine - Render View Control", 480, 400);
-        RenderViewOverlay.Attach(app, thirdWindow, renderViewControl);
+        editorUi.SetPictureInPicture(renderViewControl);
+    }
+
+    private static void AddMeshActor(World world, StaticMesh mesh, Material material)
+    {
+        var actor = new Actor();
+        actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh, Material = material });
+        world.AddActor(actor);
     }
 
     /// <summary>两段骨骼"手臂"条带：下段绑 bone0，上段绑 bone1，关节在原点，bind pose 为单位阵。</summary>
@@ -245,12 +216,10 @@ public static class DemoApp
         var normal = new Vector3(0f, 0f, 1f);
         var vertices = new SkeletalMeshVertex[]
         {
-            // 下段（bone 0）
             new SkeletalMeshVertex(new Vector3(-0.15f, -1f, 0f), Vector3.One, new Vector2(0f, 0f), normal, 0u, new Vector4(1f, 0f, 0f, 0f)),
             new SkeletalMeshVertex(new Vector3(0.15f, -1f, 0f), Vector3.One, new Vector2(1f, 0f), normal, 0u, new Vector4(1f, 0f, 0f, 0f)),
             new SkeletalMeshVertex(new Vector3(0.15f, 0f, 0f), Vector3.One, new Vector2(1f, 1f), normal, 0u, new Vector4(1f, 0f, 0f, 0f)),
             new SkeletalMeshVertex(new Vector3(-0.15f, 0f, 0f), Vector3.One, new Vector2(0f, 1f), normal, 0u, new Vector4(1f, 0f, 0f, 0f)),
-            // 上段（bone 1）
             new SkeletalMeshVertex(new Vector3(-0.15f, 0f, 0f), Vector3.One, new Vector2(0f, 0f), normal, 1u, new Vector4(1f, 0f, 0f, 0f)),
             new SkeletalMeshVertex(new Vector3(0.15f, 0f, 0f), Vector3.One, new Vector2(1f, 0f), normal, 1u, new Vector4(1f, 0f, 0f, 0f)),
             new SkeletalMeshVertex(new Vector3(0.15f, 1f, 0f), Vector3.One, new Vector2(1f, 1f), normal, 1u, new Vector4(1f, 0f, 0f, 0f)),
@@ -265,11 +234,10 @@ public static class DemoApp
     {
         var camera = new CameraComponent { RenderTarget = target };
 
-        // 用 lookAt 的逆反推相机位姿：view = Invert(cameraWorld)，cameraWorld 的旋转即相机朝向、平移即 eye
         var view = Matrix4x4.CreateLookAt(eye, lookAt, Vector3.UnitY);
         Matrix4x4.Invert(view, out var cameraWorld);
         camera.RelativeLocation = eye;
-        camera.RelativeRotation = Quaternion.CreateFromRotationMatrix(cameraWorld);
+        camera.RelativeRotation = System.Numerics.Quaternion.CreateFromRotationMatrix(cameraWorld);
 
         var actor = new Actor();
         actor.AddOwnedComponent(camera);
