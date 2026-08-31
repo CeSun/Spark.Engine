@@ -26,6 +26,8 @@ public sealed class UIButton : UIElement
     public UIButton()
     {
         Focusable = true;
+        // 默认裁剪：按钮被压缩到窄于文本时，文字不画到边框外
+        ClipToBounds = true;
     }
 
     protected override UISize OnMeasure(UISize availableSize)
@@ -34,16 +36,17 @@ public sealed class UIButton : UIElement
             return fs;
 
         var textRenderer = GetTextRenderer();
-        float textW = 0f, textH = 0f;
+        float textW = 0f, lineH = 0f;
         if (textRenderer != null && !string.IsNullOrEmpty(Text))
         {
-            var textSize = textRenderer.Measure(Text);
-            textW = textSize.X;
-            textH = textSize.Y;
+            // 宽度用墨水宽（水平自适应）；高度用字体行高 × 行数（多行 \n 时按行数累加）
+            var block = textRenderer.MeasureBlock(Text);
+            textW = block.X;
+            lineH = block.Y;
         }
 
         float w = textW + Padding.Left + Padding.Right;
-        float h = textH + Padding.Top + Padding.Bottom;
+        float h = lineH + Padding.Top + Padding.Bottom;
 
         // 最小高度保证可点击区域
         if (h < 20f) h = 20f;

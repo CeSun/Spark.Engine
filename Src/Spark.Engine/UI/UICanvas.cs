@@ -16,6 +16,13 @@ public sealed class UICanvas
 
     public UIElement? Root { get; set; }
 
+    /// <summary>
+    /// 弹出层（Overlay）：绘制在 Root 之上、命中测试优先于 Root 的元素列表。
+    /// 用于菜单弹出面板、对话框遮罩等需要覆盖兄弟元素且不参与布局流的控件。
+    /// 元素自身控制 Visible；不可见的 Overlay 不绘制、不命中。
+    /// </summary>
+    public List<UIElement> Overlays { get; } = new();
+
     private UIElement? _hovered;
     private UIElement? _pressed;
     private UIElement? _focused;
@@ -40,24 +47,62 @@ public sealed class UICanvas
         if (Root == null || Size.X <= 0f || Size.Y <= 0f)
             return;
 
+        Layout(textRenderer);
+
+        RouteInput(input);
+
+        // RouteInput 可能替换 Root（如按钮点击切换页面）：新 Root 尚未布局，
+        // 立即补一次布局，避免当帧 Paint 空白（闪烁露出底层 3D 场景）。
+        if (Root != _lastLayoutRoot)
+            Layout(textRenderer);
+    }
+
+    /// <summary>本帧已布局的 Root（用于检测 RouteInput 期间的 Root 替换）。</summary>
+    private UIElement? _lastLayoutRoot;
+
+    private void Layout(TextRenderer? textRenderer)
+    {
+        if (Root is not { } root)
+            return;
+
         // 注入 TextRenderer 供 Measure 使用
         if (textRenderer != null)
-            PropagateTextRenderer(Root, textRenderer);
+            PropagateTextRenderer(root, textRenderer);
+        PropagateCanvas(root);
 
         // Phase 1: Measure
         var available = new UISize(Size.X, Size.Y);
-        Root.Measure(available);
+        root.Measure(available);
 
         // Phase 2: Arrange
-        Root.Arrange(new UIRect(0f, 0f, Size.X, Size.Y));
+        root.Arrange(new UIRect(0f, 0f, Size.X, Size.Y));
 
-        RouteInput(input);
+        // Overlays：不参与布局流，直接铺满画布（元素内部自行定位，如菜单按 Position 弹出）
+        foreach (var overlay in Overlays)
+        {
+            if (!overlay.Visible)
+                continue;
+            if (textRenderer != null)
+                PropagateTextRenderer(overlay, textRenderer);
+            PropagateCanvas(overlay);
+            overlay.Measure(new UISize(Size.X, Size.Y));
+            overlay.Arrange(new UIRect(0f, 0f, Size.X, Size.Y));
+        }
+
+        _lastLayoutRoot = root;
     }
 
     /// <summary>绘制控件树（产出基元到 <paramref name="ui"/>），最后绘制焦点环。</summary>
     public void Paint(UIManager ui)
     {
         Root?.Paint(ui, TargetId);
+
+        // Overlays 绘制在 Root 之上（后注册的在上层）
+        foreach (var overlay in Overlays)
+        {
+            if (overlay.Visible)
+                overlay.Paint(ui, TargetId);
+        }
 
         // P6: 焦点环可视化（仅键盘导航触发时显示，:focus-visible 语义）
         if (_focusVisible && _focused != null && _focused.Visible)
@@ -111,18 +156,44 @@ public sealed class UICanvas
             PropagateTextRenderer(child, textRenderer);
     }
 
+    /// <summary>为控件树注入画布引用（供弹出层注册 Overlay 用）。</summary>
+    private void PropagateCanvas(UIElement element)
+    {
+        element.Canvas = this;
+        foreach (var child in element.Children)
+            PropagateCanvas(child);
+    }
+
+    /// <summary>命中测试：Overlays 优先（后注册的在上层，先测），其次 Root。</summary>
+    private UIElement? HitTestTop(Vector2 point)
+    {
+        for (int i = Overlays.Count - 1; i >= 0; i--)
+        {
+            var overlay = Overlays[i];
+            if (!overlay.Visible)
+                continue;
+            var hit = overlay.HitTest(point);
+            if (hit != null)
+                return hit;
+        }
+        return Root!.HitTest(point);
+    }
+
     private void RouteInput(InputState input)
     {
         var point = input.MousePosition;
 
         // hover（enter/leave）
-        var hovered = Root!.HitTest(point);
+        var hovered = HitTestTop(point);
         if (hovered != _hovered)
         {
             _hovered?.OnMouseLeave();
             _hovered = hovered;
             _hovered?.OnMouseEnter();
         }
+
+        // 未按下时也通知悬停移动（用于 hover 态 / 悬停命中检测，如分割条）
+        _hovered?.OnMouseMove(point);
 
         // 鼠标按下/抬起/点击
         if (input.IsButtonPressed(MouseButton.Left))
@@ -140,7 +211,7 @@ public sealed class UICanvas
 
         if (input.IsButtonReleased(MouseButton.Left))
         {
-            var released = Root!.HitTest(point);
+            var released = HitTestTop(point);
             var target = _pressed ?? released;
             target?.OnMouseUp(MouseButton.Left);
 
@@ -153,6 +224,17 @@ public sealed class UICanvas
         // 拖拽：按住期间每帧通知被按住的元素
         if (_pressed != null)
             _pressed.OnMouseDrag(point);
+
+        // 滚轮：路由到 hovered 元素（沿祖先链向上冒泡寻找处理者）
+        if (input.ScrollDelta != 0f)
+        {
+            var wheelTarget = hovered;
+            while (wheelTarget != null)
+            {
+                wheelTarget.OnMouseWheel(input.ScrollDelta);
+                wheelTarget = wheelTarget.Parent;
+            }
+        }
 
         // Tab 焦点导航（P6）：无条件检测 Tab 键，即使当前无焦点也允许首次聚焦
         {

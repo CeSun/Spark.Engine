@@ -626,14 +626,13 @@ private void Render(FrameData frame)
 
 ## 14. 未决事项 / 后续阶段
 
-- `TextureRenderTarget` 具体实现（GPU 纹理创建、pass 附件绑定，RenderGraph 阶段）；
-- 帧内渲染依赖（后处理链：相机 A 渲到贴图 → 相机 B 采样；阴影贴图同理）——当前只保证
-  "填写顺序 = 渲染顺序"，拓扑排序留到 RenderGraph 阶段；
-- 资源销毁延迟删除队列（ADR-7 已落地于场景代理状态 `BlinnPhongRenderer._pendingDelete`；`RenderTargetRegistry`
-  视口销毁仍直接 Remove，待接入）；
-- 网格、材质、管线状态对象与资源注册表（网格几何/实例 MVP 注册表已实现；材质注册表 P2）；
-- 渲染命令列表（已实现静态网格 draw + 渲染线程球-视锥剔除；RenderGraph 命令流仍待 P2）；
-- 无相机视口的占位渲染（棋盘格背景等，编辑器场景视图需要）；
-- `ViewportRect` 多视口（分屏 / 编辑器多视图）；
-- PresentMode 由 `EngineOptions` 暴露（可切 VSync）；
-- surface lost 的完整恢复策略（当前策略：跳过本帧 + 下次 acquire 重配）。
+- `RenderTargetRegistry` 视口销毁仍直接 Remove（ADR-7 收尾项）。
+- 后处理链（相机 A 渲到贴图 → 相机 B 采样）接入 RenderGraph——`TextureRenderTarget` 已就绪，需编排多 pass。
+- PBR 着色器（ADR-20 顺延）。
+- 材质节点图编辑器（P4）。
+- 半透明深度排序分批。
+- 剔除加速结构（BVH/八叉树/遮挡剔除）。
+- `ViewportRect` 多视口（分屏 / 编辑器多视图）。
+- PresentMode 由 `EngineOptions` 暴露（可切 VSync）。
+- surface lost 的完整恢复策略（当前跳过本帧 + 下次 acquire 重配）。
+- 无相机视口的占位渲染（棋盘格背景等，编辑器场景视图需要）。

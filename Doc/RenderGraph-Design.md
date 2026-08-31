@@ -271,7 +271,7 @@ classDiagram
 
 ## 10. 实现落地与踩坑经验（Phase B，2026-08-17）
 
-Phase B 已实现并跑通「ShadowDepth → Forward」两 pass（见 [ShadowMapping-Design.md](./ShadowMapping-Design.md)）。
+Phase B 已实现并跑通「ShadowDepth → BlinnPhong / SkeletalMesh → UIOverlay」多 pass（见 [ShadowMapping-Design.md](./ShadowMapping-Design.md)）。
 实现与本文设计的两点差异：
 
 - `RenderPass` 是**具体密封类**（`name + setup/execute 委托`），不是 §3.2 的抽象基类——更轻量，pass 不持有

@@ -255,7 +255,7 @@ foreach (ref readonly var obj in snapshot.Objects.Span)
 - **步骤 3（生成 + 扩展）** ✅：SceneGen 源生成器（proxy/payload 生成 + 资源成员降级/自动上传）+
   渲染线程剔除正式启用。
 
-> 注：步骤 2 中「`RenderTargetRegistry` 视口销毁走延迟删除」尚未落地（仍直接 Remove），见 §13。
+> 注：`RenderTargetRegistry` 视口销毁仍直接 Remove（ADR-7 收尾项），窗口原生销毁已通过握手队列安全处理。
 
 ## 13. 决策记录（ADR，续 RenderPipeline-Design.md §12）
 
@@ -269,9 +269,9 @@ foreach (ref readonly var obj in snapshot.Objects.Span)
 
 ## 14. 未决事项
 
-- `RenderTargetRegistry` 视口销毁仍直接 Remove（ADR-7 收尾，窗口 surface 销毁竞态）。
-- 资源生命周期收尾：GPU 几何延迟释放已落地（`StaticMesh.Dispose`/终结器 → `ResourceManager` → 渲染线程
-  帧末 drain）；CPU 数据驱逐与磁盘流式加载留待 P3-9。
-- P1-3：dirty 增量快照（当前每帧全量快照）。
-- P2-4/5/6/7：`TextureRenderTarget`、材质/纹理/实际光照着色、帧内依赖拓扑、BVH/遮挡剔除。
-- 动态 buffer（骨骼皮肤矩阵、实例变换）分配策略：ring buffer vs 每对象独立 buffer。
+- `RenderTargetRegistry` 视口销毁仍直接 Remove（ADR-7 收尾）。窗口 surface 销毁经 `_pendingNativeDisposals`
+  握手队列处理，原生窗口已安全销毁。
+- 资源生命周期：GPU 几何延迟释放已落地；CPU 数据驱逐与磁盘流式加载留待 P3。
+- P1：dirty 增量快照（当前每帧全量快照）。
+- 动态 buffer 分配策略：骨骼皮肤矩阵当前每对象独立 buffer，未来可评估 ring buffer 方案。
+- 骨骼网格/实例化 mesh 的 payload 扩展（当前已支持 SkeletalMeshPayload，未来可扩展 instanced draw）。

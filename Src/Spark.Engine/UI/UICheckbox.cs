@@ -34,15 +34,14 @@ public sealed class UICheckbox : UIElement
             return fs;
 
         var textRenderer = GetTextRenderer();
-        float textW = 0f, textH = 0f;
+        float textW = 0f, lineH = 0f;
         if (textRenderer != null && !string.IsNullOrEmpty(Text))
         {
-            var textSize = textRenderer.Measure(Text);
-            textW = textSize.X;
-            textH = textSize.Y;
+            textW = textRenderer.Measure(Text).X;
+            lineH = textRenderer.LineHeight; // 行高，与文本内容无关
         }
 
-        float contentH = System.Math.Max(BoxSize, textH);
+        float contentH = System.Math.Max(BoxSize, lineH);
         float w = BoxSize + BoxTextGap + textW + Padding.Left + Padding.Right;
         float h = contentH + Padding.Top + Padding.Bottom;
 
@@ -59,7 +58,9 @@ public sealed class UICheckbox : UIElement
     {
         float box = System.Math.Min(Bounds.Height, BoxSize);
         float boxX = Bounds.X + Padding.Left;
-        float boxY = Bounds.Y + (Bounds.Height - box) * 0.5f;
+        // 方框相对内容区（减上下 Padding）垂直居中
+        float contentH = System.Math.Max(0f, Bounds.Height - Padding.Top - Padding.Bottom);
+        float boxY = Bounds.Y + Padding.Top + (contentH - box) * 0.5f;
 
         ui.DrawRect(targetId, new Vector2(boxX, boxY), new Vector2(box, box), BoxColor);
 
@@ -69,8 +70,8 @@ public sealed class UICheckbox : UIElement
             ui.DrawRect(targetId, new Vector2(boxX + inset, boxY + inset), new Vector2(box - inset * 2f, box - inset * 2f), CheckColor);
         }
 
-        // 文字与方框垂直居中对齐
-        float textHeight = ui.Text.Measure(Text).Y;
+        // 文字与方框垂直居中对齐（用行高而非墨水高，墨水高随文本字符变化导致基线错位）
+        float textHeight = ui.Text.LineHeight;
         float textY = boxY + (box - textHeight) * 0.5f;
         ui.Text.DrawText(ui, targetId, Text, new Vector2(boxX + box + BoxTextGap, textY), TextColor);
     }

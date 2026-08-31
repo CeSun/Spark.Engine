@@ -78,7 +78,11 @@ public sealed class UIManager
             stack.Pop();
     }
 
-    /// <summary>指定 targetId 当前有效裁剪区（栈为空时表示无裁剪）。</summary>
+    /// <summary>
+    /// 指定 targetId 当前有效裁剪区（栈为空时表示无裁剪）。
+    /// 裁剪区可能为「空交集」（宽/高为负）：调用方应视为「完全裁剪，跳过绘制」，
+    /// 与「无裁剪」（null）区分——否则完全越出视口的内容会被当成无裁剪画出来。
+    /// </summary>
     public UIRect? CurrentClip(int targetId)
         => _clipStacks.TryGetValue(targetId, out var stack) && stack.Count > 0 ? stack.Peek() : null;
 
@@ -88,8 +92,10 @@ public sealed class UIManager
         float y = System.Math.Max(a.Y, b.Y);
         float right = System.Math.Min(a.Right, b.Right);
         float bottom = System.Math.Min(a.Bottom, b.Bottom);
-        float w = System.Math.Max(0f, right - x);
-        float h = System.Math.Max(0f, bottom - y);
+        float w = right - x;
+        float h = bottom - y;
+        if (w <= 0f || h <= 0f)
+            return new UIRect(x, y, -1f, -1f); // 空交集：标记为「完全裁剪」（负尺寸）
         return new UIRect(x, y, w, h);
     }
 

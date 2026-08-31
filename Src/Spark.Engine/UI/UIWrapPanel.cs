@@ -21,11 +21,12 @@ public sealed class UIWrapPanel : UIElement
 
     protected override UISize OnMeasure(UISize availableSize)
     {
-        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
-            return fs;
-
         bool horizontal = Orientation == UIOrientation.Horizontal;
+
+        // 换行阈值 = 可用主轴 - 自身 Padding（与 Arrange 的 ContentRect 基准一致）
         float mainLimit = horizontal ? availableSize.Width : availableSize.Height;
+        if (!float.IsPositiveInfinity(mainLimit))
+            mainLimit = System.Math.Max(0f, mainLimit - (horizontal ? Padding.Left + Padding.Right : Padding.Top + Padding.Bottom));
         if (float.IsPositiveInfinity(mainLimit))
             mainLimit = float.MaxValue;
 
@@ -43,6 +44,10 @@ public sealed class UIWrapPanel : UIElement
             var desired = child.Measure(childAvail);
             float itemMain = horizontal ? desired.Width : desired.Height;
             float itemCross = horizontal ? desired.Height : desired.Width;
+
+            // fill 子元素（main==0）：Measure 与 Arrange 统一用最小宽度（避免 0 vs 20 不一致）
+            if (itemMain <= 0f)
+                itemMain = 20f;
 
             // 检查是否需要换行
             float neededMain = lineMain + (itemCountInLine > 0 ? ItemSpacing : 0f) + itemMain;

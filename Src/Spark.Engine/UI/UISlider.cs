@@ -42,14 +42,16 @@ public sealed class UISlider : UIElement
 
     protected override void OnPaint(UIManager ui, int targetId)
     {
-        float trackHeight = 6f;
+        float trackHeight = DefaultTrackHeight;
         float trackY = Bounds.Y + (Bounds.Height - trackHeight) * 0.5f;
 
         ui.DrawRect(targetId, new Vector2(Bounds.X, trackY), new Vector2(Bounds.Width, trackHeight), TrackColor);
         ui.DrawRect(targetId, new Vector2(Bounds.X, trackY), new Vector2(Bounds.Width * Value, trackHeight), FillColor);
 
-        float thumbSize = System.Math.Min(Bounds.Height, 14f);
-        float thumbX = Bounds.X + (Bounds.Width - thumbSize) * Value;
+        // 拇指尺寸不超 Bounds（窄控件防越界）
+        float thumbSize = System.Math.Min(Bounds.Height, System.Math.Min(DefaultThumbSize, Bounds.Width));
+        float usableW = Bounds.Width - thumbSize;
+        float thumbX = usableW > 0f ? Bounds.X + usableW * Value : Bounds.X;
         float thumbY = Bounds.Y + (Bounds.Height - thumbSize) * 0.5f;
         ui.DrawRect(targetId, new Vector2(thumbX, thumbY), new Vector2(thumbSize, thumbSize), ThumbColor);
     }
@@ -65,7 +67,7 @@ public sealed class UISlider : UIElement
         if (!_dragging)
             return;
 
-        float thumbSize = System.Math.Min(Bounds.Height, 14f);
+        float thumbSize = System.Math.Min(Bounds.Height, System.Math.Min(DefaultThumbSize, Bounds.Width));
         float usable = Bounds.Width - thumbSize;
         float t = usable > 0f ? (position.X - Bounds.X - thumbSize * 0.5f) / usable : 0f;
         SetValue(System.Math.Clamp(t, 0f, 1f));

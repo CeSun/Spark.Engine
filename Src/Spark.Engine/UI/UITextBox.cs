@@ -35,6 +35,8 @@ public sealed class UITextBox : UIElement
     public UITextBox()
     {
         Focusable = true;
+        // 默认裁剪：长文本超出输入框宽度时不画到边框外（水平滚动留待 P7）
+        ClipToBounds = true;
     }
 
     protected override UISize OnMeasure(UISize availableSize)
@@ -69,7 +71,7 @@ public sealed class UITextBox : UIElement
         if (_focused && IsCursorVisible())
         {
             float cursorX = textX + ui.Text.Measure(_buffer.ToString(0, _cursor)).X;
-            float cursorHeight = ui.Text.Measure(" ").Y;
+            float cursorHeight = ui.Text.LineHeight; // 用行高而非空格墨水高（空格无墨水，曾只有 ~2px）
             ui.DrawRect(targetId, new Vector2(cursorX, textY), new Vector2(1.5f, cursorHeight), new Vector4(1f, 1f, 1f, 0.9f));
         }
     }

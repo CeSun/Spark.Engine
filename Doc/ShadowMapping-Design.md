@@ -5,7 +5,8 @@
 > 关联代码：`Src/Spark.Engine/Render/Pipeline/BlinnPhong/BlinnPhongRenderer.cs`、`MaterialShaderCache.cs`、
 > `ShaderPass.cs`、`Shaders/ForwardShadeLit.wgsl`、`Shaders/ForwardDepthFragment.wgsl`、
 > `Src/Spark.Engine/Render/Common/TextureRenderTarget.cs`、
-> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/Stages/ShadowDepthStage.cs`。
+> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/Stages/ShadowDepthStage.cs`、
+> `Src/Spark.Engine/Render/Pipeline/BlinnPhong/Stages/BlinnPhongStage.cs`。
 
 ## 1. 目标与范围
 
@@ -20,9 +21,12 @@
 ```
 Render(SceneSnapshot)
   ├─ ComputeShadowInfo：找第一个 CastShadow 的聚光/平行光，算 light view-proj
-  ├─ ShadowDepthStage：向 RenderGraph 声明并执行深度-only pass
-  │    └─ 把 CastShadow 网格渲进 1024×1024 Depth24Plus 贴图
-  └─ 前向 pass：挂深度缓冲（视口尺寸）+ 采样阴影贴图（textureSampleCompare）
+  ├─ BuildGraph：声明式建 RenderGraph
+  │    ├─ ShadowDepthStage.AddToGraph：深度-only pass（ShaderPass.ShadowDepth）
+  │    ├─ BlinnPhongStage.AddToGraph：静态网格前向 pass（采样阴影贴图）
+  │    └─ SkeletalMeshStage.AddToGraph：骨骼网格前向 pass（同 target 共享深度附件）
+  ├─ Compile：建依赖边 → 拓扑排序 → 环检测 → 剔除
+  └─ Execute：分配 transient → 按拓扑序执行 → 帧末释放
 ```
 
 关键点：

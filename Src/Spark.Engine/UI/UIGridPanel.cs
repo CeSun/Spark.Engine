@@ -89,12 +89,17 @@ public sealed class UIGridPanel : UIElement
     private float[]? _measureRowAutoSizes;
     private float[]? _measureColAutoSizes;
 
+    public UIGridPanel()
+    {
+        // 默认裁剪：单元格内容（如文本）超出网格边框时被裁剪，不溢出到边距/相邻元素
+        ClipToBounds = true;
+    }
+
     protected override UISize OnMeasure(UISize availableSize)
     {
-        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
-            return fs;
-
-        // 测量子元素（无限约束），收集 span==1 子元素对 Auto 轨的贡献
+        // 无论是否有 FixedSize，都必须先收集 Auto 轨尺寸：
+        // Arrange 复用 _measureRowAutoSizes/_measureColAutoSizes，漏了会塌陷为 0
+        // （FixedSize 只影响本方法返回值，不影响子元素测量）。
         var rowAutoSizes = new float[System.Math.Max(1, _rowDefs.Count)];
         var colAutoSizes = new float[System.Math.Max(1, _colDefs.Count)];
 
@@ -119,10 +124,21 @@ public sealed class UIGridPanel : UIElement
         _measureRowAutoSizes = rowAutoSizes;
         _measureColAutoSizes = colAutoSizes;
 
+        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
+            return fs;
+
         // 测量阶段尺寸：Auto 用内容尺寸，Star 在有限约束下取「剩余」（与 Arrange 一致），
-        // 无限约束下 Star 取 0（塌陷）。这里用 availableSize 同时算宽高。
-        float totalW = ComputeDesiredTrackTotal(_colDefs, colAutoSizes, availableSize.Width);
-        float totalH = ComputeDesiredTrackTotal(_rowDefs, rowAutoSizes, availableSize.Height);
+        // 无限约束下 Star 取 0（塌陷）。传入的可用空间先减 Padding，与 Arrange 的 ContentRect 基准一致，
+        // 否则 Star 剩余会按含 Padding 的宽度计算、再加 Padding 后超约束。
+        float availW = availableSize.Width;
+        float availH = availableSize.Height;
+        if (!float.IsPositiveInfinity(availW))
+            availW = System.Math.Max(0f, availW - Padding.Left - Padding.Right);
+        if (!float.IsPositiveInfinity(availH))
+            availH = System.Math.Max(0f, availH - Padding.Top - Padding.Bottom);
+
+        float totalW = ComputeDesiredTrackTotal(_colDefs, colAutoSizes, availW);
+        float totalH = ComputeDesiredTrackTotal(_rowDefs, rowAutoSizes, availH);
 
         totalW += Padding.Left + Padding.Right;
         totalH += Padding.Top + Padding.Bottom;
@@ -132,6 +148,12 @@ public sealed class UIGridPanel : UIElement
             if (fsv.Width > 0f) totalW = fsv.Width;
             if (fsv.Height > 0f) totalH = fsv.Height;
         }
+
+        // 有限约束下不超过可用空间
+        if (!float.IsPositiveInfinity(availableSize.Width))
+            totalW = System.Math.Min(totalW, availableSize.Width);
+        if (!float.IsPositiveInfinity(availableSize.Height))
+            totalH = System.Math.Min(totalH, availableSize.Height);
 
         return new UISize(totalW, totalH);
     }

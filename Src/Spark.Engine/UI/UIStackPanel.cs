@@ -26,13 +26,20 @@ public sealed class UIStackPanel : UIElement
 
     protected override UISize OnMeasure(UISize availableSize)
     {
-        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
-            return fs;
-
         bool vertical = Orientation == UIOrientation.Vertical;
         float mainSum = 0f;
         float crossMax = 0f;
         int visibleCount = 0;
+
+        // 子元素可用空间 = 传入约束 - 自身 Padding（WPF 语义），
+        // 否则 fill 子元素（如含 Star 列的 Grid）会按未减 padding 的宽度测量，
+        // 导致 Arrange 时宽度溢出自身内容区、右缘贴到父容器边缘。
+        float availW = availableSize.Width;
+        float availH = availableSize.Height;
+        if (!float.IsPositiveInfinity(availW))
+            availW = System.Math.Max(0f, availW - Padding.Left - Padding.Right);
+        if (!float.IsPositiveInfinity(availH))
+            availH = System.Math.Max(0f, availH - Padding.Top - Padding.Bottom);
 
         foreach (var child in Children)
         {
@@ -40,8 +47,8 @@ public sealed class UIStackPanel : UIElement
                 continue;
 
             var childAvail = vertical
-                ? new UISize(availableSize.Width, float.PositiveInfinity)
-                : new UISize(float.PositiveInfinity, availableSize.Height);
+                ? new UISize(availW, float.PositiveInfinity)
+                : new UISize(float.PositiveInfinity, availH);
 
             var desired = child.Measure(childAvail);
             float main = vertical ? desired.Height : desired.Width;
@@ -135,7 +142,10 @@ public sealed class UIStackPanel : UIElement
             float cross = vertical ? child.DesiredSize.Width : child.DesiredSize.Height;
             if (main <= 0f)
                 main = fillShare;
-            if (cross <= 0f)
+
+            // 交叉轴：fill 子元素拉伸到容器宽度；内容自适应子元素封顶到容器宽度，
+            // 避免内容（如长文本）超出容器边框溢出到边距上。
+            if (cross <= 0f || cross > crossSize)
                 cross = crossSize;
 
             UIRect childRect = vertical

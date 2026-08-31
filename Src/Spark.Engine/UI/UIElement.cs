@@ -142,6 +142,7 @@ public abstract class UIElement
             OnPaint(ui, targetId);
             foreach (var child in _children)
                 child.Paint(ui, targetId);
+            OnPaintOverlay(ui, targetId); // 子元素之后绘制（滚动条等需盖在内容上的装饰）
         }
         finally
         {
@@ -151,6 +152,11 @@ public abstract class UIElement
     }
 
     protected virtual void OnPaint(UIManager ui, int targetId)
+    {
+    }
+
+    /// <summary>子元素绘制完成后的覆盖层绘制钩子（滚动条等需显示在内容之上的装饰元素）。</summary>
+    protected virtual void OnPaintOverlay(UIManager ui, int targetId)
     {
     }
 
@@ -205,6 +211,11 @@ public abstract class UIElement
     {
     }
 
+    /// <summary>鼠标悬停移动（未按下时也通知），由画布每帧通知当前 hovered 元素。</summary>
+    protected internal virtual void OnMouseMove(Vector2 position)
+    {
+    }
+
     /// <summary>鼠标在自身按下并抬起（同元素）时触发一次。</summary>
     protected internal virtual void OnMouseClick()
     {
@@ -226,6 +237,11 @@ public abstract class UIElement
     {
     }
 
+    /// <summary>鼠标滚轮事件（delta 为 Windows 标准滚轮值，通常 ±120）。</summary>
+    protected internal virtual void OnMouseWheel(float delta)
+    {
+    }
+
     /// <summary>内容矩形 = 自身矩形减去内边距。</summary>
     protected UIRect ContentRect => Bounds.Deflate(Padding);
 
@@ -234,6 +250,20 @@ public abstract class UIElement
     /// 仅在 Measure/Arrange 期间有效，用于叶子控件测量文本尺寸。
     /// </summary>
     internal TextRenderer? LayoutTextRenderer { get; set; }
+
+    /// <summary>所属画布（由 <see cref="UICanvas"/> 在布局传播时注入，供弹出层注册 Overlay 使用）。</summary>
+    public UICanvas? Canvas { get; set; }
+
+    /// <summary>沿祖先链向上查找所属画布。</summary>
+    public UICanvas? FindCanvas()
+    {
+        for (var e = this; e != null; e = e.Parent)
+        {
+            if (e.Canvas != null)
+                return e.Canvas;
+        }
+        return null;
+    }
 
     /// <summary>获取布局文本渲染器（供子类 Measure 使用）。</summary>
     protected TextRenderer? GetTextRenderer() => LayoutTextRenderer ?? Parent?.LayoutTextRenderer;

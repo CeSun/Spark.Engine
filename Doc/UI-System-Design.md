@@ -9,11 +9,18 @@
 > 附加属性实例化（修复静态字典泄漏）、HitTest 受 ClipToBounds 约束（P6.2 设计决策落地）、裁剪栈按 targetId 隔离、
 > UIElement.RemoveChild/ClearChildren/重挂自动摘除旧父/环检测、TextRenderer 全墨水包围盒（含负 Left/Top）+ 原点补偿。
 >
-> **验收状态：⚠ 未验收。** 本轮仅完成代码改动 + `dotnet build` 全量编译通过（0 错 0 警）。
-> 验收场景已就绪（`Demo/Demo/VerifyHub.cs` + `GridPanelVerifyOverlay` / `ClipHitTestVerifyOverlay` /
-> `TreeOpsVerifyOverlay` / `TextBoundsVerifyOverlay`），但**尚未由用户在本机运行 Demo.Desktop 逐场景目视确认**。
-> 各场景的验收点见对应文件头注释与「踩坑经验」7~10/6b。运行方式：`dotnet run --project Demo\Demo.Desktop`。
-> 剩余为 P7+ 打磨项。本文与当前代码同步，记录**实际落地形态**与已知偏差。
+> **P8 编辑器控件轮（2026-08-26）已落地**：新增 10 个编辑器刚需控件（见下方「编辑器控件」小节）+
+> **Overlay 弹出层机制**（`UICanvas.Overlays`）。冒烟测试通过（Demo 启动 8s 无崩溃），**尚待用户逐场景验收**。
+> 验收入口：`Demo/Demo/EditorControlsVerifyOverlay.cs`（VerifyHub 第 5 个按钮进入，含 9 个子场景）。
+>
+> **P8 审计修复轮（2026-08-31）已落地**：4 路并行子代理审计全部 UI 控件 + 12 处缺陷修复——
+> 滚动裁剪失效（scissor 空交集语义，见踩坑 18）、文本高度波动（踩坑 12）、容器 Measure/Arrange 基准不一致
+> （踩坑 13/14/15）、SplitPanel/Dialog/Toolbar 交互缺陷等。42 个单元测试全通过（含 13 个回归锁定）。
+> 详见 `Doc/tasks/2026-08-31-editor-controls-audit-fixes-worklog.md`。
+>
+> **验收状态：⚠ 未验收。** P6-fix / P8 控件 / P8 审计三轮均仅代码改动 + 编译/单测通过，
+> 尚未由用户在本机运行 Demo.Desktop 逐场景目视确认。运行方式：`dotnet run --project Demo\Demo.Desktop`。
+> 剩余为 P7/P9/P10 打磨项。本文与当前代码同步，记录**实际落地形态**与已知偏差。
 
 ## 概述
 
@@ -64,9 +71,25 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | `UITextBox` | UITextBox.cs | 单行输入框 v1（焦点 + 基础编辑 + 光标闪烁；选择/剪贴板/Undo 等⏳ P7） |
 | `UICheckbox` | UICheckbox.cs | 复选框（`IsChecked` + `CheckedChanged`） |
 | `UISlider` | UISlider.cs | 滑杆（拖拽取值 0..1 + `ValueChanged`） |
-| `UICanvas` | UICanvas.cs | 每窗口画布：`Update(input)`（Arrange+路由）+ `Paint(ui)` + 焦点 |
+| `UICanvas` | UICanvas.cs | 每窗口画布：`Update(input)`（Arrange+路由）+ `Paint(ui)` + 焦点 + **`Overlays` 弹出层** |
 | `UITheme` | UITheme.cs | 默认暗色配色常量集（非样式系统；样式系统⏳ P10） |
 | `TextRenderer` | TextRenderer.cs | 字符串级文本渲染（见下） |
+
+### 编辑器控件（P8，2026-08-26 落地）
+
+| 类型 | 文件 | 职责 |
+|---|---|---|
+| `UIScrollBox` | UIScrollBox.cs | 滚动容器（垂直/水平/双向 + 滚轮 + 滚动条拖拽 + `ScrollIntoView`） |
+| `UIListView` / `UIListItem` | UIListView.cs | 垂直列表（单选 + 键盘导航 + 选择/激活回调） |
+| `UITreeView` / `UITreeViewItem` | UITreeView.cs | 层级树（`SubItems` 逻辑子项 + 扁平化可视列表 + 展开/折叠/单选/键盘导航） |
+| `UIMenuPanel` / `UIMenuItem` | UIMenu.cs | 弹出菜单（Overlay 注册 + 按 `Position` 定位 + 分隔线/快捷键） |
+| `UIMenuBar` / `UIMenuBarItem` | UIMenu.cs | 菜单栏（顶级菜单项 + 点击展开/收起下拉） |
+| `UIDialog` / `UIDialogButton` | UIDialog.cs | 模态对话框（遮罩铺满画布 + 居中面板 + 按钮 + Escape/Enter 处理） |
+| `UITabView` / `UITabItem` | UITabView.cs | 标签页（动态标签宽度 + 关闭按钮 + 内容切换） |
+| `UIComboBox` | UIComboBox.cs | 下拉选择框（点击展开/收起 + 键盘导航 + 选中回调；下拉绘制在控件下方，非 Overlay） |
+| `UISplitPanel` | UISplitPanel.cs | 可拖拽分割面板（水平/垂直 + 比例 + 最小尺寸约束） |
+| `UIToolbar` / `UIToolbarButton` | UIToolbar.cs | 工具栏（水平按钮组 + 分隔符） |
+| `UIPropertyGrid` | UIPropertyGrid.cs | 属性网格（反射对象属性 + 标签/值编辑器行 + `PropertyChanged` 回调） |
 
 ### 渲染侧（`Spark.Engine/Render/`）
 
@@ -329,6 +352,65 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 10. **UIElement 树操作不完整（P6-fix）**：旧版只有 `AddChild`，无 `RemoveChild`，且不检查重复挂载/环。
     修复：新增 `RemoveChild`/`ClearChildren`；`AddChild` 自动从旧父 `_children` 摘除（避免双份布局/绘制/事件）；
     自挂自或把后代挂到祖先会抛 `InvalidOperationException`（环检测）。见 `TreeOpsVerifyOverlay`。
+
+11. **`Measure().Y`（墨水盒高）误当行高/垂直居中基准（P8 审计）**：`TextRenderer.Measure(text)` 返回
+    **该字符串的墨水包围盒高**（随字符变化：含 descender 的 "button" 更高），若用于布局高度或垂直居中，
+    会导致①同字号不同文本高度不一致（按钮高度波动）、②文字基线漂移。修复：`TextRenderer` 新增
+    `LineHeight`（含 line gap 的真实行高，`(三行墨水盒-单行墨水盒)/2`），布局高度与垂直居中全部改用
+    `LineHeight`；水平宽度仍用墨水宽。规则：**垂直用 LineHeight，水平用 Measure 宽**。
+
+12. **`MeasureBlock` 高度随文本波动 → 布局位移（P8 审计）**：多行文本高度曾用 `max(行数×LineHeight, 墨水盒高)`，
+    墨水盒随字符变化 → 状态文字变化时（如 Toolbar 点击改 statusLabel）下方控件整体位移。
+    修复：高度改回**固定** `行数 × LineHeight`。LineHeight 已含 line gap，行框足以容纳墨水
+    （端到端验证墨水底部 ≤ 布局底部 + 2px，不裁剪）。
+
+13. **容器 Measure 约束未减自身 Padding（P8 审计）**：`UIStackPanel`/`UIScrollBox`/`UIGridPanel`/`UIWrapPanel`
+    给子元素的测量约束直接用 `availableSize`（未减自身 Padding），而 Arrange 用 `ContentRect`（已减）——
+    基准不一致：fill 子元素（如含 Star 列的 Grid）按错误宽度测量，Arrange 时溢出内容区（右侧贴窗口边缘）。
+    修复：Measure 阶段子元素可用空间 = 传入约束 - 自身 Padding（WPF 语义）。规则：**Measure 与 Arrange
+    必须用同一基准（ContentRect）**。
+
+14. **容器 FixedSize 早退跳过子测量（P8 审计）**：`UIStackPanel`/`UIDockPanel`/`UIWrapPanel`/`UIScrollBox`/
+    `UIGridPanel` 的 `OnMeasure` 在 `FixedSize` 双分量>0 时直接 `return fs`，跳过子元素测量——
+    而 Arrange 复用的 Auto 尺寸/内容尺寸依赖测量结果 → Auto 行塌陷、滚动范围算不出。
+    修复：**先测量子元素，再处理 FixedSize 返回值**（FixedSize 只影响本控件尺寸，不影响子测量）。
+
+15. **复合控件未布局内部面板（P8 审计）**：`UIToolbar`/`UIMenuBar` 只 `AddChild(_itemsPanel)` 却无
+    `OnArrange` → 内部面板从不布局，`Bounds` 恒 `(0,0,0,0)`，所有子项叠在左上角（文字重叠）。
+    修复：复合控件必须重写 `OnMeasure`（先测内部面板）+ `OnArrange`（面板铺满 `ContentRect`）。
+    同理 `UIListView`/`UITreeView`/`UIPropertyGrid` 需让内部 `_scrollBox` 先 Measure 再 Arrange。
+
+16. **`Math.Clamp` 退化尺寸抛异常（P8）**：`Math.Clamp(value, min, max)` 在 `min > max` 时抛
+    `ArgumentException`。布局退化（总尺寸 < 分割条+最小面板）时 `availableSize` 为负 → `min > max`。
+    修复：先钳 `min`/`max` 到可用空间内并保证 `max ≥ min`，再 `Clamp`。
+
+17. **按下前缺悬停移动通知（P8）**：`_hoveringSplitter` 只在 `OnMouseDrag`（按下后）更新，按下时
+    `OnMouseDown` 读到旧值 → 拖拽无法启动。修复：`UIElement` 新增 `OnMouseMove(position)`（未按下也通知），
+    `UICanvas.RouteInput` 每帧对 hovered 元素调用；按下前悬停态已就绪。
+
+18. **scissor「空交集」与「无裁剪」语义混淆（P8，最重要）**：`UIManager.Intersect` 对完全越出视口的
+    裁剪矩形返回 `(x,y,0,0)`，与「无裁剪」默认 `(0,0,0,0)` 无法区分。渲染层 `UIRenderer.DrawBatch`
+    见 `Z≤0||W≤0` 判定「无裁剪」→ 重置全视口 → 越出项 NDC 落在 [-1,1] 内的部分被画出来
+    （滚动内容越过视口可见）。修复：`Intersect` 空交集返回**负尺寸** `(x,y,-1,-1)` 标记「完全裁剪」；
+    `DrawBatch` 检测负尺寸跳过该批。语义：**null=无裁剪、正尺寸=部分裁剪、负尺寸=完全裁剪**。
+
+19. **`OnMouseClick` 空实现（P8）**：`UIDialog` 的 `_hoveredButton` 在 `OnMouseDrag` 更新了，
+    `OnMouseClick` 却空实现 → 点按钮什么都不发生。修复：点击时按 `_hoveredButton` 触发回调 + `Close`。
+    教训：更新了状态就必须消费它。
+
+20. **文本截断按字符数比例（P8）**：`text[..(int)(len×maxW/width)]` 假设等宽字体，非等宽下截断后仍超宽
+    （且省略号宽度未计入预算）。修复：`TextRenderer.Truncate(text, maxWidth)` 逐字符测量直到超宽。
+    UIComboBox/UITabView/UIPropertyGrid/UIDialog 全部改用。
+
+21. **树/列表扁平化破坏逻辑父子关系（P8）**：`UITreeView.RebuildFlatList` 用 `AddChild` 把树项重挂到
+    面板，子项从逻辑父的 `Children` 被摘走 → 树结构丢失、键盘"跳父节点"死分支（视觉 Parent 是
+    UIStackPanel）。修复：`UITreeViewItem` 维护独立 `SubItems` 逻辑子项 + `LogicalParent` 引用，
+    与扁平化可视列表分离。
+
+22. **RouteInput 期间替换 Root 导致当帧空白（P8）**：`Update` 先布局后 `RouteInput`，按钮点击在
+    `RouteInput` 替换 `Root` → 本帧 `Paint` 遍历未布局新 Root（Bounds 全 0）→ UI 空白一帧（露出 3D）。
+    修复：`UICanvas.Update` 在 `RouteInput` 后检测 `Root != _lastLayoutRoot`，同帧补布局。
+    同理 `UIMenuPanel.Show()` 内立即 Measure/Arrange（RouteInput 期间调用时本帧已过布局）。
 
 ## 当前问题与差距分析
 
@@ -885,6 +967,27 @@ slider.Bind(nameof(UISlider.Value), viewModel, vm => vm.Volume, (vm, v) => vm.Vo
 - **无样式系统/数据绑定**：外观硬编码，UI 与逻辑强耦合。
   → 详见「当前问题与差距分析 §四」和「P10」。
 
+## Overlay 弹出层机制（P8，2026-08-26）
+
+菜单下拉、对话框遮罩等需要**覆盖在兄弟元素之上**且**不参与布局流**的控件，通过
+`UICanvas.Overlays` 弹出层实现：
+
+- **注册**：`UIDialog.Show()` / `UIMenuPanel.Show(position)` 自动把自身加入 `canvas.Overlays`
+  （经 `UIElement.Canvas`/`FindCanvas()` 定位画布）；`Close()` 移除。
+- **布局**：Overlay 每帧由 `UICanvas.Update` 直接铺满画布（`Measure(canvasSize)` + `Arrange(fullRect)`），
+  元素内部自行定位（菜单按 `Position` 弹出于指定坐标，对话框居中）。
+- **绘制**：`UICanvas.Paint` 在 Root 之后绘制可见 Overlay（后注册的在上层）。
+- **命中**：`UICanvas.RouteInput` 的 `HitTestTop` 先测 Overlay（倒序），再测 Root——
+  对话框遮罩拦截底层点击（模态），菜单只有弹出矩形内可点。
+- **TextRenderer/Canvas 注入**：`UICanvas.Update` 对每个可见 Overlay 同样注入
+  `LayoutTextRenderer` 与 `Canvas`，保证弹出层内文本可测量/绘制。
+
+**滚轮事件**：`UIElement.OnMouseWheel(float delta)` 虚方法 + `UICanvas.RouteInput` 把滚轮
+沿 hovered 元素祖先链向上冒泡（`ScrollDelta` 来自 `InputState`，Windows 标准 ±120）。
+
+已知限制：`UIComboBox` 下拉直接绘制在控件下方（未用 Overlay），会被后续兄弟元素覆盖；
+`UIScrollBox` 滚动条拖拽在当前命中体系下需点击滚动条本体（拖拽由 `OnMouseDrag` 驱动）。
+
 ## 分阶段计划（现状）
 
 | 阶段 | 内容 | 状态 | 关键交付物 |
@@ -897,7 +1000,7 @@ slider.Bind(nameof(UISlider.Value), viewModel, vm => vm.Volume, (vm, v) => vm.Vo
 | P5 | 完整控件 + 主题 + 编辑器接入（UICheckbox/UISlider/UITheme/EditorLayout） | ✅ | 编辑器骨架 |
 | P6 | 内容自适应布局 + 裁剪 + 焦点增强 + Grid/Wrap | ✅ | Measure/Arrange、scissor、Tab导航、GridPanel、WrapPanel |
 | P7 | 文本框进阶（选择/复制粘贴/词删除/Undo/剪贴板/IME/多行/掩码） | ⏳ | 生产可用文本输入框 |
-| P8 | 更多控件（ScrollBox/Image/Menu/Tree/List/Combo/Window/Tab/Progress/Radio/Spinner/Tooltip） | ⏳ | 编辑器完整控件集 |
+| P8 | 更多控件（ScrollBox/Image/Menu/Tree/List/Combo/Window/Tab/Progress/Radio/Spinner/Tooltip） | 🔶 部分 | ScrollBox/ListView/TreeView/Menu/TabView/SplitPanel/ComboBox/Toolbar/Dialog/PropertyGrid 已落地；Image/Progress/Radio/Spinner/Tooltip/Window 待补 |
 | P9 | 渲染打磨（字形图集/嵌入字体/圆角边框阴影/九宫格/增量绘制/DPI） | ⏳ | 高质量渲染 + 性能优化 |
 | P10 | 主题样式系统 + 数据绑定 + 无障碍/本地化 | ⏳ | 可定制外观 + MVVM 支持 |
 

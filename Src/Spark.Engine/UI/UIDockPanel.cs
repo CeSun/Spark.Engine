@@ -28,13 +28,11 @@ public sealed class UIDockPanel : UIElement
 
     protected override UISize OnMeasure(UISize availableSize)
     {
-        if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
-            return fs;
-
         // DockPanel 的 Measure 比较复杂：需要模拟 Arrange 过程来确定总尺寸
         // 简化策略：累加所有非 Fill 子元素的厚度，Fill 子元素取可用空间
         float totalWidth = Padding.Left + Padding.Right;
         float totalHeight = Padding.Top + Padding.Bottom;
+        float fillCrossMaxW = 0f, fillCrossMaxH = 0f;
 
         foreach (var child in Children)
         {
@@ -53,19 +51,24 @@ public sealed class UIDockPanel : UIElement
                 case UIDock.Left:
                 case UIDock.Right:
                     totalWidth += desired.Width > 0f ? desired.Width : 0f;
+                    // 交叉轴（高度）期望取最大值
+                    fillCrossMaxH = System.Math.Max(fillCrossMaxH, desired.Height);
                     break;
                 case UIDock.Top:
                 case UIDock.Bottom:
                     totalHeight += desired.Height > 0f ? desired.Height : 0f;
+                    fillCrossMaxW = System.Math.Max(fillCrossMaxW, desired.Width);
                     break;
                 case UIDock.Fill:
-                    // Fill 不增加尺寸，它消耗剩余空间
+                    // Fill 不增加厚度尺寸，但记录交叉轴期望
+                    fillCrossMaxW = System.Math.Max(fillCrossMaxW, desired.Width);
+                    fillCrossMaxH = System.Math.Max(fillCrossMaxH, desired.Height);
                     break;
             }
         }
 
-        float w = totalWidth;
-        float h = totalHeight;
+        float w = System.Math.Max(totalWidth, fillCrossMaxW + Padding.Left + Padding.Right);
+        float h = System.Math.Max(totalHeight, fillCrossMaxH + Padding.Top + Padding.Bottom);
 
         if (FixedSize is { } fsv)
         {

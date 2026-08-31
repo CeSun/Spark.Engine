@@ -431,19 +431,12 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4f {
 
 ## 14. 未决事项 / 后续阶段
 
-- **PBR 时序**：ADR-20 先 Blinn-Phong；`ShadingModel.PBR` 与 metallic/roughness 已进参数集，何时
-  切换为正式决策。
-- **`IMaterial` 接口**：是否在 P4 引入以贴合 UE `UMaterialInterface`，并让 `[ScenePayload]` 成员
-  类型收窄到接口（需评估源生成器对接口类型的资源降级是否要扩展）。
+- **PBR 时序**：ADR-20 先 Blinn-Phong；`ShadingModel.PBR` 与 metallic/roughness 已进参数集，何时切换为正式决策。
+- **`IMaterial` 接口**：是否在 P4 引入以贴合 UE `UMaterialInterface`，并让 `[ScenePayload]` 成员类型收窄到接口。
 - **开放参数字典**：固定参数集 vs 任意命名参数（节点图需要后者）。
-- **半透明排序**：`BlendMode.Translucent` 需要按深度排序 + 与不透明分两批（渲染线程排序留待 P5）。
+- **半透明排序**：`BlendMode.Translucent` 需要按深度排序 + 与不透明分两批。
 - **光源 buffer 容量**：`MAX_LIGHTS` 上限与超限截断策略（按强度排序 vs 逐光源 pass）。
-- **shader 缓存序列化**：进程内缓存重启即失效，磁盘缓存（hash → WGSL/pipeline）留待 P5。
-- **后处理/阴影材质**：依赖 `TextureRenderTarget`（P2-4）与帧内依赖拓扑（P2-6），材质系统要为其
-  预留"非网格域"材质（屏幕空间材质）的挂载点。
-- **多 pass 渲染循环（步骤 B）**：`ShaderPass` 已落地于 shader 侧（§7.1，ADR-22），但渲染器仍只画
-  `Forward`；真正跑阴影/深度 pass 还需 `TextureRenderTarget` + 深度缓冲 + 渲染器按 pass 循环
-  （阴影贴图 → 前向采样）。
+- **shader 缓存序列化**：进程内缓存重启即失效，磁盘缓存（hash → WGSL/pipeline）留待后续。
 - **节点图 codegen 的变量复用与死代码消除**：P4 的图 → WGSL 需要 SSA/去重，否则生成 shader 膨胀。
 
 ---

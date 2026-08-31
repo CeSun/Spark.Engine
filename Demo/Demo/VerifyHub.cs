@@ -44,6 +44,7 @@ public static class VerifyHub
         bar.AddChild(MakeButton("2 Clip+HitTest", () => switchTo(ClipHitTestVerifyOverlay.Build(switchTo))));
         bar.AddChild(MakeButton("3 Tree ops", () => switchTo(TreeOpsVerifyOverlay.Build(switchTo))));
         bar.AddChild(MakeButton("4 Text bbox", () => switchTo(TextBoundsVerifyOverlay.Build(switchTo))));
+        bar.AddChild(MakeButton("5 Editor Controls", () => switchTo(EditorControlsVerifyOverlay.Build(switchTo))));
         bar.AddChild(MakeButton("0 P6 scene", () => switchTo(P6VerifyOverlay.Build())));
         root.AddChild(bar);
 

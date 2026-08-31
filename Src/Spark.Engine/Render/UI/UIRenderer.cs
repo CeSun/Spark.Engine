@@ -242,6 +242,12 @@ public unsafe sealed class UIRenderer : IGraphOverlay
         api.RenderPassEncoderSetBindGroup(pass, 0, GetBindGroup(textureId), (nuint)0, null);
 
         // P6: 设置 scissor rect（逻辑像素 → 物理像素，WebGPU 要求整数且 ≥0）
+        if (scissorRect.Z < 0f || scissorRect.W < 0f)
+        {
+            // 空交集（负尺寸）：完全裁剪，跳过该批（内容整体在视口外，不绘制）
+            return;
+        }
+
         if (scissorRect.Z > 0f && scissorRect.W > 0f)
         {
             int sx = System.Math.Max(0, (int)scissorRect.X);

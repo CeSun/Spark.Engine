@@ -27,6 +27,27 @@ public sealed class TextRenderer
     public TextRenderer(Font font)
     {
         _font = font;
+        // 行高 = 含 ascender/descender 的参考字形 ("Ag") 的行框高度，与文本内容无关。
+        // 布局/垂直居中应使用它而非 Measure 的墨水包围盒高度（后者随文本字符变化，
+        // 会导致同字号按钮高度不一致、文字基线不对齐）。
+        LineHeight = MeasureLineHeight(font);
+    }
+
+    /// <summary>字体行高（逻辑像素），与文本内容无关。</summary>
+    public float LineHeight { get; }
+
+    private static float MeasureLineHeight(Font font)
+    {
+        // 用多行文本测真实排版行高（含 line gap）：
+        // SixLabors 多行渲染时每行行距比单行墨水盒高，若用墨水盒当行高，
+        // N 行文本实际渲染高度 > N × LineHeight → 布局分配不足 → 文字底部被裁剪。
+        // 三行墨水盒总高 = 2×行高 + 单行墨水盒高（首末行各一个墨水盒，中间是行距）
+        // → 行高 = (三行高 - 单行高) / 2
+        var options = new RichTextOptions(font) { Dpi = Dpi, Origin = new PointF(0f, 0f) };
+        var one = TextMeasurer.MeasureBounds("Ag", options).Height;
+        var three = TextMeasurer.MeasureBounds("Ag\nAg\nAg", options).Height;
+        float lineHeight = (three - one) / 2f;
+        return System.Math.Max(1f, lineHeight);
     }
 
     /// <summary>测量文本的逻辑像素尺寸。返回值与 CreateTexture 生成的纹理尺寸**完全一致**，
@@ -40,6 +61,70 @@ public sealed class TextRenderer
         return new Vector2(
             System.Math.Max(1, (int)System.MathF.Ceiling(bounds.Right - bounds.Left) + 2),
             System.Math.Max(1, (int)System.MathF.Ceiling(bounds.Bottom - bounds.Top) + 2));
+    }
+
+    /// <summary>
+    /// 把 <paramref name="text"/> 截断到不超过 <paramref name="maxWidth"/>（逻辑像素）：
+    /// 逐字符测量直到超宽，返回「前缀 + …」。比「按字符数比例截断」精确（非等宽字体下后者仍可能超宽）。
+    /// </summary>
+    public string Truncate(string text, float maxWidth)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text;
+
+        if (Measure(text).X <= maxWidth)
+            return text;
+
+        const string ellipsis = "…";
+        float ellipsisW = Measure(ellipsis).X;
+        var sb = new System.Text.StringBuilder(text.Length);
+        for (int i = 0; i < text.Length; i++)
+        {
+            sb.Append(text[i]);
+            if (Measure(sb.ToString()).X + ellipsisW > maxWidth)
+            {
+                sb.Length--; // 回退当前字符
+                break;
+            }
+        }
+
+        if (sb.Length == 0)
+            return ellipsis;
+
+        return sb.ToString() + ellipsis;
+    }
+
+    /// <summary>
+    /// 测量文本块（支持多行 <c>'\n'</c>）：宽度 = 最宽一行（逐行 <see cref="Measure"/> 取 Max），
+    /// 高度 = 行数 × <see cref="LineHeight"/>（固定行高，与文本内容无关）。
+    /// <para>
+    /// 高度**必须**用固定行高而非 <see cref="Measure"/> 的墨水盒高：
+    /// 墨水盒随字符变化（含 descender/ascender 的文本更高），会导致同字号文本布局高度波动
+    /// （如状态文字变化 → 下方控件整体位移）。LineHeight 已含 line gap，
+    /// 行框足以容纳墨水（渲染纹理的 +2 余量由裁剪/抗锯齿兜底）。
+    /// </para>
+    /// </summary>
+    public Vector2 MeasureBlock(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return Vector2.Zero;
+
+        int lineCount = 1;
+        float maxLineW = 0f;
+        int start = 0;
+        for (int i = 0; i <= text.Length; i++)
+        {
+            if (i == text.Length || text[i] == '\n')
+            {
+                var line = text[start..i];
+                maxLineW = System.Math.Max(maxLineW, Measure(line).X);
+                if (i < text.Length)
+                    lineCount++;
+                start = i + 1;
+            }
+        }
+
+        return new Vector2(maxLineW, LineHeight * lineCount);
     }
 
     /// <summary>在 <paramref name="position"/>（逻辑像素，行框左上）绘制着色文本。</summary>

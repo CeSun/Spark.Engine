@@ -52,11 +52,12 @@ public static class DemoApp
         AddCamera(world, secondViewport, eye: new Vector3(3.5f, 1.5f, 1.5f), lookAt: new Vector3(0f, 0f, -2.5f));
 
         // P6-fix 验收 Hub：按钮切换 4 个验收场景（Grid Auto/Span、Clip+HitTest、控件树操作、文本包围盒）
-        // 切换方式：按钮 Clicked 调用 switchTo → 清焦点 + 替换 canvas.Root（下一帧 Update 生效）。
+        // 切换方式：按钮 Clicked 调用 switchTo → 清焦点 + 清 Overlay + 替换 canvas.Root（下一帧 Update 生效）。
         var uiCanvas = app.UIManager.GetOrCreateCanvas(mainViewport.Id);
         Action<Spark.Engine.UI.UIElement> switchTo = root =>
         {
             uiCanvas.ClearFocus();
+            uiCanvas.Overlays.Clear();
             uiCanvas.Root = root;
         };
         uiCanvas.Root = VerifyHub.Build(switchTo);
