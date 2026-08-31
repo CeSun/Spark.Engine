@@ -184,7 +184,8 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             if (!_targets.TryGet(target.Id, out var registered) || !ReferenceEquals(registered, target))
                 continue;
 
-            target.EnsureCreated(_webGpu!.Api, _webGpu.Device);
+            var webGpu = _webGpu!;
+            target.EnsureCreated(webGpu.Api, webGpu.Device);
         }
     }
 

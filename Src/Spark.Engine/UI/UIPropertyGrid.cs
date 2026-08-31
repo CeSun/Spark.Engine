@@ -81,7 +81,7 @@ public sealed class UIPropertyGrid : UIElement
 
         var type = _target.GetType();
         var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.CanRead && p.CanWrite)
+            .Where(p => p.CanRead && p.CanWrite && IsSupportedType(p.PropertyType))
             .OrderBy(p => p.Name);
 
         foreach (var prop in properties)
@@ -91,6 +91,16 @@ public sealed class UIPropertyGrid : UIElement
             _rowsPanel.AddChild(row);
         }
     }
+
+    /// <summary>属性网格可编辑的类型集合：基元 + enum + 数向量（其余类型行不生成，避免只读噪声）。</summary>
+    private static bool IsSupportedType(Type type) =>
+        type.IsPrimitive
+        || type == typeof(string)
+        || type.IsEnum
+        || type == typeof(Vector2)
+        || type == typeof(Vector3)
+        || type == typeof(Vector4)
+        || type == typeof(Quaternion);
 
     private PropertyRow CreateRow(PropertyInfo prop)
     {
@@ -164,7 +174,7 @@ public sealed class UIPropertyGrid : UIElement
 
         var type = _target.GetType();
         var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.CanRead && p.CanWrite)
+            .Where(p => p.CanRead && p.CanWrite && IsSupportedType(p.PropertyType))
             .OrderBy(p => p.Name)
             .ToList();
 
@@ -211,6 +221,9 @@ internal sealed class PropertyRow : UIElement
 
     public void SetValue(object? value)
     {
+        if (_editing)
+            return; // 编辑中不覆盖用户输入（外部每帧 Refresh 不打断输入）
+
         _currentValue = value;
         _editText = value?.ToString() ?? "null";
     }
@@ -311,6 +324,10 @@ internal sealed class PropertyRow : UIElement
                 double => double.TryParse(_editText, out double d) ? d : _currentValue,
                 bool => bool.TryParse(_editText, out bool b) ? b : _currentValue,
                 string => _editText,
+                Vector2 => ParseParts(2) is { } p2 ? new Vector2(p2[0], p2[1]) : _currentValue,
+                Vector3 => ParseParts(3) is { } p3 ? new Vector3(p3[0], p3[1], p3[2]) : _currentValue,
+                Vector4 => ParseParts(4) is { } p4 ? new Vector4(p4[0], p4[1], p4[2], p4[3]) : _currentValue,
+                Quaternion => ParseParts(4) is { } q4 ? new Quaternion(q4[0], q4[1], q4[2], q4[3]) : _currentValue,
                 _ => _currentValue,
             };
 
@@ -322,7 +339,23 @@ internal sealed class PropertyRow : UIElement
         }
         catch
         {
-            _editText = _currentValue.ToString() ?? string.Empty;
+            _editText = _currentValue?.ToString() ?? string.Empty;
         }
+    }
+
+    /// <summary>解析向量文本（兼容 "&lt;1; 2; 3&gt;" / "1,2,3" / "1 2 3"）；分量数不符或解析失败返回 null。</summary>
+    private float[]? ParseParts(int expectedCount)
+    {
+        var parts = _editText.Split(new[] { '<', '>', ';', ',', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != expectedCount)
+            return null;
+
+        var values = new float[expectedCount];
+        for (int i = 0; i < expectedCount; i++)
+        {
+            if (!float.TryParse(parts[i], out values[i]))
+                return null;
+        }
+        return values;
     }
 }
