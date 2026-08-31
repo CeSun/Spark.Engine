@@ -135,7 +135,7 @@
    - `RenderPipeline-Design.md` §14 仍把 `TextureRenderTarget`、材质注册表、RenderGraph 命令流列为未决——均已落地；
    - `Material.cs:53` 注释"预留：法线贴图（codegen 尚未实现）"——法线贴图已实现（d13c745）；
    - README 结构图未列 SkeletalMeshStage/UIRenderer 等新模块。
-5. **验证缺口**：P6-fix 补丁轮（Grid/裁剪/树操作/文本包围盒）仅编译验证、**未 GPU 实机验收**（`2026-08-19-p6fix-worklog.md` 自认）；`TreeOpsVerifyOverlay` 场景 4 用例本身错误。
+5. **验证缺口**：P6-fix 补丁轮（Grid/裁剪/树操作/文本包围盒）仅编译验证、**未 GPU 实机验收**（`2026-08-19-p6fix-worklog.md` 自认）；`TreeOpsVerifyOverlay` 场景 4 用例本身错误。（**2026-08-31 销账**：P6-fix / P8 控件 / P8 审计三轮已由用户 GPU 逐场景验收通过；TreeOps 场景 4 用例已改为真环（root.AddChild(后代 boxA)），正确触发环检测。）
 
 ---
 

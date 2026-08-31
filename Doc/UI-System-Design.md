@@ -1,6 +1,6 @@
 # UI 系统设计（UI System Design）
 
-> 状态：P0~P6 已实现（P6 原轮已在本机 GPU 复跑确认）+ **P6-fix 补丁轮已落地（仅编译验证，尚未验收）**。
+> 状态：P0~P8 全部已实现，P6-fix / P8 控件 / P8 审计三轮均已本机 GPU 实机验收通过（2026-08-31）。
 > P6 原有两阶段 Measure/Arrange、scissor 裁剪、Tab 焦点导航、焦点环可视化、UIGridPanel/UIWrapPanel 布局容器。
 > 文字渲染问题（拉伸/错位/裁剪）已全部定位并修复（见「踩坑经验」1/2/2b/6/6b）；
 > 复选框文字对齐、Demo 控件显式高度、输入框光标闪烁也已落地。
@@ -10,7 +10,7 @@
 > UIElement.RemoveChild/ClearChildren/重挂自动摘除旧父/环检测、TextRenderer 全墨水包围盒（含负 Left/Top）+ 原点补偿。
 >
 > **P8 编辑器控件轮（2026-08-26）已落地**：新增 10 个编辑器刚需控件（见下方「编辑器控件」小节）+
-> **Overlay 弹出层机制**（`UICanvas.Overlays`）。冒烟测试通过（Demo 启动 8s 无崩溃），**尚待用户逐场景验收**。
+> **Overlay 弹出层机制**（`UICanvas.Overlays`）。冒烟测试通过（Demo 启动 8s 无崩溃），用户已逐场景验收通过。
 > 验收入口：`Demo/Demo/EditorControlsVerifyOverlay.cs`（VerifyHub 第 5 个按钮进入，含 9 个子场景）。
 >
 > **P8 审计修复轮（2026-08-31）已落地**：4 路并行子代理审计全部 UI 控件 + 12 处缺陷修复——
@@ -18,9 +18,9 @@
 > （踩坑 13/14/15）、SplitPanel/Dialog/Toolbar 交互缺陷等。42 个单元测试全通过（含 13 个回归锁定）。
 > 详见 `Doc/tasks/2026-08-31-editor-controls-audit-fixes-worklog.md`。
 >
-> **验收状态：⚠ 未验收。** P6-fix / P8 控件 / P8 审计三轮均仅代码改动 + 编译/单测通过，
-> 尚未由用户在本机运行 Demo.Desktop 逐场景目视确认。运行方式：`dotnet run --project Demo\Demo.Desktop`。
-> 剩余为 P7/P9/P10 打磨项。本文与当前代码同步，记录**实际落地形态**与已知偏差。
+> **验收状态：✅ 已验收（2026-08-31）。** P6-fix / P8 控件 / P8 审计三轮经用户在本机运行
+> Demo.Desktop 逐场景目视确认，未发现问题。剩余为 P7/P9/P10 打磨项。
+> 本文与当前代码同步，记录**实际落地形态**与已知偏差。
 
 ## 概述
 

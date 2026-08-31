@@ -160,7 +160,7 @@ Toolbar 点击按钮后状态文字变化，导致 Toolbar 整体下移。
 - P8 缺控件：Image / ProgressBar / RadioButton / Spinner / Tooltip / Window。
 - 样式系统初版（P10）、文本框进阶（P7）、字形图集（P9）。
 - `UITextBox` 超长文本水平滚动（当前 ClipToBounds 截断）。
-- EditorControls 验收 9 个子场景 + 原 4 个验收场景仍待用户 GPU 逐场景确认。
+- EditorControls 验收 9 个子场景 + 原 4 个验收场景已由用户 GPU 逐场景确认（2026-08-31，验收通过未发现问题）。
 
 ## 验证状态
 
@@ -170,4 +170,4 @@ Toolbar 点击按钮后状态文字变化，导致 Toolbar 整体下移。
 | 全解决方案构建 | ✅ 0 警告 0 错误 |
 | Demo 编译 | ✅ |
 | Demo 冒烟 | ✅ 运行 8s 无崩溃 |
-| 用户 GPU 验收 | ⏳ 待用户逐场景确认 |
+| 用户 GPU 验收 | ✅ 已通过（2026-08-31，逐场景目视确认无问题） |

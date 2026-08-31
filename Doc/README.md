@@ -300,9 +300,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | UI 系统（控件树 + 输入 + 文本 + overlay 渲染 + 交互） | ✅ | ✅ |
 | 渲染视图控件（UIRenderView：离屏渲染 → UI 采样 + 自适应分辨率） | ✅ | ✅ |
 
-> 注：UI P6-fix / P8 控件 / P8 审计修复三轮均为代码 + 编译/单测验证（42 个单元测试通过），
-> **尚未 GPU 实机验收**。验收场景已就绪，运行 `dotnet run --project Demo/Demo.Desktop`
-> 后点击按钮切换场景逐项确认。
+> 注：UI P6-fix / P8 控件 / P8 审计修复三轮均已在本机 GPU 实机运行验收场景逐项目视确认，
+> 用户验收通过（2026-08-31）；42 个单元测试同步通过。
 
 ### 20. 编辑器控件集（P8，2026-08-26）
 
@@ -322,7 +321,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
   绘制在 Root 之后、命中测试优先；每帧注入 TextRenderer/Canvas
 - 单元测试：`EditorControlTests`（42 个用例，覆盖滚动钳位/列表选择/树层级/标签页/分割/下拉/属性网格/
   布局稳定性/文本高度/滚动裁剪等）
-- 验收入口：`Demo/Demo/EditorControlsVerifyOverlay.cs`（VerifyHub 第 5 个按钮，9 个子场景），**待用户逐场景验收**
+- 验收入口：`Demo/Demo/EditorControlsVerifyOverlay.cs`（VerifyHub 第 5 个按钮，9 个子场景），**已通过用户逐场景验收（2026-08-31）**
 
 ### 21. UI 布局审计修复轮（P8-audit，2026-08-31）
 
@@ -381,7 +380,7 @@ UI 控件覆盖率已达 ~70%（10 个编辑器刚需控件落地）。
 
 1. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，只重算/提交变化的对象，静态对象复用上一帧快照（当前每帧全量快照）
 2. **主循环忙等改造**：帧率限制用 `Sleep`/`Yield` 替代 `continue` 自旋
-3. **UI 三轮验收**：P6-fix / P8 控件 / P8 审计修复，GPU 实机运行验收场景逐项确认
+3. ~~UI 三轮验收~~：✅ 已完成（2026-08-31 用户 GPU 实机逐场景确认通过）
 4. **单元测试补齐**：UI 布局/文本/滚动已有 42 个测试（`EditorControlTests` 等）；`DualFrameBuffer`/`BoundingSphere`/`Frustum`/`SceneSnapshot` 核心模块测试待补
 
 ### P2 —— 渲染能力扩展
