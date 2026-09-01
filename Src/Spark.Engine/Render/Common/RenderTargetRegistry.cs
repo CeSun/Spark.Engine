@@ -34,6 +34,20 @@ public sealed class RenderTargetRegistry
     /// <summary>渲染线程帧末 drain 延迟删除队列。</summary>
     public bool TryDequeueRemoval(out RenderTarget? target) => _pendingRemovals.TryDequeue(out target);
 
+    /// <summary>
+    /// 渲染线程退出前排空尚未处理的目标删除队列。
+    /// 正常运行时由管线逐帧调用；关闭时可能没有下一帧，因此必须显式排空。
+    /// </summary>
+    internal void DisposePendingRemovals()
+    {
+        while (TryDequeueRemoval(out var target))
+        {
+            target?.Dispose();
+            if (target is Viewport viewport)
+                EnqueueNativeDisposal(viewport.Window);
+        }
+    }
+
     /// <summary>渲染线程在释放某视口 surface 后登记其窗口，等待逻辑线程销毁原生句柄（S4）。</summary>
     public void EnqueueNativeDisposal(IWindow window) => _pendingNativeDisposals.Enqueue(window);
 

@@ -1,6 +1,7 @@
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Render;
+using Spark.Engine.Resources;
 
 namespace Spark.Engine.Worlds;
 
@@ -14,7 +15,12 @@ public class World
     public IReadOnlyList<Actor> Actors => _actors;
 
     /// <summary>渲染场景注册表：持有所有场景代理（网格/光源/…），每帧捕获为快照。</summary>
-    public Scene Scene { get; } = new();
+    public Scene Scene { get; }
+
+    public World(ResourceManager resourceManager)
+    {
+        Scene = new Scene(resourceManager);
+    }
 
     public void AddActor(Actor actor)
     {

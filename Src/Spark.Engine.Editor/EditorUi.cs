@@ -13,7 +13,7 @@ namespace Spark.Engine.Editor;
 /// </summary>
 public sealed class EditorUi
 {
-    private readonly World? _world;
+    private readonly World _world;
     private readonly HierarchyPanel _hierarchy;
     private readonly UILabel _inspectorTitle;
     private readonly UIPropertyGrid _propertyGrid;
@@ -25,9 +25,9 @@ public sealed class EditorUi
     /// <summary>编辑器根元素（挂到主窗口画布 Root）。</summary>
     public UIElement Root { get; }
 
-    public EditorUi(World? world, Action? backToHub = null)
+    public EditorUi(World world, Action? backToHub = null)
     {
-        _world = world;
+        _world = world ?? throw new ArgumentNullException(nameof(world));
         var theme = UITheme.Default;
 
         var root = new UIStackPanel
@@ -62,7 +62,7 @@ public sealed class EditorUi
         // 中部：层级 + 视口（透明）+ 检查器
         var content = new UIStackPanel { Orientation = UIOrientation.Horizontal };
 
-        _hierarchy = new HierarchyPanel(world ?? new World());
+        _hierarchy = new HierarchyPanel(_world);
         var hierarchyPanel = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
@@ -131,19 +131,16 @@ public sealed class EditorUi
         _hierarchy.Refresh();
 
         int actors = 0, components = 0;
-        if (_world != null)
+        foreach (var actor in _world.Actors)
         {
-            foreach (var actor in _world.Actors)
-            {
-                actors++;
-                components += actor.Components.Count();
-            }
+            actors++;
+            components += actor.Components.Count();
         }
 
         _status.Text = $"Actors: {actors}  Components: {components}";
 
         // 选中对象被移除时清空检查器
-        if (_selectedTarget is Actor removedActor && !_world!.Actors.Contains(removedActor))
+        if (_selectedTarget is Actor removedActor && !_world.Actors.Contains(removedActor))
         {
             _selectedTarget = null;
             _propertyGrid.Target = null;

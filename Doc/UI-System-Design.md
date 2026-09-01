@@ -104,7 +104,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 ### 编辑器（`Spark.Engine.Editor/`）
 
 - `EditorLayout.Build()`：编辑器骨架（菜单栏 + 层级面板 + 透明视口区 + 检查器 + 状态栏），用 `UITheme`。
-- `UseEditor()`：注册 `UseUI()`（不再空壳）。
+- `UseEditor()`：注册 UI overlay，并在游戏内容初始化后自动把 `EditorUi` 挂到主窗口、注册逐帧刷新；可选配置回调用于定制编辑器视口。
 
 ## 控件清单与功能规划
 

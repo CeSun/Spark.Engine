@@ -180,6 +180,9 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
     {
         while (_targets.TryDequeueRenderViewCreation(out var target))
         {
+            if (target == null)
+                continue;
+
             // 已被移除/销毁的目标跳过创建（同帧 Destroy 后残留的请求）
             if (!_targets.TryGet(target.Id, out var registered) || !ReferenceEquals(registered, target))
                 continue;
@@ -226,6 +229,8 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Resource upload failed for resource {ResourceId}", resource?.ResourceId);
+                if (resource != null)
+                    _resourceManager.NotifyUploadFailed(resource.ResourceId);
             }
         }
     }
@@ -355,8 +360,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         ReleasePipelineResources();
         ReleaseSceneResources();
 
-        foreach (var overlay in _overlays)
-            overlay.Dispose();
+        // Overlay 的生命周期由 DI 容器管理；管线只负责在帧图中引用它们。
     }
 
     /// <summary>释放通用场景资源（几何/纹理/材质注册表 + 每实例状态 + 延迟删除队列）。</summary>

@@ -29,6 +29,11 @@ public sealed class ResourceManager
     /// <summary>渲染线程：取下一个待上传资源。</summary>
     internal bool TryDequeueUpload(out ISceneResource? resource) => _pendingUploads.TryDequeue(out resource);
 
+    /// <summary>
+    /// 渲染线程：上传失败时撤销去重标记，允许下一次引用重新排队。
+    /// </summary>
+    internal void NotifyUploadFailed(int resourceId) => _uploaded.TryRemove(resourceId, out _);
+
     /// <summary>渲染线程：为「按需同步创建」的资源补挂释放回调（如材质引用的纹理）。</summary>
     internal void AttachReleaseNotifier(ISceneResource resource) => resource.AttachReleaseNotifier(EnqueueGpuRelease);
 

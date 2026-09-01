@@ -5,11 +5,13 @@ using Spark.Engine.Components;
 using Spark.Engine.Input;
 using Spark.Engine.Render;
 using Spark.Engine.Render.Common;
+using Spark.Engine.Render.Pipeline;
 using Spark.Engine.Resources;
 using Spark.Engine.Threads;
 using Spark.Engine.UI;
 using Spark.Engine.Worlds;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 
 namespace Spark.Engine;
 
@@ -17,7 +19,7 @@ public class EngineApplication
 {
     private readonly ILogger<EngineApplication> _logger;
 
-    public ServiceProvider ServiceProvider { get; private set; }
+    private readonly ServiceProvider _serviceProvider;
 
     private Stopwatch _stopwatch = new();
 
@@ -40,6 +42,10 @@ public class EngineApplication
 
     private readonly UIManager _ui;
 
+    private readonly IReadOnlyList<IEngineApplicationInitializer> _initializers;
+
+    private readonly EngineTickRegistry _ticks;
+
     public DualFrameBuffer<SceneSnapshot> DualFrameBuffer => _dualFrameBuffer;
 
     public WindowManager WindowManager { get; private set; }
@@ -58,6 +64,9 @@ public class EngineApplication
 
     /// <summary>UI 管理器（逻辑线程侧 UI 入口，每帧收集屏幕空间绘制基元）。</summary>
     public UIManager UIManager => _ui;
+
+    /// <summary>宿主级更新回调。编辑器和工具系统通过此入口更新，不会出现在 World.Actors 中。</summary>
+    public EngineTickRegistry Ticks => _ticks;
 
     /// <summary>初始化回调：Run 时在窗口创建后、主循环开始前执行一次（供组合根写入游戏逻辑）。</summary>
     public Action<EngineApplication>? InitializeCallback { get; set; }
@@ -87,6 +96,7 @@ public class EngineApplication
     }
 
     private volatile bool _isClosing;
+    private Exception? _failure;
 
     public bool IsClosing
     {
@@ -94,27 +104,33 @@ public class EngineApplication
         private set => _isClosing = value;
     }
 
-    public EngineApplication(ServiceProvider serviceProvider)
+    public EngineApplication(
+        ServiceProvider serviceProvider,
+        ILogger<EngineApplication> logger,
+        EngineOptions engineOptions,
+        ResourceManager resourceManager,
+        InputManager input,
+        UIManager ui,
+        IEnumerable<IEngineApplicationInitializer> initializers,
+        RenderTargetRegistry renderTargets,
+        WindowManager windowManager,
+        EngineTickRegistry ticks,
+        IRenderPipeline pipeline,
+        ILogger<RenderThread> renderThreadLogger)
     {
-        ServiceProvider = serviceProvider;
-
-        _logger = serviceProvider.GetRequiredService<ILogger<EngineApplication>>();
-
-        _engineOptions = serviceProvider.GetService<EngineOptions>() ?? new EngineOptions();
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _engineOptions = engineOptions ?? throw new ArgumentNullException(nameof(engineOptions));
 
         _engineSynchronizationContext = new EngineSynchronizationContext();
-
-        _resourceManager = serviceProvider.GetRequiredService<ResourceManager>();
-
-        _input = serviceProvider.GetService<InputManager>() ?? new InputManager();
-
-        _ui = serviceProvider.GetService<UIManager>() ?? new UIManager();
-
-        RenderTargets = serviceProvider.GetService<RenderTargetRegistry>() ?? new RenderTargetRegistry();
-
-        _renderThread = new RenderThread(this);
-
-        WindowManager = ServiceProvider.GetService<WindowManager>() ?? throw new InvalidOperationException("No WindowManager implementation found.");
+        _resourceManager = resourceManager ?? throw new ArgumentNullException(nameof(resourceManager));
+        _input = input ?? throw new ArgumentNullException(nameof(input));
+        _ui = ui ?? throw new ArgumentNullException(nameof(ui));
+        _initializers = (initializers ?? throw new ArgumentNullException(nameof(initializers))).ToArray();
+        RenderTargets = renderTargets ?? throw new ArgumentNullException(nameof(renderTargets));
+        WindowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
+        _ticks = ticks ?? throw new ArgumentNullException(nameof(ticks));
+        _renderThread = new RenderThread(this, pipeline, renderThreadLogger);
     }
 
     public void Run()
@@ -124,78 +140,102 @@ public class EngineApplication
         if (_engineOptions.TargetFrameRate > 0)
             targetFrameDelta = 1.0f / _engineOptions.TargetFrameRate;
 
-        _stopwatch.Start();
-
-        _engineSynchronizationContext.Initialize();
-
-        // 窗口在 Run 时创建（而非构造）：初始化回调需要访问主窗口（viewport）
-        WindowManager.CreateWindow("Spark Engine", _engineOptions.Width, _engineOptions.Height);
-
-        _logger.LogInformation(
-            "Engine main loop is starting with target frame rate {TargetFrameRate} and {WindowCount} windows",
-            _engineOptions.TargetFrameRate,
-            WindowManager.Windows.Count);
-
-        OnInitialize();
-        InitializeCallback?.Invoke(this);
-
-        _renderThread.Start();
-
-        while (WindowManager.Windows.Count != 0)
+        try
         {
-            try
+            _stopwatch.Start();
+            _engineSynchronizationContext.Initialize();
+
+            // 窗口在 Run 时创建（而非构造）：初始化回调需要访问主窗口（viewport）
+            WindowManager.CreateWindow("Spark Engine", _engineOptions.Width, _engineOptions.Height);
+
+            _logger.LogInformation(
+                "Engine main loop is starting with target frame rate {TargetFrameRate} and {WindowCount} windows",
+                _engineOptions.TargetFrameRate,
+                WindowManager.Windows.Count);
+
+            OnInitialize();
+            InitializeCallback?.Invoke(this);
+            foreach (var initializer in _initializers)
+                initializer.Initialize(this);
+
+            _renderThread.Start();
+
+            while (WindowManager.Windows.Count != 0 && !IsClosing)
             {
-                var deltaTime = (float)_stopwatch.Elapsed.TotalSeconds;
-
-                if (deltaTime < targetFrameDelta)
-                    continue;
-
-                _stopwatch.Restart();
-
-                var buffer = DualFrameBuffer.GetEmptyBuffer();
                 try
                 {
-                    WindowManager.UpdateWindow();
+                    var deltaTime = (float)_stopwatch.Elapsed.TotalSeconds;
 
-                    _input.Update(WindowManager.Windows);
+                    if (deltaTime < targetFrameDelta)
+                    {
+                        // Yield 仍会在高频率下占满逻辑核；短暂休眠把 CPU 让给窗口消息泵和渲染线程。
+                        Thread.Sleep(1);
+                        continue;
+                    }
 
-                    _engineSynchronizationContext.Update();
+                    _stopwatch.Restart();
 
-                    OnUpdate(deltaTime);
-
-                    FillFrameData(buffer, deltaTime);
-
-                    DualFrameBuffer.SubmitReady();
+                    var buffer = DualFrameBuffer.GetEmptyBuffer();
+                    try
+                    {
+                        WindowManager.UpdateWindow();
+                        _input.Update(WindowManager.Windows);
+                        _engineSynchronizationContext.Update();
+                        OnUpdate(deltaTime);
+                        FillFrameData(buffer, deltaTime);
+                        DualFrameBuffer.SubmitReady();
+                    }
+                    catch
+                    {
+                        // 取缓冲后、提交前任何异常都必须归还槽位，否则连续 2 次后主循环永久卡死（S2）
+                        DualFrameBuffer.Abandon();
+                        throw;
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // 取缓冲后、提交前任何异常都必须归还槽位，否则连续 2 次后主循环永久卡死（S2）
-                    DualFrameBuffer.Abandon();
-                    throw;
+                    _failure = ex;
+                    _logger.LogCritical(ex, "Engine main loop stopped after an unrecoverable error");
+                    RequestStop(ex);
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unhandled exception in engine main loop; execution will continue");
             }
         }
-
-        if (IsClosing == false)
+        catch (Exception ex)
+        {
+            _failure = ex;
+            _logger.LogCritical(ex, "Engine initialization failed");
+        }
+        finally
         {
             IsClosing = true;
+            ExitGame();
+            _engineSynchronizationContext.Shutdown();
+            DualFrameBuffer.RequestStop();
+            _renderThread.WaitForExit();
+            DualFrameBuffer.Dispose();
+
+            // 初始化阶段可能在渲染线程启动前失败，此时待删除目标没有消费者，
+            // 由宿主在释放 WebGPUContext 前补一次排空。
+            RenderTargets.DisposePendingRemovals();
+
+            // 渲染线程退出时释放最后一个已关闭窗口的 surface 并登记原生窗口销毁；
+            // 主循环已结束，这里补一次排空，确保最后一个窗口的原生句柄也正确释放（S4）。
+            WindowManager.ProcessNativeDisposals();
+
+            try
+            {
+                OnUninitialize();
+            }
+            finally
+            {
+                _serviceProvider.Dispose();
+            }
         }
 
-        _logger.LogInformation("Engine main loop stopped because all windows were closed");
-
-        DualFrameBuffer.Dispose();
-
-        _renderThread.WaitForExit();
-
-        // 渲染线程退出时释放最后一个已关闭窗口的 surface 并登记原生窗口销毁；
-        // 主循环已结束，这里补一次排空，确保最后一个窗口的原生句柄也正确释放（S4）。
-        WindowManager.ProcessNativeDisposals();
-
-        OnUninitialize();
+        if (_renderThread.Failure != null)
+            _failure ??= _renderThread.Failure;
+        if (_failure != null)
+            ExceptionDispatchInfo.Capture(_failure).Throw();
     }
 
     private void FillFrameData(SceneSnapshot snapshot, float deltaTime)
@@ -253,6 +293,7 @@ public class EngineApplication
     protected virtual void OnUpdate(float deltaTime)
     {
         WorldContext.CurrentWorld?.Update(deltaTime);
+        _ticks.Tick(deltaTime);
     }
 
     /// <summary>主循环结束后的反初始化（子类可覆写，需调用 base）。</summary>
@@ -267,5 +308,13 @@ public class EngineApplication
         {
             window.Close();
         }
+    }
+
+    internal void RequestStop(Exception? failure = null)
+    {
+        if (failure != null)
+            Interlocked.CompareExchange(ref _failure, failure, null);
+        IsClosing = true;
+        DualFrameBuffer.RequestStop();
     }
 }

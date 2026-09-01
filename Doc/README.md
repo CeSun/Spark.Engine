@@ -55,7 +55,7 @@ Spark.Engine.slnx
 ## 架构分层
 
 ```
-Demo（入口：EngineBuilder → InitializeWebGPU → UseDesktop → UseBlinnPhong → UseUI → Build → Run）
+Demo（入口：EngineBuilder → InitializeWebGPU → UseDesktop → UseBlinnPhong → UseEditor → Build → Run）
   │
   ▼
 EngineApplication（主循环：窗口事件 → 同步上下文 → 世界更新 → 填场景快照 → 提交）

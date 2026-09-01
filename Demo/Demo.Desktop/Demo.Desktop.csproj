@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Demo\Demo.csproj" />
     <ProjectReference Include="..\..\Src\Spark.Engine.Desktop\Spark.Engine.Desktop.csproj" />
+    <ProjectReference Include="..\..\Src\Spark.Engine.Editor\Spark.Engine.Editor.csproj" />
     <ProjectReference Include="..\..\Src\Spark.Engine\Spark.Engine.csproj" />
   </ItemGroup>
 

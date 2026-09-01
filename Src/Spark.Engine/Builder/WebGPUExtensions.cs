@@ -22,7 +22,7 @@ public static class WebGPUExtensions
     }
 }
 
-public unsafe class WebGPUContext
+public unsafe sealed class WebGPUContext : IDisposable
 {
     public WebGPU Api { get; }
 
@@ -33,6 +33,8 @@ public unsafe class WebGPUContext
     public Device* Device { get; private set; }
 
     public Queue* Queue { get; private set; }
+
+    private int _disposed;
 
     public WebGPUContext(WebGPU api, Instance* instance)
     {
@@ -109,5 +111,28 @@ public unsafe class WebGPUContext
             throw new InvalidOperationException(error ?? "No WebGPU device available.");
 
         return device;
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
+        var queue = Queue;
+        var device = Device;
+        var adapter = Adapter;
+
+        Queue = null;
+        Device = null;
+        Adapter = null;
+
+        if (queue != null)
+            Api.QueueRelease(queue);
+        if (device != null)
+            Api.DeviceRelease(device);
+        if (adapter != null)
+            Api.AdapterRelease(adapter);
+        if (Instance != null)
+            Api.InstanceRelease(Instance);
     }
 }

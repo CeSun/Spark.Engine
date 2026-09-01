@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Spark.Engine.Platforms;
 using Spark.Engine.Render.Common;
 
@@ -18,9 +17,9 @@ public class WindowManager
 
     public IWindow MainWindow => _windows.Count > 0 ? _windows[0] : throw new InvalidOperationException("No main window available.");
 
-    public WindowManager(IServiceProvider serviceProvider, RenderTargetRegistry targets)
+    public WindowManager(IWindowBackend windowBackend, RenderTargetRegistry targets)
     {
-        _windowBackend = serviceProvider.GetRequiredService<IWindowBackend>();
+        _windowBackend = windowBackend ?? throw new ArgumentNullException(nameof(windowBackend));
         _targets = targets;
     }
 

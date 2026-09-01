@@ -92,6 +92,15 @@ public sealed class DualFrameBuffer<T> : IDisposable
         _emptySlots.Release();
     }
 
+    /// <summary>
+    /// 请求停止所有等待者，但保留同步原语，直到生产者和消费者都退出后再调用 <see cref="Dispose"/>。
+    /// </summary>
+    public void RequestStop()
+    {
+        if (Volatile.Read(ref _disposed) == 0)
+            _disposeCts.Cancel();
+    }
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)

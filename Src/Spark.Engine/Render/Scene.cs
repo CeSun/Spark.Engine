@@ -14,8 +14,13 @@ public sealed class Scene
 
     public int ProxyCount => _proxies.Count;
 
-    /// <summary>资源管理器（自动上传 + GPU 表示延迟释放），由引擎/组合根接线。</summary>
-    public ResourceManager? ResourceManager { get; set; }
+    /// <summary>资源管理器（自动上传 + GPU 表示延迟释放）。</summary>
+    public ResourceManager ResourceManager { get; }
+
+    public Scene(ResourceManager resourceManager)
+    {
+        ResourceManager = resourceManager ?? throw new ArgumentNullException(nameof(resourceManager));
+    }
 
     /// <summary>注册代理并分配全局唯一 ProxyId。</summary>
     public T Register<T>(T proxy) where T : SceneProxy

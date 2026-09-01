@@ -19,7 +19,7 @@ namespace Demo;
 /// </summary>
 public static class DemoApp
 {
-    /// <summary>搭建演示场景与编辑器 UI（作为 <see cref="EngineApplication.InitializeCallback"/> 使用）。</summary>
+    /// <summary>搭建演示场景（作为 <see cref="EngineApplication.InitializeCallback"/> 使用）。</summary>
     public static void Initialize(EngineApplication app)
     {
         // 资源目录：随入口程序输出目录拷贝的 Assets 文件夹（AppContext.BaseDirectory = 入口程序输出目录）
@@ -36,9 +36,8 @@ public static class DemoApp
         }
 
         // 创建世界
-        var world = new World();
+        var world = new World(app.ResourceManager);
         app.WorldContext.CurrentWorld = world;
-        world.Scene.ResourceManager = app.ResourceManager;
 
         // ———— 3D 场景（沿用原 Demo 内容） ————
         var mainWindow = app.WindowManager.MainWindow;
@@ -171,16 +170,14 @@ public static class DemoApp
         world.AddActor(armActor);
         world.AddActor(new SkeletalAnimator(armComponent));
         world.AddActor(new WallSwinger(leftWall, rightWall));
+    }
 
-        // ———— 编辑器 UI：菜单栏 + 场景层级面板 + 检查器 + 状态栏，叠在 3D 场景上 ————
-        var editorUi = new EditorUi(world);
-        var uiCanvas = app.UIManager.GetOrCreateCanvas(mainViewport.Id);
-        uiCanvas.Root = editorUi.Root;
+    /// <summary>配置由 <c>UseEditor()</c> 创建的编辑器视口。</summary>
+    public static void ConfigureEditor(EngineApplication app, EditorUi editorUi)
+    {
+        var world = app.WorldContext.CurrentWorld
+            ?? throw new InvalidOperationException("The demo world must be initialized before the editor.");
 
-        // 每帧驱动：层级树结构签名比对 + 检查器/状态栏刷新
-        app.WorldContext.CurrentWorld.AddActor(new EditorRefreshActor(() => editorUi.Refresh()));
-
-        // ———— UIRenderView 画中画：嵌入编辑器中部视口区 ————
         var renderView = app.CreateRenderView(320, 240);
         var renderViewControl = new UIRenderView
         {

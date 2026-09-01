@@ -31,11 +31,19 @@ public sealed class RenderPass
     /// <summary>是否被剔除（无消费者级联）。</summary>
     internal bool IsCulled { get; set; }
 
-    public RenderPass(string name, Action<RenderPassBuilder>? setup, Action<RenderGraphContext>? execute)
+    /// <summary>是否具有外部副作用（例如写入 GPU 查询、调试标记等），即使无资源消费者也必须执行。</summary>
+    internal bool HasSideEffects { get; }
+
+    public RenderPass(
+        string name,
+        Action<RenderPassBuilder>? setup,
+        Action<RenderGraphContext>? execute,
+        bool hasSideEffects = false)
     {
         Name = name;
         Setup = setup;
         ExecuteAction = execute;
+        HasSideEffects = hasSideEffects;
     }
 
     /// <summary>运行 setup 回调，收集读写声明。</summary>

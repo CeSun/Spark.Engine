@@ -63,9 +63,14 @@ public sealed class RenderGraph : IDisposable
     }
 
     /// <summary>添加一个声明式 pass。</summary>
-    public void AddPass(string name, Action<RenderPassBuilder>? setup, Action<RenderGraphContext>? execute)
+    /// <param name="hasSideEffects">标记无资源输出但仍必须执行的 pass，避免被剔除。</param>
+    public void AddPass(
+        string name,
+        Action<RenderPassBuilder>? setup,
+        Action<RenderGraphContext>? execute,
+        bool hasSideEffects = false)
     {
-        var pass = new RenderPass(name, setup, execute);
+        var pass = new RenderPass(name, setup, execute, hasSideEffects);
         _passes.Add(pass);
     }
 
@@ -76,6 +81,12 @@ public sealed class RenderGraph : IDisposable
     {
         _compiled = false;
         _executionOrder.Clear();
+
+        foreach (var pass in _passes)
+        {
+            pass.IsCulled = false;
+            pass.ExecutionOrder = -1;
+        }
 
         // 1. 运行所有 pass 的 setup，收集读写声明
         foreach (var pass in _passes)
@@ -187,45 +198,48 @@ public sealed class RenderGraph : IDisposable
                 $"RenderGraph has circular dependencies ({unprocessed} pass(es) unprocessed)");
         }
 
-        // 4. 剔除：transient 资源无任何消费者 → 生产它的 pass 可被跳过（级联）
-        //    消费者 = 在 LastRead 之后仍然读此资源的 pass
-        //    简化实现：如果 transient 资源的 Writes 有 pass、但 Reads 列表中无其他 pass 读它 → 剔除
-        //    Phase B 简化：只有当 transient 资源的 LastRead == FirstWrite（只有写、无其他 pass 读）
-        //    且该资源不是任何 pass 的 read 目标时才剔除
-        var consumedResources = new HashSet<int>();
-        foreach (var pass in _executionOrder)
+        // 4. 剔除：从 external 输出和显式副作用 pass 反向标记可达节点。
+        //    不能按“某个输出未消费”剔除整个 pass，因为同一 pass 可能还有被消费的其他输出。
+        var reverseEdges = new List<int>[_passes.Count];
+        for (int i = 0; i < reverseEdges.Length; i++)
+            reverseEdges[i] = new List<int>();
+        for (int from = 0; from < adjList.Count; from++)
         {
-            foreach (var (resource, _) in pass.Reads)
-                consumedResources.Add(resource.Id);
+            foreach (var to in adjList[from])
+                reverseEdges[to].Add(from);
         }
 
-        foreach (var pass in _executionOrder)
+        var live = new bool[_passes.Count];
+        var liveQueue = new Queue<int>();
+        for (int i = 0; i < _passes.Count; i++)
         {
-            bool hasUnconsumedWrite = false;
-            foreach (var (resource, _) in pass.Writes)
+            bool writesExternal = _passes[i].Writes.Any(w =>
+                _resources.TryGetValue(w.Resource.Id, out var resource) && resource.IsExternal);
+            if (writesExternal || _passes[i].HasSideEffects)
             {
-                if (_resources.TryGetValue(resource.Id, out var tex) && !tex.IsExternal)
-                {
-                    if (!consumedResources.Contains(resource.Id))
-                        hasUnconsumedWrite = true;
-                }
+                live[i] = true;
+                liveQueue.Enqueue(i);
             }
-            // 只剔除纯粹生产 transient 资源但无输出到 external 的 pass
-            // 不剔除任何写 external 资源的 pass
-            bool writesExternal = false;
-            foreach (var (resource, _) in pass.Writes)
+        }
+
+        while (liveQueue.Count > 0)
+        {
+            int current = liveQueue.Dequeue();
+            foreach (var predecessor in reverseEdges[current])
             {
-                if (_resources.TryGetValue(resource.Id, out var tex) && tex.IsExternal)
-                {
-                    writesExternal = true;
-                    break;
-                }
+                if (live[predecessor])
+                    continue;
+                live[predecessor] = true;
+                liveQueue.Enqueue(predecessor);
             }
-            if (hasUnconsumedWrite && !writesExternal)
-            {
-                pass.IsCulled = true;
-                _logger?.LogDebug("RenderGraph: culled pass '{Pass}'", pass.Name);
-            }
+        }
+
+        for (int i = 0; i < _passes.Count; i++)
+        {
+            if (live[i])
+                continue;
+            _passes[i].IsCulled = true;
+            _logger?.LogDebug("RenderGraph: culled pass '{Pass}'", _passes[i].Name);
         }
 
         _compiled = true;

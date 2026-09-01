@@ -3,7 +3,9 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Spark.Engine.Input;
 using Spark.Engine.Render.Common;
+using Spark.Engine.Render.Pipeline;
 using Spark.Engine.Resources;
+using Spark.Engine.Threads;
 using Spark.Engine.UI;
 
 namespace Spark.Engine.Builder;
@@ -40,7 +42,8 @@ public class EngineBuilder
         builder.Services.AddSingleton(new RenderTargetRegistry());
         builder.Services.AddSingleton(new InputManager());
         builder.Services.AddSingleton(new UIManager());
-        builder.Services.AddSingleton(sp => new WindowManager(sp, sp.GetRequiredService<RenderTargetRegistry>()));
+        builder.Services.AddSingleton<EngineTickRegistry>();
+        builder.Services.AddSingleton<WindowManager>();
 
         return builder;
     }
@@ -50,7 +53,27 @@ public class EngineBuilder
     public EngineApplication Build()
     {
         var provider = Services.BuildServiceProvider();
-
-        return new EngineApplication(provider);
+        try
+        {
+            return new EngineApplication(
+                provider,
+                provider.GetRequiredService<ILogger<EngineApplication>>(),
+                provider.GetRequiredService<EngineOptions>(),
+                provider.GetRequiredService<ResourceManager>(),
+                provider.GetRequiredService<InputManager>(),
+                provider.GetRequiredService<UIManager>(),
+                provider.GetServices<IEngineApplicationInitializer>(),
+                provider.GetRequiredService<RenderTargetRegistry>(),
+                provider.GetRequiredService<WindowManager>(),
+                provider.GetRequiredService<EngineTickRegistry>(),
+                provider.GetRequiredService<IRenderPipeline>(),
+                provider.GetRequiredService<ILogger<RenderThread>>());
+        }
+        catch
+        {
+            // 构造宿主失败时仍需释放已经创建的单例（尤其是 WebGPUContext）。
+            provider.Dispose();
+            throw;
+        }
     }
 }

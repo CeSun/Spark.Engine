@@ -17,7 +17,9 @@ public class EngineSynchronizationContext : SynchronizationContext
     }
 
     private readonly ConcurrentQueue<WorkItem> _queue = new();
+    private readonly object _gate = new();
     private int _mainThreadId;
+    private int _stopped;
 
     public void Initialize()
     {
@@ -28,13 +30,19 @@ public class EngineSynchronizationContext : SynchronizationContext
     public override void Post(SendOrPostCallback d, object? state)
     {
         if (d == null) throw new ArgumentNullException(nameof(d));
-        _queue.Enqueue(new WorkItem { Callback = d, State = state });
+        lock (_gate)
+        {
+            if (Volatile.Read(ref _stopped) != 0)
+                return;
+            _queue.Enqueue(new WorkItem { Callback = d, State = state });
+        }
     }
 
     public override void Send(SendOrPostCallback d, object? state)
     {
         if (d == null) throw new ArgumentNullException(nameof(d));
-
+        if (Volatile.Read(ref _stopped) != 0)
+            throw new OperationCanceledException("The engine synchronization context has stopped.");
         if (Thread.CurrentThread.ManagedThreadId == _mainThreadId)
         {
             d(state);
@@ -43,7 +51,12 @@ public class EngineSynchronizationContext : SynchronizationContext
 
         using var signal = new ManualResetEventSlim(false);
         var work = new WorkItem { Callback = d, State = state, Signal = signal };
-        _queue.Enqueue(work);
+        lock (_gate)
+        {
+            if (Volatile.Read(ref _stopped) != 0)
+                throw new OperationCanceledException("The engine synchronization context has stopped.");
+            _queue.Enqueue(work);
+        }
 
         signal.Wait();
 
@@ -70,6 +83,24 @@ public class EngineSynchronizationContext : SynchronizationContext
             }
             finally
             {
+                item.Signal?.Set();
+            }
+        }
+    }
+
+    /// <summary>
+    /// 停止接收新工作并唤醒所有正在等待 Send 的调用方，避免主循环退出后永久阻塞。
+    /// </summary>
+    public void Shutdown()
+    {
+        lock (_gate)
+        {
+            if (Interlocked.Exchange(ref _stopped, 1) != 0)
+                return;
+
+            while (_queue.TryDequeue(out var item))
+            {
+                item.Exception = new OperationCanceledException("The engine synchronization context has stopped.");
                 item.Signal?.Set();
             }
         }
