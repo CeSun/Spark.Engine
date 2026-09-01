@@ -90,8 +90,10 @@ public sealed class UIStackPanel : UIElement
         // 有 FixedSize 的分量用固定值覆盖
         if (FixedSize is { } fsv)
         {
-            if (fsv.Width > 0f) totalW = fsv.Width;
-            if (fsv.Height > 0f) totalH = fsv.Height;
+            // Zero is the established fill marker. Returning the measured content
+            // size here prevents parents from allocating the remaining window space.
+            if (fsv.Width >= 0f) totalW = fsv.Width;
+            if (fsv.Height >= 0f) totalH = fsv.Height;
         }
 
         // 不超过可用空间（有限约束时）

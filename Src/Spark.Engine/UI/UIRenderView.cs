@@ -55,6 +55,10 @@ public sealed class UIRenderView : UIElement
 
     protected override UISize OnMeasure(UISize availableSize)
     {
+        // A zero FixedSize is the fill marker used by editor work areas.
+        if (FixedSize is { } fill && fill.Width <= 0f && fill.Height <= 0f)
+            return new UISize(0f, 0f);
+
         if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
             return fs;
 
