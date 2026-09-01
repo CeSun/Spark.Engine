@@ -19,6 +19,9 @@ public sealed class EditorUi
     private readonly UIPropertyGrid _propertyGrid;
     private readonly UILabel _status;
     private readonly UIStackPanel _viewportArea;
+    private readonly UILabel _selectionStatus;
+    private readonly UILabel _modeStatus;
+    private readonly EditorCommandHistory _history = new();
 
     private object? _selectedTarget;
 
@@ -36,31 +39,41 @@ public sealed class EditorUi
             BackgroundColor = theme.WindowBackground, // 铺满窗口，遮挡底层 3D 场景
         };
 
-        // 菜单栏（占位项 + 可选返回按钮）
-        var menuBar = new UIStackPanel
+        var menuBar = new UIMenuBar { FixedSize = new UISize(0f, 28f), BackgroundColor = theme.TitleBarBackground };
+        menuBar.AddMenu("File", menu =>
         {
-            Orientation = UIOrientation.Horizontal,
-            FixedSize = new UISize(0f, 24f),
-            Spacing = 12f,
-            Padding = UIEdgeInsets.HorizontalVertical(8f, 3f),
-            BackgroundColor = theme.TitleBarBackground,
-        };
-        menuBar.AddChild(new UILabel { Text = "File", TextColor = theme.TextDimColor });
-        menuBar.AddChild(new UILabel { Text = "Edit", TextColor = theme.TextDimColor });
-        menuBar.AddChild(new UILabel { Text = "View", TextColor = theme.TextDimColor });
+            menu.AddItem(new UIMenuItem("Save Scene", () => SetStatus("Save is available through the scene service.")) { Shortcut = "Ctrl+S" });
+            menu.AddItem(new UIMenuItem("Reload", () => SetStatus("Reload requested.")) { Shortcut = "Ctrl+R" });
+        });
+        menuBar.AddMenu("Edit", menu =>
+        {
+            menu.AddItem(new UIMenuItem("Undo", Undo) { Shortcut = "Ctrl+Z" });
+            menu.AddItem(new UIMenuItem("Redo", Redo) { Shortcut = "Ctrl+Y" });
+        });
+        menuBar.AddMenu("Window", menu =>
+        {
+            menu.AddItem(new UIMenuItem("Reset Layout", () => SetStatus("Layout reset requested.")));
+        });
         if (backToHub != null)
         {
-            menuBar.AddChild(new UIButton
-            {
-                Text = "<- Hub",
-                Padding = UIEdgeInsets.HorizontalVertical(8f, 2f),
-                Clicked = () => backToHub(),
-            });
+            menuBar.AddChild(new UIButton { Text = "Back to Hub", Padding = UIEdgeInsets.HorizontalVertical(8f, 2f), Clicked = backToHub });
         }
         root.AddChild(menuBar);
 
+        var toolbar = new UIToolbar { FixedSize = new UISize(0f, 34f), BackgroundColor = theme.PanelBackground };
+        toolbar.AddButton("Select", () => SetStatus("Select tool active."));
+        toolbar.AddButton("Move", () => SetStatus("Move tool active."));
+        toolbar.AddButton("Rotate", () => SetStatus("Rotate tool active."));
+        toolbar.AddButton("Scale", () => SetStatus("Scale tool active."));
+        toolbar.AddSeparator();
+        toolbar.AddButton("Add Actor", AddActor);
+        toolbar.AddButton("Delete", DeleteSelection);
+        toolbar.AddSeparator();
+        toolbar.AddButton("Play", () => SetStatus("Play requested."));
+        root.AddChild(toolbar);
+
         // 中部：层级 + 视口（透明）+ 检查器
-        var content = new UIStackPanel { Orientation = UIOrientation.Horizontal };
+        var content = new UIStackPanel { Orientation = UIOrientation.Horizontal, FixedSize = new UISize(0f, 0f) };
 
         _hierarchy = new HierarchyPanel(_world);
         var hierarchyPanel = new UIStackPanel
@@ -69,6 +82,7 @@ public sealed class EditorUi
             FixedSize = new UISize(220f, 0f),
             BackgroundColor = theme.PanelBackground,
         };
+        hierarchyPanel.AddChild(new UILabel { Text = "SCENE HIERARCHY", TextColor = theme.TextDimColor, Padding = UIEdgeInsets.HorizontalVertical(8f, 6f) });
         hierarchyPanel.AddChild(_hierarchy.Element);
         content.AddChild(hierarchyPanel);
 
@@ -76,8 +90,10 @@ public sealed class EditorUi
         _viewportArea = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
+            FixedSize = new UISize(0f, 0f),
             BackgroundColor = new Vector4(0.05f, 0.05f, 0.08f, 1f),
         };
+        _viewportArea.AddChild(new UILabel { Text = "VIEWPORT", TextColor = theme.TextDimColor, Padding = UIEdgeInsets.HorizontalVertical(8f, 6f) });
         content.AddChild(_viewportArea);
 
         var inspector = new UIStackPanel
@@ -89,6 +105,7 @@ public sealed class EditorUi
             BackgroundColor = theme.PanelBackground,
         };
         _inspectorTitle = new UILabel { Text = "Inspector", TextColor = theme.TextColor };
+        inspector.AddChild(new UILabel { Text = "INSPECTOR", TextColor = theme.TextDimColor });
         inspector.AddChild(_inspectorTitle);
 
         _propertyGrid = new UIPropertyGrid
@@ -111,17 +128,48 @@ public sealed class EditorUi
             BackgroundColor = theme.StatusBarBackground,
         };
         _status = new UILabel { Text = "Ready", TextColor = theme.TextDimColor };
+        _selectionStatus = new UILabel { Text = "Nothing selected", TextColor = theme.TextDimColor };
+        _modeStatus = new UILabel { Text = "Editor", TextColor = theme.TextDimColor };
         statusBar.AddChild(_status);
+        statusBar.AddChild(_selectionStatus);
+        statusBar.AddChild(_modeStatus);
         root.AddChild(statusBar);
 
         Root = root;
         _hierarchy.SelectionChanged += _ => UpdateInspector();
     }
 
+    private void SetStatus(string message) => _status.Text = message;
+    private void Undo() => SetStatus(_history.Undo() ? "Undo completed." : "Nothing to undo.");
+    private void Redo() => SetStatus(_history.Redo() ? "Redo completed." : "Nothing to redo.");
+
+    private void AddActor()
+    {
+        var actor = new Actor();
+        _history.Execute(new DelegateEditorCommand("Add Actor", () => _world.AddActor(actor), () => _world.RemoveActor(actor)));
+        SetStatus("Actor queued for creation.");
+    }
+
+    private void DeleteSelection()
+    {
+        if (_selectedTarget is not Actor actor)
+        {
+            SetStatus("Select an Actor to delete.");
+            return;
+        }
+        _history.Execute(new DelegateEditorCommand("Delete Actor", () => _world.RemoveActor(actor), () => _world.AddActor(actor)));
+        _selectedTarget = null;
+        _propertyGrid.Target = null;
+        SetStatus("Actor queued for deletion.");
+    }
+
     /// <summary>把渲染视图控件嵌入中间视口区（画中画显示引擎画面）。</summary>
     public void SetPictureInPicture(UIRenderView control)
     {
-        control.FixedSize = new UISize(320f, 240f); // 固定尺寸，避免测量不确定
+        ArgumentNullException.ThrowIfNull(control);
+        // The render view is the work area, so it must consume the remaining
+        // viewport space instead of retaining the old demo thumbnail size.
+        control.FixedSize = new UISize(0f, 0f);
         _viewportArea.AddChild(control);
     }
 
@@ -138,6 +186,7 @@ public sealed class EditorUi
         }
 
         _status.Text = $"Actors: {actors}  Components: {components}";
+        _selectionStatus.Text = _selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}";
 
         // 选中对象被移除时清空检查器
         if (_selectedTarget is Actor removedActor && !_world.Actors.Contains(removedActor))
@@ -154,6 +203,7 @@ public sealed class EditorUi
     {
         _selectedTarget = _hierarchy.SelectedTarget;
         _propertyGrid.Target = _selectedTarget;
+        _selectionStatus.Text = _selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}";
         UpdateInspectorTitle();
     }
 
