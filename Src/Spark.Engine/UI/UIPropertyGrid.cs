@@ -38,6 +38,9 @@ public sealed class UIPropertyGrid : UIElement
     /// <summary>属性值变化回调。</summary>
     public Action<string, object?>? PropertyChanged { get; set; }
 
+    /// <summary>属性写入前的命令化变更请求。设置后由宿主负责实际写入。</summary>
+    public Action<object, string, object?, object?>? PropertyEditRequested { get; set; }
+
     /// <summary>当前目标对象。</summary>
     public object? Target
     {
@@ -133,8 +136,14 @@ public sealed class UIPropertyGrid : UIElement
             {
                 if (_target != null)
                 {
-                    prop.SetValue(_target, newValue);
-                    PropertyChanged?.Invoke(prop.Name, newValue);
+                    var oldValue = prop.GetValue(_target);
+                    if (PropertyEditRequested != null)
+                        PropertyEditRequested.Invoke(_target, prop.Name, oldValue, newValue);
+                    else
+                    {
+                        prop.SetValue(_target, newValue);
+                        PropertyChanged?.Invoke(prop.Name, newValue);
+                    }
                 }
             }
             catch

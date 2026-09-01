@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Reflection;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.UI;
@@ -21,7 +22,7 @@ public sealed class EditorUi
     private readonly UIStackPanel _viewportArea;
     private readonly UILabel _selectionStatus;
     private readonly UILabel _modeStatus;
-    private readonly EditorCommandHistory _history = new();
+    private readonly EditorContext _context;
 
     private object? _selectedTarget;
 
@@ -31,6 +32,7 @@ public sealed class EditorUi
     public EditorUi(World world, Action? backToHub = null)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
+        _context = new EditorContext(_world);
         var theme = UITheme.Default;
 
         var root = new UIStackPanel
@@ -112,7 +114,7 @@ public sealed class EditorUi
         {
             FixedSize = new UISize(0f, 0f), // 拉伸填满剩余
             BackgroundColor = new Vector4(0f, 0f, 0f, 0f), // 透明：用面板背景
-            PropertyChanged = (_, _) => UpdateInspectorTitle(), // 编辑写回后刷新标题计数
+            PropertyEditRequested = RequestPropertyEdit,
         };
         inspector.AddChild(_propertyGrid);
         content.AddChild(inspector);
@@ -136,17 +138,30 @@ public sealed class EditorUi
         root.AddChild(statusBar);
 
         Root = root;
-        _hierarchy.SelectionChanged += _ => UpdateInspector();
+        _hierarchy.SelectionChanged += target => _context.Selection.Selected = target;
+        _context.Selection.Changed += _ => UpdateInspector();
     }
 
     private void SetStatus(string message) => _status.Text = message;
-    private void Undo() => SetStatus(_history.Undo() ? "Undo completed." : "Nothing to undo.");
-    private void Redo() => SetStatus(_history.Redo() ? "Redo completed." : "Nothing to redo.");
+    private void Undo() => SetStatus(_context.Undo() ? "Undo completed." : "Nothing to undo.");
+    private void Redo() => SetStatus(_context.Redo() ? "Redo completed." : "Nothing to redo.");
+
+    private void RequestPropertyEdit(object target, string propertyName, object? oldValue, object? newValue)
+    {
+        var property = target.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
+        if (property == null || !property.CanWrite)
+        {
+            SetStatus($"Property '{propertyName}' is not editable.");
+            return;
+        }
+        _context.Execute(new PropertyChangeCommand(target, property, oldValue, newValue));
+        SetStatus($"Changed {propertyName}.");
+    }
 
     private void AddActor()
     {
         var actor = new Actor();
-        _history.Execute(new DelegateEditorCommand("Add Actor", () => _world.AddActor(actor), () => _world.RemoveActor(actor)));
+        _context.Execute(new DelegateEditorCommand("Add Actor", () => _world.AddActor(actor), () => _world.RemoveActor(actor)));
         SetStatus("Actor queued for creation.");
     }
 
@@ -157,7 +172,7 @@ public sealed class EditorUi
             SetStatus("Select an Actor to delete.");
             return;
         }
-        _history.Execute(new DelegateEditorCommand("Delete Actor", () => _world.RemoveActor(actor), () => _world.AddActor(actor)));
+        _context.Execute(new DelegateEditorCommand("Delete Actor", () => _world.RemoveActor(actor), () => _world.AddActor(actor)));
         _selectedTarget = null;
         _propertyGrid.Target = null;
         SetStatus("Actor queued for deletion.");
@@ -201,7 +216,7 @@ public sealed class EditorUi
 
     private void UpdateInspector()
     {
-        _selectedTarget = _hierarchy.SelectedTarget;
+        _selectedTarget = _context.Selection.Selected;
         _propertyGrid.Target = _selectedTarget;
         _selectionStatus.Text = _selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}";
         UpdateInspectorTitle();
@@ -209,12 +224,13 @@ public sealed class EditorUi
 
     private void UpdateInspectorTitle()
     {
-        _inspectorTitle.Text = _selectedTarget switch
+        var title = _selectedTarget switch
         {
             SceneComponent sceneComponent => $"{sceneComponent.GetType().Name}  (Loc {sceneComponent.RelativeLocation.X:F1}, {sceneComponent.RelativeLocation.Y:F1}, {sceneComponent.RelativeLocation.Z:F1})",
             Actor actor => $"{actor.GetType().Name}  ({actor.Components.Count()} comps)",
             null => "Inspector",
             _ => _selectedTarget.GetType().Name,
         };
+        _inspectorTitle.Text = _context.IsDirty ? $"{title} *" : title;
     }
 }
