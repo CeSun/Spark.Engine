@@ -154,6 +154,13 @@ public class UITreeViewItem : UIElement
         _hovered = false;
     }
 
+    protected internal override void OnMouseClick()
+    {
+        // Selection must happen on the row itself; the tree flattens logical
+        // children into a panel, so the parent cannot infer which row was hit.
+        Clicked?.Invoke(this);
+    }
+
     /// <summary>切换展开/折叠（仅非叶子节点）。</summary>
     public void Toggle()
     {
@@ -223,6 +230,7 @@ public sealed class UITreeView : UIElement
     {
         item.IndentLevel = 0;
         item.Toggled = OnItemToggled;
+        item.Clicked = OnItemClicked;
         _roots.Add(item);
         RebuildFlatList();
     }
@@ -233,6 +241,7 @@ public sealed class UITreeView : UIElement
         if (!_roots.Remove(item))
             return false;
         item.Toggled = null;
+        item.Clicked = null;
         if (SelectedItem == item)
             SelectItem(null);
         RebuildFlatList();
@@ -244,7 +253,7 @@ public sealed class UITreeView : UIElement
     {
         SelectItem(null);
         foreach (var root in _roots)
-            root.Toggled = null;
+            ClearCallbacks(root);
         _roots.Clear();
         RebuildFlatList();
     }
@@ -305,6 +314,20 @@ public sealed class UITreeView : UIElement
         RebuildFlatList();
     }
 
+    private void OnItemClicked(UITreeViewItem item)
+    {
+        SelectItem(item);
+        ItemActivated?.Invoke(item);
+    }
+
+    private static void ClearCallbacks(UITreeViewItem item)
+    {
+        item.Toggled = null;
+        item.Clicked = null;
+        foreach (var child in item.SubItems)
+            ClearCallbacks(child);
+    }
+
     /// <summary>重建扁平化列表（展开后可见项）。</summary>
     public void RebuildFlatList()
     {
@@ -315,7 +338,10 @@ public sealed class UITreeView : UIElement
             FlattenRecursive(root);
 
         foreach (var item in _flatList)
+        {
+            item.Clicked = OnItemClicked;
             _itemsPanel.AddChild(item);
+        }
     }
 
     private void FlattenRecursive(UITreeViewItem item)
