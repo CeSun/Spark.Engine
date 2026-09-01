@@ -10,6 +10,7 @@ namespace Spark.Engine.Render.Resources;
 public unsafe sealed class SkeletalMeshRenderState : IPerInstanceState
 {
     private readonly WebGPU _api;
+    private int _disposed;
 
     /// <summary>每实例 object uniform（world + normalMatrix），渲染时 QueueWriteBuffer 更新。</summary>
     public Buffer* ObjectBuffer { get; }
@@ -30,6 +31,8 @@ public unsafe sealed class SkeletalMeshRenderState : IPerInstanceState
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
         if (ObjectBindGroup != null) _api.BindGroupRelease(ObjectBindGroup);
         if (BoneBuffer != null) _api.BufferRelease(BoneBuffer);
         if (ObjectBuffer != null) _api.BufferRelease(ObjectBuffer);

@@ -258,7 +258,7 @@ classDiagram
   各 viewport 的图是独立还是合并、backbuffer import 边界（P3）。
 - **buffer 资源**：当前只有纹理；Compute pass 需要 `GraphicsBuffer`/storage buffer 的 transient 版本（P18 需扩展到 buffer）。
 - **别名复用（Phase C）**：存活区间不重叠的 transient 纹理共用物理内存（含移动端 tile-based GMEM 的 on-chip
-  复用与主存别名两套）；当前 `TransientResourcePool` 每帧新建/释放，不做别名。
+  复用与主存别名两套）；当前 `TransientResourcePool` 已按描述跨帧复用物理纹理，但仍不做生命周期区间别名。
 - **barrier 与 pass 级剔除（Phase D）**：当前剔除是简化版（仅「无消费者的纯 transient 写 pass」），
   `FirstWrite/LastRead` 对多 pass 读写的覆盖不完整。
 - **异步 compute / 并行 pass**：图给出并行机会后，是否接入 WebGPU compute queue 重叠。
@@ -276,7 +276,7 @@ Phase B 已实现并跑通「ShadowDepth → BlinnPhong / SkeletalMesh → UIOve
 
 - `RenderPass` 是**具体密封类**（`name + setup/execute 委托`），不是 §3.2 的抽象基类——更轻量，pass 不持有
   GPU 资源，资源在 `RenderGraphContext` 里按句柄解析。
-- 别名复用（Phase C）与 barrier（Phase D）**未落地**；`TransientResourcePool` 目前每帧新建、帧末统一释放。
+- 生命周期区间别名（Phase C）与 barrier（Phase D）**未落地**；`TransientResourcePool` 当前按描述复用物理纹理，帧末归还空闲池，管线销毁时释放。
 
 以下经验都源自 wgpu 的 draw-time validation 崩溃（报错点常是 `RenderPassEncoderEnd`，见
 [ShadowMapping-Design.md §4.1](./ShadowMapping-Design.md#41-显式-pipelinelayout-的-bind-group-完整性)）：
@@ -286,7 +286,7 @@ Phase B 已实现并跑通「ShadowDepth → BlinnPhong / SkeletalMesh → UIOve
    pass 里经 `ctx.GetTextureView(backbuffer)` 取 acquire 的视图，`if (colorView == null) return;` 跳过
    acquire 失败（surface lost）的帧，颜色附件用 `colorView`。多相机/多 pass 写同一 backbuffer 时共享
    同一次 acquire/present，避免各自 acquire 造成的覆盖/交错与重复 present。
-2. **transient 资源 + 缓存的 bind group = 悬垂视图**。Phase B 的阴影贴图每帧新建、帧末释放，若 forward
+2. **transient 资源 + 缓存的 bind group = 悬垂视图**。阴影贴图虽然跨帧复用，但仍只在图执行期间保持有效；若 forward
    pass 的 group0 bind group 只建一次，第 2 帧起就引用已释放的旧视图（阴影永远停在第 1 帧且泄漏）。
    规则：**凡引用 transient 资源的 bind group，必须随该资源每帧重建**，或把该资源改为 persistent 而非 transient。
 3. **bind group 必须「完整 + 类型正确」**。显式 `PipelineLayout` 声明了几个组，draw 前就要为管线实际用到的

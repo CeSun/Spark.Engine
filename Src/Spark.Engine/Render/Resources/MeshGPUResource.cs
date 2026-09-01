@@ -10,6 +10,7 @@ namespace Spark.Engine.Render.Resources;
 public unsafe sealed class MeshGPUResource : IGPUResource
 {
     private readonly WebGPU _api;
+    private int _disposed;
 
     public Buffer* VertexBuffer { get; }
 
@@ -45,6 +46,8 @@ public unsafe sealed class MeshGPUResource : IGPUResource
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
         if (VertexBuffer != null) _api.BufferRelease(VertexBuffer);
         if (IndexBuffer != null) _api.BufferRelease(IndexBuffer);
     }
@@ -57,6 +60,7 @@ public unsafe sealed class MeshGPUResource : IGPUResource
 public unsafe sealed class StaticMeshRenderState : IPerInstanceState
 {
     private readonly WebGPU _api;
+    private int _disposed;
 
     /// <summary>每实例 object uniform（world + normalMatrix，128 字节），渲染时 QueueWriteBuffer 更新。</summary>
     public Buffer* ObjectBuffer { get; }
@@ -72,6 +76,8 @@ public unsafe sealed class StaticMeshRenderState : IPerInstanceState
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
         if (ObjectBindGroup != null) _api.BindGroupRelease(ObjectBindGroup);
         if (ObjectBuffer != null) _api.BufferRelease(ObjectBuffer);
     }

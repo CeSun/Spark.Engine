@@ -24,6 +24,8 @@ public static class WebGPUExtensions
 
 public unsafe sealed class WebGPUContext : IDisposable
 {
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+
     public WebGPU Api { get; }
 
     public Instance* Instance { get; }
@@ -33,6 +35,8 @@ public unsafe sealed class WebGPUContext : IDisposable
     public Device* Device { get; private set; }
 
     public Queue* Queue { get; private set; }
+
+    public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
     private int _disposed;
 
@@ -44,26 +48,47 @@ public unsafe sealed class WebGPUContext : IDisposable
 
     public RenderSurface CreateSurface(INativeWindowSource nativeWindow)
     {
+        ThrowIfDisposed();
         var surface = WebGPUSurface.CreateWebGPUSurface(nativeWindow, Api, Instance);
-        EnsureDevice(surface);
-        return new RenderSurface(Api, Adapter, Device, surface);
+        try
+        {
+            EnsureDevice(surface);
+            return new RenderSurface(Api, Adapter, Device, surface);
+        }
+        catch
+        {
+            if (surface != null)
+                Api.SurfaceRelease(surface);
+            throw;
+        }
     }
 
     private void EnsureDevice(Surface* compatibleSurface)
     {
+        ThrowIfDisposed();
         if (Device != null)
             return;
 
         Adapter = RequestAdapter(compatibleSurface);
-        Device = RequestDevice(Adapter);
-        Queue = Api.DeviceGetQueue(Device);
+        try
+        {
+            Device = RequestDevice(Adapter);
+            Queue = Api.DeviceGetQueue(Device);
+        }
+        catch
+        {
+            if (Adapter != null)
+                Api.AdapterRelease(Adapter);
+            Adapter = null;
+            throw;
+        }
     }
 
     private Adapter* RequestAdapter(Surface* compatibleSurface)
     {
         Adapter* adapter = null;
         string? error = null;
-        using var signal = new ManualResetEventSlim(false);
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         RequestAdapterCallback callback = (status, result, message, _) =>
         {
@@ -72,12 +97,13 @@ public unsafe sealed class WebGPUContext : IDisposable
             else
                 error = $"WebGPU adapter request failed: {status}";
 
-            signal.Set();
+            completion.TrySetResult();
         };
 
         var options = new RequestAdapterOptions { CompatibleSurface = compatibleSurface };
         Api.InstanceRequestAdapter(Instance, ref options, callback, null);
-        signal.Wait();
+        if (!completion.Task.Wait(RequestTimeout))
+            throw new TimeoutException($"Timed out waiting for WebGPU adapter after {RequestTimeout.TotalSeconds:0}s.");
         GC.KeepAlive(callback);
 
         if (adapter == null)
@@ -90,7 +116,7 @@ public unsafe sealed class WebGPUContext : IDisposable
     {
         Device* device = null;
         string? error = null;
-        using var signal = new ManualResetEventSlim(false);
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         RequestDeviceCallback callback = (status, result, message, _) =>
         {
@@ -99,12 +125,13 @@ public unsafe sealed class WebGPUContext : IDisposable
             else
                 error = $"WebGPU device request failed: {status}";
 
-            signal.Set();
+            completion.TrySetResult();
         };
 
         var descriptor = new DeviceDescriptor();
         Api.AdapterRequestDevice(adapter, ref descriptor, callback, null);
-        signal.Wait();
+        if (!completion.Task.Wait(RequestTimeout))
+            throw new TimeoutException($"Timed out waiting for WebGPU device after {RequestTimeout.TotalSeconds:0}s.");
         GC.KeepAlive(callback);
 
         if (device == null)
@@ -134,5 +161,11 @@ public unsafe sealed class WebGPUContext : IDisposable
             Api.AdapterRelease(adapter);
         if (Instance != null)
             Api.InstanceRelease(Instance);
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (IsDisposed)
+            throw new ObjectDisposedException(nameof(WebGPUContext));
     }
 }

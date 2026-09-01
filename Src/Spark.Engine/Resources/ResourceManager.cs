@@ -16,6 +16,18 @@ public sealed class ResourceManager
     private readonly Action<int> _releaseNotifier;
     private int _disposed;
 
+    /// <summary>是否已停止接受资源请求。</summary>
+    public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
+
+    /// <summary>当前等待渲染线程上传的资源数量（诊断用途）。</summary>
+    public int PendingUploadCount => _pendingUploads.Count;
+
+    /// <summary>当前等待 GPU 表示释放的资源数量（诊断用途）。</summary>
+    public int PendingGpuReleaseCount => _pendingGpuReleases.Count;
+
+    /// <summary>当前已登记上传或等待释放的资源数量（诊断用途）。</summary>
+    public int UploadedResourceCount => _uploaded.Count;
+
     public ResourceManager()
     {
         _releaseNotifier = EnqueueGpuRelease;

@@ -10,11 +10,14 @@ namespace Spark.Engine.Render;
 /// <typeparam name="T">缓冲区数据类型</typeparam>
 public sealed class DualFrameBuffer<T> : IDisposable
 {
+    private static readonly TimeSpan DefaultWaitTimeout = TimeSpan.FromSeconds(30);
+
     private readonly T[] _buffers;
     private readonly SemaphoreSlim _emptySlots;
     private readonly SemaphoreSlim _readySlots;
     private readonly SemaphoreSlim _readySlotAvailable;
     private readonly CancellationTokenSource _disposeCts = new();
+    private readonly TimeSpan _waitTimeout;
 
     private int _emptyIdx;
     private int _readyIdx;
@@ -22,10 +25,22 @@ public sealed class DualFrameBuffer<T> : IDisposable
     private int _disposed;
 
     public DualFrameBuffer(Func<T> bufferFactory)
+        : this(bufferFactory, DefaultWaitTimeout)
+    {
+    }
+
+    /// <summary>
+    /// 创建双缓冲，并为每个同步点设置最长等待时间。
+    /// 超时用于把渲染线程/GPU 停滞从“窗口无响应”转换为可诊断的引擎异常。
+    /// </summary>
+    public DualFrameBuffer(Func<T> bufferFactory, TimeSpan waitTimeout)
     {
         if (bufferFactory == null)
             throw new ArgumentNullException(nameof(bufferFactory));
+        if (waitTimeout <= TimeSpan.Zero || waitTimeout == Timeout.InfiniteTimeSpan)
+            throw new ArgumentOutOfRangeException(nameof(waitTimeout));
 
+        _waitTimeout = waitTimeout;
         _buffers = new[] { bufferFactory(), bufferFactory() };
         _emptySlots = new SemaphoreSlim(2, 2);
         _readySlots = new SemaphoreSlim(0, 1);
@@ -39,7 +54,7 @@ public sealed class DualFrameBuffer<T> : IDisposable
     public T GetEmptyBuffer()
     {
         ThrowIfDisposed();
-        _emptySlots.Wait(_disposeCts.Token);
+        WaitFor(_emptySlots, "empty buffer");
         ThrowIfDisposed();
 
         int idx = Volatile.Read(ref _emptyIdx);
@@ -50,7 +65,7 @@ public sealed class DualFrameBuffer<T> : IDisposable
     public void SubmitReady()
     {
         ThrowIfDisposed();
-        _readySlotAvailable.Wait(_disposeCts.Token);
+        WaitFor(_readySlotAvailable, "ready slot");
         ThrowIfDisposed();
 
         CommitReadyFrame();
@@ -59,7 +74,7 @@ public sealed class DualFrameBuffer<T> : IDisposable
     public T GetReadyBuffer()
     {
         ThrowIfDisposed();
-        _readySlots.Wait(_disposeCts.Token);
+        WaitFor(_readySlots, "ready buffer");
         ThrowIfDisposed();
 
         return GetReadyBufferCore();
@@ -143,5 +158,18 @@ public sealed class DualFrameBuffer<T> : IDisposable
     {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(DualFrameBuffer<T>));
+    }
+
+    private void WaitFor(SemaphoreSlim semaphore, string resource)
+    {
+        if (semaphore.Wait(_waitTimeout, _disposeCts.Token))
+            return;
+
+        throw new TimeoutException(
+            $"Timed out waiting for {resource} after {_waitTimeout.TotalSeconds:0.###}s. " +
+            $"empty={_emptySlots.CurrentCount}, ready={_readySlots.CurrentCount}, " +
+            $"readySlot={_readySlotAvailable.CurrentCount}, " +
+            $"emptyIdx={Volatile.Read(ref _emptyIdx)}, readyIdx={Volatile.Read(ref _readyIdx)}, " +
+            $"writingIdx={Volatile.Read(ref _writingIdx)}.");
     }
 }

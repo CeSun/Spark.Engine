@@ -368,6 +368,16 @@ public sealed class RenderGraph : IDisposable
                 if (!resource.IsExternal || resource.ExternalTarget is not Viewport viewport)
                     continue;
                 resource.ExternalSession = viewport.BeginRenderSession();
+                if (!resource.ExternalSession.Value.IsValid)
+                {
+                    var surface = viewport.Surface;
+                    _logger?.LogWarning(
+                        "RenderGraph skipped acquire for viewport {ViewportId}: surface state={State}, status={Status}, failures={Failures}",
+                        viewport.Id,
+                        surface?.State,
+                        surface?.LastAcquireStatus,
+                        surface?.AcquireFailureCount);
+                }
             }
 
             // 按拓扑序执行 pass

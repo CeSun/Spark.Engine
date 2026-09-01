@@ -2,6 +2,15 @@ using Silk.NET.WebGPU;
 
 namespace Spark.Engine.Render.Common;
 
+/// <summary>交换链表面的生命周期状态。</summary>
+public enum RenderSurfaceState
+{
+    Uninitialized,
+    Ready,
+    Lost,
+    Disposed,
+}
+
 /// <summary>
 /// 引擎视角的交换链封装。持有原生 <c>Surface*</c>，对外只暴露只读状态与操作，裸指针永不外泄。
 /// 渲染线程独占使用；acquire 前懒重配（尺寸 / PresentMode / surface lost 变化时自动重新配置）。
@@ -27,6 +36,9 @@ public unsafe sealed class RenderSurface : IDisposable
     private bool _configured;
 
     private int _disposed;
+    private int _state = (int)RenderSurfaceState.Uninitialized;
+    private uint _acquireFailureCount;
+    private SurfaceGetCurrentTextureStatus _lastAcquireStatus;
 
     /// <summary>物理像素宽。</summary>
     public uint Width => _width;
@@ -39,6 +51,15 @@ public unsafe sealed class RenderSurface : IDisposable
     public TextureFormat Format => _format;
 
     public PresentMode PresentMode => _presentMode;
+
+    /// <summary>当前交换链状态；Lost 时下一次 acquire 会尝试重新配置。</summary>
+    public RenderSurfaceState State => (RenderSurfaceState)Volatile.Read(ref _state);
+
+    /// <summary>最近一次 acquire 的底层状态。</summary>
+    public SurfaceGetCurrentTextureStatus LastAcquireStatus => _lastAcquireStatus;
+
+    /// <summary>从创建以来 acquire 失败的次数，用于诊断驱动/窗口问题。</summary>
+    public uint AcquireFailureCount => Volatile.Read(ref _acquireFailureCount);
 
     public RenderSurface(WebGPU api, Adapter* adapter, Device* device, Surface* surface)
     {
@@ -81,9 +102,14 @@ public unsafe sealed class RenderSurface : IDisposable
         {
             // lost / outdated / timeout / oom 等：标记失效，下次 acquire 前重新配置
             _configured = false;
+            _lastAcquireStatus = surfaceTexture.Status;
+            Interlocked.Increment(ref _acquireFailureCount);
+            Volatile.Write(ref _state, (int)RenderSurfaceState.Lost);
             return default;
         }
 
+        _lastAcquireStatus = SurfaceGetCurrentTextureStatus.Success;
+        Volatile.Write(ref _state, (int)RenderSurfaceState.Ready);
         TextureView* view = _api.TextureCreateView(surfaceTexture.Texture, (TextureViewDescriptor*)null);
         return new FrameTexture(_api, surfaceTexture.Texture, view);
     }
@@ -146,6 +172,7 @@ public unsafe sealed class RenderSurface : IDisposable
             _width = _targetWidth;
             _height = _targetHeight;
             _configured = true;
+            Volatile.Write(ref _state, (int)RenderSurfaceState.Ready);
         }
         finally
         {
@@ -169,6 +196,8 @@ public unsafe sealed class RenderSurface : IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
+
+        Volatile.Write(ref _state, (int)RenderSurfaceState.Disposed);
 
         if (_configured)
             _api.SurfaceUnconfigure(_surface);

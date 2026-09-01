@@ -34,6 +34,24 @@ public sealed class SceneResourceLifetimeTests
         Assert.Equal(1, calls);
     }
 
+    [Fact]
+    public void ResourceManagerExposesQueueStateAndStopsAfterDispose()
+    {
+        using var resource = new TestResource();
+        var manager = new ResourceManager();
+
+        manager.EnsureUploaded(resource);
+        Assert.Equal(1, manager.PendingUploadCount);
+        Assert.Equal(1, manager.UploadedResourceCount);
+
+        resource.Dispose();
+        Assert.Equal(1, manager.PendingGpuReleaseCount);
+
+        manager.Dispose();
+        Assert.True(manager.IsDisposed);
+        Assert.Throws<ObjectDisposedException>(() => manager.EnsureUploaded(new TestResource()));
+    }
+
     private sealed class TestResource : SceneResource
     {
     }

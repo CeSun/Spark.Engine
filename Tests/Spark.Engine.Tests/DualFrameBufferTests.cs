@@ -42,4 +42,30 @@ public sealed class DualFrameBufferTests
         Assert.Empty(second);
         buffer.Abandon();
     }
+
+    [Fact]
+    public void GetReadyBuffer_TimesOutWithDiagnosticState()
+    {
+        using var buffer = new DualFrameBuffer<int>(() => 0, TimeSpan.FromMilliseconds(20));
+
+        var error = Assert.Throws<TimeoutException>(() => buffer.GetReadyBuffer());
+
+        Assert.Contains("ready buffer", error.Message);
+        Assert.Contains("empty=2", error.Message);
+    }
+
+    [Fact]
+    public void GetEmptyBuffer_TimesOutWhenBothBuffersAreInFlight()
+    {
+        using var buffer = new DualFrameBuffer<int>(() => 0, TimeSpan.FromMilliseconds(20));
+
+        buffer.GetEmptyBuffer();
+        buffer.SubmitReady();
+        buffer.GetEmptyBuffer();
+
+        var error = Assert.Throws<TimeoutException>(() => buffer.GetEmptyBuffer());
+
+        Assert.Contains("empty buffer", error.Message);
+        buffer.Abandon();
+    }
 }

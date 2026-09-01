@@ -6,6 +6,7 @@ namespace Spark.Engine.Render.Resources;
 public unsafe sealed class TextureGPUResource : IGPUResource
 {
     private readonly WebGPU _api;
+    private int _disposed;
 
     public Texture* GpuTexture { get; }
 
@@ -20,6 +21,8 @@ public unsafe sealed class TextureGPUResource : IGPUResource
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
         if (View != null) _api.TextureViewRelease(View);
         if (GpuTexture != null) _api.TextureRelease(GpuTexture);
     }

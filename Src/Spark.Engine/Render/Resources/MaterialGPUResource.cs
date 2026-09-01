@@ -11,6 +11,7 @@ namespace Spark.Engine.Render.Resources;
 public unsafe sealed class MaterialGPUResource : IGPUResource
 {
     private readonly WebGPU _api;
+    private int _disposed;
 
     /// <summary>该材质折叠出的 shader 变体 key（供缓存取 pipeline）。</summary>
     public MaterialShaderKey ShaderKey { get; }
@@ -40,6 +41,8 @@ public unsafe sealed class MaterialGPUResource : IGPUResource
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
         if (TexturesBindGroup != null) _api.BindGroupRelease(TexturesBindGroup);
         if (ParamsBindGroup != null) _api.BindGroupRelease(ParamsBindGroup);
         if (ParamsBuffer != null) _api.BufferRelease(ParamsBuffer);

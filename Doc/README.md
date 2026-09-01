@@ -228,7 +228,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
   （声明读写 + 执行回调）/ `Compile`（建三类依赖边 + 拓扑排序 + 环检测 + 简化剔除）/ `Execute`
   （分配 transient → 按拓扑序执行 pass → 帧末释放 transient）
 - `RenderGraphContext`：pass 执行时把句柄解析成真实 GPU 对象（`GetRenderTarget` / `GetTextureView` / `GetTransientTarget`）
-- `TransientResourcePool`：帧内 transient 纹理分配/释放（Phase B：每帧新建、帧末统一释放，别名复用留待 Phase C）
+- `TransientResourcePool`：按 `TextureResourceDesc` 跨帧复用 transient 纹理，帧末归还空闲池，管线销毁时统一释放；内存别名复用留待后续阶段
 - 三 stage 已落地：`ShadowDepthStage`（写 transient 深度贴图）+ `BlinnPhongStage`（静态网格）+ `SkeletalMeshStage`
   （骨骼网格），经 RenderGraph 编排执行
 - 窗口 backbuffer 作为 external 资源接入：`RenderGraph.Execute` 帧级 acquire/present 各一次（多相机/多 pass

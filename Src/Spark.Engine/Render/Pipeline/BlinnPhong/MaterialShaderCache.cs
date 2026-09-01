@@ -32,6 +32,7 @@ public unsafe sealed class MaterialShaderCache : IDisposable
     private readonly PipelineLayout* _pipelineLayout;
     private readonly PipelineLayout* _skinnedPipelineLayout;
     private readonly Dictionary<(MaterialShaderKey Key, ShaderPass Pass, bool Skinned), MaterialVariant> _variants = new();
+    private int _disposed;
 
     public MaterialShaderCache(WebGPUContext webGpu, PipelineLayout* pipelineLayout, PipelineLayout* skinnedPipelineLayout)
     {
@@ -50,6 +51,7 @@ public unsafe sealed class MaterialShaderCache : IDisposable
 
     private RenderPipeline* GetPipeline(MaterialShaderKey key, ShaderPass pass, TextureFormat format, bool skinned)
     {
+        ThrowIfDisposed();
         var variant = GetOrCreateVariant(key, pass, skinned);
         if (variant.Pipelines.TryGetValue(format, out var cached))
             return (RenderPipeline*)cached;
@@ -246,8 +248,16 @@ public unsafe sealed class MaterialShaderCache : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
         foreach (var variant in _variants.Values)
             variant.Dispose(_webGpu.Api);
         _variants.Clear();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+            throw new ObjectDisposedException(nameof(MaterialShaderCache));
     }
 }

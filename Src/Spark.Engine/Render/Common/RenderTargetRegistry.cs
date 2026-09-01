@@ -20,7 +20,18 @@ public sealed class RenderTargetRegistry
     /// <summary>分配一个全局唯一的 TargetId。</summary>
     public int AllocateId() => Interlocked.Increment(ref _nextId);
 
-    public void Register(RenderTarget target) => _targets[target.Id] = target;
+    public void Register(RenderTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        if (_targets.TryAdd(target.Id, target))
+            return;
+
+        if (_targets.TryGetValue(target.Id, out var existing) && ReferenceEquals(existing, target))
+            return;
+
+        throw new InvalidOperationException($"Render target id {target.Id} is already registered.");
+    }
 
     public bool TryGet(int id, out RenderTarget? target) => _targets.TryGetValue(id, out target);
 

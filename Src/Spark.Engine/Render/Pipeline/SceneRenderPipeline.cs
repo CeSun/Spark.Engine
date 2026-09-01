@@ -47,6 +47,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
 
     private readonly IReadOnlyList<IGraphOverlay> _overlays;
     private readonly TransientResourcePool? _transientPool;
+    private int _disposed;
 
     protected SceneRenderPipeline(
         ILogger logger,
@@ -66,6 +67,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
     /// <inheritdoc />
     public void Render(SceneSnapshot snapshot)
     {
+        ThrowIfDisposed();
         if (_webGpu == null)
             return;
 
@@ -253,32 +255,43 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             Size = vertexSize,
             MappedAtCreation = false,
         };
-        Buffer* vertexBuffer = api.DeviceCreateBuffer(device, ref vertexDesc);
-        fixed (T* data = vertices)
+        Buffer* vertexBuffer = null;
+        Buffer* indexBuffer = null;
+        try
         {
-            api.QueueWriteBuffer(queue, vertexBuffer, 0, data, (nuint)vertexSize);
-        }
+            vertexBuffer = api.DeviceCreateBuffer(device, ref vertexDesc);
+            fixed (T* data = vertices)
+            {
+                api.QueueWriteBuffer(queue, vertexBuffer, 0, data, (nuint)vertexSize);
+            }
 
-        var indexDesc = new BufferDescriptor
-        {
-            Usage = BufferUsage.Index | BufferUsage.CopyDst,
-            Size = indexSize,
-            MappedAtCreation = false,
-        };
-        Buffer* indexBuffer = api.DeviceCreateBuffer(device, ref indexDesc);
-        fixed (uint* data = indices)
-        {
-            api.QueueWriteBuffer(queue, indexBuffer, 0, data, (nuint)indexSize);
-        }
+            var indexDesc = new BufferDescriptor
+            {
+                Usage = BufferUsage.Index | BufferUsage.CopyDst,
+                Size = indexSize,
+                MappedAtCreation = false,
+            };
+            indexBuffer = api.DeviceCreateBuffer(device, ref indexDesc);
+            fixed (uint* data = indices)
+            {
+                api.QueueWriteBuffer(queue, indexBuffer, 0, data, (nuint)indexSize);
+            }
 
-        return new MeshGPUResource(
-            api,
-            vertexBuffer,
-            indexBuffer,
-            (uint)indices.Length,
-            IndexFormat.Uint32,
-            vertexSize,
-            indexSize);
+            return new MeshGPUResource(
+                api,
+                vertexBuffer,
+                indexBuffer,
+                (uint)indices.Length,
+                IndexFormat.Uint32,
+                vertexSize,
+                indexSize);
+        }
+        catch
+        {
+            if (indexBuffer != null) api.BufferRelease(indexBuffer);
+            if (vertexBuffer != null) api.BufferRelease(vertexBuffer);
+            throw;
+        }
     }
 
     /// <summary>RGBA8 纹理上传一次。</summary>
@@ -298,30 +311,40 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             MipLevelCount = 1,
             SampleCount = 1,
         };
-        Texture* gpuTexture = api.DeviceCreateTexture(device, ref textureDesc);
-
-        // WebGPU 要求 bytesPerRow 对齐 256（COPY_BYTES_PER_ROW_ALIGNMENT）；rgba8 是紧密排列，
-        // 需重排为对齐 stride（行尾补零，不被采样）。
-        uint rowBytes = width * 4;
-        uint alignedRowBytes = (rowBytes + 255u) & ~255u;
-        byte[] upload = rgba8;
-        if (alignedRowBytes != rowBytes)
+        Texture* gpuTexture = null;
+        TextureView* view = null;
+        try
         {
-            upload = new byte[alignedRowBytes * height];
-            for (uint y = 0; y < height; y++)
-                Array.Copy(rgba8, (int)(y * rowBytes), upload, (int)(y * alignedRowBytes), (int)rowBytes);
-        }
+            gpuTexture = api.DeviceCreateTexture(device, ref textureDesc);
 
-        var copyDest = new ImageCopyTexture { Texture = gpuTexture, MipLevel = 0, Origin = default, Aspect = TextureAspect.All };
-        var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = alignedRowBytes, RowsPerImage = height };
-        fixed (byte* data = upload)
+            // WebGPU 要求 bytesPerRow 对齐 256（COPY_BYTES_PER_ROW_ALIGNMENT）；rgba8 是紧密排列，
+            // 需重排为对齐 stride（行尾补零，不被采样）。
+            uint rowBytes = width * 4;
+            uint alignedRowBytes = (rowBytes + 255u) & ~255u;
+            byte[] upload = rgba8;
+            if (alignedRowBytes != rowBytes)
+            {
+                upload = new byte[alignedRowBytes * height];
+                for (uint y = 0; y < height; y++)
+                    Array.Copy(rgba8, (int)(y * rowBytes), upload, (int)(y * alignedRowBytes), (int)rowBytes);
+            }
+
+            var copyDest = new ImageCopyTexture { Texture = gpuTexture, MipLevel = 0, Origin = default, Aspect = TextureAspect.All };
+            var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = alignedRowBytes, RowsPerImage = height };
+            fixed (byte* data = upload)
+            {
+                api.QueueWriteTexture(queue, ref copyDest, data, (nuint)upload.Length, ref dataLayout, ref size);
+            }
+
+            view = api.TextureCreateView(gpuTexture, (TextureViewDescriptor*)null);
+            return new TextureGPUResource(api, gpuTexture, view);
+        }
+        catch
         {
-            api.QueueWriteTexture(queue, ref copyDest, data, (nuint)upload.Length, ref dataLayout, ref size);
+            if (view != null) api.TextureViewRelease(view);
+            if (gpuTexture != null) api.TextureRelease(gpuTexture);
+            throw;
         }
-
-        TextureView* view = api.TextureCreateView(gpuTexture, (TextureViewDescriptor*)null);
-
-        return new TextureGPUResource(api, gpuTexture, view);
     }
 
     /// <summary>解析纹理槽位：缺失则同步创建 GPU 纹理并补挂释放回调。</summary>
@@ -351,6 +374,9 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
     /// <inheritdoc />
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
         if (_webGpu?.Api == null)
             return;
 
@@ -364,6 +390,12 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         _transientPool?.Dispose();
 
         // Overlay 的生命周期由 DI 容器管理；管线只负责在帧图中引用它们。
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+            throw new ObjectDisposedException(GetType().Name);
     }
 
     /// <summary>释放通用场景资源（几何/纹理/材质注册表 + 每实例状态 + 延迟删除队列）。</summary>

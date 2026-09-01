@@ -21,6 +21,12 @@ public sealed class UIManager
     private readonly Dictionary<int, Stack<UIRect>> _clipStacks = new();
     private TextRenderer? _text;
 
+    /// <summary>当前等待渲染线程上传的 UI 纹理数量（诊断用途）。</summary>
+    public int PendingTextureUploadCount => _pendingTextures.Count;
+
+    /// <summary>当前等待渲染线程释放的 UI 纹理数量（诊断用途）。</summary>
+    public int PendingTextureReleaseCount => _pendingTextureReleases.Count;
+
     /// <summary>本帧待绘制的基元（游戏/编辑器代码在 OnUpdate 期间写入）。</summary>
     public FrameBuffer<UIPrimitive> Primitives => _primitives;
 

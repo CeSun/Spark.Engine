@@ -138,42 +138,55 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
             Size = (ulong)sizeof(MaterialParamsUniform),
             MappedAtCreation = false,
         };
-        Buffer* paramsBuffer = api.DeviceCreateBuffer(device, ref bufferDesc);
-        MaterialParamsUniform* paramPtr = &param;
-        api.QueueWriteBuffer(queue, paramsBuffer, 0, paramPtr, (nuint)sizeof(MaterialParamsUniform));
-
-        var paramsEntry = new BindGroupEntry
+        Buffer* paramsBuffer = null;
+        BindGroup* paramsBindGroup = null;
+        BindGroup* texturesBindGroup = null;
+        try
         {
-            Binding = 0,
-            Buffer = paramsBuffer,
-            Offset = 0,
-            Size = (ulong)sizeof(MaterialParamsUniform),
-        };
-        var paramsDesc = new BindGroupDescriptor
-        {
-            Layout = _materialParamsLayout,
-            EntryCount = (nuint)1,
-            Entries = &paramsEntry,
-        };
-        BindGroup* paramsBindGroup = api.DeviceCreateBindGroup(device, ref paramsDesc);
+            paramsBuffer = api.DeviceCreateBuffer(device, ref bufferDesc);
+            MaterialParamsUniform* paramPtr = &param;
+            api.QueueWriteBuffer(queue, paramsBuffer, 0, paramPtr, (nuint)sizeof(MaterialParamsUniform));
 
-        // group3 纹理 + 采样器（5 槽恒绑定 + fallback）
-        BindGroupEntry* texEntries = stackalloc BindGroupEntry[6];
-        texEntries[0] = new BindGroupEntry { Binding = 0, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.BaseColorTexture), _whiteTexture!) };
-        texEntries[1] = new BindGroupEntry { Binding = 1, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.NormalTexture), _normalTexture!) };
-        texEntries[2] = new BindGroupEntry { Binding = 2, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.EmissiveTexture), _blackTexture!) };
-        texEntries[3] = new BindGroupEntry { Binding = 3, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.MetallicRoughnessTexture), _blackTexture!) };
-        texEntries[4] = new BindGroupEntry { Binding = 4, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.MaskTexture), _whiteTexture!) };
-        texEntries[5] = new BindGroupEntry { Binding = 5, Sampler = _sampler };
-        var texDesc = new BindGroupDescriptor
-        {
-            Layout = _materialTexturesLayout,
-            EntryCount = (nuint)6,
-            Entries = texEntries,
-        };
-        BindGroup* texturesBindGroup = api.DeviceCreateBindGroup(device, ref texDesc);
+            var paramsEntry = new BindGroupEntry
+            {
+                Binding = 0,
+                Buffer = paramsBuffer,
+                Offset = 0,
+                Size = (ulong)sizeof(MaterialParamsUniform),
+            };
+            var paramsDesc = new BindGroupDescriptor
+            {
+                Layout = _materialParamsLayout,
+                EntryCount = (nuint)1,
+                Entries = &paramsEntry,
+            };
+            paramsBindGroup = api.DeviceCreateBindGroup(device, ref paramsDesc);
 
-        return new MaterialGPUResource(api, key, paramsBuffer, paramsBindGroup, texturesBindGroup);
+            // group3 纹理 + 采样器（5 槽恒绑定 + fallback）
+            BindGroupEntry* texEntries = stackalloc BindGroupEntry[6];
+            texEntries[0] = new BindGroupEntry { Binding = 0, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.BaseColorTexture), _whiteTexture!) };
+            texEntries[1] = new BindGroupEntry { Binding = 1, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.NormalTexture), _normalTexture!) };
+            texEntries[2] = new BindGroupEntry { Binding = 2, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.EmissiveTexture), _blackTexture!) };
+            texEntries[3] = new BindGroupEntry { Binding = 3, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.MetallicRoughnessTexture), _blackTexture!) };
+            texEntries[4] = new BindGroupEntry { Binding = 4, TextureView = ResolveTextureView(material.GetEffectiveTexture(MaterialParam.MaskTexture), _whiteTexture!) };
+            texEntries[5] = new BindGroupEntry { Binding = 5, Sampler = _sampler };
+            var texDesc = new BindGroupDescriptor
+            {
+                Layout = _materialTexturesLayout,
+                EntryCount = (nuint)6,
+                Entries = texEntries,
+            };
+            texturesBindGroup = api.DeviceCreateBindGroup(device, ref texDesc);
+
+            return new MaterialGPUResource(api, key, paramsBuffer, paramsBindGroup, texturesBindGroup);
+        }
+        catch
+        {
+            if (texturesBindGroup != null) api.BindGroupRelease(texturesBindGroup);
+            if (paramsBindGroup != null) api.BindGroupRelease(paramsBindGroup);
+            if (paramsBuffer != null) api.BufferRelease(paramsBuffer);
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -199,24 +212,35 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
             Size = (ulong)sizeof(ObjectUniformData),
             MappedAtCreation = false,
         };
-        Buffer* objectBuffer = api.DeviceCreateBuffer(device, ref bufferDesc);
-
-        var entry = new BindGroupEntry
+        Buffer* objectBuffer = null;
+        BindGroup* objectBindGroup = null;
+        try
         {
-            Binding = 0,
-            Buffer = objectBuffer,
-            Offset = 0,
-            Size = (ulong)sizeof(ObjectUniformData),
-        };
-        var bindGroupDesc = new BindGroupDescriptor
-        {
-            Layout = _objectLayout,
-            EntryCount = (nuint)1,
-            Entries = &entry,
-        };
-        BindGroup* objectBindGroup = api.DeviceCreateBindGroup(device, ref bindGroupDesc);
+            objectBuffer = api.DeviceCreateBuffer(device, ref bufferDesc);
 
-        return new StaticMeshRenderState(api, objectBuffer, objectBindGroup);
+            var entry = new BindGroupEntry
+            {
+                Binding = 0,
+                Buffer = objectBuffer,
+                Offset = 0,
+                Size = (ulong)sizeof(ObjectUniformData),
+            };
+            var bindGroupDesc = new BindGroupDescriptor
+            {
+                Layout = _objectLayout,
+                EntryCount = (nuint)1,
+                Entries = &entry,
+            };
+            objectBindGroup = api.DeviceCreateBindGroup(device, ref bindGroupDesc);
+
+            return new StaticMeshRenderState(api, objectBuffer, objectBindGroup);
+        }
+        catch
+        {
+            if (objectBindGroup != null) api.BindGroupRelease(objectBindGroup);
+            if (objectBuffer != null) api.BufferRelease(objectBuffer);
+            throw;
+        }
     }
 
     private SkeletalMeshRenderState CreateSkeletalMeshRenderState()
@@ -230,28 +254,41 @@ public unsafe sealed class BlinnPhongRenderer : SceneRenderPipeline
             Size = (ulong)sizeof(ObjectUniformData),
             MappedAtCreation = false,
         };
-        Buffer* objectBuffer = api.DeviceCreateBuffer(device, ref objectDesc);
-
-        var boneDesc = new BufferDescriptor
+        Buffer* objectBuffer = null;
+        Buffer* boneBuffer = null;
+        BindGroup* objectBindGroup = null;
+        try
         {
-            Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-            Size = (ulong)(SkeletalMeshConstants.MaxBones * sizeof(Matrix4x4)),
-            MappedAtCreation = false,
-        };
-        Buffer* boneBuffer = api.DeviceCreateBuffer(device, ref boneDesc);
+            objectBuffer = api.DeviceCreateBuffer(device, ref objectDesc);
 
-        BindGroupEntry* entries = stackalloc BindGroupEntry[2];
-        entries[0] = new BindGroupEntry { Binding = 0, Buffer = objectBuffer, Offset = 0, Size = (ulong)sizeof(ObjectUniformData) };
-        entries[1] = new BindGroupEntry { Binding = 1, Buffer = boneBuffer, Offset = 0, Size = (ulong)(SkeletalMeshConstants.MaxBones * sizeof(Matrix4x4)) };
-        var bindGroupDesc = new BindGroupDescriptor
+            var boneDesc = new BufferDescriptor
+            {
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                Size = (ulong)(SkeletalMeshConstants.MaxBones * sizeof(Matrix4x4)),
+                MappedAtCreation = false,
+            };
+            boneBuffer = api.DeviceCreateBuffer(device, ref boneDesc);
+
+            BindGroupEntry* entries = stackalloc BindGroupEntry[2];
+            entries[0] = new BindGroupEntry { Binding = 0, Buffer = objectBuffer, Offset = 0, Size = (ulong)sizeof(ObjectUniformData) };
+            entries[1] = new BindGroupEntry { Binding = 1, Buffer = boneBuffer, Offset = 0, Size = (ulong)(SkeletalMeshConstants.MaxBones * sizeof(Matrix4x4)) };
+            var bindGroupDesc = new BindGroupDescriptor
+            {
+                Layout = _skinnedObjectLayout,
+                EntryCount = (nuint)2,
+                Entries = entries,
+            };
+            objectBindGroup = api.DeviceCreateBindGroup(device, ref bindGroupDesc);
+
+            return new SkeletalMeshRenderState(api, objectBuffer, boneBuffer, objectBindGroup);
+        }
+        catch
         {
-            Layout = _skinnedObjectLayout,
-            EntryCount = (nuint)2,
-            Entries = entries,
-        };
-        BindGroup* objectBindGroup = api.DeviceCreateBindGroup(device, ref bindGroupDesc);
-
-        return new SkeletalMeshRenderState(api, objectBuffer, boneBuffer, objectBindGroup);
+            if (objectBindGroup != null) api.BindGroupRelease(objectBindGroup);
+            if (boneBuffer != null) api.BufferRelease(boneBuffer);
+            if (objectBuffer != null) api.BufferRelease(objectBuffer);
+            throw;
+        }
     }
 
     private ShadowDepthStage.ShadowInfo ComputeShadowInfo(SceneSnapshot snapshot)
