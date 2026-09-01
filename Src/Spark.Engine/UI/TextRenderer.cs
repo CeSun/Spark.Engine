@@ -22,7 +22,12 @@ public sealed class TextRenderer
     // 每个 UI 文本纹理的「墨水原点偏移」：DrawText 绘制四边形时把纹理左上角放到 position + offset，
     // 使纹理内的墨水像素落到 position 处（与文本逻辑原点一致）。详见 CreateTexture。
     private readonly Dictionary<int, Vector2> _textureOffsets = new();
+    private readonly Dictionary<int, uint> _lastUsedFrame = new();
     private int _nextTextureId = 1;
+    private uint _frame;
+
+    private const int MaxCachedTextures = 512;
+    private const uint EvictionAge = 3;
 
     public TextRenderer(Font font)
     {
@@ -141,6 +146,7 @@ public sealed class TextRenderer
 
         var size = _textureSizes[textureId];
         var offset = _textureOffsets[textureId];
+        _lastUsedFrame[textureId] = _frame;
         var clip = ui.CurrentClip(targetId);
         ui.Primitives.Add(new UIPrimitive
         {
@@ -151,6 +157,33 @@ public sealed class TextRenderer
             TextureId = textureId,
             ScissorRect = clip.HasValue ? new Vector4(clip.Value.X, clip.Value.Y, clip.Value.Width, clip.Value.Height) : default,
         });
+    }
+
+    internal void BeginFrame() => _frame++;
+
+    internal void EndFrame(UIManager ui)
+    {
+        if (_textureIds.Count <= MaxCachedTextures)
+            return;
+
+        int excess = _textureIds.Count - MaxCachedTextures;
+        var evict = _textureIds
+            .Select(pair => (Text: pair.Key, Id: pair.Value))
+            .Where(item => _lastUsedFrame.TryGetValue(item.Id, out var last)
+                && _frame >= last
+                && _frame - last >= EvictionAge)
+            .OrderBy(item => _lastUsedFrame[item.Id])
+            .Take(excess)
+            .ToArray();
+
+        foreach (var item in evict)
+        {
+            _textureIds.Remove(item.Text);
+            _textureSizes.Remove(item.Id);
+            _textureOffsets.Remove(item.Id);
+            _lastUsedFrame.Remove(item.Id);
+            ui.EnqueueTextureRelease(item.Id);
+        }
     }
 
     /// <summary>取文本紧贴墨水包围盒（相对 Origin=(0,0)，即行框左上角）。</summary>

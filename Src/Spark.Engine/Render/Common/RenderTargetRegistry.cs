@@ -31,6 +31,10 @@ public sealed class RenderTargetRegistry
             _pendingRemovals.Enqueue(target);
     }
 
+    /// <summary>撤销尚未交给渲染线程的注册（窗口创建失败回滚使用）。</summary>
+    internal bool Discard(int id, out RenderTarget? target)
+        => _targets.TryRemove(id, out target);
+
     /// <summary>渲染线程帧末 drain 延迟删除队列。</summary>
     public bool TryDequeueRemoval(out RenderTarget? target) => _pendingRemovals.TryDequeue(out target);
 

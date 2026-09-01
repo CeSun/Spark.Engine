@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Silk.NET.WebGPU;
 using Spark.Engine.Builder;
 using Spark.Engine.Render.Common;
 
@@ -25,6 +26,7 @@ public sealed class RenderGraph : IDisposable
     private readonly WebGPUContext _webGpu;
     private readonly ILogger? _logger;
     private readonly TransientResourcePool _pool;
+    private readonly bool _ownsPool;
 
     // 资源注册表（Id → TextureResource）
     private readonly Dictionary<int, TextureResource> _resources = new();
@@ -37,17 +39,25 @@ public sealed class RenderGraph : IDisposable
 
     private int _nextId = 100_000; // 从高值开始，避免与 RenderTarget.Id（从 1 递增）冲突
     private bool _compiled;
+    private int _disposed;
 
     public RenderGraph(WebGPUContext webGpu, ILogger? logger = null)
+        : this(webGpu, logger, null)
+    {
+    }
+
+    internal RenderGraph(WebGPUContext webGpu, ILogger? logger, TransientResourcePool? pool)
     {
         _webGpu = webGpu;
         _logger = logger;
-        _pool = new TransientResourcePool(webGpu);
+        _pool = pool ?? new TransientResourcePool(webGpu);
+        _ownsPool = pool == null;
     }
 
     /// <summary>注册一个 transient 纹理资源（图管理生命周期）。</summary>
     public RenderGraphResource RegisterTexture(in TextureResourceDesc desc)
     {
+        ThrowIfDisposed();
         var id = _nextId++;
         var resource = new TextureResource(id, desc);
         _resources[id] = resource;
@@ -57,6 +67,15 @@ public sealed class RenderGraph : IDisposable
     /// <summary>导入一个外部渲染目标（如窗口 backbuffer），图只引用不管理生命周期。</summary>
     public RenderGraphResource ImportTexture(RenderTarget externalTarget)
     {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(externalTarget);
+        if (_resources.TryGetValue(externalTarget.Id, out var existing))
+        {
+            if (!existing.IsExternal || !ReferenceEquals(existing.ExternalTarget, externalTarget))
+                throw new InvalidOperationException($"Resource id {externalTarget.Id} is already registered for a different target.");
+            return existing.Handle;
+        }
+
         var resource = new TextureResource(externalTarget.Id, externalTarget);
         _resources[externalTarget.Id] = resource;
         return resource.Handle;
@@ -70,6 +89,7 @@ public sealed class RenderGraph : IDisposable
         Action<RenderGraphContext>? execute,
         bool hasSideEffects = false)
     {
+        ThrowIfDisposed();
         var pass = new RenderPass(name, setup, execute, hasSideEffects);
         _passes.Add(pass);
     }
@@ -79,6 +99,7 @@ public sealed class RenderGraph : IDisposable
     /// </summary>
     public void Compile()
     {
+        ThrowIfDisposed();
         _compiled = false;
         _executionOrder.Clear();
 
@@ -87,12 +108,31 @@ public sealed class RenderGraph : IDisposable
             pass.IsCulled = false;
             pass.ExecutionOrder = -1;
         }
+        foreach (var resource in _resources.Values)
+        {
+            resource.FirstWrite = int.MaxValue;
+            resource.LastRead = int.MinValue;
+            resource.TransientTarget = null;
+            resource.ExternalSession = null;
+        }
 
         // 1. 运行所有 pass 的 setup，收集读写声明
         foreach (var pass in _passes)
             pass.RunSetup();
 
-        // 2. 建依赖边：按资源收集访问事件，同一资源任意两个冲突事件（至少一个写）之间建边，
+        // 2. 在建立依赖前校验句柄与 GPU 用途，避免错误拖到渲染线程才暴露。
+        foreach (var pass in _passes)
+        {
+            ValidateAccesses(pass, pass.Reads, isWrite: false);
+            ValidateAccesses(pass, pass.Writes, isWrite: true);
+            foreach (var dependency in pass.ExplicitDependencies)
+            {
+                if (!_resources.ContainsKey(dependency.Id))
+                    throw new InvalidOperationException($"Pass '{pass.Name}' depends on unknown resource {dependency.Id}.");
+            }
+        }
+
+        // 3. 建依赖边：按资源收集访问事件，同一资源任意两个冲突事件（至少一个写）之间建边，
         //    补齐 read→write / write→write 边（中8）；DependsOn 用「资源→最后写者」映射（只认注册序在前的写者，中9）。
         //    同时算每个 transient 资源的存活区间。
         var adjList = new Dictionary<int, List<int>>();   // pass index → 后继列表
@@ -167,7 +207,7 @@ public sealed class RenderGraph : IDisposable
             }
         }
 
-        // 3. 拓扑排序（Kahn 算法）
+        // 4. 拓扑排序（Kahn 算法）
         var queue = new Queue<int>();
         for (int i = 0; i < _passes.Count; i++)
         {
@@ -198,7 +238,7 @@ public sealed class RenderGraph : IDisposable
                 $"RenderGraph has circular dependencies ({unprocessed} pass(es) unprocessed)");
         }
 
-        // 4. 剔除：从 external 输出和显式副作用 pass 反向标记可达节点。
+        // 5. 剔除：从 external 输出和显式副作用 pass 反向标记可达节点。
         //    不能按“某个输出未消费”剔除整个 pass，因为同一 pass 可能还有被消费的其他输出。
         var reverseEdges = new List<int>[_passes.Count];
         for (int i = 0; i < reverseEdges.Length; i++)
@@ -247,6 +287,38 @@ public sealed class RenderGraph : IDisposable
             _executionOrder.Count, _resources.Count);
     }
 
+    private void ValidateAccesses(
+        RenderPass pass,
+        IReadOnlyList<(RenderGraphResource Resource, ResourceAccess Access)> accesses,
+        bool isWrite)
+    {
+        foreach (var (handle, access) in accesses)
+        {
+            if (!_resources.TryGetValue(handle.Id, out var resource))
+                throw new InvalidOperationException($"Pass '{pass.Name}' references unknown resource {handle.Id}.");
+            if (handle.IsExternal != resource.IsExternal)
+                throw new InvalidOperationException($"Pass '{pass.Name}' uses resource {handle.Id} with an invalid external flag.");
+
+            // External targets own their usage contract. Transient targets are fully described by the graph.
+            if (resource.IsExternal)
+                continue;
+
+            var required = access switch
+            {
+                ResourceAccess.Sample => TextureUsage.TextureBinding,
+                ResourceAccess.RenderTarget => TextureUsage.RenderAttachment,
+                _ => throw new InvalidOperationException($"Pass '{pass.Name}' uses unsupported resource access {access}.")
+            };
+            if ((resource.Desc.Usage & required) != required)
+            {
+                var operation = isWrite ? "write" : "read";
+                throw new InvalidOperationException(
+                    $"Pass '{pass.Name}' cannot {operation} resource {handle.Id} as {access}: " +
+                    $"the resource usage is {resource.Desc.Usage}, but requires {required}.");
+            }
+        }
+    }
+
     /// <summary>加一条 from→to 依赖边（去重；from == to 忽略）。</summary>
     private static void AddDependencyEdge(Dictionary<int, List<int>> adjList, int[] inDegree, int from, int to)
     {
@@ -265,28 +337,30 @@ public sealed class RenderGraph : IDisposable
     /// </summary>
     public void Execute()
     {
+        ThrowIfDisposed();
         if (!_compiled)
             throw new InvalidOperationException("RenderGraph must be compiled before execution");
 
         var context = new RenderGraphContext(_webGpu, _resources);
 
-        // 分配 transient 资源：只分配被未剔除 pass 使用的（被剔除 pass 的产出不再每帧建/毁，中14）
-        var usedByLivePass = new HashSet<int>();
-        foreach (var pass in _executionOrder)
-        {
-            if (pass.IsCulled) continue;
-            foreach (var (res, _) in pass.Writes) usedByLivePass.Add(res.Id);
-            foreach (var (res, _) in pass.Reads) usedByLivePass.Add(res.Id);
-        }
-        foreach (var resource in _resources.Values)
-        {
-            if (resource.IsExternal) continue;
-            if (!usedByLivePass.Contains(resource.Handle.Id)) continue;
-            resource.TransientTarget = _pool.Allocate(resource.Desc);
-        }
-
         try
         {
+            // 分配 transient 资源：只分配被未剔除 pass 使用的（被剔除 pass 的产出不再每帧建/毁，中14）。
+            // 放进 try，确保分配中途失败时已取得的目标也会归还池（异常安全）。
+            var usedByLivePass = new HashSet<int>();
+            foreach (var pass in _executionOrder)
+            {
+                if (pass.IsCulled) continue;
+                foreach (var (res, _) in pass.Writes) usedByLivePass.Add(res.Id);
+                foreach (var (res, _) in pass.Reads) usedByLivePass.Add(res.Id);
+            }
+            foreach (var resource in _resources.Values)
+            {
+                if (resource.IsExternal) continue;
+                if (!usedByLivePass.Contains(resource.Handle.Id)) continue;
+                resource.TransientTarget = _pool.Allocate(resource.Desc);
+            }
+
             // 帧级 acquire：external Viewport 目标每帧只 acquire 一次（多相机共享同一 backbuffer）。
             // 收进 try/finally：任一 acquire 抛异常时，已 acquire 的 session 也会在 finally 中 dispose（S3）。
             foreach (var resource in _resources.Values)
@@ -334,6 +408,7 @@ public sealed class RenderGraph : IDisposable
     /// </summary>
     public RenderGraphDescription Dump()
     {
+        ThrowIfDisposed();
         if (!_compiled)
             throw new InvalidOperationException("RenderGraph must be compiled before dump");
 
@@ -396,6 +471,12 @@ public sealed class RenderGraph : IDisposable
     /// <summary>重置图（下一帧重新构建）。</summary>
     public void Reset()
     {
+        ThrowIfDisposed();
+        ResetCore();
+    }
+
+    private void ResetCore()
+    {
         _resources.Clear();
         _passes.Clear();
         _executionOrder.Clear();
@@ -405,7 +486,17 @@ public sealed class RenderGraph : IDisposable
 
     public void Dispose()
     {
-        _pool.Dispose();
-        Reset();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
+        if (_ownsPool)
+            _pool.Dispose();
+        ResetCore();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+            throw new ObjectDisposedException(nameof(RenderGraph));
     }
 }

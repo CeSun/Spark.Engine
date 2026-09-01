@@ -46,6 +46,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
     private bool _graphDumped;
 
     private readonly IReadOnlyList<IGraphOverlay> _overlays;
+    private readonly TransientResourcePool? _transientPool;
 
     protected SceneRenderPipeline(
         ILogger logger,
@@ -59,6 +60,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         _targets = targets;
         _resourceManager = resourceManager;
         _overlays = overlays.ToArray();
+        _transientPool = webGpu == null ? null : new TransientResourcePool(webGpu);
     }
 
     /// <inheritdoc />
@@ -73,7 +75,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         SyncProxyStates(snapshot);
 
         // 命令式构建 RenderGraph（运行时直建，不依赖编辑器侧的引脚/定义/装配器）
-        using var graph = new RenderGraph.RenderGraph(_webGpu, _logger);
+        using var graph = new RenderGraph.RenderGraph(_webGpu, _logger, _transientPool);
         BuildGraph(graph, snapshot);
 
         // 覆盖层（UI/后处理）在场景 pass 之后追加，共享同一帧 acquire/present（ADR-24）
@@ -359,6 +361,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
 
         ReleasePipelineResources();
         ReleaseSceneResources();
+        _transientPool?.Dispose();
 
         // Overlay 的生命周期由 DI 容器管理；管线只负责在帧图中引用它们。
     }

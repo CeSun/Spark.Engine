@@ -224,6 +224,26 @@ public class EngineApplication
 
             try
             {
+                WindowManager.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Interlocked.CompareExchange(ref _failure, ex, null);
+                _logger.LogError(ex, "Window cleanup failed during engine shutdown");
+            }
+
+            try
+            {
+                WorldContext.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Interlocked.CompareExchange(ref _failure, ex, null);
+                _logger.LogError(ex, "World cleanup failed during engine shutdown");
+            }
+
+            try
+            {
                 OnUninitialize();
             }
             finally
@@ -243,6 +263,7 @@ public class EngineApplication
         snapshot.Clear();
         snapshot.DeltaTime = deltaTime;
         snapshot.FrameIndex = ++_frameIndex;
+        _ui.BeginFrame();
 
         // UI：布局 + 绘制每窗口画布（控件树 → 基元）
         foreach (var window in WindowManager.Windows)
@@ -256,6 +277,8 @@ public class EngineApplication
             canvas.Update(_input.GetState(window), _ui.Text);
             canvas.Paint(_ui);
         }
+
+        _ui.EndFrame();
 
         // UI 绘制基元（与场景解耦：无世界时也能绘制 UI 覆盖层）
         foreach (ref readonly var primitive in _ui.Primitives.Span)

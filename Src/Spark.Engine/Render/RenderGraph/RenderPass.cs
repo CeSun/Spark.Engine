@@ -49,18 +49,20 @@ public sealed class RenderPass
     /// <summary>运行 setup 回调，收集读写声明。</summary>
     internal void RunSetup()
     {
-        if (Setup == null) return;
+        Reads.Clear();
+        Writes.Clear();
+        ExplicitDependencies.Clear();
+
+        if (Setup == null)
+            return;
 
         var builder = new RenderPassBuilder();
         Setup(builder);
 
-        Reads.Clear();
         Reads.AddRange(builder.Reads);
 
-        Writes.Clear();
         Writes.AddRange(builder.Writes);
 
-        ExplicitDependencies.Clear();
         ExplicitDependencies.AddRange(builder.ExplicitDependencies);
     }
 }

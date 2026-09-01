@@ -16,6 +16,7 @@ public unsafe sealed class TextureRenderTarget : RenderTarget
     private readonly uint _width;
     private readonly uint _height;
     private readonly TextureFormat _format;
+    private readonly TextureUsage _usage;
     private readonly bool _isDepth;
     private int _disposed;
 
@@ -36,7 +37,15 @@ public unsafe sealed class TextureRenderTarget : RenderTarget
 
     /// <summary>立即创建 GPU 资源（渲染线程内部目标：深度附件/占位纹理/transient）。</summary>
     public TextureRenderTarget(int id, WebGPU api, Device* device, uint width, uint height, TextureFormat format, bool isDepth)
-        : this(id, width, height, format, isDepth)
+        : this(id, api, device, width, height, format,
+            TextureUsage.RenderAttachment | TextureUsage.TextureBinding, isDepth)
+    {
+    }
+
+    /// <summary>立即创建 GPU 资源，并使用指定的 WebGPU 用途掩码。</summary>
+    public TextureRenderTarget(int id, WebGPU api, Device* device, uint width, uint height,
+        TextureFormat format, TextureUsage usage, bool isDepth)
+        : this(id, width, height, format, usage, isDepth)
     {
         _api = api;
         CreateGpuResources(device);
@@ -44,11 +53,20 @@ public unsafe sealed class TextureRenderTarget : RenderTarget
 
     /// <summary>延迟创建（渲染视图）：仅登记描述，GPU 纹理由渲染线程帧首 <see cref="EnsureCreated"/> 创建（中4）。</summary>
     public TextureRenderTarget(int id, uint width, uint height, TextureFormat format, bool isDepth)
+        : this(id, width, height, format,
+            TextureUsage.RenderAttachment | TextureUsage.TextureBinding, isDepth)
+    {
+    }
+
+    /// <summary>延迟创建，并保存实际创建 GPU 纹理所需的用途掩码。</summary>
+    public TextureRenderTarget(int id, uint width, uint height, TextureFormat format,
+        TextureUsage usage, bool isDepth)
         : base(id)
     {
         _width = width;
         _height = height;
         _format = format;
+        _usage = usage;
         _isDepth = isDepth;
     }
 
@@ -69,7 +87,7 @@ public unsafe sealed class TextureRenderTarget : RenderTarget
         var size = new Extent3D { Width = _width, Height = _height, DepthOrArrayLayers = 1 };
         var desc = new TextureDescriptor
         {
-            Usage = TextureUsage.RenderAttachment | TextureUsage.TextureBinding,
+            Usage = _usage,
             Dimension = TextureDimension.Dimension2D,
             Size = size,
             Format = _format,

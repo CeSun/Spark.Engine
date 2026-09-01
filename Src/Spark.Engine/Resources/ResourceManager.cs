@@ -8,20 +8,29 @@ namespace Spark.Engine.Resources;
 /// 每类型的 GPU 资源创建由渲染线程分派（SceneRenderer.ProcessUploads）。
 /// </summary>
 public sealed class ResourceManager
+    : IDisposable
 {
     private readonly ConcurrentQueue<ISceneResource> _pendingUploads = new();
     private readonly ConcurrentQueue<int> _pendingGpuReleases = new();
     private readonly ConcurrentDictionary<int, byte> _uploaded = new();
+    private readonly Action<int> _releaseNotifier;
+    private int _disposed;
+
+    public ResourceManager()
+    {
+        _releaseNotifier = EnqueueGpuRelease;
+    }
 
     /// <summary>首次引用时入队上传（按 <see cref="ISceneResource.ResourceId"/> 去重）。</summary>
     public void EnsureUploaded(ISceneResource? resource)
     {
+        ThrowIfDisposed();
         if (resource == null)
             return;
 
         if (_uploaded.TryAdd(resource.ResourceId, 0))
         {
-            resource.AttachReleaseNotifier(EnqueueGpuRelease);
+            resource.AttachReleaseNotifier(_releaseNotifier);
             _pendingUploads.Enqueue(resource);
         }
     }
@@ -35,7 +44,7 @@ public sealed class ResourceManager
     internal void NotifyUploadFailed(int resourceId) => _uploaded.TryRemove(resourceId, out _);
 
     /// <summary>渲染线程：为「按需同步创建」的资源补挂释放回调（如材质引用的纹理）。</summary>
-    internal void AttachReleaseNotifier(ISceneResource resource) => resource.AttachReleaseNotifier(EnqueueGpuRelease);
+    internal void AttachReleaseNotifier(ISceneResource resource) => resource.AttachReleaseNotifier(_releaseNotifier);
 
     /// <summary>渲染线程：取下一个待释放的 ResourceId。</summary>
     internal bool TryDequeueGpuRelease(out int resourceId) => _pendingGpuReleases.TryDequeue(out resourceId);
@@ -44,5 +53,25 @@ public sealed class ResourceManager
     internal void NotifyReleased(int resourceId) => _uploaded.TryRemove(resourceId, out _);
 
     /// <summary>资源 Dispose/GC 时的释放回调（注入到资源）。</summary>
-    private void EnqueueGpuRelease(int resourceId) => _pendingGpuReleases.Enqueue(resourceId);
+    private void EnqueueGpuRelease(int resourceId)
+    {
+        if (Volatile.Read(ref _disposed) == 0)
+            _pendingGpuReleases.Enqueue(resourceId);
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
+        while (_pendingUploads.TryDequeue(out _)) { }
+        while (_pendingGpuReleases.TryDequeue(out _)) { }
+        _uploaded.Clear();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+            throw new ObjectDisposedException(nameof(ResourceManager));
+    }
 }

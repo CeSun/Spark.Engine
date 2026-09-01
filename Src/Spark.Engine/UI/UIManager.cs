@@ -16,6 +16,7 @@ public sealed class UIManager
     private readonly FrameBuffer<UIPrimitive> _primitives = new();
     private readonly Dictionary<int, UICanvas> _canvases = new();
     private readonly ConcurrentQueue<UITextureUpload> _pendingTextures = new();
+    private readonly ConcurrentQueue<int> _pendingTextureReleases = new();
     // 按 targetId 隔离的裁剪栈：多窗口/多 overlay pass 时不会互相污染 push/pop 状态。
     private readonly Dictionary<int, Stack<UIRect>> _clipStacks = new();
     private TextRenderer? _text;
@@ -25,6 +26,12 @@ public sealed class UIManager
 
     /// <summary>默认文本渲染器（惰性创建，首次取用时加载系统字体）。</summary>
     public TextRenderer Text => _text ??= CreateDefaultTextRenderer();
+
+    /// <summary>开始一帧 UI 收集，供文本缓存记录最近使用时间。</summary>
+    internal void BeginFrame() => _text?.BeginFrame();
+
+    /// <summary>结束一帧 UI 收集，淘汰长期未使用的文本纹理。</summary>
+    internal void EndFrame() => _text?.EndFrame(this);
 
     /// <summary>取（或创建）指定渲染目标的画布。</summary>
     public UICanvas GetOrCreateCanvas(int targetId)
@@ -117,8 +124,14 @@ public sealed class UIManager
     /// <summary>逻辑线程：排队一个 UI 纹理待渲染线程上传。</summary>
     public void EnqueueTexture(UITextureUpload upload) => _pendingTextures.Enqueue(upload);
 
+    /// <summary>逻辑线程：排队释放已从文本缓存淘汰的纹理。</summary>
+    internal void EnqueueTextureRelease(int textureId) => _pendingTextureReleases.Enqueue(textureId);
+
     /// <summary>渲染线程：取一个待上传的 UI 纹理。</summary>
     public bool TryDequeueTexture(out UITextureUpload upload) => _pendingTextures.TryDequeue(out upload);
+
+    /// <summary>渲染线程：取下一个待释放的 UI 纹理。</summary>
+    internal bool TryDequeueTextureRelease(out int textureId) => _pendingTextureReleases.TryDequeue(out textureId);
 
     // ———————————— 渲染视图支持（UIRenderView 控件）————————————
 

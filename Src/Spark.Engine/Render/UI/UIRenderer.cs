@@ -71,6 +71,7 @@ public unsafe sealed class UIRenderer : IGraphOverlay
             return;
 
         EnsureInitialized();
+        ProcessTextureReleases();
         ProcessTextureUploads();
 
         if (snapshot.UIPrimitives.Count == 0)
@@ -348,6 +349,17 @@ public unsafe sealed class UIRenderer : IGraphOverlay
             var bindGroup = CreateTextureBindGroup(texture.View);
             _textures[upload.Id] = texture;
             _textureBindGroups[upload.Id] = (nint)bindGroup;
+        }
+    }
+
+    private void ProcessTextureReleases()
+    {
+        while (_uiManager.TryDequeueTextureRelease(out var textureId))
+        {
+            if (_textureBindGroups.Remove(textureId, out var bindGroup))
+                _webGpu!.Api.BindGroupRelease((BindGroup*)bindGroup);
+            if (_textures.Remove(textureId, out var texture))
+                texture.Dispose();
         }
     }
 

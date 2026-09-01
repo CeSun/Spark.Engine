@@ -1,5 +1,6 @@
 using Spark.Engine.Components;
 using Spark.Engine.Worlds;
+using System.Runtime.ExceptionServices;
 
 namespace Spark.Engine.Actors;
 
@@ -27,7 +28,20 @@ public class Actor
 
         // actor 已 BeginPlay：补调组件 BeginPlay，否则其代理注册/初始化永不被调用（中6）
         if (_hasBegunPlay)
-            component.BeginPlay();
+        {
+            try
+            {
+                component.BeginPlay();
+            }
+            catch (Exception beginException)
+            {
+                // 动态挂载失败时撤销组件，避免它以“已拥有但未启动”的状态留在 Actor 中。
+                try { component.EndPlay(); } catch { /* 保留 BeginPlay 的根因 */ }
+                _ownedComponents.Remove(component);
+                component.Owner = null;
+                ExceptionDispatchInfo.Capture(beginException).Throw();
+            }
+        }
     }
 
     public T? GetComponent<T>() where T : ActorComponent
@@ -44,10 +58,31 @@ public class Actor
 
     public virtual void BeginPlay()
     {
+        if (_hasBegunPlay)
+            return;
+
         _hasBegunPlay = true;
         // 副本迭代：组件回调里 AddOwnedComponent 重入不破坏集合（中3）
-        foreach (var component in _ownedComponents.ToArray())
-            component.BeginPlay();
+        var started = new List<ActorComponent>();
+        try
+        {
+            foreach (var component in _ownedComponents.ToArray())
+            {
+                // 把当前组件也记入回滚列表：BeginPlay 可能在注册代理后才抛异常。
+                started.Add(component);
+                component.BeginPlay();
+            }
+        }
+        catch (Exception beginException)
+        {
+            for (int i = started.Count - 1; i >= 0; i--)
+            {
+                try { started[i].EndPlay(); } catch { /* 不覆盖原始启动异常 */ }
+            }
+
+            _hasBegunPlay = false;
+            ExceptionDispatchInfo.Capture(beginException).Throw();
+        }
     }
 
     public virtual void Update(float deltaTime)
@@ -58,8 +93,25 @@ public class Actor
 
     public virtual void EndPlay()
     {
+        if (!_hasBegunPlay)
+            return;
+
         _hasBegunPlay = false;
-        foreach (var component in _ownedComponents.ToArray())
-            component.EndPlay();
+        Exception? firstException = null;
+        var components = _ownedComponents.ToArray();
+        for (int i = components.Length - 1; i >= 0; i--)
+        {
+            try
+            {
+                components[i].EndPlay();
+            }
+            catch (Exception ex)
+            {
+                firstException ??= ex;
+            }
+        }
+
+        if (firstException != null)
+            ExceptionDispatchInfo.Capture(firstException).Throw();
     }
 }

@@ -2,14 +2,16 @@ using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Render;
 using Spark.Engine.Resources;
+using System.Runtime.ExceptionServices;
 
 namespace Spark.Engine.Worlds;
 
-public class World
+public class World : IDisposable
 {
     private List<Actor> _actors = [];
     private List<Actor> _pendingAddActors = [];
     private List<Actor> _pendingRemoveActors = [];
+    private int _disposed;
 
     /// <summary>当前已进入世界的 Actor（BeginPlay 已调用）。</summary>
     public IReadOnlyList<Actor> Actors => _actors;
@@ -24,6 +26,7 @@ public class World
 
     public void AddActor(Actor actor)
     {
+        ThrowIfDisposed();
         if (actor == null) throw new ArgumentNullException(nameof(actor));
         if (_actors.Contains(actor) || _pendingAddActors.Contains(actor))
             return;
@@ -34,6 +37,7 @@ public class World
 
     public void RemoveActor(Actor actor)
     {
+        ThrowIfDisposed();
         if (actor == null) throw new ArgumentNullException(nameof(actor));
 
         // 同帧 Add 后 Remove：取消添加，actor 从不进入世界，代理不泄漏（中2）
@@ -51,6 +55,7 @@ public class World
 
     public void Update(float deltaTime)
     {
+        ThrowIfDisposed();
         // 待添加：对副本迭代 + 只移除已处理项；BeginPlay 重入 Add/Remove 不破坏集合（中3）
         foreach (var actor in _pendingAddActors.ToArray())
         {
@@ -101,6 +106,8 @@ public class World
     /// <summary>收集本帧活跃相机（绑定了渲染目标的 CameraComponent，即"视图"）。</summary>
     public void CollectCameras(List<CameraComponent> result)
     {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(result);
         foreach (var actor in _actors)
         {
             foreach (var component in actor.Components)
@@ -109,5 +116,54 @@ public class World
                     result.Add(camera);
             }
         }
+    }
+
+    /// <summary>结束所有 Actor 生命周期并释放场景代理。可重复调用。</summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
+        foreach (var actor in _pendingAddActors)
+            actor.SetWorld(null);
+        _pendingAddActors.Clear();
+        _pendingRemoveActors.Clear();
+
+        Exception? firstException = null;
+        foreach (var actor in _actors.ToArray())
+        {
+            try
+            {
+                actor.EndPlay();
+            }
+            catch (Exception ex)
+            {
+                firstException ??= ex;
+            }
+            finally
+            {
+                actor.SetWorld(null);
+            }
+        }
+
+        _actors.Clear();
+
+        try
+        {
+            Scene.Dispose();
+        }
+        catch (Exception ex)
+        {
+            firstException ??= ex;
+        }
+
+        if (firstException != null)
+            ExceptionDispatchInfo.Capture(firstException).Throw();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+            throw new ObjectDisposedException(nameof(World));
     }
 }
