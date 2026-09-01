@@ -69,6 +69,8 @@ public sealed class EditorUi
         toolbar.AddButton("Scale", () => SetStatus("Scale tool active."));
         toolbar.AddSeparator();
         toolbar.AddButton("Add Actor", AddActor);
+        toolbar.AddButton("Duplicate", DuplicateSelection);
+        toolbar.AddButton("Rename", RenameSelection);
         toolbar.AddButton("Delete", DeleteSelection);
         toolbar.AddSeparator();
         toolbar.AddButton("Play", () => SetStatus("Play requested."));
@@ -160,9 +162,47 @@ public sealed class EditorUi
 
     private void AddActor()
     {
-        var actor = new Actor();
+        var actor = new Actor { Name = NextActorName("Actor") };
         _context.Execute(new DelegateEditorCommand("Add Actor", () => _world.AddActor(actor), () => _world.RemoveActor(actor)));
+        _context.Selection.Selected = actor;
         SetStatus("Actor queued for creation.");
+    }
+
+    private void DuplicateSelection()
+    {
+        if (_selectedTarget is not Actor source)
+        {
+            SetStatus("Select an Actor to duplicate.");
+            return;
+        }
+        var prefix = string.IsNullOrWhiteSpace(source.Name) ? source.GetType().Name : source.Name + " Copy";
+        var copy = new Actor { Name = NextActorName(prefix) };
+        _context.Execute(new DelegateEditorCommand("Duplicate Actor", () => _world.AddActor(copy), () => _world.RemoveActor(copy)));
+        _context.Selection.Selected = copy;
+        SetStatus("Actor duplicated.");
+    }
+
+    private void RenameSelection()
+    {
+        if (_selectedTarget is not Actor actor)
+        {
+            SetStatus("Select an Actor to rename.");
+            return;
+        }
+        var oldName = actor.Name;
+        var newName = NextActorName(string.IsNullOrWhiteSpace(oldName) ? actor.GetType().Name : oldName);
+        _context.Execute(new DelegateEditorCommand("Rename Actor", () => actor.Name = newName, () => actor.Name = oldName));
+        SetStatus($"Renamed Actor to {newName}.");
+    }
+
+    private string NextActorName(string prefix)
+    {
+        var used = _world.Actors.Select(actor => actor.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var candidate = prefix;
+        var index = 2;
+        while (used.Contains(candidate))
+            candidate = $"{prefix} {index++}";
+        return candidate;
     }
 
     private void DeleteSelection()
@@ -192,6 +232,7 @@ public sealed class EditorUi
     public void Refresh()
     {
         _hierarchy.Refresh();
+        _hierarchy.SelectTarget(_context.Selection.Selected);
 
         int actors = 0, components = 0;
         foreach (var actor in _world.Actors)

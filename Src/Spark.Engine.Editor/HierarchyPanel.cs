@@ -51,7 +51,7 @@ public sealed class HierarchyPanel
         var sb = new System.Text.StringBuilder();
         foreach (var actor in _world.Actors)
         {
-            sb.Append(actor.GetHashCode()).Append(';');
+            sb.Append(actor.GetHashCode()).Append(':').Append(actor.Name).Append(';');
             foreach (var component in actor.Components)
                 sb.Append(component.GetType().Name).Append(',');
         }
@@ -65,7 +65,8 @@ public sealed class HierarchyPanel
         _tree.Clear();
         foreach (var actor in _world.Actors)
         {
-            var actorItem = new WorldTreeItem(actor, $"{actor.GetType().Name} [{actor.Components.Count()}]");
+            var displayName = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
+            var actorItem = new WorldTreeItem(actor, $"{displayName} [{actor.Components.Count()}]");
             foreach (var component in actor.Components)
                 actorItem.AddSubItem(new WorldTreeItem(component, component.GetType().Name));
             _tree.AddRoot(actorItem);
@@ -87,6 +88,18 @@ public sealed class HierarchyPanel
                 return sub;
         }
         return null;
+    }
+
+    public void SelectTarget(object? target)
+    {
+        if (target == null)
+        {
+            _tree.SelectItem(null);
+            return;
+        }
+
+        if (FindItem(_tree.Roots, target) is { } item)
+            _tree.SelectItem(item);
     }
 
     /// <summary>持有引擎对象引用的树项（选中回调向上抛 Target）。</summary>

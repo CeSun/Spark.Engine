@@ -14,6 +14,9 @@ public class Actor
 
     private bool _hasBegunPlay;
 
+    /// <summary>编辑器和调试工具使用的稳定显示名称。</summary>
+    public string Name { get; set; } = string.Empty;
+
     /// <summary>所有拥有的组件。</summary>
     public IEnumerable<ActorComponent> Components => _ownedComponents;
 
