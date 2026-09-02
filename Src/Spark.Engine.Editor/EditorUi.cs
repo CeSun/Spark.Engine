@@ -96,6 +96,13 @@ public sealed class EditorUi
     public void SetRuntimeWorldInitializer(Action<World> initializer)
         => _context.RuntimeWorldInitializer = initializer ?? throw new ArgumentNullException(nameof(initializer));
 
+    /// <summary>注册正式的 RuntimeWorld 行为扩展；行为在场景实例化完成后执行。</summary>
+    public void RegisterRuntimeBehavior(Action<World, SceneDocument> behavior)
+        => _context.RegisterRuntimeBehavior(behavior);
+
+    /// <summary>编辑器使用的 AssetGuid 注册表，供导入器和宿主登记资源。</summary>
+    public IAssetRegistry AssetRegistry => _context.AssetRegistry;
+
     /// <summary>切换编辑器 Play/Stop，并保持运行时 World 与编辑 World 生命周期隔离。</summary>
     public void TogglePlay()
     {

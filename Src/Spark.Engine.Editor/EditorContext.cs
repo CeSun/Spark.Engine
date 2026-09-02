@@ -35,6 +35,8 @@ public sealed class EditorContext : IDisposable
     public World? RuntimeWorld { get; private set; }
     public World ActiveWorld => RuntimeWorld ?? World;
     public EditorPlayState PlayState { get; private set; } = EditorPlayState.Edit;
+    public IAssetRegistry AssetRegistry { get; }
+    public RuntimeActorFactory RuntimeActorFactory { get; }
     /// <summary>RuntimeWorld 创建后执行的宿主行为注入点，用于恢复自定义 Actor/系统。</summary>
     public Action<World>? RuntimeWorldInitializer { get; set; }
     public EditorCommandHistory History { get; } = new();
@@ -43,10 +45,13 @@ public sealed class EditorContext : IDisposable
     public event Action<bool>? DirtyChanged;
     public event Action<EditorPlayState>? PlayStateChanged;
 
-    public EditorContext(World world, WorldContext? worldContext = null)
+    public EditorContext(World world, WorldContext? worldContext = null,
+        IAssetRegistry? assetRegistry = null, RuntimeActorFactory? runtimeActorFactory = null)
     {
         World = world ?? throw new ArgumentNullException(nameof(world));
         _worldContext = worldContext;
+        AssetRegistry = assetRegistry ?? new AssetRegistry();
+        RuntimeActorFactory = runtimeActorFactory ?? new RuntimeActorFactory();
     }
 
     public void Execute(IEditorCommand command)
@@ -85,10 +90,8 @@ public sealed class EditorContext : IDisposable
             return false;
 
         var document = SceneDocument.Capture(World);
-        var assets = CaptureAssets();
-        var runtime = document.InstantiateWorld(
-            World.Scene.ResourceManager,
-            guid => assets.TryGetValue(guid, out var asset) ? asset : null);
+        RegisterWorldAssets();
+        var runtime = document.InstantiateWorld(World.Scene.ResourceManager, AssetRegistry, RuntimeActorFactory);
         try
         {
             RuntimeWorldInitializer?.Invoke(runtime);
@@ -138,6 +141,10 @@ public sealed class EditorContext : IDisposable
             BindCameraTargets(RuntimeWorld);
     }
 
+    /// <summary>注册一个只作用于新建 RuntimeWorld 的行为扩展。</summary>
+    public void RegisterRuntimeBehavior(Action<World, SceneDocument> behavior)
+        => RuntimeActorFactory.RegisterWorldBehavior(behavior);
+
     private void BindCameraTargets(World runtime)
     {
         var editorCameras = new List<CameraComponent>();
@@ -153,34 +160,30 @@ public sealed class EditorContext : IDisposable
         }
     }
 
-    private Dictionary<Guid, SceneResource> CaptureAssets()
+    private void RegisterWorldAssets()
     {
-        var assets = new Dictionary<Guid, SceneResource>();
         foreach (var actor in World.Actors)
         {
             foreach (var component in actor.Components)
             {
                 if (component is StaticMeshComponent staticMesh)
                 {
-                    AddAsset(staticMesh.Mesh);
-                    AddAsset(staticMesh.Material);
+                    RegisterAsset(staticMesh.Mesh);
+                    RegisterAsset(staticMesh.Material);
                 }
                 else if (component is SkeletalMeshComponent skeletalMesh)
                 {
-                    AddAsset(skeletalMesh.Mesh);
-                    AddAsset(skeletalMesh.Material);
+                    RegisterAsset(skeletalMesh.Mesh);
+                    RegisterAsset(skeletalMesh.Material);
                 }
             }
         }
-        return assets;
 
-        void AddAsset(SceneResource? asset)
+        void RegisterAsset(SceneResource? asset)
         {
             if (asset == null)
                 return;
-            if (assets.TryGetValue(asset.AssetGuid, out var existing) && !ReferenceEquals(existing, asset))
-                throw new InvalidOperationException($"AssetGuid '{asset.AssetGuid}' is assigned to multiple resources.");
-            assets[asset.AssetGuid] = asset;
+            AssetRegistry.Register(asset);
         }
     }
 

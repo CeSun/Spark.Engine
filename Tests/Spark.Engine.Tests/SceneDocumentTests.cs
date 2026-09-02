@@ -267,6 +267,68 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void AssetRegistryResolvesStableGuidAndRejectsConflictingResources()
+    {
+        var registry = new AssetRegistry();
+        var guid = Guid.Parse("00000000-0000-0000-0000-000000000201");
+        var mesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY)], [0])
+        { AssetGuid = guid };
+        var conflictingMesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.UnitX, Vector3.One, Vector2.Zero, Vector3.UnitY)], [0])
+        { AssetGuid = guid };
+
+        try
+        {
+            registry.Register(mesh, sourcePath: "Meshes/test.asset");
+            Assert.True(registry.TryResolve(guid, out var resolved));
+            Assert.Same(mesh, resolved);
+            Assert.Equal("Meshes/test.asset", Assert.Single(registry.Records).SourcePath);
+            Assert.Throws<InvalidOperationException>(() => registry.Register(conflictingMesh));
+        }
+        finally
+        {
+            mesh.Dispose();
+            conflictingMesh.Dispose();
+        }
+    }
+
+    [Fact]
+    public void RuntimeActorFactoryRunsRegisteredBehaviorAfterAssetResolution()
+    {
+        using var editorWorld = new World(new ResourceManager());
+        var mesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY)], [0]);
+        var actor = new Actor { Name = "FactoryMesh" };
+        actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh });
+        editorWorld.AddActor(actor);
+        editorWorld.Update(0.016f);
+
+        var registry = new AssetRegistry();
+        registry.Register(mesh);
+        var factory = new RuntimeActorFactory();
+        var behaviorCalled = false;
+        factory.RegisterWorldBehavior((runtime, document) =>
+        {
+            behaviorCalled = document.Actors.Count == 1;
+            runtime.AddActor(new Actor { Name = "RegisteredBehavior" });
+        });
+
+        var document = SceneDocument.Capture(editorWorld);
+        using var runtimeWorld = document.InstantiateWorld(editorWorld.Scene.ResourceManager, registry, factory);
+        runtimeWorld.Update(0.016f);
+
+        Assert.True(behaviorCalled);
+        Assert.Contains(runtimeWorld.Actors, item => item.Name == "RegisteredBehavior");
+        var runtimeMesh = runtimeWorld.Actors
+            .SelectMany(item => item.Components)
+            .OfType<StaticMeshComponent>()
+            .Single();
+        Assert.Same(mesh, runtimeMesh.Mesh);
+        mesh.Dispose();
+    }
+
+    [Fact]
     public void BinaryReaderRejectsUnsupportedVersion()
     {
         var path = GetTempPath();

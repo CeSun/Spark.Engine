@@ -187,7 +187,7 @@ public static class DemoApp
         var world = app.WorldContext.CurrentWorld
             ?? throw new InvalidOperationException("The demo world must be initialized before the editor.");
 
-        editorUi.SetRuntimeWorldInitializer(runtime =>
+        editorUi.RegisterRuntimeBehavior((runtime, _) =>
         {
             var left = FindComponent<StaticMeshComponent>(runtime, _leftWall?.ComponentGuid);
             var right = FindComponent<StaticMeshComponent>(runtime, _rightWall?.ComponentGuid);

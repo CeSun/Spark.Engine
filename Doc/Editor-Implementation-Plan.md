@@ -12,7 +12,8 @@
 
 当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览会初始化渲染代理但冻结 gameplay Tick，Viewport 还不能拾取和变换对象，
 `EditorContext` 已接入 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；主循环已支持
-EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产和光照状态可恢复，宿主行为可通过初始化器注入。
+EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产和光照状态可恢复。`AssetRegistry` 已统一 AssetGuid 解析，
+`RuntimeActorFactory` 已提供自定义组件和 Runtime 行为注册入口；旧的 `RuntimeWorldInitializer` 仅作为兼容接口保留。
 场景层级、Socket 和挂载规则按 [SceneHierarchy-Design.md](./SceneHierarchy-Design.md) 实施，资产格式和 Cook 按
 [AssetPipeline-Design.md](./AssetPipeline-Design.md) 实施。编辑器侧已落地无 GPU 依赖的 glTF 2.0 StaticMesh 导入器，
 支持内嵌/外部 buffer、TRS 节点层级和 TRIANGLES 原语；GLB、骨骼、动画和材质纹理导入仍在后续里程碑。
@@ -82,7 +83,7 @@ EditorApplication
 交付任务：
 
 1. `Edit/Play/Simulate/Stop` 状态机。
-2. ✅ 从 `SceneDocument` 实例化 Runtime World、Play/Stop 回收、双 World 调度和内置资产/光照恢复；宿主行为初始化器已提供。
+2. ✅ 从 `SceneDocument` 实例化 Runtime World、Play/Stop 回收、双 World 调度、AssetGuid 解析和内置资产/光照恢复；RuntimeActorFactory 已提供行为注册。
 3. Console、日志过滤、错误定位。
 4. RenderGraph、GPU 错误、帧耗时和 Draw Call 面板。
 5. 帧捕获、截图和运行时对象定位。
@@ -121,11 +122,10 @@ EditorApplication
 
 ## 6. 当前执行顺序
 
-1. `EditorContext` 和 `EditorSelection`
-2. `PropertyChangeCommand` 接入 Inspector
-3. Actor 创建、删除、复制和重命名
-4. 快捷键、脏状态和保存确认
-5. 场景序列化与加载服务
-6. Viewport 拾取和 Gizmo
+1. Asset Registry 的磁盘扫描、导入产物登记和错误面板
+2. Runtime Actor Factory 的自定义 Actor 类型和行为数据持久化
+3. 场景加载时通过 AssetGuid 恢复真实资产
+4. Viewport 拾取和 Gizmo
+5. 脏状态、保存确认和最近文件
 
 每完成一个任务，必须同时提交逻辑测试和至少一个端到端验收场景，避免继续积累“看起来有控件、实际不能工作”的功能。

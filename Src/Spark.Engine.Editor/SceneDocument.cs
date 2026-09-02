@@ -64,14 +64,22 @@ public sealed class SceneDocument
 
     public static SceneDocument Load(string path) => SceneDocumentBinary.Read(path);
 
+    /// <summary>兼容旧的委托解析入口。</summary>
+    public World InstantiateWorld(ResourceManager resourceManager, Func<Guid, SceneResource?> assetResolver)
+    {
+        ArgumentNullException.ThrowIfNull(assetResolver);
+        return InstantiateWorld(resourceManager, new DelegateAssetRegistry(assetResolver), null);
+    }
+
     /// <summary>
-    /// 从文档创建全新的运行时 World。该过程恢复 Actor/Component 类型、GUID、层级、变换、
-    /// 内置资产引用和光照状态；宿主可通过 assetResolver 与 RuntimeWorldInitializer 接入外部资产和行为。
+    /// 从文档创建全新的运行时 World。资产解析和自定义组件创建分别通过注册表和 RuntimeActorFactory 扩展。
     /// </summary>
-    public World InstantiateWorld(ResourceManager resourceManager, Func<Guid, SceneResource?>? assetResolver = null)
+    public World InstantiateWorld(ResourceManager resourceManager, IAssetRegistry? assetRegistry = null,
+        RuntimeActorFactory? runtimeActorFactory = null)
     {
         ArgumentNullException.ThrowIfNull(resourceManager);
         var world = new World(resourceManager);
+        runtimeActorFactory ??= new RuntimeActorFactory();
         var components = new Dictionary<Guid, SceneComponent>();
         var actorRecords = Actors.OrderBy(a => a.ActorGuid).ToArray();
         var actors = new Dictionary<Guid, Actor>();
@@ -80,44 +88,40 @@ public sealed class SceneDocument
         {
             foreach (var actorRecord in actorRecords)
             {
-                var actor = new Actor { ActorGuid = actorRecord.ActorGuid, Name = actorRecord.Name };
+                var actor = runtimeActorFactory.CreateActor(actorRecord);
                 actors.Add(actor.ActorGuid, actor);
                 foreach (var componentRecord in actorRecord.Components.OrderBy(c => c.ComponentGuid))
                 {
-                    var type = Type.GetType(componentRecord.ComponentType, throwOnError: false);
-                    if (type == null || !typeof(ActorComponent).IsAssignableFrom(type) || type.IsAbstract)
-                        throw new InvalidDataException($"Cannot instantiate component type '{componentRecord.ComponentType}'.");
-                    if (Activator.CreateInstance(type) is not ActorComponent component)
-                        throw new InvalidDataException($"Component type '{componentRecord.ComponentType}' has no public parameterless constructor.");
+                    var component = runtimeActorFactory.CreateComponent(componentRecord);
 
                     component.ComponentGuid = componentRecord.ComponentGuid;
                     if (component is StaticMeshComponent staticMesh)
                     {
-                        if (componentRecord.MeshAssetGuid is { } meshGuid && assetResolver != null)
+                        if (componentRecord.MeshAssetGuid is { } meshGuid)
                         {
-                            if (assetResolver(meshGuid) is not StaticMesh mesh)
-                                throw new InvalidDataException($"Mesh asset '{meshGuid}' could not be resolved.");
+                            if (assetRegistry == null || assetRegistry.Resolve(meshGuid) is not StaticMesh mesh)
+                                throw new InvalidDataException($"Mesh asset '{meshGuid}' could not be resolved as StaticMesh.");
                             staticMesh.Mesh = mesh;
                         }
-                        if (componentRecord.MaterialAssetGuid is { } materialGuid && assetResolver != null)
+                        if (componentRecord.MaterialAssetGuid is { } materialGuid)
                         {
-                            if (assetResolver(materialGuid) is not Material material)
-                                throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved.");
+                            if (assetRegistry == null || assetRegistry.Resolve(materialGuid) is not Material material)
+                                throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved as Material.");
                             staticMesh.Material = material;
                         }
                     }
                     else if (component is SkeletalMeshComponent skeletalMesh)
                     {
-                        if (componentRecord.SkeletalMeshAssetGuid is { } meshGuid && assetResolver != null)
+                        if (componentRecord.SkeletalMeshAssetGuid is { } meshGuid)
                         {
-                            if (assetResolver(meshGuid) is not SkeletalMesh mesh)
-                                throw new InvalidDataException($"Skeletal mesh asset '{meshGuid}' could not be resolved.");
+                            if (assetRegistry == null || assetRegistry.Resolve(meshGuid) is not SkeletalMesh mesh)
+                                throw new InvalidDataException($"Skeletal mesh asset '{meshGuid}' could not be resolved as SkeletalMesh.");
                             skeletalMesh.Mesh = mesh;
                         }
-                        if (componentRecord.MaterialAssetGuid is { } materialGuid && assetResolver != null)
+                        if (componentRecord.MaterialAssetGuid is { } materialGuid)
                         {
-                            if (assetResolver(materialGuid) is not Material material)
-                                throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved.");
+                            if (assetRegistry == null || assetRegistry.Resolve(materialGuid) is not Material material)
+                                throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved as Material.");
                             skeletalMesh.Material = material;
                         }
                     }
@@ -158,6 +162,7 @@ public sealed class SceneDocument
                 }
             }
 
+            runtimeActorFactory.InitializeWorld(world, this);
             return world;
         }
         catch
