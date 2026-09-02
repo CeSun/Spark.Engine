@@ -369,7 +369,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - 键盘焦点增强（Tab 导航完善、焦点环改进）
 - 缺控件：Image / RadioButton / Spinner / Tooltip / Window
 
-#### 编辑器 MVP 落地（下一步）
+#### 编辑器 MVP（基础已落地）
 
 - 场景层级面板（TreeView 展示 Actor 树）
 - 属性面板（选中 Actor/Component 后显示属性）
@@ -380,14 +380,15 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - EditorWorld / RuntimeWorld 隔离，Play/Stop 不污染编辑场景
 - 自定义 `.scene` / `.asset` 场景资产与 Windows `.pak` Cook
 - glTF StaticMesh 导入（保留节点层级）
+- 层级树/Viewport 多选、批量删除、Socket 拖放挂载和 Actor 深复制
 
 ### P1 —— 性能与稳定性
 
-1. **UE 场景层级**：RootComponent、AttachParent/AttachChildren、Socket、挂载规则和层级 dirty 传播已完成基础运行时实现；编辑器拖拽和资产 Socket 待补
+1. **UE 场景层级**：RootComponent、AttachParent/AttachChildren、Socket、挂载规则、层级 dirty 传播和编辑器拖放已完成；StaticMesh/SkeletalMesh 资产 Socket 待补
 2. **场景持久化与编辑器运行隔离**：SceneDocument/`.scene`、独立 RuntimeWorld 实例化、EditorContext Play/Stop 和 EngineApplication 双 World 调度已完成
 3. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，只重算/提交变化的对象，静态对象复用上一帧快照（当前每帧全量快照）
 4. ~~UI 三轮验收~~：✅ 已完成（2026-08-31 用户 GPU 实机逐场景确认通过）
-5. **单元测试补齐**：当前自动化测试共 112 个；`BoundingSphere`/`Frustum`/`SceneSnapshot` 及 GPU 集成测试仍需补齐
+5. **单元测试补齐**：当前自动化测试超过 160 个；`BoundingSphere`/`Frustum`/`SceneSnapshot` 及 GPU 集成测试仍需补齐
 
 ### P2 —— 渲染能力扩展
 

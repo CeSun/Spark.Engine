@@ -22,36 +22,43 @@ public sealed class SceneDocument
         {
             if (Attribute.IsDefined(actor.GetType(), typeof(SceneTransientAttribute), inherit: true))
                 continue;
-            var actorDocument = new SceneActorDocument
-            {
-                ActorGuid = actor.ActorGuid,
-                ActorType = actor.GetType().AssemblyQualifiedName ?? actor.GetType().FullName ?? actor.GetType().Name,
-                Name = actor.Name,
-                RootComponentGuid = actor.RootComponent?.ComponentGuid,
-            };
-
-            foreach (var component in actor.Components.OrderBy(c => c.ComponentGuid))
-            {
-                var scene = component as SceneComponent;
-                actorDocument.Components.Add(new SceneComponentDocument
-                {
-                    ComponentGuid = component.ComponentGuid,
-                    ComponentType = component.GetType().AssemblyQualifiedName ?? component.GetType().FullName ?? component.GetType().Name,
-                    ParentComponentGuid = scene?.AttachParent?.ComponentGuid,
-                    AttachSocketName = scene?.AttachSocketName,
-                    RelativeLocation = scene?.RelativeLocation ?? Vector3.Zero,
-                    RelativeRotation = scene?.RelativeRotation ?? Quaternion.Identity,
-                    RelativeScale = scene?.RelativeScale ?? Vector3.One,
-                    Properties = ScenePropertySerializer.Capture(component),
-                });
-                if (scene != null)
-                    actorDocument.Components[^1].Sockets = scene.Sockets.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
-            }
-
-            document.Actors.Add(actorDocument);
+            document.Actors.Add(CaptureActor(actor));
         }
 
         return document;
+    }
+
+    internal static SceneActorDocument CaptureActor(Actor actor)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        var actorDocument = new SceneActorDocument
+        {
+            ActorGuid = actor.ActorGuid,
+            ActorType = actor.GetType().AssemblyQualifiedName ?? actor.GetType().FullName ?? actor.GetType().Name,
+            Name = actor.Name,
+            RootComponentGuid = actor.RootComponent?.ComponentGuid,
+        };
+
+        foreach (var component in actor.Components.OrderBy(c => c.ComponentGuid))
+        {
+            var scene = component as SceneComponent;
+            actorDocument.Components.Add(new SceneComponentDocument
+            {
+                ComponentGuid = component.ComponentGuid,
+                ComponentType = component.GetType().AssemblyQualifiedName ?? component.GetType().FullName ?? component.GetType().Name,
+                ParentComponentGuid = scene?.AttachParent?.ComponentGuid,
+                AttachSocketName = scene?.AttachSocketName,
+                RelativeLocation = scene?.RelativeLocation ?? Vector3.Zero,
+                RelativeRotation = scene?.RelativeRotation ?? Quaternion.Identity,
+                RelativeScale = scene?.RelativeScale ?? Vector3.One,
+                Properties = ScenePropertySerializer.Capture(component),
+            });
+            if (scene != null)
+                actorDocument.Components[^1].Sockets = scene.Sockets.ToDictionary(
+                    pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        }
+
+        return actorDocument;
     }
 
     public void Save(string path) => SceneDocumentBinary.Write(this, path);

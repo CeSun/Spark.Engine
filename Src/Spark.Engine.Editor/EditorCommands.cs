@@ -1,5 +1,7 @@
 using System.Numerics;
+using Spark.Engine.Actors;
 using Spark.Engine.Components;
+using Spark.Engine.Worlds;
 
 namespace Spark.Engine.Editor;
 
@@ -150,5 +152,118 @@ public sealed class AttachComponentsCommand : IEditorCommand
     {
         for (var index = _commands.Count - 1; index >= 0; index--)
             _commands[index].Undo();
+    }
+}
+
+/// <summary>原子地把一组已构造 Actor 加入编辑 World，并支持整体撤销/重做。</summary>
+public sealed class CreateActorsCommand : IEditorCommand
+{
+    private readonly World _world;
+    private readonly IReadOnlyList<Actor> _actors;
+    private readonly IReadOnlyList<ComponentAttachmentSnapshot> _attachments;
+
+    public string Description => _actors.Count == 1 ? "Create Actor" : $"Create {_actors.Count} Actors";
+
+    public CreateActorsCommand(World world, IEnumerable<Actor> actors)
+    {
+        _world = world ?? throw new ArgumentNullException(nameof(world));
+        ArgumentNullException.ThrowIfNull(actors);
+        _actors = actors.Distinct().ToArray();
+        if (_actors.Count == 0)
+            throw new ArgumentException("At least one Actor is required.", nameof(actors));
+        _attachments = CaptureAttachments(_actors.SelectMany(actor => actor.Components).OfType<SceneComponent>());
+    }
+
+    public void Execute()
+    {
+        var completed = 0;
+        try
+        {
+            for (; completed < _actors.Count; completed++)
+                _world.AddActor(_actors[completed]);
+            RestoreAttachments(_attachments);
+        }
+        catch
+        {
+            for (var index = completed - 1; index >= 0; index--)
+                _world.RemoveActor(_actors[index]);
+            throw;
+        }
+    }
+
+    public void Undo()
+    {
+        for (var index = _actors.Count - 1; index >= 0; index--)
+            _world.RemoveActor(_actors[index]);
+    }
+
+    internal static IReadOnlyList<ComponentAttachmentSnapshot> CaptureAttachments(IEnumerable<SceneComponent> components)
+        => components.Where(component => component.AttachParent != null)
+            .Select(component => new ComponentAttachmentSnapshot(
+                component,
+                component.AttachParent!,
+                component.AttachSocketName,
+                component.RelativeLocation,
+                component.RelativeRotation,
+                component.RelativeScale))
+            .ToArray();
+
+    internal static void RestoreAttachments(IEnumerable<ComponentAttachmentSnapshot> attachments)
+    {
+        foreach (var attachment in attachments)
+        {
+            attachment.Child.AttachToComponent(
+                attachment.Parent, AttachmentTransformRules.KeepRelativeTransform, attachment.SocketName);
+            attachment.Child.RelativeLocation = attachment.Location;
+            attachment.Child.RelativeRotation = attachment.Rotation;
+            attachment.Child.RelativeScale = attachment.Scale;
+        }
+    }
+}
+
+internal readonly record struct ComponentAttachmentSnapshot(
+    SceneComponent Child,
+    SceneComponent Parent,
+    string? SocketName,
+    Vector3 Location,
+    Quaternion Rotation,
+    Vector3 Scale);
+
+/// <summary>删除一组 Actor，并在撤销时恢复涉及这些 Actor 的跨 Actor 挂载。</summary>
+public sealed class DeleteActorsCommand : IEditorCommand
+{
+    private readonly World _world;
+    private readonly IReadOnlyList<Actor> _actors;
+    private readonly IReadOnlyList<ComponentAttachmentSnapshot> _attachments;
+
+    public string Description => _actors.Count == 1 ? "Delete Actor" : $"Delete {_actors.Count} Actors";
+
+    public DeleteActorsCommand(World world, IEnumerable<Actor> actors)
+    {
+        _world = world ?? throw new ArgumentNullException(nameof(world));
+        ArgumentNullException.ThrowIfNull(actors);
+        _actors = actors.Distinct().ToArray();
+        if (_actors.Count == 0)
+            throw new ArgumentException("At least one Actor is required.", nameof(actors));
+        var deleted = _actors.ToHashSet();
+        _attachments = CreateActorsCommand.CaptureAttachments(
+            world.EnumerateActors(includePendingActors: true)
+                .SelectMany(actor => actor.Components)
+                .OfType<SceneComponent>()
+                .Where(component => deleted.Contains(component.Owner!) ||
+                    component.AttachParent?.Owner is { } parentOwner && deleted.Contains(parentOwner)));
+    }
+
+    public void Execute()
+    {
+        foreach (var actor in _actors)
+            _world.RemoveActor(actor);
+    }
+
+    public void Undo()
+    {
+        foreach (var actor in _actors)
+            _world.AddActor(actor);
+        CreateActorsCommand.RestoreAttachments(_attachments);
     }
 }

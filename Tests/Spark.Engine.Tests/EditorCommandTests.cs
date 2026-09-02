@@ -1,6 +1,8 @@
 using Spark.Engine.Editor;
 using Spark.Engine.UI;
+using Spark.Engine.Actors;
 using Spark.Engine.Components;
+using Spark.Engine.Resources;
 using System.Numerics;
 using System.Reflection;
 using Xunit;
@@ -270,8 +272,135 @@ public sealed class EditorCommandTests
         Assert.Equal(new Vector3(2f, 0f, 0f), child.WorldTransform.Translation);
     }
 
+    [Fact]
+    public void ActorCloner_CopiesTypesPropertiesAssetsSocketsAndAttachmentsWithNewGuids()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        using var material = new Material { AssetGuid = Guid.NewGuid() };
+        var registry = new AssetRegistry();
+        registry.Register(material);
+
+        var externalActor = new Actor { Name = "External" };
+        var external = new SceneComponent();
+        external.DefineSocket("ExternalMount", Matrix4x4.CreateTranslation(3f, 0f, 0f));
+        externalActor.AddOwnedComponent(external);
+        var source = new CloneTestActor { Name = "Source" };
+        var root = new CloneTestComponent
+        {
+            Number = 42,
+            Material = material,
+            RelativeLocation = new Vector3(5f, 0f, 0f),
+        };
+        root.DefineSocket("ChildMount", Matrix4x4.CreateTranslation(1f, 0f, 0f));
+        var child = new CloneTestComponent { Number = 7 };
+        source.AddOwnedComponent(root);
+        source.AddOwnedComponent(child);
+        source.SetRootComponent(root);
+        root.SetupAttachment(external, "ExternalMount");
+        child.SetupAttachment(root, "ChildMount");
+        world.AddActor(externalActor);
+        world.AddActor(source);
+        world.Update(0f, tickActors: false);
+
+        var result = Assert.Single(EditorActorCloner.Clone(
+            world, new[] { source }, registry, new RuntimeActorFactory()));
+        var copy = Assert.IsType<CloneTestActor>(result.Copy);
+        var copiedComponents = copy.Components.Cast<CloneTestComponent>().ToArray();
+        var copiedRoot = copiedComponents.Single(component => component.Number == 42);
+        var copiedChild = copiedComponents.Single(component => component.Number == 7);
+
+        Assert.Same(source, result.Source);
+        Assert.NotEqual(source.ActorGuid, copy.ActorGuid);
+        Assert.NotEqual(root.ComponentGuid, copiedRoot.ComponentGuid);
+        Assert.NotEqual(child.ComponentGuid, copiedChild.ComponentGuid);
+        Assert.Same(copiedRoot, copy.RootComponent);
+        Assert.Same(material, copiedRoot.Material);
+        Assert.True(copiedRoot.DoesSocketExist("ChildMount"));
+        Assert.Same(external, copiedRoot.AttachParent);
+        Assert.Equal("ExternalMount", copiedRoot.AttachSocketName);
+        Assert.Same(copiedRoot, copiedChild.AttachParent);
+        Assert.Equal("ChildMount", copiedChild.AttachSocketName);
+    }
+
+    [Fact]
+    public void ActorCloner_RemapsAttachmentsAcrossActorsInCopiedGroup()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var parentActor = new Actor { Name = "Parent" };
+        var parent = new SceneComponent();
+        parentActor.AddOwnedComponent(parent);
+        var childActor = new Actor { Name = "Child" };
+        var child = new SceneComponent();
+        childActor.AddOwnedComponent(child);
+        child.SetupAttachment(parent);
+        world.AddActor(parentActor);
+        world.AddActor(childActor);
+        world.Update(0f, tickActors: false);
+
+        var results = EditorActorCloner.Clone(
+            world, new[] { parentActor, childActor }, new AssetRegistry(), new RuntimeActorFactory());
+        var parentCopy = results.Single(result => ReferenceEquals(result.Source, parentActor)).Copy;
+        var childCopy = results.Single(result => ReferenceEquals(result.Source, childActor)).Copy;
+
+        Assert.Same(parentCopy.RootComponent, childCopy.RootComponent!.AttachParent);
+        Assert.NotSame(parent, childCopy.RootComponent.AttachParent);
+    }
+
+    [Fact]
+    public void CreateAndDeleteActorsCommands_RestoreCrossActorAttachmentsAfterLifecycleCommit()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var parentActor = new Actor();
+        var parent = new SceneComponent();
+        parentActor.AddOwnedComponent(parent);
+        var childActor = new Actor();
+        var child = new SceneComponent { RelativeLocation = new Vector3(3f, 0f, 0f) };
+        childActor.AddOwnedComponent(child);
+        child.SetupAttachment(parent);
+        world.AddActor(parentActor);
+        world.AddActor(childActor);
+        world.Update(0f, tickActors: false);
+
+        var delete = new DeleteActorsCommand(world, new[] { parentActor });
+        delete.Execute();
+        world.Update(0f, tickActors: false);
+        Assert.Null(child.AttachParent);
+        delete.Undo();
+        world.Update(0f, tickActors: false);
+        Assert.Same(parent, child.AttachParent);
+        Assert.Equal(new Vector3(3f, 0f, 0f), child.RelativeLocation);
+
+        var copyActor = new Actor();
+        var copyRoot = new SceneComponent { RelativeLocation = Vector3.One };
+        copyActor.AddOwnedComponent(copyRoot);
+        copyRoot.SetupAttachment(parent);
+        var create = new CreateActorsCommand(world, new[] { copyActor });
+        create.Execute();
+        world.Update(0f, tickActors: false);
+        create.Undo();
+        world.Update(0f, tickActors: false);
+        Assert.Null(copyRoot.AttachParent);
+        create.Execute();
+        world.Update(0f, tickActors: false);
+        Assert.Same(parent, copyRoot.AttachParent);
+        Assert.Equal(Vector3.One, copyRoot.RelativeLocation);
+    }
+
     private sealed class EditableTarget
     {
         public int Value { get; set; }
+    }
+
+    public sealed class CloneTestActor : Actor
+    {
+    }
+
+    public sealed class CloneTestComponent : SceneComponent
+    {
+        [SceneProperty]
+        public int Number { get; set; }
+
+        [SceneProperty]
+        public Material? Material { get; set; }
     }
 }

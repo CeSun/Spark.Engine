@@ -301,16 +301,37 @@ public sealed class EditorUi
 
     private void DuplicateSelection()
     {
-        if (_selectedTarget is not Actor source)
+        var sources = _context.Selection.Items.OfType<Actor>().Distinct().ToArray();
+        if (sources.Length == 0)
         {
-            SetStatus("Select an Actor to duplicate.");
+            SetStatus("Select one or more Actors to duplicate.");
             return;
         }
-        var prefix = string.IsNullOrWhiteSpace(source.Name) ? source.GetType().Name : source.Name + " Copy";
-        var copy = new Actor { Name = NextActorName(prefix) };
-        _context.Execute(new DelegateEditorCommand("Duplicate Actor", () => _context.World.AddActor(copy), () => _context.World.RemoveActor(copy)));
-        _context.Selection.Selected = copy;
-        SetStatus("Actor duplicated.");
+        try
+        {
+            var clones = _context.CloneActors(sources);
+            var usedNames = _context.World.EnumerateActors(includePendingActors: true)
+                .Select(actor => actor.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var pair in clones)
+            {
+                var prefix = string.IsNullOrWhiteSpace(pair.Source.Name)
+                    ? pair.Source.GetType().Name + " Copy"
+                    : pair.Source.Name + " Copy";
+                pair.Copy.Name = NextActorName(prefix, usedNames);
+                usedNames.Add(pair.Copy.Name);
+            }
+            var copies = clones.Select(pair => pair.Copy).ToArray();
+            _context.Execute(new CreateActorsCommand(_context.World, copies));
+            var primary = clones.FirstOrDefault(pair => ReferenceEquals(pair.Source, _selectedTarget)).Copy
+                ?? copies[^1];
+            _context.Selection.Set(copies, primary);
+            SetStatus(copies.Length == 1 ? "Actor duplicated." : $"{copies.Length} Actors duplicated.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Duplicate failed: {ex.Message}");
+        }
     }
 
     private void RenameSelection()
@@ -328,7 +349,13 @@ public sealed class EditorUi
 
     private string NextActorName(string prefix)
     {
-        var used = _context.World.Actors.Select(actor => actor.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var used = _context.World.EnumerateActors(includePendingActors: true)
+            .Select(actor => actor.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return NextActorName(prefix, used);
+    }
+
+    private static string NextActorName(string prefix, IReadOnlySet<string> used)
+    {
         var candidate = prefix;
         var index = 2;
         while (used.Contains(candidate))
@@ -356,18 +383,7 @@ public sealed class EditorUi
             SetStatus("Selected Actors are no longer in the scene.");
             return;
         }
-        _context.Execute(new DelegateEditorCommand(
-            actors.Length == 1 ? "Delete Actor" : $"Delete {actors.Length} Actors",
-            () =>
-            {
-                foreach (var actor in actors)
-                    _context.World.RemoveActor(actor);
-            },
-            () =>
-            {
-                foreach (var actor in actors)
-                    _context.World.AddActor(actor);
-            }));
+        _context.Execute(new DeleteActorsCommand(_context.World, actors));
         _context.Selection.Selected = null;
         SetStatus(actors.Length == 1 ? "Actor queued for deletion." : $"{actors.Length} Actors queued for deletion.");
     }

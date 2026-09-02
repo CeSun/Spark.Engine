@@ -1,4 +1,5 @@
 using System.Reflection;
+using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Resources;
 using Spark.Engine.Worlds;
@@ -259,6 +260,13 @@ public sealed class EditorContext : IDisposable
     /// <summary>注册一个只作用于新建 RuntimeWorld 的行为扩展。</summary>
     public void RegisterRuntimeBehavior(Action<World, SceneDocument> behavior)
         => RuntimeActorFactory.RegisterWorldBehavior(behavior);
+
+    /// <summary>按场景持久化边界深复制 Actor；返回值尚未加入 World。</summary>
+    public IReadOnlyList<ActorCloneResult> CloneActors(IEnumerable<Actor> actors)
+    {
+        RegisterWorldAssets();
+        return EditorActorCloner.Clone(World, actors, AssetRegistry, RuntimeActorFactory);
+    }
 
     private static void BindCameraTargets(World source, World destination)
     {
