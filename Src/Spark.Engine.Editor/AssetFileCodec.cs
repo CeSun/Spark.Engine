@@ -8,6 +8,7 @@ public enum EngineAssetType : byte
 {
     StaticMesh = 1,
     Material = 2,
+    Texture2D = 3,
 }
 
 /// <summary>引擎 `.asset` 文件的首版编解码；格式为固定头加类型专属 Payload。</summary>
@@ -27,6 +28,7 @@ public static class AssetFileCodec
         {
             StaticMesh => EngineAssetType.StaticMesh,
             Material => EngineAssetType.Material,
+            Texture2D => EngineAssetType.Texture2D,
             _ => throw new NotSupportedException($"Asset type '{resource.GetType().FullName}' is not supported.")
         };
         var payload = EncodePayload(resource, type);
@@ -113,6 +115,7 @@ public static class AssetFileCodec
         {
             EngineAssetType.StaticMesh => DecodeStaticMesh(payloadReader, assetGuid),
             EngineAssetType.Material => DecodeMaterial(payloadReader, assetGuid, registry),
+            EngineAssetType.Texture2D => DecodeTexture2D(payloadReader, assetGuid),
             _ => throw new InvalidDataException($"Unsupported asset type {(byte)type}.")
         };
     }
@@ -122,38 +125,54 @@ public static class AssetFileCodec
         using var stream = new MemoryStream();
         using (var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
         {
-            if (type == EngineAssetType.StaticMesh)
+            switch (type)
             {
-                var mesh = (StaticMesh)resource;
-                writer.Write(mesh.Vertices.Length);
-                foreach (var vertex in mesh.Vertices.Span)
+                case EngineAssetType.StaticMesh:
                 {
-                    WriteVector3(writer, vertex.Position);
-                    WriteVector3(writer, vertex.Color);
-                    WriteVector2(writer, vertex.Uv);
-                    WriteVector3(writer, vertex.Normal);
+                    var mesh = (StaticMesh)resource;
+                    writer.Write(mesh.Vertices.Length);
+                    foreach (var vertex in mesh.Vertices.Span)
+                    {
+                        WriteVector3(writer, vertex.Position);
+                        WriteVector3(writer, vertex.Color);
+                        WriteVector2(writer, vertex.Uv);
+                        WriteVector3(writer, vertex.Normal);
+                    }
+                    writer.Write(mesh.Indices.Length);
+                    foreach (var index in mesh.Indices.Span)
+                        writer.Write(index);
+                    break;
                 }
-                writer.Write(mesh.Indices.Length);
-                foreach (var index in mesh.Indices.Span)
-                    writer.Write(index);
-            }
-            else
-            {
-                var material = (Material)resource;
-                writer.Write((byte)material.ShadingModel);
-                writer.Write((byte)material.BlendMode);
-                writer.Write((byte)material.CullMode);
-                WriteVector4(writer, material.BaseColor);
-                writer.Write(material.Metallic);
-                writer.Write(material.Roughness);
-                WriteVector4(writer, material.EmissiveColor);
-                writer.Write(material.EmissiveStrength);
-                writer.Write(material.NormalStrength);
-                WriteNullableGuid(writer, material.BaseColorTexture?.AssetGuid);
-                WriteNullableGuid(writer, material.NormalTexture?.AssetGuid);
-                WriteNullableGuid(writer, material.EmissiveTexture?.AssetGuid);
-                WriteNullableGuid(writer, material.MetallicRoughnessTexture?.AssetGuid);
-                WriteNullableGuid(writer, material.MaskTexture?.AssetGuid);
+                case EngineAssetType.Material:
+                {
+                    var material = (Material)resource;
+                    writer.Write((byte)material.ShadingModel);
+                    writer.Write((byte)material.BlendMode);
+                    writer.Write((byte)material.CullMode);
+                    WriteVector4(writer, material.BaseColor);
+                    writer.Write(material.Metallic);
+                    writer.Write(material.Roughness);
+                    WriteVector4(writer, material.EmissiveColor);
+                    writer.Write(material.EmissiveStrength);
+                    writer.Write(material.NormalStrength);
+                    WriteNullableGuid(writer, material.BaseColorTexture?.AssetGuid);
+                    WriteNullableGuid(writer, material.NormalTexture?.AssetGuid);
+                    WriteNullableGuid(writer, material.EmissiveTexture?.AssetGuid);
+                    WriteNullableGuid(writer, material.MetallicRoughnessTexture?.AssetGuid);
+                    WriteNullableGuid(writer, material.MaskTexture?.AssetGuid);
+                    break;
+                }
+                case EngineAssetType.Texture2D:
+                {
+                    var texture = (Texture2D)resource;
+                    writer.Write(texture.Width);
+                    writer.Write(texture.Height);
+                    writer.Write(texture.PixelData.Length);
+                    writer.Write(texture.PixelData.Span);
+                    break;
+                }
+                default:
+                    throw new InvalidDataException($"Unsupported asset type {(byte)type}.");
             }
         }
         return stream.ToArray();
@@ -197,6 +216,26 @@ public static class AssetFileCodec
         if (reader.BaseStream.Position != reader.BaseStream.Length)
             throw new InvalidDataException("Unexpected trailing data in Material payload.");
         return material;
+    }
+
+    private static Texture2D DecodeTexture2D(BinaryReader reader, Guid assetGuid)
+    {
+        var width = reader.ReadUInt32();
+        var height = reader.ReadUInt32();
+        if (width == 0 || height == 0)
+            throw new InvalidDataException("Texture2D dimensions must be greater than zero.");
+
+        var expectedByteCount = (ulong)width * height * 4;
+        if (expectedByteCount > int.MaxValue)
+            throw new InvalidDataException("Texture2D pixel data is too large.");
+        var byteCount = reader.ReadInt32();
+        if (byteCount != (int)expectedByteCount)
+            throw new InvalidDataException(
+                $"Texture2D pixel data length {byteCount} does not match {width}x{height} RGBA8 dimensions.");
+        var pixels = ReadExactly(reader, byteCount);
+        if (reader.BaseStream.Position != reader.BaseStream.Length)
+            throw new InvalidDataException("Unexpected trailing data in Texture2D payload.");
+        return new Texture2D(width, height, pixels) { AssetGuid = assetGuid };
     }
 
     private static Texture2D? ResolveTexture(Guid? guid, IAssetRegistry? registry)

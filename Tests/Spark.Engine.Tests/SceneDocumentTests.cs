@@ -743,6 +743,54 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void AssetFileCodecRoundTripsTextureAndMaterialDependency()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "spark-texture-assets-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var pixels = new byte[]
+        {
+            255, 0, 0, 255, 0, 255, 0, 255,
+            0, 0, 255, 255, 255, 255, 255, 128,
+        };
+        using var texture = new Texture2D(2, 2, pixels)
+        {
+            AssetGuid = Guid.Parse("00000000-0000-0000-0000-000000000311"),
+        };
+        using var material = new Material
+        {
+            AssetGuid = Guid.Parse("00000000-0000-0000-0000-000000000312"),
+            BaseColorTexture = texture,
+        };
+        try
+        {
+            var texturePath = Path.Combine(directory, "texture.asset");
+            var materialPath = Path.Combine(directory, "material.asset");
+            AssetFileCodec.Save(texture, texturePath);
+            AssetFileCodec.Save(material, materialPath);
+
+            var textureMetadata = AssetFileCodec.ReadMetadata(texturePath);
+            var materialMetadata = AssetFileCodec.ReadMetadata(materialPath);
+            Assert.Equal(EngineAssetType.Texture2D.ToString(), textureMetadata.AssetType);
+            Assert.Empty(textureMetadata.Dependencies);
+            Assert.Equal(texture.AssetGuid, Assert.Single(materialMetadata.Dependencies));
+
+            var registry = new AssetRegistry();
+            Assert.Equal(2, registry.ScanDirectory(directory));
+            using var loadedMaterial = Assert.IsType<Material>(registry.Resolve(material.AssetGuid));
+            var loadedTexture = Assert.IsType<Texture2D>(loadedMaterial.BaseColorTexture);
+            Assert.Equal(texture.AssetGuid, loadedTexture.AssetGuid);
+            Assert.Equal(2u, loadedTexture.Width);
+            Assert.Equal(2u, loadedTexture.Height);
+            Assert.Equal(pixels, loadedTexture.PixelData.ToArray());
+            loadedTexture.Dispose();
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void BinarySceneServiceLoadsWorldThroughAssetRegistry()
     {
         var directory = Path.Combine(Path.GetTempPath(), "spark-scene-assets-" + Guid.NewGuid().ToString("N"));
