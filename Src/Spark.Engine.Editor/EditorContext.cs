@@ -35,6 +35,8 @@ public sealed class EditorContext : IDisposable
     public World? RuntimeWorld { get; private set; }
     public World ActiveWorld => RuntimeWorld ?? World;
     public EditorPlayState PlayState { get; private set; } = EditorPlayState.Edit;
+    /// <summary>RuntimeWorld 创建后执行的宿主行为注入点，用于恢复自定义 Actor/系统。</summary>
+    public Action<World>? RuntimeWorldInitializer { get; set; }
     public EditorCommandHistory History { get; } = new();
     public EditorSelection Selection { get; } = new();
     public bool IsDirty { get; private set; }
@@ -89,6 +91,7 @@ public sealed class EditorContext : IDisposable
             guid => assets.TryGetValue(guid, out var asset) ? asset : null);
         try
         {
+            RuntimeWorldInitializer?.Invoke(runtime);
             BindCameraTargets(runtime);
             _worldContext?.SetRuntimeWorld(runtime);
         }
@@ -157,10 +160,16 @@ public sealed class EditorContext : IDisposable
         {
             foreach (var component in actor.Components)
             {
-                if (component is not StaticMeshComponent staticMesh)
-                    continue;
-                AddAsset(staticMesh.Mesh);
-                AddAsset(staticMesh.Material);
+                if (component is StaticMeshComponent staticMesh)
+                {
+                    AddAsset(staticMesh.Mesh);
+                    AddAsset(staticMesh.Material);
+                }
+                else if (component is SkeletalMeshComponent skeletalMesh)
+                {
+                    AddAsset(skeletalMesh.Mesh);
+                    AddAsset(skeletalMesh.Material);
+                }
             }
         }
         return assets;

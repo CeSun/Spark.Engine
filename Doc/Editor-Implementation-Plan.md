@@ -11,7 +11,8 @@
 - 初版 `EditorCommandHistory`：可执行、撤销、重做
 
 当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；Viewport 还不能拾取和变换对象，
-`EditorContext` 已接入基础 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；当前主循环仍需支持 EditorWorld 与 RuntimeWorld 并存。
+`EditorContext` 已接入 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；主循环已支持
+EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产和光照状态可恢复，宿主行为可通过初始化器注入。
 场景层级、Socket 和挂载规则按 [SceneHierarchy-Design.md](./SceneHierarchy-Design.md) 实施，资产格式和 Cook 按
 [AssetPipeline-Design.md](./AssetPipeline-Design.md) 实施。编辑器侧已落地无 GPU 依赖的 glTF 2.0 StaticMesh 导入器，
 支持内嵌/外部 buffer、TRS 节点层级和 TRIANGLES 原语；GLB、骨骼、动画和材质纹理导入仍在后续里程碑。
@@ -81,7 +82,7 @@ EditorApplication
 交付任务：
 
 1. `Edit/Play/Simulate/Stop` 状态机。
-2. ✅ 从 `SceneDocument` 实例化基础 Runtime World、Play/Stop 回收；⏳ 接入 EngineApplication 双 World 调度。
+2. ✅ 从 `SceneDocument` 实例化 Runtime World、Play/Stop 回收、双 World 调度和内置资产/光照恢复；宿主行为初始化器已提供。
 3. Console、日志过滤、错误定位。
 4. RenderGraph、GPU 错误、帧耗时和 Draw Call 面板。
 5. 帧捕获、截图和运行时对象定位。

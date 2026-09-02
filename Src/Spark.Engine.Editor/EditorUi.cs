@@ -92,6 +92,10 @@ public sealed class EditorUi
     /// <summary>当前编辑器 Play 状态，供宿主同步窗口标题或工具栏。</summary>
     public EditorPlayState PlayState => _context.PlayState;
 
+    /// <summary>注册 RuntimeWorld 创建后的宿主行为恢复逻辑。</summary>
+    public void SetRuntimeWorldInitializer(Action<World> initializer)
+        => _context.RuntimeWorldInitializer = initializer ?? throw new ArgumentNullException(nameof(initializer));
+
     /// <summary>切换编辑器 Play/Stop，并保持运行时 World 与编辑 World 生命周期隔离。</summary>
     public void TogglePlay()
     {

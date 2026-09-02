@@ -191,6 +191,82 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void EditorContextPlayResolvesSkeletalMeshAndLightState()
+    {
+        using var editorWorld = new World(new ResourceManager());
+        var skeletalMesh = new SkeletalMesh(
+            [new SkeletalMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY, 0, Vector4.UnitX)],
+            [0],
+            [Matrix4x4.Identity]);
+        var material = new Material { BaseColor = new Vector4(1f, 0.4f, 0.2f, 1f) };
+        var skeletalActor = new Actor { Name = "Arm" };
+        skeletalActor.AddOwnedComponent(new SkeletalMeshComponent { Mesh = skeletalMesh, Material = material });
+        editorWorld.AddActor(skeletalActor);
+
+        var light = new SpotLightComponent
+        {
+            Color = new Vector3(0.8f, 0.7f, 0.6f),
+            Intensity = 3.5f,
+            Range = 25f,
+            InnerConeAngle = 0.2f,
+            OuterConeAngle = 0.9f,
+            CastShadow = true,
+        };
+        var lightActor = new Actor { Name = "Key Light" };
+        lightActor.AddOwnedComponent(light);
+        editorWorld.AddActor(lightActor);
+        editorWorld.Update(0.016f);
+
+        using var editor = new EditorContext(editorWorld);
+        Assert.True(editor.Play());
+        editor.RuntimeWorld!.Update(0.016f);
+
+        var runtimeSkeletal = editor.RuntimeWorld.Actors
+            .SelectMany(actor => actor.Components)
+            .OfType<SkeletalMeshComponent>()
+            .Single();
+        Assert.Same(skeletalMesh, runtimeSkeletal.Mesh);
+        Assert.Same(material, runtimeSkeletal.Material);
+
+        var runtimeLight = editor.RuntimeWorld.Actors
+            .SelectMany(actor => actor.Components)
+            .OfType<SpotLightComponent>()
+            .Single();
+        Assert.Equal(light.Color, runtimeLight.Color);
+        Assert.Equal(light.Intensity, runtimeLight.Intensity);
+        Assert.Equal(light.Range, runtimeLight.Range);
+        Assert.Equal(light.InnerConeAngle, runtimeLight.InnerConeAngle);
+        Assert.Equal(light.OuterConeAngle, runtimeLight.OuterConeAngle);
+        Assert.Equal(light.CastShadow, runtimeLight.CastShadow);
+
+        editor.Stop();
+        skeletalMesh.Dispose();
+        material.Dispose();
+    }
+
+    [Fact]
+    public void RuntimeWorldInitializerRunsAfterSceneInstantiation()
+    {
+        using var world = new World(new ResourceManager());
+        var actor = new Actor();
+        actor.AddOwnedComponent(new SceneComponent());
+        world.AddActor(actor);
+        world.Update(0.016f);
+        using var editor = new EditorContext(world);
+        var called = false;
+        editor.RuntimeWorldInitializer = runtime =>
+        {
+            called = true;
+            runtime.AddActor(new Actor { Name = "Injected" });
+        };
+
+        Assert.True(editor.Play());
+        Assert.True(called);
+        editor.RuntimeWorld!.Update(0.016f);
+        Assert.Contains(editor.RuntimeWorld.Actors, item => item.Name == "Injected");
+    }
+
+    [Fact]
     public void BinaryReaderRejectsUnsupportedVersion()
     {
         var path = GetTempPath();

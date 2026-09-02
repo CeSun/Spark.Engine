@@ -302,7 +302,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | 渲染视图控件（UIRenderView：离屏渲染 → UI 采样 + 自适应分辨率） | ✅ | ✅ |
 
 > 注：UI P6-fix / P8 控件 / P8 审计修复三轮均已在本机 GPU 实机运行验收场景逐项目确认，
-> 用户验收通过（2026-08-31）；当前自动化测试共 105 个。
+> 用户验收通过（2026-08-31）；当前自动化测试共 110 个。
 
 ### 20. 编辑器控件集（P8，2026-08-26）
 
@@ -387,7 +387,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 2. **场景持久化与编辑器运行隔离**：SceneDocument/`.scene`、独立 RuntimeWorld 实例化、EditorContext Play/Stop 和 EngineApplication 双 World 调度已完成
 3. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，只重算/提交变化的对象，静态对象复用上一帧快照（当前每帧全量快照）
 4. ~~UI 三轮验收~~：✅ 已完成（2026-08-31 用户 GPU 实机逐场景确认通过）
-5. **单元测试补齐**：当前自动化测试共 105 个；`BoundingSphere`/`Frustum`/`SceneSnapshot` 及 GPU 集成测试仍需补齐
+5. **单元测试补齐**：当前自动化测试共 110 个；`BoundingSphere`/`Frustum`/`SceneSnapshot` 及 GPU 集成测试仍需补齐
 
 ### P2 —— 渲染能力扩展
 

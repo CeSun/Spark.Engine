@@ -19,6 +19,10 @@ namespace Demo;
 /// </summary>
 public static class DemoApp
 {
+    private static StaticMeshComponent? _leftWall;
+    private static StaticMeshComponent? _rightWall;
+    private static SkeletalMeshComponent? _arm;
+
     /// <summary>搭建演示场景（作为 <see cref="EngineApplication.InitializeCallback"/> 使用）。</summary>
     public static void Initialize(EngineApplication app)
     {
@@ -139,6 +143,8 @@ public static class DemoApp
         var rightWallActor = new Actor();
         rightWallActor.AddOwnedComponent(rightWall);
         world.AddActor(rightWallActor);
+        _leftWall = leftWall;
+        _rightWall = rightWall;
 
         var spotLight = new SpotLightComponent
         {
@@ -168,6 +174,7 @@ public static class DemoApp
         var armActor = new Actor();
         armActor.AddOwnedComponent(armComponent);
         world.AddActor(armActor);
+        _arm = armComponent;
         world.AddActor(new SkeletalAnimator(armComponent));
         world.AddActor(new WallSwinger(leftWall, rightWall));
     }
@@ -179,6 +186,18 @@ public static class DemoApp
 
         var world = app.WorldContext.CurrentWorld
             ?? throw new InvalidOperationException("The demo world must be initialized before the editor.");
+
+        editorUi.SetRuntimeWorldInitializer(runtime =>
+        {
+            var left = FindComponent<StaticMeshComponent>(runtime, _leftWall?.ComponentGuid);
+            var right = FindComponent<StaticMeshComponent>(runtime, _rightWall?.ComponentGuid);
+            if (left != null && right != null)
+                runtime.AddActor(new WallSwinger(left, right));
+
+            var arm = FindComponent<SkeletalMeshComponent>(runtime, _arm?.ComponentGuid);
+            if (arm != null)
+                runtime.AddActor(new SkeletalAnimator(arm));
+        });
 
         var renderView = app.CreateRenderView(320, 240);
         var renderViewControl = new UIRenderView
@@ -207,6 +226,16 @@ public static class DemoApp
         var actor = new Actor();
         actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh, Material = material });
         world.AddActor(actor);
+    }
+
+    private static T? FindComponent<T>(World world, Guid? componentGuid) where T : ActorComponent
+    {
+        if (componentGuid is not { } guid)
+            return null;
+        return world.EnumerateActors(includePendingActors: true)
+            .SelectMany(actor => actor.Components)
+            .OfType<T>()
+            .SingleOrDefault(component => component.ComponentGuid == guid);
     }
 
     /// <summary>两段骨骼"手臂"条带：下段绑 bone0，上段绑 bone1，关节在原点，bind pose 为单位阵。</summary>

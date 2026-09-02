@@ -16,6 +16,19 @@ public class World : IDisposable
     /// <summary>当前已进入世界的 Actor（BeginPlay 已调用）。</summary>
     public IReadOnlyList<Actor> Actors => _actors;
 
+    /// <summary>枚举 Actor；编辑器初始化 RuntimeWorld 时可选择包含尚未 BeginPlay 的 pending Actor。</summary>
+    public IEnumerable<Actor> EnumerateActors(bool includePendingActors = false)
+    {
+        ThrowIfDisposed();
+        foreach (var actor in _actors)
+            yield return actor;
+        if (includePendingActors)
+        {
+            foreach (var actor in _pendingAddActors)
+                yield return actor;
+        }
+    }
+
     /// <summary>渲染场景注册表：持有所有场景代理（网格/光源/…），每帧捕获为快照。</summary>
     public Scene Scene { get; }
 

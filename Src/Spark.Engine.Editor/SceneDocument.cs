@@ -9,7 +9,7 @@ namespace Spark.Engine.Editor;
 /// <summary>编辑器场景的稳定内存表示；它是保存和 RuntimeWorld 实例化的共同输入。</summary>
 public sealed class SceneDocument
 {
-    public const ushort CurrentFormatVersion = 2;
+    public const ushort CurrentFormatVersion = 3;
     public Guid SceneGuid { get; set; } = Guid.NewGuid();
     public ushort FormatVersion { get; init; } = CurrentFormatVersion;
     public List<SceneActorDocument> Actors { get; } = [];
@@ -40,7 +40,15 @@ public sealed class SceneDocument
                     RelativeRotation = scene?.RelativeRotation ?? Quaternion.Identity,
                     RelativeScale = scene?.RelativeScale ?? Vector3.One,
                     MeshAssetGuid = (component as StaticMeshComponent)?.Mesh?.AssetGuid,
-                    MaterialAssetGuid = (component as StaticMeshComponent)?.Material?.AssetGuid,
+                    SkeletalMeshAssetGuid = (component as SkeletalMeshComponent)?.Mesh?.AssetGuid,
+                    MaterialAssetGuid = (component as StaticMeshComponent)?.Material?.AssetGuid
+                        ?? (component as SkeletalMeshComponent)?.Material?.AssetGuid,
+                    LightColor = (component as LightComponent)?.Color ?? Vector3.One,
+                    LightIntensity = (component as LightComponent)?.Intensity ?? 1f,
+                    LightRange = (component as LightComponent)?.Range ?? 100f,
+                    LightInnerConeAngle = (component as LightComponent)?.InnerConeAngle ?? 0f,
+                    LightOuterConeAngle = (component as LightComponent)?.OuterConeAngle ?? MathF.PI / 4f,
+                    LightCastShadow = (component as LightComponent)?.CastShadow ?? false,
                 });
                 if (scene != null)
                     actorDocument.Components[^1].Sockets = scene.Sockets.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
@@ -57,8 +65,8 @@ public sealed class SceneDocument
     public static SceneDocument Load(string path) => SceneDocumentBinary.Read(path);
 
     /// <summary>
-    /// 从文档创建全新的运行时 World。该过程只恢复 Actor/Component 类型、GUID、层级和变换，
-    /// 不复用编辑器对象；资产实例化和自定义 Actor 工厂由后续扩展接入。
+    /// 从文档创建全新的运行时 World。该过程恢复 Actor/Component 类型、GUID、层级、变换、
+    /// 内置资产引用和光照状态；宿主可通过 assetResolver 与 RuntimeWorldInitializer 接入外部资产和行为。
     /// </summary>
     public World InstantiateWorld(ResourceManager resourceManager, Func<Guid, SceneResource?>? assetResolver = null)
     {
@@ -97,6 +105,30 @@ public sealed class SceneDocument
                                 throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved.");
                             staticMesh.Material = material;
                         }
+                    }
+                    else if (component is SkeletalMeshComponent skeletalMesh)
+                    {
+                        if (componentRecord.SkeletalMeshAssetGuid is { } meshGuid && assetResolver != null)
+                        {
+                            if (assetResolver(meshGuid) is not SkeletalMesh mesh)
+                                throw new InvalidDataException($"Skeletal mesh asset '{meshGuid}' could not be resolved.");
+                            skeletalMesh.Mesh = mesh;
+                        }
+                        if (componentRecord.MaterialAssetGuid is { } materialGuid && assetResolver != null)
+                        {
+                            if (assetResolver(materialGuid) is not Material material)
+                                throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved.");
+                            skeletalMesh.Material = material;
+                        }
+                    }
+                    if (component is LightComponent light)
+                    {
+                        light.Color = componentRecord.LightColor;
+                        light.Intensity = componentRecord.LightIntensity;
+                        light.Range = componentRecord.LightRange;
+                        light.InnerConeAngle = componentRecord.LightInnerConeAngle;
+                        light.OuterConeAngle = componentRecord.LightOuterConeAngle;
+                        light.CastShadow = componentRecord.LightCastShadow;
                     }
                     actor.AddOwnedComponent(component);
                     if (component is SceneComponent scene)
@@ -154,7 +186,14 @@ public sealed class SceneComponentDocument
     public Quaternion RelativeRotation { get; init; } = Quaternion.Identity;
     public Vector3 RelativeScale { get; init; } = Vector3.One;
     public Guid? MeshAssetGuid { get; init; }
+    public Guid? SkeletalMeshAssetGuid { get; init; }
     public Guid? MaterialAssetGuid { get; init; }
+    public Vector3 LightColor { get; init; } = Vector3.One;
+    public float LightIntensity { get; init; } = 1f;
+    public float LightRange { get; init; } = 100f;
+    public float LightInnerConeAngle { get; init; }
+    public float LightOuterConeAngle { get; init; } = MathF.PI / 4f;
+    public bool LightCastShadow { get; init; }
     public Dictionary<string, Matrix4x4> Sockets { get; set; } = new(StringComparer.Ordinal);
 }
 
@@ -198,7 +237,14 @@ internal static class SceneDocumentBinary
                         WriteNullableGuid(writer, component.ParentComponentGuid);
                         WriteNullableString(writer, component.AttachSocketName);
                         WriteNullableGuid(writer, component.MeshAssetGuid);
+                        WriteNullableGuid(writer, component.SkeletalMeshAssetGuid);
                         WriteNullableGuid(writer, component.MaterialAssetGuid);
+                        WriteVector3(writer, component.LightColor);
+                        writer.Write(component.LightIntensity);
+                        writer.Write(component.LightRange);
+                        writer.Write(component.LightInnerConeAngle);
+                        writer.Write(component.LightOuterConeAngle);
+                        writer.Write(component.LightCastShadow);
                         WriteVector3(writer, component.RelativeLocation);
                         WriteQuaternion(writer, component.RelativeRotation);
                         WriteVector3(writer, component.RelativeScale);
@@ -264,7 +310,14 @@ internal static class SceneDocumentBinary
                     ParentComponentGuid = ReadNullableGuid(reader),
                     AttachSocketName = ReadNullableString(reader),
                     MeshAssetGuid = ReadNullableGuid(reader),
+                    SkeletalMeshAssetGuid = ReadNullableGuid(reader),
                     MaterialAssetGuid = ReadNullableGuid(reader),
+                    LightColor = ReadVector3(reader),
+                    LightIntensity = reader.ReadSingle(),
+                    LightRange = reader.ReadSingle(),
+                    LightInnerConeAngle = reader.ReadSingle(),
+                    LightOuterConeAngle = reader.ReadSingle(),
+                    LightCastShadow = reader.ReadBoolean(),
                     RelativeLocation = ReadVector3(reader),
                     RelativeRotation = ReadQuaternion(reader),
                     RelativeScale = ReadVector3(reader),
