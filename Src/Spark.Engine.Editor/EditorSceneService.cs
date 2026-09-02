@@ -1,4 +1,5 @@
 using Spark.Engine.Worlds;
+using Spark.Engine.Resources;
 
 namespace Spark.Engine.Editor;
 
@@ -49,4 +50,15 @@ public sealed class BinaryEditorSceneService(string path) : IEditorSceneService
     }
 
     public SceneDocument LoadDocument() => SceneDocument.Load(Path);
+
+    /// <summary>加载磁盘场景并通过 AssetGuid 解析资产后创建独立 World。</summary>
+    public World LoadWorld(ResourceManager resourceManager, IAssetRegistry assetRegistry,
+        RuntimeActorFactory? runtimeActorFactory = null)
+    {
+        ArgumentNullException.ThrowIfNull(resourceManager);
+        ArgumentNullException.ThrowIfNull(assetRegistry);
+        var document = LoadDocument();
+        LastLoadedDocument = document;
+        return document.InstantiateWorld(resourceManager, assetRegistry, runtimeActorFactory);
+    }
 }

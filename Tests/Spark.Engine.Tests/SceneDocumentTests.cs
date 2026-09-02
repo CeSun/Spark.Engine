@@ -329,6 +329,91 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void AssetFileCodecScansAndLazilyLoadsStaticMeshAndMaterial()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "spark-assets-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var mesh = new StaticMesh(
+            [new StaticMeshVertex(new Vector3(1, 2, 3), new Vector3(0.2f, 0.4f, 0.6f), new Vector2(0.5f, 0.75f), Vector3.UnitZ)],
+            [0]) { AssetGuid = Guid.Parse("00000000-0000-0000-0000-000000000301") };
+        var material = new Material
+        {
+            AssetGuid = Guid.Parse("00000000-0000-0000-0000-000000000302"),
+            ShadingModel = ShadingModel.Unlit,
+            BaseColor = new Vector4(0.2f, 0.4f, 0.8f, 1f),
+            Roughness = 0.8f,
+        };
+        try
+        {
+            AssetFileCodec.Save(mesh, Path.Combine(directory, "mesh.asset"));
+            AssetFileCodec.Save(material, Path.Combine(directory, "material.asset"));
+            mesh.Dispose();
+            material.Dispose();
+
+            var registry = new AssetRegistry();
+            Assert.Equal(2, registry.ScanDirectory(directory));
+            Assert.Equal(2, registry.Records.Count);
+            Assert.True(registry.TryResolve(mesh.AssetGuid, out var loadedMesh));
+            Assert.IsType<StaticMesh>(loadedMesh);
+            Assert.Equal(mesh.AssetGuid, loadedMesh!.AssetGuid);
+            Assert.Equal(mesh.Vertices[0].Position, ((StaticMesh)loadedMesh).Vertices[0].Position);
+            var loadedMaterial = Assert.IsType<Material>(registry.Resolve(material.AssetGuid));
+            Assert.Equal(material.BaseColor, loadedMaterial.BaseColor);
+            Assert.Equal(material.Roughness, loadedMaterial.Roughness);
+        }
+        finally
+        {
+            loadedResourcesCleanup(directory);
+        }
+
+        static void loadedResourcesCleanup(string path)
+        {
+            foreach (var file in Directory.EnumerateFiles(path))
+                File.Delete(file);
+            Directory.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void BinarySceneServiceLoadsWorldThroughAssetRegistry()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "spark-scene-assets-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        using var resourceManager = new ResourceManager();
+        using var sourceWorld = new World(resourceManager);
+        var mesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY)], [0])
+        { AssetGuid = Guid.Parse("00000000-0000-0000-0000-000000000303") };
+        var actor = new Actor { Name = "DiskMesh" };
+        actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh });
+        sourceWorld.AddActor(actor);
+        sourceWorld.Update(0.016f);
+        var scenePath = Path.Combine(directory, "level.scene");
+        var assetPath = Path.Combine(directory, "mesh.asset");
+        try
+        {
+            new BinaryEditorSceneService(scenePath).Save(sourceWorld);
+            AssetFileCodec.Save(mesh, assetPath);
+            var registry = new AssetRegistry();
+            registry.ScanDirectory(directory);
+            var service = new BinaryEditorSceneService(scenePath);
+            using var loadedWorld = service.LoadWorld(resourceManager, registry);
+            loadedWorld.Update(0.016f);
+            var loadedMesh = loadedWorld.Actors.SelectMany(item => item.Components).OfType<StaticMeshComponent>().Single().Mesh;
+            Assert.NotNull(loadedMesh);
+            Assert.Equal(mesh.AssetGuid, loadedMesh!.AssetGuid);
+            Assert.Equal(mesh.Vertices.Length, loadedMesh.Vertices.Length);
+        }
+        finally
+        {
+            mesh.Dispose();
+            foreach (var file in Directory.EnumerateFiles(directory))
+                File.Delete(file);
+            Directory.Delete(directory);
+        }
+    }
+
+    [Fact]
     public void BinaryReaderRejectsUnsupportedVersion()
     {
         var path = GetTempPath();

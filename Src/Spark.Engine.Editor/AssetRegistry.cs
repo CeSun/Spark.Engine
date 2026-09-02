@@ -14,12 +14,13 @@ public sealed class AssetRecord
 {
     public Guid AssetGuid { get; init; }
     public string AssetType { get; init; } = string.Empty;
-    public string? SourcePath { get; init; }
+    public string? SourcePath { get; internal set; }
     public string? CookedPath { get; init; }
     public IReadOnlyList<Guid> Dependencies { get; init; } = Array.Empty<Guid>();
     public string? ContentHash { get; init; }
     public AssetImportStatus ImportStatus { get; init; }
-    public SceneResource? Resource { get; init; }
+    public SceneResource? Resource { get; internal set; }
+    internal Func<SceneResource?>? Loader { get; set; }
 }
 
 /// <summary>编辑器和 RuntimeWorld 共享的 AssetGuid 解析边界。</summary>
@@ -57,12 +58,32 @@ public sealed class AssetRegistry : IAssetRegistry
 
     public bool TryResolve(Guid assetGuid, out SceneResource? resource)
     {
+        Func<SceneResource?>? loader = null;
         lock (_gate)
         {
-            if (_records.TryGetValue(assetGuid, out var record) && record.Resource != null)
+            if (_records.TryGetValue(assetGuid, out var record))
             {
-                resource = record.Resource;
-                return true;
+                if (record.Resource != null)
+                {
+                    resource = record.Resource;
+                    return true;
+                }
+                loader = record.Loader;
+            }
+        }
+
+        if (loader != null)
+        {
+            var loaded = loader();
+            if (loaded != null)
+            {
+                lock (_gate)
+                {
+                    if (_records.TryGetValue(assetGuid, out var record) && record.Resource == null)
+                        record.Resource = loaded;
+                    resource = _records.TryGetValue(assetGuid, out record) ? record.Resource : loaded;
+                }
+                return resource != null;
             }
         }
 
@@ -116,8 +137,34 @@ public sealed class AssetRegistry : IAssetRegistry
                 throw new InvalidOperationException($"AssetGuid '{record.AssetGuid}' is assigned to multiple resources.");
             }
 
+            if (_records.TryGetValue(record.AssetGuid, out var current) && current.Resource != null && record.Resource == null)
+            {
+                record.Resource = current.Resource;
+                record.Loader = null;
+            }
             _records[record.AssetGuid] = record;
         }
+    }
+
+    /// <summary>扫描 `.asset` 文件并建立懒加载索引；实际资源在首次 Resolve 时创建。</summary>
+    public int ScanDirectory(string directory, bool recursive = true)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+        var fullDirectory = Path.GetFullPath(directory);
+        if (!Directory.Exists(fullDirectory))
+            throw new DirectoryNotFoundException(fullDirectory);
+
+        var option = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+        var count = 0;
+        foreach (var path in Directory.EnumerateFiles(fullDirectory, "*.asset", option))
+        {
+            var metadata = AssetFileCodec.ReadMetadata(path);
+            metadata.SourcePath = Path.GetRelativePath(fullDirectory, path);
+            metadata.Loader = () => AssetFileCodec.Load(path, this);
+            RegisterMetadata(metadata);
+            count++;
+        }
+        return count;
     }
 }
 
