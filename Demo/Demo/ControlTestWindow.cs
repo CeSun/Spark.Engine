@@ -12,13 +12,34 @@ public static class ControlTestWindow
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        if (_window is { IsClosing: false })
-            return;
+        if (_window != null)
+        {
+            // A closed window may already have had its native handle disposed.
+            // Do not read IsClosing from a stale native wrapper.
+            if (app.WindowManager.Windows.Contains(_window))
+            {
+                if (!_window.IsClosing)
+                    return;
+            }
+            else
+            {
+                // Pending-add windows are only visible for the current frame;
+                // a missing reference here is a closed/disposed window.
+                _window = null;
+            }
+        }
 
         _window = app.WindowManager.CreateWindow("Spark Engine - UI Control Tests", 980, 720);
         var viewport = app.WindowManager.GetViewport(_window)
             ?? throw new InvalidOperationException("Control test window has no viewport.");
         var canvas = app.UIManager.GetOrCreateCanvas(viewport.Id);
-        canvas.Root = new ControlTestRootPanel(() => _window?.Close());
+        canvas.Root = new ControlTestRootPanel(Close);
+    }
+
+    private static void Close()
+    {
+        var window = _window;
+        _window = null;
+        window?.Close();
     }
 }
