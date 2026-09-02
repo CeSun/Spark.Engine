@@ -78,6 +78,58 @@ public sealed class EditorCommandTests
     }
 
     [Fact]
+    public void History_FailedUndoStaysOnUndoStackAndCanBeRetried()
+    {
+        var value = 0;
+        var failUndo = true;
+        var history = new EditorCommandHistory();
+        history.Execute(new DelegateEditorCommand(
+            "change",
+            () => value++,
+            () =>
+            {
+                if (failUndo) throw new InvalidOperationException("undo failed");
+                value--;
+            }));
+
+        Assert.Throws<InvalidOperationException>(() => history.Undo());
+        Assert.True(history.CanUndo);
+        Assert.False(history.CanRedo);
+        Assert.Equal(1, value);
+
+        failUndo = false;
+        Assert.True(history.Undo());
+        Assert.Equal(0, value);
+    }
+
+    [Fact]
+    public void History_FailedRedoStaysOnRedoStackAndCanBeRetried()
+    {
+        var value = 0;
+        var failRedo = false;
+        var history = new EditorCommandHistory();
+        history.Execute(new DelegateEditorCommand(
+            "change",
+            () =>
+            {
+                if (failRedo) throw new InvalidOperationException("redo failed");
+                value++;
+            },
+            () => value--));
+        Assert.True(history.Undo());
+        failRedo = true;
+
+        Assert.Throws<InvalidOperationException>(() => history.Redo());
+        Assert.False(history.CanUndo);
+        Assert.True(history.CanRedo);
+        Assert.Equal(0, value);
+
+        failRedo = false;
+        Assert.True(history.Redo());
+        Assert.Equal(1, value);
+    }
+
+    [Fact]
     public void Context_MarkReloaded_ClearsDirtyAndHistory()
     {
         using var world = new Spark.Engine.Worlds.World(new Spark.Engine.Resources.ResourceManager());

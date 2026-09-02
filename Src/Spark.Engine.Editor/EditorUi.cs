@@ -202,8 +202,17 @@ public sealed class EditorUi
 
     private void SetStatus(string message) => _statusBar.SetStatus(message);
     private void ShowAssetErrors() => _assetErrors.Show();
-    private void Undo() => SetStatus(_context.Undo() ? "Undo completed." : "Nothing to undo.");
-    private void Redo() => SetStatus(_context.Redo() ? "Redo completed." : "Nothing to redo.");
+    private void Undo()
+    {
+        try { SetStatus(_context.Undo() ? "Undo completed." : "Nothing to undo."); }
+        catch (Exception ex) { SetStatus($"Undo failed: {ex.Message}"); }
+    }
+
+    private void Redo()
+    {
+        try { SetStatus(_context.Redo() ? "Redo completed." : "Nothing to redo."); }
+        catch (Exception ex) { SetStatus($"Redo failed: {ex.Message}"); }
+    }
 
     private void SaveScene()
     {
@@ -267,8 +276,15 @@ public sealed class EditorUi
             SetStatus($"Property '{propertyName}' is not editable.");
             return;
         }
-        _context.Execute(new PropertyChangeCommand(target, property, oldValue, newValue));
-        SetStatus($"Changed {propertyName}.");
+        try
+        {
+            _context.Execute(new PropertyChangeCommand(target, property, oldValue, newValue));
+            SetStatus($"Changed {propertyName}.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Property change failed: {ex.Message}");
+        }
     }
 
     private void AddActor()

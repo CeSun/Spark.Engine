@@ -40,8 +40,9 @@ public sealed class EditorCommandHistory
     public bool Undo()
     {
         if (_undo.Count == 0) return false;
-        var command = _undo.Pop();
+        var command = _undo.Peek();
         command.Undo();
+        _undo.Pop();
         _redo.Push(command);
         return true;
     }
@@ -49,8 +50,9 @@ public sealed class EditorCommandHistory
     public bool Redo()
     {
         if (_redo.Count == 0) return false;
-        var command = _redo.Pop();
+        var command = _redo.Peek();
         command.Execute();
+        _redo.Pop();
         _undo.Push(command);
         return true;
     }
