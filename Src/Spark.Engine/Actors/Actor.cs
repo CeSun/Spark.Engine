@@ -13,6 +13,9 @@ public class Actor
     private HashSet<ActorComponent> _ownedComponents = [];
 
     private bool _hasBegunPlay;
+    private bool _isRegistered;
+
+    internal bool HasBegunPlay => _hasBegunPlay;
 
     /// <summary>编辑器和调试工具使用的稳定显示名称。</summary>
     public string Name { get; set; } = string.Empty;
@@ -38,22 +41,24 @@ public class Actor
         if (component is SceneComponent sceneComponent && RootComponent == null)
             RootComponent = sceneComponent;
 
-        // actor 已 BeginPlay：补调组件 BeginPlay，否则其代理注册/初始化永不被调用（中6）
-        if (_hasBegunPlay)
+        // 动态组件遵循 Actor 当前阶段：先注册共有状态，再进入 gameplay 生命周期。
+        if (_isRegistered)
         {
             try
             {
-                component.BeginPlay();
+                component.RegisterComponent();
+                if (_hasBegunPlay)
+                    component.BeginPlayComponent();
             }
-            catch (Exception beginException)
+            catch (Exception lifecycleException)
             {
-                // 动态挂载失败时撤销组件，避免它以“已拥有但未启动”的状态留在 Actor 中。
-                try { component.EndPlay(); } catch { /* 保留 BeginPlay 的根因 */ }
+                try { component.EndPlayComponent(); } catch { /* 保留注册/BeginPlay 的根因 */ }
+                try { component.UnregisterComponent(); } catch { /* 保留注册/BeginPlay 的根因 */ }
                 _ownedComponents.Remove(component);
                 if (ReferenceEquals(RootComponent, component))
                     RootComponent = null;
                 component.Owner = null;
-                ExceptionDispatchInfo.Capture(beginException).Throw();
+                ExceptionDispatchInfo.Capture(lifecycleException).Throw();
             }
         }
     }
@@ -99,6 +104,49 @@ public class Actor
         _world = world;
     }
 
+    internal void RegisterComponents()
+    {
+        if (_isRegistered)
+            return;
+
+        _isRegistered = true;
+        var registered = new List<ActorComponent>();
+        try
+        {
+            foreach (var component in _ownedComponents.ToArray())
+            {
+                registered.Add(component);
+                component.RegisterComponent();
+            }
+        }
+        catch (Exception registerException)
+        {
+            for (var index = registered.Count - 1; index >= 0; index--)
+            {
+                try { registered[index].UnregisterComponent(); } catch { /* 保留注册根因 */ }
+            }
+            _isRegistered = false;
+            ExceptionDispatchInfo.Capture(registerException).Throw();
+        }
+    }
+
+    internal void UnregisterComponents()
+    {
+        if (!_isRegistered)
+            return;
+
+        _isRegistered = false;
+        Exception? firstException = null;
+        var components = _ownedComponents.ToArray();
+        for (var index = components.Length - 1; index >= 0; index--)
+        {
+            try { components[index].UnregisterComponent(); }
+            catch (Exception exception) { firstException ??= exception; }
+        }
+        if (firstException != null)
+            ExceptionDispatchInfo.Capture(firstException).Throw();
+    }
+
     public virtual void BeginPlay()
     {
         if (_hasBegunPlay)
@@ -106,21 +154,17 @@ public class Actor
 
         _hasBegunPlay = true;
         // 副本迭代：组件回调里 AddOwnedComponent 重入不破坏集合（中3）
-        var started = new List<ActorComponent>();
         try
         {
             foreach (var component in _ownedComponents.ToArray())
-            {
-                // 把当前组件也记入回滚列表：BeginPlay 可能在注册代理后才抛异常。
-                started.Add(component);
-                component.BeginPlay();
-            }
+                component.BeginPlayComponent();
         }
         catch (Exception beginException)
         {
-            for (int i = started.Count - 1; i >= 0; i--)
+            var components = _ownedComponents.ToArray();
+            for (int i = components.Length - 1; i >= 0; i--)
             {
-                try { started[i].EndPlay(); } catch { /* 不覆盖原始启动异常 */ }
+                try { components[i].EndPlayComponent(); } catch { /* 不覆盖原始启动异常 */ }
             }
 
             _hasBegunPlay = false;
@@ -146,7 +190,7 @@ public class Actor
         {
             try
             {
-                components[i].EndPlay();
+                components[i].EndPlayComponent();
             }
             catch (Exception ex)
             {

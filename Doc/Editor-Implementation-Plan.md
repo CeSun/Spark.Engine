@@ -10,7 +10,7 @@
 - UI 基础控件：树、列表、分栏、菜单、工具栏、滚动、属性网格
 - 初版 `EditorCommandHistory`：可执行、撤销、重做
 
-当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览会初始化渲染代理但冻结 gameplay Tick，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换，
+当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览只执行组件注册和渲染代理刷新，不进入 BeginPlay/Update/EndPlay gameplay 生命周期，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换，
 `EditorContext` 已接入 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；主循环已支持
 EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产和光照状态可恢复。`AssetRegistry` 已统一 AssetGuid 解析，
 `RuntimeActorFactory` 已提供自定义组件和 Runtime 行为注册入口；旧的 `RuntimeWorldInitializer` 仅作为兼容接口保留。
@@ -83,7 +83,7 @@ EditorApplication
 交付任务：
 
 1. `Edit/Play/Simulate/Stop` 状态机。
-2. ✅ 从 `SceneDocument` 实例化 Runtime World、Play/Stop 回收、双 World 调度、AssetGuid 解析和内置资产/光照恢复；RuntimeActorFactory 已提供行为注册。
+2. ✅ 从 `SceneDocument` 实例化 Runtime World、Play/Stop 回收、双 World 调度、注册/gameplay 生命周期隔离、AssetGuid 解析和内置资产/光照恢复；RuntimeActorFactory 已提供行为注册。
 3. Console、日志过滤、错误定位。
 4. RenderGraph、GPU 错误、帧耗时和 Draw Call 面板。
 5. 帧捕获、截图和运行时对象定位。

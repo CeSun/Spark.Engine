@@ -33,7 +33,7 @@
 - **P9 稳定 ID + 生命周期 diff**：每个场景对象有全局单调 `ProxyId`；渲染侧用「快照 ID 集合 vs 本地
   状态字典」比对得出新增/存活/销毁。
 - **P10 剔除归渲染线程**：逻辑线程提交完整（未剔除）对象集 + bounds，渲染线程按相机剔除。
-- 编辑器预览调用 `World.Update(deltaTime, tickActors: false)`：完成 BeginPlay/代理注册但跳过 Actor/Component gameplay Update；RuntimeWorld 仍使用完整 Tick。
+- 编辑器预览调用 `World.Update(deltaTime, tickActors: false)`：只完成组件注册、代理同步，不执行 Actor/Component 的 BeginPlay、Update、EndPlay；RuntimeWorld 使用完整 gameplay 生命周期。
 - **P11 语义手写、样板生成**：component 是唯一权威（字段/默认值/Bounds 规则手写）；proxy/payload/
   快照登记点等传输样板由 SceneGen 源生成器产出。
 
@@ -42,7 +42,7 @@
 ```
 ┌──────────────────── 逻辑线程 ─────────────────────────┐
 │  World（Actor → Component）                            │
-│    │ 组件生命周期 BeginPlay/Update/EndPlay（生成）     │
+│    │ 注册生命周期 + 独立 gameplay 生命周期（生成）     │
 │    ▼                                                   │
 │  Scene（逻辑侧渲染场景注册表，全局单调 ProxyId）        │
 │    └─ SceneProxy：StaticMeshSceneProxy / LightSceneProxy│
@@ -66,7 +66,7 @@
 ## 4. 逻辑侧：`Scene` + `SceneProxy`（手写框架）
 
 `Scene` 是逻辑线程拥有的"渲染场景"注册表，从 World 的 Actor 图解耦；任何要让渲染线程看到的东西都注册
-一个 `SceneProxy`。组件在 `BeginPlay` 注册、每帧 `SyncProxy` 更新、`EndPlay` 注销。
+一个 `SceneProxy`。组件在 `OnRegister` 注册、每帧 `SyncProxy` 更新、`OnUnregister` 注销；gameplay 的 BeginPlay/EndPlay 与代理生命周期解耦。
 
 ```csharp
 public sealed class Scene
@@ -98,7 +98,7 @@ public enum LightType : byte { Point = 1, Directional = 2, Spot = 3 }
 ```
 
 组件是**唯一权威**：`[SceneProxy(类别)]` 标记组件、`[ScenePayload]` 标记进 payload 的字段（默认值只在此处）。
-组件生命周期（`ActorComponent.BeginPlay/Update/EndPlay`，对应 UE TickComponent）已落地，`Actor` 转发；
+组件注册生命周期（`OnRegister/OnUnregister`）与 gameplay 生命周期（`BeginPlay/Update/EndPlay`）已分离，由 `Actor` 转发；
 带 `[SceneProxy]` 的组件的注册/同步/注销由 SceneGen 生成的 partial 实现（见 §6）。
 
 ## 5. 传输层：`SceneSnapshot`（值快照，ADR-1 扩展）
@@ -147,7 +147,7 @@ proxy/payload/Capture/生命周期等传输样板由 `Spark.Engine.SceneGen`（`
 - 组件标记 `[SceneProxy(类别)]`，`[ScenePayload]` 字段/属性带默认值（**默认值只在组件**）；快照字段名由
   生成器从类别推导（Mesh 结尾 → +es，其余 → +s）。
 - 生成器产出：proxy 子类（字段镜像 + 一行 `Capture`）、payload struct、组件的 partial（`_proxy` +
-  `BeginPlay/Update/EndPlay` + `SyncProxy`）、`SceneSnapshot` 的分类 payload 字段与 `ClearPayloads`。
+  `OnRegister/BeginPlay/Update/EndPlay/OnUnregister` + `SyncProxy`）、`SceneSnapshot` 的分类 payload 字段与 `ClearPayloads`。
 - **资源成员降级**：`[ScenePayload]` 成员若其类型实现 `ISceneResource`（`int ResourceId { get; }`），
   生成器自动把它降级为 `{Name}Id`（int）进 payload，并在 `SyncProxy` 里发
   `_proxy.XId = X?.ResourceId ?? 0` 与 `Owner?.World?.Scene?.ResourceManager?.EnsureUploaded(X)`。
@@ -252,7 +252,7 @@ foreach (ref readonly var obj in snapshot.Objects.Span)
 
 - **步骤 1（统一结构）** ✅：`SceneSnapshot` + `SceneObjectHeader` + `BoundingSphere` + `FrameBuffer<T>`；
   相机改 `CameraSnapshot`、清屏色下沉 `CameraComponent.ClearColor`。
-- **步骤 2（生命周期）** ✅：`Scene` + `SceneProxy` + 组件 `BeginPlay/Update/EndPlay`；渲染侧集合 diff +
+- **步骤 2（生命周期）** ✅：`Scene` + `SceneProxy` + 组件注册/gameplay 双生命周期；渲染侧集合 diff +
   ADR-7 延迟删除（`BlinnPhongRenderer._pendingDelete`）。
 - **步骤 3（生成 + 扩展）** ✅：SceneGen 源生成器（proxy/payload 生成 + 资源成员降级/自动上传）+
   渲染线程剔除正式启用。

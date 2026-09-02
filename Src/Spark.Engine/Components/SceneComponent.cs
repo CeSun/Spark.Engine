@@ -107,9 +107,9 @@ public class SceneComponent : ActorComponent, ISceneSocketProvider
         }
     }
 
-    public override void BeginPlay()
+    protected override void OnRegister()
     {
-        base.BeginPlay();
+        base.OnRegister();
         _transformDirty = false;
     }
 

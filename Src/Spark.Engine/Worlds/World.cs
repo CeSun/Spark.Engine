@@ -74,7 +74,7 @@ public class World : IDisposable
     public void Update(float deltaTime, bool tickActors)
     {
         ThrowIfDisposed();
-        // 待添加：对副本迭代 + 只移除已处理项；BeginPlay 重入 Add/Remove 不破坏集合（中3）
+        // 待添加：先进入编辑器/运行时共有的注册阶段；gameplay BeginPlay 在 tickActors 分支执行。
         foreach (var actor in _pendingAddActors.ToArray())
         {
             if (!_pendingAddActors.Contains(actor))
@@ -83,7 +83,7 @@ public class World : IDisposable
             _actors.Add(actor);
             try
             {
-                actor.BeginPlay();
+                actor.RegisterComponents();
             }
             catch
             {
@@ -104,7 +104,7 @@ public class World : IDisposable
 
             try
             {
-                actor.EndPlay();
+                DeactivateActor(actor);
             }
             finally
             {
@@ -124,6 +124,24 @@ public class World : IDisposable
                     component.RefreshSceneProxy();
             }
             return;
+        }
+
+        // 编辑器 World 可长期保持“已注册但未 BeginPlay”；只有可 Tick 的 World 才进入 gameplay 生命周期。
+        foreach (var actor in _actors.ToArray())
+        {
+            if (actor.HasBegunPlay)
+                continue;
+            try
+            {
+                actor.BeginPlay();
+            }
+            catch
+            {
+                try { DeactivateActor(actor); } catch { /* 保留 BeginPlay 根因 */ }
+                _actors.Remove(actor);
+                actor.SetWorld(null);
+                throw;
+            }
         }
 
         // 更新：副本迭代，回调重入增删不影响本帧集合（中3）
@@ -190,7 +208,7 @@ public class World : IDisposable
         {
             try
             {
-                actor.EndPlay();
+                DeactivateActor(actor);
             }
             catch (Exception ex)
             {
@@ -221,5 +239,19 @@ public class World : IDisposable
     {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(World));
+    }
+
+    private static void DeactivateActor(Actor actor)
+    {
+        Exception? firstException = null;
+        if (actor.HasBegunPlay)
+        {
+            try { actor.EndPlay(); }
+            catch (Exception exception) { firstException = exception; }
+        }
+        try { actor.UnregisterComponents(); }
+        catch (Exception exception) { firstException ??= exception; }
+        if (firstException != null)
+            ExceptionDispatchInfo.Capture(firstException).Throw();
     }
 }

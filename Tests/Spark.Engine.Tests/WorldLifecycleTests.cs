@@ -76,18 +76,52 @@ public sealed class WorldLifecycleTests
     }
 
     [Fact]
-    public void EditorPreviewInitializesProxiesWithoutTickingGameplayActors()
+    public void EditorPreviewRegistersComponentsWithoutStartingGameplayLifecycle()
     {
         var world = new World(new ResourceManager());
         var actor = new TrackingActor();
+        var component = new TrackingComponent();
+        actor.AddOwnedComponent(component);
         world.AddActor(actor);
         world.Update(0.016f, tickActors: false);
 
-        Assert.Equal(1, actor.BeginCount);
+        Assert.Equal(0, actor.BeginCount);
         Assert.Equal(0, actor.UpdateCount);
+        Assert.True(component.IsRegistered);
+        Assert.Equal(1, component.RegisterCount);
+        Assert.Equal(0, component.BeginCount);
+        Assert.Equal(0, component.UpdateCount);
+        Assert.False(component.HasBegunPlay);
         world.Update(0.016f, tickActors: false);
+        Assert.Equal(0, actor.BeginCount);
         Assert.Equal(0, actor.UpdateCount);
+        Assert.Equal(1, component.RegisterCount);
         world.Dispose();
+        Assert.Equal(0, actor.EndCount);
+        Assert.Equal(0, component.EndCount);
+        Assert.Equal(1, component.UnregisterCount);
+        Assert.False(component.IsRegistered);
+    }
+
+    [Fact]
+    public void RuntimeWorldExecutesGameplayLifecycleAfterRegistration()
+    {
+        var world = new World(new ResourceManager());
+        var actor = new TrackingActor();
+        var component = new TrackingComponent();
+        actor.AddOwnedComponent(component);
+        world.AddActor(actor);
+
+        world.Update(0.016f, tickActors: true);
+
+        Assert.Equal(1, component.RegisterCount);
+        Assert.Equal(1, component.BeginCount);
+        Assert.Equal(1, component.UpdateCount);
+        Assert.True(component.HasBegunPlay);
+        world.Dispose();
+        Assert.Equal(1, component.EndCount);
+        Assert.Equal(1, component.UnregisterCount);
+        Assert.False(component.HasBegunPlay);
     }
 
     [Fact]
@@ -214,6 +248,21 @@ public sealed class WorldLifecycleTests
             UpdateCount++;
             base.Update(deltaTime);
         }
+    }
+
+    private sealed class TrackingComponent : ActorComponent
+    {
+        public int RegisterCount { get; private set; }
+        public int BeginCount { get; private set; }
+        public int UpdateCount { get; private set; }
+        public int EndCount { get; private set; }
+        public int UnregisterCount { get; private set; }
+
+        protected override void OnRegister() => RegisterCount++;
+        public override void BeginPlay() => BeginCount++;
+        public override void Update(float deltaTime) => UpdateCount++;
+        public override void EndPlay() => EndCount++;
+        protected override void OnUnregister() => UnregisterCount++;
     }
 
     private sealed class TestRenderTarget(int id) : RenderTarget(id)

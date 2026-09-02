@@ -185,9 +185,9 @@ public sealed class SceneProxyGenerator : IIncrementalGenerator
         sb.AppendLine($"    private {model.ProxyName}? _proxy;");
         sb.AppendLine("    private Scene? _registeredScene;");
         sb.AppendLine();
-        sb.AppendLine("    public override void BeginPlay()");
+        sb.AppendLine("    protected override void OnRegister()");
         sb.AppendLine("    {");
-        sb.AppendLine("        base.BeginPlay();");
+        sb.AppendLine("        base.OnRegister();");
         sb.AppendLine("        var scene = Owner?.World?.Scene;");
         sb.AppendLine("        if (scene != null && _proxy == null)   // 防重入：已有代理不重复注册（中6）");
         sb.AppendLine("        {");
@@ -196,6 +196,11 @@ public sealed class SceneProxyGenerator : IIncrementalGenerator
         sb.AppendLine("            SyncProxy();");
         sb.AppendLine("            scene.Register(_proxy);");
         sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    public override void BeginPlay()");
+        sb.AppendLine("    {");
+        sb.AppendLine("        base.BeginPlay();");
         sb.AppendLine("        OnBeginPlay();");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -213,6 +218,12 @@ public sealed class SceneProxyGenerator : IIncrementalGenerator
         sb.AppendLine("    public override void EndPlay()");
         sb.AppendLine("    {");
         sb.AppendLine("        base.EndPlay();");
+        sb.AppendLine("        OnEndPlay();");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    protected override void OnUnregister()");
+        sb.AppendLine("    {");
+        sb.AppendLine("        base.OnUnregister();");
         sb.AppendLine("        if (_proxy != null)");
         sb.AppendLine("        {");
         sb.AppendLine("            _registeredScene?.Unregister(_proxy.ProxyId);   // 用注册时缓存的场景，不重推（中6）");
@@ -220,7 +231,6 @@ public sealed class SceneProxyGenerator : IIncrementalGenerator
         sb.AppendLine("            _proxy = null;");
         sb.AppendLine("        }");
         sb.AppendLine("        _registeredScene = null;");
-        sb.AppendLine("        OnEndPlay();");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    private void SyncProxy()");

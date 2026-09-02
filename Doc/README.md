@@ -141,8 +141,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - **资源成员降级**：`[ScenePayload]` 成员若实现 `ISceneResource`（`int ResourceId`），生成器自动降级为
   `{Name}Id` 进 payload，并自动触发上传
 - **`ResourceManager`**：按 `MeshId`/`MaterialId` 去重的自动上传 + GPU 延迟释放（挂 `Scene.ResourceManager`）；组件首次引用资源即上传
-- 组件经生成的 `BeginPlay`/`EndPlay` 注册/注销，`Update` 同步；`Actor` 转发组件生命周期
-- 代理状态机完整保护：`_registeredScene` 缓存注册场景、BeginPlay 防重入、`AddOwnedComponent` 在 actor 已 BeginPlay 后补调组件 BeginPlay
+- 组件经生成的 `OnRegister`/`OnUnregister` 注册/注销代理，`Update` 或编辑器预览刷新同步；gameplay `BeginPlay`/`EndPlay` 与渲染注册解耦
+- 代理状态机完整保护：`_registeredScene` 缓存注册场景、注册防重入、`AddOwnedComponent` 按 Actor 当前注册/gameplay 阶段补齐生命周期
 
 ### 7. 双缓冲帧同步（DualFrameBuffer）
 
