@@ -12,9 +12,19 @@ public enum EditorCameraNavigationMode : byte
     Orbit,
 }
 
+public readonly record struct EditorCameraBookmark(
+    Vector3 WorldLocation,
+    Quaternion WorldRotation,
+    float FieldOfView,
+    float NearPlane,
+    float FarPlane);
+
 /// <summary>UE 风格编辑器视口相机输入，不进入场景命令历史。</summary>
 public sealed class EditorCameraController
 {
+    public const int BookmarkCount = 10;
+
+    private readonly EditorCameraBookmark?[] _bookmarks = new EditorCameraBookmark?[BookmarkCount];
     private Vector2 _lastPointer;
     private Vector3 _orbitPivot;
     private float _orbitDistance = 5f;
@@ -28,6 +38,36 @@ public sealed class EditorCameraController
     public float FastMultiplier { get; set; } = 4f;
     public float PanSensitivity { get; set; } = 0.0025f;
     public float ZoomSensitivity { get; set; } = 0.15f;
+
+    public bool HasBookmark(int slot)
+    {
+        ValidateBookmarkSlot(slot);
+        return _bookmarks[slot].HasValue;
+    }
+
+    public void SetBookmark(int slot, CameraComponent camera)
+    {
+        ValidateBookmarkSlot(slot);
+        ArgumentNullException.ThrowIfNull(camera);
+        if (!Matrix4x4.Decompose(camera.WorldTransform, out _, out var rotation, out var location))
+            throw new InvalidOperationException("Camera world transform cannot be stored as a bookmark.");
+        _bookmarks[slot] = new EditorCameraBookmark(
+            location, Quaternion.Normalize(rotation), camera.FieldOfView, camera.NearPlane, camera.FarPlane);
+    }
+
+    public bool RecallBookmark(int slot, CameraComponent camera)
+    {
+        ValidateBookmarkSlot(slot);
+        ArgumentNullException.ThrowIfNull(camera);
+        if (_bookmarks[slot] is not { } bookmark ||
+            !SetWorldPose(camera, bookmark.WorldLocation, bookmark.WorldRotation))
+            return false;
+        camera.FieldOfView = bookmark.FieldOfView;
+        camera.NearPlane = bookmark.NearPlane;
+        camera.FarPlane = bookmark.FarPlane;
+        Mode = EditorCameraNavigationMode.None;
+        return true;
+    }
 
     public void Update(CameraComponent camera, InputState input, float deltaTime, Vector3? selectionPivot)
     {
@@ -185,7 +225,7 @@ public sealed class EditorCameraController
         SetWorldPose(camera, position, rotation);
     }
 
-    private static void SetWorldPose(CameraComponent camera, Vector3 position, Quaternion rotation)
+    private static bool SetWorldPose(CameraComponent camera, Vector3 position, Quaternion rotation)
     {
         var world = Matrix4x4.CreateFromQuaternion(Quaternion.Normalize(rotation)) * Matrix4x4.CreateTranslation(position);
         var local = world;
@@ -195,14 +235,15 @@ public sealed class EditorCameraController
                 ? parent.GetSocketTransform(socket, TransformSpace.World)
                 : parent.WorldTransform;
             if (!Matrix4x4.Invert(parentFrame, out var inverseParent))
-                return;
+                return false;
             local = world * inverseParent;
         }
         if (!Matrix4x4.Decompose(local, out var scale, out var localRotation, out var localPosition))
-            return;
+            return false;
         camera.RelativeLocation = localPosition;
         camera.RelativeRotation = localRotation;
         camera.RelativeScale = scale;
+        return true;
     }
 
     private static (Vector3 Center, float Radius)? GetFocusBounds(SceneComponent component)
@@ -234,4 +275,10 @@ public sealed class EditorCameraController
 
     private static bool IsDown(KeyMask keys, Key first, Key second)
         => keys.IsDown(first) || keys.IsDown(second);
+
+    private static void ValidateBookmarkSlot(int slot)
+    {
+        if ((uint)slot >= BookmarkCount)
+            throw new ArgumentOutOfRangeException(nameof(slot), slot, $"Bookmark slot must be between 0 and {BookmarkCount - 1}.");
+    }
 }

@@ -185,6 +185,13 @@ public sealed class EditorUi
             return;
 
         bool ctrl = keysDown.IsDown(Key.LeftControl) || keysDown.IsDown(Key.RightControl);
+        bool shift = keysDown.IsDown(Key.LeftShift) || keysDown.IsDown(Key.RightShift);
+        bool alt = keysDown.IsDown(Key.LeftAlt) || keysDown.IsDown(Key.RightAlt);
+        if (!shift && !alt && TryGetBookmarkSlot(key, out var bookmarkSlot))
+        {
+            HandleCameraBookmark(bookmarkSlot, ctrl);
+            return;
+        }
         switch (key)
         {
             case Key.Z when ctrl:
@@ -212,6 +219,37 @@ public sealed class EditorUi
     }
 
     private void SetStatus(string message) => _statusBar.SetStatus(message);
+
+    private void HandleCameraBookmark(int slot, bool save)
+    {
+        if (_context.PlayState != EditorPlayState.Edit || _renderViewControl == null)
+        {
+            SetStatus("Camera bookmarks are available in the editor viewport.");
+            return;
+        }
+        var camera = FindViewportCamera(_renderViewControl.RenderViewId);
+        if (camera == null)
+        {
+            SetStatus("Editor viewport camera is unavailable.");
+            return;
+        }
+        if (save)
+        {
+            _cameraController.SetBookmark(slot, camera);
+            SetStatus($"Camera bookmark {slot} saved.");
+            return;
+        }
+        SetStatus(_cameraController.RecallBookmark(slot, camera)
+            ? $"Camera bookmark {slot} restored."
+            : $"Camera bookmark {slot} is empty.");
+    }
+
+    private static bool TryGetBookmarkSlot(Key key, out int slot)
+    {
+        slot = (int)key - (int)Key.D0;
+        return slot is >= 0 and < EditorCameraController.BookmarkCount;
+    }
+
     private void ShowAssetErrors() => _assetErrors.Show();
     private void Undo()
     {

@@ -63,6 +63,65 @@ public sealed class EditorCameraTests
         Assert.True(position.Z > 4f);
     }
 
+    [Fact]
+    public void Bookmark_RestoresWorldPoseAndProjectionSettings()
+    {
+        var camera = CreateCamera(new Vector3(1f, 2f, 5f));
+        camera.RelativeRotation = Quaternion.CreateFromYawPitchRoll(0.4f, -0.2f, 0f);
+        camera.FieldOfView = 75f;
+        camera.NearPlane = 0.25f;
+        camera.FarPlane = 2500f;
+        var expectedWorld = camera.WorldTransform;
+        var controller = new EditorCameraController();
+
+        controller.SetBookmark(3, camera);
+        camera.RelativeLocation = new Vector3(-8f, 4f, 2f);
+        camera.RelativeRotation = Quaternion.Identity;
+        camera.FieldOfView = 40f;
+        camera.NearPlane = 1f;
+        camera.FarPlane = 100f;
+
+        Assert.True(controller.HasBookmark(3));
+        Assert.True(controller.RecallBookmark(3, camera));
+        AssertMatrixNear(expectedWorld, camera.WorldTransform);
+        Assert.Equal(75f, camera.FieldOfView);
+        Assert.Equal(0.25f, camera.NearPlane);
+        Assert.Equal(2500f, camera.FarPlane);
+    }
+
+    [Fact]
+    public void Bookmark_RestoresWorldPoseForAttachedCamera()
+    {
+        var parent = new SceneComponent
+        {
+            RelativeLocation = new Vector3(10f, 0f, 0f),
+            RelativeRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, 0.5f),
+        };
+        var camera = CreateCamera(new Vector3(1f, 2f, 3f));
+        camera.SetupAttachment(parent);
+        var expectedWorld = camera.WorldTransform;
+        var controller = new EditorCameraController();
+        controller.SetBookmark(0, camera);
+        camera.RelativeLocation = new Vector3(9f, 8f, 7f);
+        camera.RelativeRotation = Quaternion.Identity;
+
+        Assert.True(controller.RecallBookmark(0, camera));
+
+        AssertMatrixNear(expectedWorld, camera.WorldTransform);
+    }
+
+    [Fact]
+    public void Bookmark_EmptyAndInvalidSlotsAreReported()
+    {
+        var camera = CreateCamera(Vector3.Zero);
+        var controller = new EditorCameraController();
+
+        Assert.False(controller.HasBookmark(5));
+        Assert.False(controller.RecallBookmark(5, camera));
+        Assert.Throws<ArgumentOutOfRangeException>(() => controller.SetBookmark(-1, camera));
+        Assert.Throws<ArgumentOutOfRangeException>(() => controller.HasBookmark(EditorCameraController.BookmarkCount));
+    }
+
     private static CameraComponent CreateCamera(Vector3 position)
         => new() { RelativeLocation = position, RelativeRotation = Quaternion.Identity };
 
@@ -86,5 +145,12 @@ public sealed class EditorCameraTests
         var result = default(KeyMask);
         result.Set(key, true);
         return result;
+    }
+
+    private static void AssertMatrixNear(Matrix4x4 expected, Matrix4x4 actual, float tolerance = 0.001f)
+    {
+        for (var row = 0; row < 4; row++)
+        for (var column = 0; column < 4; column++)
+            Assert.InRange(MathF.Abs(expected[row, column] - actual[row, column]), 0f, tolerance);
     }
 }
