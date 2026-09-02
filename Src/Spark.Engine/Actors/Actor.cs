@@ -17,6 +17,12 @@ public class Actor
     /// <summary>编辑器和调试工具使用的稳定显示名称。</summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>场景持久化使用的稳定身份。</summary>
+    public Guid ActorGuid { get; set; } = Guid.NewGuid();
+
+    /// <summary>Actor 的空间根组件。第一个加入 Actor 的 SceneComponent 默认成为根组件。</summary>
+    public SceneComponent? RootComponent { get; private set; }
+
     /// <summary>所有拥有的组件。</summary>
     public IEnumerable<ActorComponent> Components => _ownedComponents;
 
@@ -28,6 +34,9 @@ public class Actor
 
         _ownedComponents.Add(component);
         component.Owner = this;
+
+        if (component is SceneComponent sceneComponent && RootComponent == null)
+            RootComponent = sceneComponent;
 
         // actor 已 BeginPlay：补调组件 BeginPlay，否则其代理注册/初始化永不被调用（中6）
         if (_hasBegunPlay)
@@ -41,10 +50,26 @@ public class Actor
                 // 动态挂载失败时撤销组件，避免它以“已拥有但未启动”的状态留在 Actor 中。
                 try { component.EndPlay(); } catch { /* 保留 BeginPlay 的根因 */ }
                 _ownedComponents.Remove(component);
+                if (ReferenceEquals(RootComponent, component))
+                    RootComponent = null;
                 component.Owner = null;
                 ExceptionDispatchInfo.Capture(beginException).Throw();
             }
         }
+    }
+
+    /// <summary>设置 Actor 的空间根组件。根组件必须属于当前 Actor。</summary>
+    public void SetRootComponent(SceneComponent component)
+    {
+        ArgumentNullException.ThrowIfNull(component);
+        if (!ReferenceEquals(component.Owner, this))
+            throw new InvalidOperationException("RootComponent must belong to this Actor.");
+
+        if (ReferenceEquals(RootComponent, component))
+            return;
+
+        component.DetachFromComponent(DetachmentTransformRules.KeepWorldTransform);
+        RootComponent = component;
     }
 
     public T? GetComponent<T>() where T : ActorComponent
@@ -57,7 +82,22 @@ public class Actor
         return null;
     }
 
-    internal void SetWorld(World? world) => _world = world;
+    internal void SetWorld(World? world)
+    {
+        if (world != null)
+        {
+            foreach (var component in _ownedComponents)
+            {
+                if (component is SceneComponent scene && scene.AttachParent?.Owner?.World is { } parentWorld &&
+                    !ReferenceEquals(parentWorld, world))
+                {
+                    throw new InvalidOperationException("An Actor cannot enter a World with a component attached across Worlds.");
+                }
+            }
+        }
+
+        _world = world;
+    }
 
     public virtual void BeginPlay()
     {

@@ -1,7 +1,14 @@
 using System.Reflection;
+using Spark.Engine.Components;
 using Spark.Engine.Worlds;
 
 namespace Spark.Engine.Editor;
+
+public enum EditorPlayState
+{
+    Edit,
+    Play,
+}
 
 public sealed class EditorSelection
 {
@@ -20,17 +27,23 @@ public sealed class EditorSelection
     public event Action<object?>? Changed;
 }
 
-public sealed class EditorContext
+public sealed class EditorContext : IDisposable
 {
     public World World { get; }
+    private readonly WorldContext? _worldContext;
+    public World? RuntimeWorld { get; private set; }
+    public World ActiveWorld => RuntimeWorld ?? World;
+    public EditorPlayState PlayState { get; private set; } = EditorPlayState.Edit;
     public EditorCommandHistory History { get; } = new();
     public EditorSelection Selection { get; } = new();
     public bool IsDirty { get; private set; }
     public event Action<bool>? DirtyChanged;
+    public event Action<EditorPlayState>? PlayStateChanged;
 
-    public EditorContext(World world)
+    public EditorContext(World world, WorldContext? worldContext = null)
     {
         World = world ?? throw new ArgumentNullException(nameof(world));
+        _worldContext = worldContext;
     }
 
     public void Execute(IEditorCommand command)
@@ -60,6 +73,70 @@ public sealed class EditorContext
     {
         History.Clear();
         SetDirty(false);
+    }
+
+    /// <summary>从当前编辑文档创建独立 RuntimeWorld；编辑 World 不进入运行时生命周期。</summary>
+    public bool Play()
+    {
+        if (PlayState != EditorPlayState.Edit)
+            return false;
+
+        var document = SceneDocument.Capture(World);
+        var runtime = document.InstantiateWorld(World.Scene.ResourceManager);
+        try
+        {
+            BindCameraTargets(runtime);
+            _worldContext?.SetRuntimeWorld(runtime);
+        }
+        catch
+        {
+            runtime.Dispose();
+            throw;
+        }
+        RuntimeWorld = runtime;
+        PlayState = EditorPlayState.Play;
+        PlayStateChanged?.Invoke(PlayState);
+        return true;
+    }
+
+    /// <summary>停止运行时 World，释放其代理和生命周期状态，不回写编辑 World。</summary>
+    public bool Stop()
+    {
+        if (PlayState != EditorPlayState.Play || RuntimeWorld == null)
+            return false;
+
+        var runtime = RuntimeWorld;
+        RuntimeWorld = null;
+        try
+        {
+            if (_worldContext?.RuntimeWorld == runtime)
+                _worldContext.SetRuntimeWorld(null);
+            else
+                runtime.Dispose();
+        }
+        finally
+        {
+            PlayState = EditorPlayState.Edit;
+            PlayStateChanged?.Invoke(PlayState);
+        }
+        return true;
+    }
+
+    public void Dispose() => Stop();
+
+    private void BindCameraTargets(World runtime)
+    {
+        var editorCameras = new List<CameraComponent>();
+        var runtimeCameras = new List<CameraComponent>();
+        World.CollectCameraComponents(editorCameras);
+        runtime.CollectCameraComponents(runtimeCameras);
+
+        // RenderTarget 是窗口/贴图资源，不属于场景文档；按稳定相机顺序绑定到运行时实例。
+        for (var index = 0; index < runtimeCameras.Count; index++)
+        {
+            if (index < editorCameras.Count)
+                runtimeCameras[index].RenderTarget = editorCameras[index].RenderTarget;
+        }
     }
 
     private void SetDirty(bool value)

@@ -10,7 +10,11 @@
 - UI 基础控件：树、列表、分栏、菜单、工具栏、滚动、属性网格
 - 初版 `EditorCommandHistory`：可执行、撤销、重做
 
-当前缺口：属性修改尚未完全进入命令历史，场景没有持久化闭环，Viewport 还不能拾取和变换对象，Play 模式没有编辑态隔离。
+当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；Viewport 还不能拾取和变换对象，
+`EditorContext` 已接入基础 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；当前主循环仍需支持 EditorWorld 与 RuntimeWorld 并存。
+场景层级、Socket 和挂载规则按 [SceneHierarchy-Design.md](./SceneHierarchy-Design.md) 实施，资产格式和 Cook 按
+[AssetPipeline-Design.md](./AssetPipeline-Design.md) 实施。编辑器侧已落地无 GPU 依赖的 glTF 2.0 StaticMesh 导入器，
+支持内嵌/外部 buffer、TRS 节点层级和 TRIANGLES 原语；GLB、骨骼、动画和材质纹理导入仍在后续里程碑。
 
 ## 2. 架构边界
 
@@ -19,7 +23,7 @@ EditorApplication
 ├── EditorContext       当前场景、选择、模式、脏状态
 ├── EditorCommandHistory 撤销/重做和事务
 ├── EditorSelection      单选、多选、树/视口同步
-├── EditorSceneService   新建、加载、保存、恢复
+├── EditorSceneService   新建、加载、保存、恢复（`.scene`）
 ├── EditorAssetService   资源索引、搜索、引用
 ├── EditorInput          快捷键和鼠标命令路由
 └── EditorUi              只负责布局、呈现和事件转发
@@ -52,13 +56,13 @@ EditorApplication
 
 交付任务：
 
-1. 场景 DTO、版本号和迁移器。
-2. `EditorSceneService.Load/Save/SaveAs`。
+1. ✅ `SceneDocument`、二进制 `.scene` 格式和版本号。
+2. ✅ `BinaryEditorSceneService.Save/LoadDocument`；`Reload(World)` 当前只校验并缓存文档。
 3. 脏状态、关闭确认、最近文件。
 4. 自动保存和崩溃恢复文件。
 5. 加载错误面板和不可恢复资源引用提示。
 
-验收：重启编辑器后场景、Actor、Component 和可编辑属性保持一致；旧版本场景能迁移或给出可理解错误。
+验收：序列化 round-trip 保留场景 GUID、Actor/Component GUID、挂载关系、Socket 和相对变换；不支持的版本给出明确错误。
 
 ### M3：Viewport 编辑
 
@@ -77,7 +81,7 @@ EditorApplication
 交付任务：
 
 1. `Edit/Play/Simulate/Stop` 状态机。
-2. 编辑 World 与 Runtime World 隔离和回收。
+2. ✅ 从 `SceneDocument` 实例化基础 Runtime World、Play/Stop 回收；⏳ 接入 EngineApplication 双 World 调度。
 3. Console、日志过滤、错误定位。
 4. RenderGraph、GPU 错误、帧耗时和 Draw Call 面板。
 5. 帧捕获、截图和运行时对象定位。
@@ -88,7 +92,7 @@ EditorApplication
 
 交付任务：
 
-1. 资源浏览器、索引、搜索和过滤。
+1. 资源浏览器、索引、搜索和过滤（`SceneResource.AssetGuid` 已作为持久化身份基础）。
 2. 引用选择器、缩略图、导入任务队列。
 3. Inspector 自定义绘制器和面板注册 API。
 4. 菜单、工具栏、Gizmo 扩展点。
@@ -98,7 +102,7 @@ EditorApplication
 
 ## 4. 测试策略
 
-- 单元测试：命令历史、选择模型、序列化、版本迁移、快捷键映射。
+- 单元测试：命令历史、选择模型、序列化、版本拒绝/兼容性检查、快捷键映射。
 - 布局测试：窗口缩放、最小尺寸、分栏拖动、滚动裁剪、焦点路由。
 - 集成测试：创建/删除/属性修改/保存/加载完整工作流。
 - GPU 验收：Viewport 拾取、Gizmo、RenderGraph Overlay、动态分辨率。
@@ -110,7 +114,7 @@ EditorApplication
 |---|---|
 | UI 直接修改 World 导致无法撤销 | 强制所有修改走 Command/Service |
 | 反射属性编辑写入错误类型 | 统一转换器，失败时保留旧值并显示错误 |
-| Play 污染编辑场景 | Runtime World 克隆或事务快照隔离 |
+| Play 污染编辑场景 | 从 SceneDocument 实例化独立 Runtime World，停止时完整回收 |
 | 大场景刷新卡顿 | 增量树更新、索引缓存、后台扫描 |
 | 布局回归 | 每个控件补 Measure/Arrange/HitTest 回归测试 |
 

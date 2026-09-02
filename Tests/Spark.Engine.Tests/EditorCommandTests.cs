@@ -1,5 +1,7 @@
 using Spark.Engine.Editor;
 using Spark.Engine.UI;
+using Spark.Engine.Components;
+using System.Numerics;
 using System.Reflection;
 using Xunit;
 
@@ -103,6 +105,30 @@ public sealed class EditorCommandTests
         Assert.False(service.Reload(world));
         Assert.Equal(1, saveCalls);
         Assert.Equal(1, reloadCalls);
+    }
+
+    [Fact]
+    public void AttachComponentCommand_RestoresParentAndRelativeTransform()
+    {
+        var oldParent = new SceneComponent { RelativeLocation = new Vector3(10, 0, 0) };
+        var newParent = new SceneComponent { RelativeLocation = new Vector3(100, 0, 0) };
+        var child = new SceneComponent { RelativeLocation = new Vector3(2, 0, 0) };
+        child.SetupAttachment(oldParent);
+        var history = new EditorCommandHistory();
+        var command = new AttachComponentCommand(child, newParent, AttachmentTransformRules.KeepWorldTransform);
+
+        history.Execute(command);
+        Assert.Same(newParent, child.AttachParent);
+        Assert.Equal(new Vector3(12, 0, 0), child.WorldTransform.Translation);
+
+        Assert.True(history.Undo());
+        Assert.Same(oldParent, child.AttachParent);
+        Assert.Equal(new Vector3(2, 0, 0), child.RelativeLocation);
+        Assert.Equal(new Vector3(12, 0, 0), child.WorldTransform.Translation);
+
+        Assert.True(history.Redo());
+        Assert.Same(newParent, child.AttachParent);
+        Assert.Equal(new Vector3(12, 0, 0), child.WorldTransform.Translation);
     }
 
     private sealed class EditableTarget

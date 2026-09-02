@@ -118,6 +118,32 @@ public class World : IDisposable
         }
     }
 
+    /// <summary>
+    /// 收集所有相机组件，包括尚未进入生命周期的 pending Actor 和未绑定渲染目标的相机。
+    /// 该入口用于编辑器在 Play 实例化后恢复窗口/离屏目标；正常渲染仍使用 <see cref="CollectCameras"/>。
+    /// </summary>
+    public void CollectCameraComponents(List<CameraComponent> result, bool includePendingActors = true)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(result);
+
+        static void Collect(IEnumerable<Actor> actors, List<CameraComponent> destination)
+        {
+            foreach (var actor in actors.OrderBy(actor => actor.ActorGuid))
+            {
+                foreach (var component in actor.Components.OrderBy(component => component.ComponentGuid))
+                {
+                    if (component is CameraComponent camera)
+                        destination.Add(camera);
+                }
+            }
+        }
+
+        Collect(_actors, result);
+        if (includePendingActors)
+            Collect(_pendingAddActors, result);
+    }
+
     /// <summary>结束所有 Actor 生命周期并释放场景代理。可重复调用。</summary>
     public void Dispose()
     {

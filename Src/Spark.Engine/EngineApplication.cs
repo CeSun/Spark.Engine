@@ -285,7 +285,7 @@ public class EngineApplication
             snapshot.UIPrimitives.Add(primitive);
         _ui.Clear();
 
-        if (WorldContext.CurrentWorld is not World world)
+        if (WorldContext.ActiveWorld is not World world)
             return;
 
         _cameraBuffer.Clear();
@@ -315,7 +315,7 @@ public class EngineApplication
     /// <summary>每逻辑帧更新（子类可覆写；base 负责更新当前世界，需调用 base）。</summary>
     protected virtual void OnUpdate(float deltaTime)
     {
-        WorldContext.CurrentWorld?.Update(deltaTime);
+        WorldContext.ActiveWorld?.Update(deltaTime);
         _ticks.Tick(deltaTime);
     }
 

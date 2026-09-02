@@ -16,6 +16,9 @@ public abstract class SceneResource : ISceneResource, IDisposable
     /// <summary>全局唯一资源 ID（跨网格/纹理等所有资源类型共享同一计数器，避免 ID 冲突）。</summary>
     public int ResourceId { get; } = Interlocked.Increment(ref _nextResourceId);
 
+    /// <summary>磁盘资产的稳定身份；与进程内 ResourceId 分离，供编辑器索引和 Cook manifest 使用。</summary>
+    public Guid AssetGuid { get; set; } = Guid.NewGuid();
+
     public void Dispose()
     {
         Action<int>? notifier = null;

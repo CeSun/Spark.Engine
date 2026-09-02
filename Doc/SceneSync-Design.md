@@ -4,6 +4,7 @@
 > 前置：见 [RenderPipeline-Design.md](./RenderPipeline-Design.md)（ADR-1 值快照、ADR-7 延迟删除）
 > 关联代码：`Src/Spark.Engine/Render/*`、`Src/Spark.Engine.SceneGen/`、`Src/Spark.Engine/Components/*`、
 > `Src/Spark.Engine/EngineApplication.cs`
+> 场景层级与挂载语义详见 [SceneHierarchy-Design.md](./SceneHierarchy-Design.md)。
 
 ## 1. 背景与问题
 
@@ -255,6 +256,18 @@ foreach (ref readonly var obj in snapshot.Objects.Span)
 - **步骤 3（生成 + 扩展）** ✅：SceneGen 源生成器（proxy/payload 生成 + 资源成员降级/自动上传）+
   渲染线程剔除正式启用。
 
+## 12A. UE 风格场景层级（当前基础实现）
+
+`Scene` 的 Proxy 同步建立在 `World -> Actor -> SceneComponent` 层级之上。当前基础组件层已采用 UE 语义：
+
+- Actor 通过唯一 `RootComponent` 表示空间根。
+- SceneComponent 最多一个 `AttachParent`，可有多个 `AttachChildren`，禁止环。
+- 子组件保存 `RelativeTransform`、`AttachSocketName`，世界变换由父节点/Socket 与相对变换递归计算。
+- 挂载支持 `KeepRelative`、`KeepWorld`、`SnapToTarget` 三个独立的位置/旋转/缩放规则。
+- 层级或变换变化需要向后代传播 dirty，并在下一次快照前完成 Proxy 同步。
+
+挂载关系属于逻辑线程状态；渲染线程只接收计算后的值变换和 bounds，不读取组件树。基础 RuntimeWorld 实例化已落地，编辑器拖拽接线、Play 状态机和资产 Socket 仍待接入。
+
 > 注：`RenderTargetRegistry` 视口销毁仍直接 Remove（ADR-7 收尾项），窗口原生销毁已通过握手队列安全处理。
 
 ## 13. 决策记录（ADR，续 RenderPipeline-Design.md §12）
@@ -275,3 +288,5 @@ foreach (ref readonly var obj in snapshot.Objects.Span)
 - P1：dirty 增量快照（当前每帧全量快照）。
 - 动态 buffer 分配策略：骨骼皮肤矩阵当前每对象独立 buffer，未来可评估 ring buffer 方案。
 - 骨骼网格/实例化 mesh 的 payload 扩展（当前已支持 SkeletalMeshPayload，未来可扩展 instanced draw）。
+- SceneComponent Root/Attach/Socket 实现与层级 dirty 传播（详见 `SceneHierarchy-Design.md`）。
+- EngineApplication 的 EditorWorld/RuntimeWorld 双 World 调度（SceneDocument、基础实例化和 EditorContext Play/Stop 已落地，详见 `Editor-Implementation-Plan.md`）。

@@ -4,6 +4,9 @@ namespace Spark.Engine.Components;
 
 public class ActorComponent
 {
+    /// <summary>场景持久化使用的稳定组件身份。</summary>
+    public Guid ComponentGuid { get; set; } = Guid.NewGuid();
+
     /// <summary>所属 Actor（由 <see cref="Actor.AddOwnedComponent"/> 设置）。</summary>
     public Actor? Owner { get; internal set; }
 

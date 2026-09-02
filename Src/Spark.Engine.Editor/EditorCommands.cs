@@ -1,3 +1,6 @@
+using System.Numerics;
+using Spark.Engine.Components;
+
 namespace Spark.Engine.Editor;
 
 /// <summary>编辑器中的一个可逆操作。世界和 UI 都通过命令修改状态。</summary>
@@ -58,4 +61,48 @@ public sealed class DelegateEditorCommand(string description, Action execute, Ac
     public string Description { get; } = description ?? throw new ArgumentNullException(nameof(description));
     public void Execute() => execute();
     public void Undo() => undo();
+}
+
+/// <summary>可撤销的 SceneComponent 挂载操作，保存挂载前的父节点、Socket 和相对变换。</summary>
+public sealed class AttachComponentCommand : IEditorCommand
+{
+    private readonly SceneComponent _child;
+    private readonly SceneComponent _parent;
+    private readonly AttachmentTransformRules _rules;
+    private readonly string? _oldSocket;
+    private readonly SceneComponent? _oldParent;
+    private readonly Vector3 _oldLocation;
+    private readonly Quaternion _oldRotation;
+    private readonly Vector3 _oldScale;
+    private readonly string? _socket;
+
+    public string Description => "Attach Component";
+
+    public AttachComponentCommand(SceneComponent child, SceneComponent parent,
+        AttachmentTransformRules rules, string? socketName = null)
+    {
+        _child = child ?? throw new ArgumentNullException(nameof(child));
+        _parent = parent ?? throw new ArgumentNullException(nameof(parent));
+        _rules = rules;
+        _socket = socketName;
+        _oldParent = child.AttachParent;
+        _oldSocket = child.AttachSocketName;
+        _oldLocation = child.RelativeLocation;
+        _oldRotation = child.RelativeRotation;
+        _oldScale = child.RelativeScale;
+    }
+
+    public void Execute() => _child.AttachToComponent(_parent, _rules, _socket);
+
+    public void Undo()
+    {
+        if (_oldParent == null)
+            _child.DetachFromComponent(DetachmentTransformRules.KeepRelativeTransform);
+        else
+            _child.AttachToComponent(_oldParent, AttachmentTransformRules.KeepRelativeTransform, _oldSocket);
+
+        _child.RelativeLocation = _oldLocation;
+        _child.RelativeRotation = _oldRotation;
+        _child.RelativeScale = _oldScale;
+    }
 }

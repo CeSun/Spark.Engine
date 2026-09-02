@@ -30,11 +30,11 @@ public sealed class EditorUi
     /// <summary>编辑器根元素（挂到主窗口画布 Root）。</summary>
     public UIElement Root { get; }
 
-    public EditorUi(World world, Action? backToHub = null, IEditorSceneService? sceneService = null)
+    public EditorUi(World world, Action? backToHub = null, IEditorSceneService? sceneService = null, WorldContext? worldContext = null)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
         _sceneService = sceneService;
-        _context = new EditorContext(_world);
+        _context = new EditorContext(_world, worldContext);
         var root = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
@@ -58,7 +58,7 @@ public sealed class EditorUi
             duplicate: DuplicateSelection,
             rename: RenameSelection,
             delete: DeleteSelection,
-            play: () => SetStatus("Play requested."),
+            play: TogglePlay,
             openControlTests: () => _openControlTests?.Invoke());
         root.AddChild(_toolbar);
 
@@ -87,6 +87,31 @@ public sealed class EditorUi
         _hierarchy.SelectionChanged += target => _context.Selection.Selected = target;
         _context.Selection.Changed += _ => UpdateInspector();
         _context.DirtyChanged += _ => UpdateInspectorTitle();
+    }
+
+    /// <summary>当前编辑器 Play 状态，供宿主同步窗口标题或工具栏。</summary>
+    public EditorPlayState PlayState => _context.PlayState;
+
+    /// <summary>切换编辑器 Play/Stop，并保持运行时 World 与编辑 World 生命周期隔离。</summary>
+    public void TogglePlay()
+    {
+        try
+        {
+            if (_context.PlayState == EditorPlayState.Play)
+            {
+                _context.Stop();
+                SetStatus("Play stopped.");
+            }
+            else
+            {
+                _context.Play();
+                SetStatus("Play started.");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Play failed: {ex.Message}");
+        }
     }
 
     private Action? _openControlTests;

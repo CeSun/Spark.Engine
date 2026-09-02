@@ -1,6 +1,7 @@
 # UI 系统设计（UI System Design）
 
-> 状态：P0~P8 全部已实现，P6-fix / P8 控件 / P8 审计三轮均已本机 GPU 实机验收通过（2026-08-31）。
+> 状态：P0~P6 与 P8 编辑器核心控件已实现，P6-fix / P8 控件 / P8 审计三轮均已本机 GPU 实机验收通过（2026-08-31）；
+> P7 多行/IME 组合态、P9/P10 仍是后续工作。
 > P6 原有两阶段 Measure/Arrange、scissor 裁剪、Tab 焦点导航、焦点环可视化、UIGridPanel/UIWrapPanel 布局容器。
 > 文字渲染问题（拉伸/错位/裁剪）已全部定位并修复（见「踩坑经验」1/2/2b/6/6b）；
 > 复选框文字对齐、Demo 控件显式高度、输入框光标闪烁也已落地。
@@ -13,9 +14,9 @@
 > **Overlay 弹出层机制**（`UICanvas.Overlays`）。冒烟测试通过（Demo 启动 8s 无崩溃），用户已逐场景验收通过。
 > 验收入口：`Demo/Demo/EditorControlsVerifyOverlay.cs`（VerifyHub 第 5 个按钮进入，含 9 个子场景）。
 >
-> **P8 审计修复轮（2026-08-31）已落地**：4 路并行子代理审计全部 UI 控件 + 12 处缺陷修复——
+> **P8 审计修复轮（2026-08-31）已落地**：审计全部 UI 控件 + 12 处缺陷修复——
 > 滚动裁剪失效（scissor 空交集语义，见踩坑 18）、文本高度波动（踩坑 12）、容器 Measure/Arrange 基准不一致
-> （踩坑 13/14/15）、SplitPanel/Dialog/Toolbar 交互缺陷等。42 个单元测试全通过（含 13 个回归锁定）。
+> （踩坑 13/14/15）、SplitPanel/Dialog/Toolbar 交互缺陷等。编辑器控件专项 42 个测试全通过（含 13 个回归锁定）。
 > 详见 `Doc/tasks/2026-08-31-editor-controls-audit-fixes-worklog.md`。
 >
 > **验收状态：✅ 已验收（2026-08-31）。** P6-fix / P8 控件 / P8 审计三轮经用户在本机运行
@@ -72,7 +73,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | `UIPanel` | UIPanel.cs | 纯色矩形叶节点 |
 | `UILabel` | UILabel.cs | 文本标签（`Text`/`TextColor`） |
 | `UIButton` | UIButton.cs | 按钮（背景 + 文本 + 悬停/按下态 + `Clicked` 回调） |
-| `UITextBox` | UITextBox.cs | 单行输入框（选择/剪贴板/Undo/Redo/掩码/水平滚动；多行与 IME ⏳） |
+| `UITextBox` | UITextBox.cs | 单行输入框（选择/剪贴板/Undo/Redo/掩码/水平滚动；多行与 IME 组合态 ⏳） |
 | `UICheckbox` | UICheckbox.cs | 复选框（`IsChecked` + `CheckedChanged`） |
 | `UISlider` | UISlider.cs | 滑杆（拖拽取值 0..1 + `ValueChanged`） |
 | `UICanvas` | UICanvas.cs | 每窗口画布：`Update(input)`（Arrange+路由）+ `Paint(ui)` + 焦点 + **`Overlays` 弹出层** |
@@ -128,25 +129,26 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | 布局 | `UIPanel` | 🔶 | 纯色矩形叶节点（缺圆角/边框/渐变） |
 | 布局 | `UIGridPanel` | ✅ | 网格布局（Fixed/Star/Auto + Row/Column 附加属性 + **RowSpan/ColumnSpan**；P6-fix：Auto 尺寸从 Measure 传到 Arrange、附加属性实例化） |
 | 布局 | `UIWrapPanel` | ✅ | 自动换行布局（水平/垂直 + ItemSpacing/LineSpacing） |
-| 布局 | `UIScrollBox` | ⏳ | 滚动容器（依赖 scissor 裁剪 + 滚动条） |
+| 布局 | `UIScrollBox` | ✅ | 滚动容器（双向滚动、滚轮、滚动条拖拽、`ScrollIntoView`） |
 | 显示 | `UILabel` | ✅ | 文本标签 + Measure 自适应（缺对齐/换行） |
 | 显示 | `UIImage` | ⏳ | 图片 / 九宫格（9-slice） |
 | 显示 | `UIProgressBar` | ✅ | 确定性进度条（0..1） |
 | 交互 | `UIButton` | ✅ | 按钮三态+点击 + Measure 自适应（缺禁用态/图标/快捷键/Toggle） |
-| 交互 | `UITextBox` | 🔶 | 单行输入框 v1：仅基础编辑+光标（缺选择/剪贴板/Undo/多行/掩码等，详见第三节） |
+| 交互 | `UITextBox` | 🔶 | 单行输入框：选择/剪贴板/Undo/Redo/Placeholder/ReadOnly/MaxLength/掩码已实现，多行与 IME 组合态待补 |
 | 交互 | `UICheckbox` | ✅ | 复选框 + Measure 自适应（缺三态/键盘Space/禁用态） |
 | 交互 | `UIRadioButton` + `UIRadioGroup` | ⏳ | 单选按钮（互斥分组） |
 | 交互 | `UISlider` | ✅ | 水平滑杆 0..1 + Measure 自适应（缺 Min/Max/Step/垂直/键盘/范围） |
 | 交互 | `UISpinner` | ⏳ | 数字步进（上下箭头） |
-| 交互 | `UIComboBox` | ⏳ | 下拉选择 |
+| 交互 | `UIComboBox` | ✅ | 下拉选择 + 键盘导航 + Overlay |
 | 交互 | `UIScrollBar` | ⏳ | 独立滚动条 |
-| 容器 | `UIWindow` / `UIDialog` | ⏳ | 可拖动窗口 / 模态对话框 |
-| 容器 | `UITabView` | ⏳ | 标签页 |
-| 容器 | `UITreeView` | ⏳ | 树形列表（展开/折叠） |
-| 容器 | `UIListView` | ⏳ | 列表（虚拟化） |
-| 容器 | `UIMenuBar` / `UIContextMenu` | ⏳ | 菜单栏 / 右键上下文菜单 |
+| 容器 | `UIWindow` | ⏳ | 可拖动/停靠窗口（尚未实现） |
+| 容器 | `UIDialog` | ✅ | 模态对话框（Overlay 遮罩、默认/取消按钮、Escape/Enter） |
+| 容器 | `UITabView` | ✅ | 标签页 + 关闭按钮 + 内容切换 |
+| 容器 | `UITreeView` | ✅ | 层级树 + 展开/折叠 + 单选/键盘导航 |
+| 容器 | `UIListView` | ✅ | 列表 + 单选 + 键盘导航（虚拟化待补） |
+| 容器 | `UIMenuBar` / `UIMenuPanel` | ✅ | 菜单栏 / Overlay 弹出菜单 |
 | 其他 | `UITooltip` | ⏳ | 悬停提示 |
-| 其他 | `UICanvas` | ✅ | 两阶段布局 + Tab/Shift+Tab 焦点导航 + 焦点环 + 点击空白取消焦点（缺弹出层/DPI） |
+| 其他 | `UICanvas` | ✅ | 两阶段布局 + 焦点导航/焦点环 + Overlay + 点击空白取消焦点（DPI 待补） |
 | 其他 | `UITheme` | 🔶 | 暗色配色常量集（非样式系统；样式/换肤⏳ P10） |
 
 ### 二、现有控件功能规格
@@ -156,13 +158,13 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
   `HitTest`（倒序取最上层最深）、`ContainsPoint`、鼠标 enter/leave/down/up/drag/click、键盘 keyDown/keyUp、
   文本输入、焦点变化。
 - ⏳ `Enabled`（禁用）、`IsHitTestVisible`（点击穿透）、`ZIndex`（显式层级）、`Clip`（裁剪到自身）、
-  `Opacity`、`Style`（样式绑定）、`ToolTip`、`Dirty` 脏标记（增量绘制）、事件冒泡/捕获、双击事件、
-  滚轮事件、拖放事件、`Visibility` 三态（Visible/Collapsed/Hidden）。
+  `Opacity`、`Style`（样式绑定）、`ToolTip`、`Dirty` 脏标记（增量绘制）、事件捕获、双击事件、拖放事件、
+  `Visibility` 三态（Visible/Collapsed/Hidden）。滚轮事件已实现为沿祖先链冒泡。
 
 #### `UIStackPanel`
 - ✅ 垂直/水平、`Spacing`、`Padding`、`BackgroundColor`、交叉轴默认拉伸、fill 均分剩余空间。
-- ⏳ 主轴/交叉轴对齐（Start/Center/End/Stretch）、`Wrap` 自动换行、内容自适应（两阶段 Measure/Arrange，
-  不再把无 `FixedSize` 的子元素当 fill 撑满）、子元素间距覆盖、溢出裁剪。
+- ⏳ 主轴/交叉轴对齐（Start/Center/End/Stretch）、`Wrap` 自动换行、子元素间距覆盖。
+  两阶段 Measure/Arrange 与溢出裁剪已实现；自动换行由 `UIWrapPanel` 提供。
 
 #### `UIDockPanel`
 - ✅ `UIDock`（Left/Top/Right/Bottom/Fill）+ `LastChildFill`、`BackgroundColor`、`Padding`；子元素按声明顺序
@@ -194,8 +196,9 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
   范围双滑块（`RangeSlider`）、禁用态。
 
 #### `UICanvas`
-- ✅ 每窗口根、`Size`、`Update(input)`（Arrange + 路由）、`Paint`、焦点、hover/pressed 状态。
-- ⏳ 焦点导航（Tab/Shift+Tab）、`FocusedElement` 查询、弹出层（下拉/菜单/对话框）、DPI 缩放、多图层。
+- ✅ 每窗口根、`Size`、`Update(input)`（Arrange + 路由）、`Paint`、焦点、hover/pressed 状态、
+  Tab/Shift+Tab 导航、`FocusedElement` 查询、点击空白取消焦点、Overlay 弹出层。
+- ⏳ DPI 缩放、多窗口/多图层策略。
 
 ### 三、文本框（UITextBox）功能详解
 
@@ -203,34 +206,31 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 > 当前状态：🔶 单行编辑能力已完成；多行排版、IME 组合态等进阶能力仍待后续迭代。
 
 #### 光标与导航
-- ✅ 左/右移动、Home/End、光标闪烁（530ms 可见/隐藏，聚焦/按键/输入时重置）。
-- ⏳ 上下移动（多行）、`Ctrl+←/→` 按词移动、`Ctrl+Home/End` 到文首/尾、鼠标点击在文本内定位光标。
+- ✅ 左/右移动、Home/End、Ctrl+←/→ 按词移动、鼠标点击定位、光标闪烁（530ms 可见/隐藏，聚焦/按键/输入时重置）。
+- ⏳ 上下移动（多行）、`Ctrl+Home/End` 到文首/尾。
 
 #### 文本选择
-- ❌ 全部未实现
-- ⏳ 鼠标拖拽选择、`Shift+方向键` 扩展选择、双击选词、三击选行、`Ctrl+A` 全选、选择高亮
-  （选区背景色/文字色）、`SelectionStart`/`SelectionLength` API、`SelectAll()`/`ClearSelection()`。
+- ✅ 鼠标拖拽选择、`Shift+方向键` 扩展选择、`Ctrl+A` 全选、选区高亮、
+  `SelectionStart`/`SelectionLength`/`HasSelection` API、`SelectAll()`/`ClearSelection()`。
+- ⏳ 双击选词、三击选行、多行选区。
 
 #### 编辑
-- ✅ `Text` 读/写、打字插入、`Backspace`/`Delete` 删单字符。
-- ⏳ `Ctrl+Backspace` 删前一个词、`Ctrl+Delete` 删后一个词、选中文本删除/替换、`Insert` 覆写模式、
-  `Undo`/`Redo`（`Ctrl+Z`/`Ctrl+Y`，操作栈 + 连续输入分组）。
+- ✅ `Text` 读/写、打字插入、`Backspace`/`Delete`、Ctrl+Backspace/Delete 删词、选中文本删除/替换、
+  `Undo`/`Redo`（`Ctrl+Z`/`Ctrl+Y`，操作栈）。
+- ⏳ `Insert` 覆写模式、多行编辑。
 
 #### 剪贴板
-- ❌ 全部未实现
-- ⏳ `Ctrl+C` 复制、`Ctrl+X` 剪切、`Ctrl+V` 粘贴、与系统剪贴板交互（核心库定义 `IClipboard` 抽象，
-  平台层实现）、选中复制。
+- ✅ `Ctrl+C` 复制、`Ctrl+X` 剪切、`Ctrl+V` 粘贴，核心库通过 `IClipboard` 抽象接入平台剪贴板。
 
 #### 输入法（IME）
 - ✅ `OnTextInput` 接收合成后的文本。
 - ⏳ IME 组合态可视化（候选下划线/高亮）、光标定位到组合区、组合提交/取消回调。
 
 #### 显示与样式
-- ✅ `TextColor`/`BackgroundColor`/`Padding`、光标闪烁、`Focusable`。
-- ⏳ 占位文本（`Placeholder`，空内容时灰字）、密码/掩码（`MaskChar`）、只读（`ReadOnly`）、
-  禁用（`Enabled=false`）、最大长度（`MaxLength`）、超长文本水平滚动（跟随光标）、
-  多行模式（`Multiline` + 自动换行 + 垂直滚动）、输入过滤/校验（`InputFilter`/`Validator`，
-  如只数字/正则/自定义）、`TextAlignment`、光标高度按字体行高（当前用 `Measure(" ").Y` 略短）。
+- ✅ `TextColor`/`BackgroundColor`/`Padding`、光标闪烁、`Focusable`、占位文本、密码掩码、只读、
+  最大长度、超长文本水平滚动，以及单行选区高亮。
+- ⏳ 禁用态（`Enabled=false`）、多行模式（自动换行 + 垂直滚动）、输入过滤/校验、`TextAlignment`、
+  字体行高精确适配。
 
 ### 四、通用能力规划
 
@@ -420,8 +420,8 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 
 ## 当前问题与差距分析
 
-> 本节基于 P0~P5 实际代码与设计文档规划的对照，系统梳理当前 UI 系统的结构性问题、功能缺口和风险点。
-> 所有问题均对应后续 P6~P10 的具体任务项。
+> 本节基于当前 P0~P8 实际代码与设计文档规划的对照，系统梳理仍存在的结构性问题、功能缺口和风险点。
+> P6/P8 已落地的控件与交互不再列为缺口；历史实现计划仍保留在后文，便于追溯。
 
 ### 一、结构性问题
 
@@ -461,39 +461,35 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 
 ### 二、功能缺口
 
-#### 2.1 文本框功能严重不完整（→ P7）
+#### 2.1 文本框剩余缺口（→ P7）
 
-当前 `UITextBox`（104行）仅实现 v1 基础编辑，与生产可用的文本输入框差距巨大：
+当前 `UITextBox` 已满足编辑器单行属性输入和搜索框的基本需求，剩余差距集中在多行排版、IME 组合态和输入校验：
 
 | 功能类别 | 已实现 | 缺失 | 优先级 |
 |---------|--------|------|--------|
-| 光标导航 | 左/右/Home/End/闪烁 | Ctrl+←/→按词、Ctrl+Home/End、鼠标点击定位、多行上下 | P7-High |
-| 文本选择 | ❌ 无 | 拖拽选择、Shift+方向键、双击选词、Ctrl+A、选择高亮 | P7-High |
-| 编辑 | 打字/Backspace/Delete | Ctrl+Backspace删词、选中删除/替换、Undo/Redo | P7-High |
-| 剪贴板 | ❌ 无 | Ctrl+C/X/V、IClipboard 抽象、系统剪贴板交互 | P7-High |
-| 显示 | 基础颜色/光标 | Placeholder、密码掩码、ReadOnly、MaxLength、超长滚动 | P7-Medium |
-| 多行 | ❌ 无 | Multiline + 自动换行 + 垂直滚动 | P7-Medium |
-| IME | 接收合成文本 | 组合态可视化、候选下划线 | P7-Low |
+| 光标导航 | 单行左右/Home/End、按词移动、鼠标定位、闪烁 | 多行上下、Ctrl+Home/End | P7-Medium |
+| 文本选择 | 拖选、Shift 导航、Ctrl+A、选区高亮、Selection API | 双击/三击选择、多行选区 | P7-Medium |
+| 编辑 | 插入、删除、选区替换、Ctrl+Backspace/Delete、Undo/Redo | Insert 覆写、多行编辑 | P7-Medium |
+| 剪贴板 | Ctrl+C/X/V、`IClipboard` 平台抽象 | 无 | - |
+| 显示 | Placeholder、Password、ReadOnly、MaxLength、水平滚动 | 禁用态、输入过滤/校验、对齐 | P7-Medium |
+| 多行 | ❌ | 自动换行 + 垂直滚动 | P7-High |
+| IME | 接收文本提交 | 组合态可视化、候选下划线、提交/取消回调 | P7-High |
 
-**影响**：编辑器中的属性输入、搜索框、脚本编辑等场景均不可用。
+**影响**：编辑器属性输入和搜索框可用；脚本编辑、多行文本和中文 IME 仍需后续迭代。
 
-#### 2.2 控件覆盖率低（→ P8）
+#### 2.2 控件覆盖率与剩余控件（→ P8/P9）
 
-已实现 8 种基础控件 vs 规划 25+ 种，覆盖率约 30%。关键缺失：
+P8 编辑器刚需控件已落地，当前覆盖率约 70%。剩余缺口主要是资源显示、窗口化交互和高级输入控件：
 
 | 缺失控件 | 阻塞的编辑器功能 |
 |---------|----------------|
 | `UIImage` | 资源预览、图标显示、工具栏按钮图标 |
-| `UITreeView` | 场景层级面板、资源浏览器 |
-| `UIListView` | 资产列表、搜索结果、日志条目 |
-| `UIMenuBar` / `UIContextMenu` | 编辑器主菜单、右键菜单 |
-| `UIWindow` / `UIDialog` | 设置窗口、确认对话框、多面板浮动 |
-| `UITabView` | 属性面板多标签、文档标签页 |
-| `UIComboBox` | 枚举属性选择、预设下拉 |
-| `UIScrollBox` | 任何超出视口的内容 |
-| `UIProgressBar` | 加载进度、编译进度 |
+| `UIWindow` | 设置窗口、多面板浮动与停靠 |
+| `UIRadioButton` / `UISpinner` | 属性编辑器的互斥选择与数字步进 |
+| `UITooltip` | 编辑器工具提示 |
+| `UIListView`/`UITreeView` 虚拟化 | 大型资产库/场景树性能 |
 
-#### 2.3 焦点与交互体验 ~~不足~~ ✅ P6 部分解决 / ⏳ P8 继续
+#### 2.3 焦点与交互体验（已落地基础能力）
 
 **P6 已实现**：
 - ✅ Tab/Shift+Tab 焦点导航（深度优先收集 Focusable 元素，循环切换）
@@ -501,10 +497,9 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 - ✅ 点击空白区域取消焦点（`ClearFocus()`）
 - ✅ `FocusedElement` 查询属性
 
-**仍待 P8+**：
-- ⏳ 双击事件、滚轮事件、拖放事件
-- ⏳ 全局快捷键系统
-- ⏳ 事件冒泡/捕获
+**仍待后续**：
+- ⏳ 双击事件、拖放事件、事件捕获
+- ⏳ 更完整的全局快捷键和命令路由
 
 ### 三、渲染质量差距（→ P9）
 
@@ -643,11 +638,11 @@ public override UISize Measure(UISize availableSize)
 **向后兼容**：未重写 `Measure` 的子元素保持原有 fill 语义，已有代码无需修改。
 
 **验收标准**：
-- [ ] `UILabel` 不设 `FixedSize` 时按文字内容自适应宽高
-- [ ] `UIButton` 不设 `FixedSize` 时按文字+Padding 自适应
-- [ ] `UIStackPanel` 混合固定/自适应子元素正确分配空间
-- [ ] `UIDemoOverlay` 去掉所有显式 `FixedSize` 后布局正确
-- [ ] 现有 Demo 不修改代码仍能正常运行（向后兼容）
+- [x] `UILabel` 不设 `FixedSize` 时按文字内容自适应宽高
+- [x] `UIButton` 不设 `FixedSize` 时按文字+Padding 自适应
+- [x] `UIStackPanel` 混合固定/自适应子元素正确分配空间
+- [x] `UIDemoOverlay` 去掉所有显式 `FixedSize` 后布局正确
+- [x] 现有 Demo 不修改代码仍能正常运行（向后兼容）
 
 #### 6.2 Scissor 裁剪
 
@@ -668,8 +663,8 @@ public UIRect CurrentClip { get; }
 `RenderPassEncoderSetScissorRect`。裁剪区取 `_clipStack` 栈顶与基元所在 target 尺寸的交集。
 
 **验收标准**：
-- [ ] `ClipToBounds = true` 的容器，子元素超出部分不可见
-- [ ] 嵌套裁剪正确（子裁剪区 ⊆ 父裁剪区）
+- [x] `ClipToBounds = true` 的容器，子元素超出部分不可见
+- [x] 嵌套裁剪正确（子裁剪区 ⊆ 父裁剪区）
 - [x] ~~裁剪不影响 HitTest（HitTest 仍需检查裁剪区外的元素？→ 设计决策：HitTest 也受裁剪约束）~~ → P6-fix 已落地：`UIElement.HitTest` 在 `ClipToBounds && !Bounds.Contains(point)` 时整棵子树返回 null，超界元素不可命中（见 `ClipHitTestVerifyOverlay`）
 
 #### 6.3 焦点导航增强
@@ -679,9 +674,9 @@ public UIRect CurrentClip { get; }
 - 点击空白区域取消焦点（`_focused?.OnFocusChanged(false); _focused = null;`）
 
 **验收标准**：
-- [ ] Tab 循环切换所有 Focusable 控件
-- [ ] 焦点元素有可见高亮边框
-- [ ] 点击空白处焦点清除
+- [x] Tab 循环切换所有 Focusable 控件
+- [x] 焦点元素有可见高亮边框
+- [x] 点击空白处焦点清除
 
 #### 6.4 新增布局容器
 
@@ -691,18 +686,18 @@ public UIRect CurrentClip { get; }
 | `UIWrapPanel` | 沿主轴排列，超出时自动换行到下一行/列；交叉轴尺寸取该行/列最大子元素 |
 
 **验收标准**：
-- [ ] GridPanel 支持固定+比例+Auto 混合行列定义
-- [ ] WrapPanel 子元素自动换行，交叉轴正确包裹
+- [x] GridPanel 支持固定+比例+Auto 混合行列定义
+- [x] WrapPanel 子元素自动换行，交叉轴正确包裹
 
 ### P7：文本框进阶
 
 #### 7.1 文本选择
 
-**新增字段**：
+**当前实现字段/API**：
 
 ```csharp
-private int _selectionStart = -1;  // -1 表示无选择
-private int _selectionEnd = -1;
+private int _selectionAnchor;
+private int _cursor;
 ```
 
 **API**：
@@ -710,10 +705,9 @@ private int _selectionEnd = -1;
 ```csharp
 public int SelectionStart { get; }
 public int SelectionLength { get; }
-public string SelectedText { get; }
+public bool HasSelection { get; }
 public void SelectAll();
 public void ClearSelection();
-public void Select(int start, int length);
 ```
 
 **交互**：
@@ -724,11 +718,11 @@ public void Select(int start, int length);
 - 选区高亮：在 `OnPaint` 中先画选区背景矩形，再画文字
 
 **验收标准**：
-- [ ] 鼠标拖拽可选择任意范围文本
-- [ ] Shift+←/→ 扩展/收缩选择
-- [ ] Ctrl+A 全选
-- [ ] 选区有高亮背景色
-- [ ] 打字替换选中文本
+- [x] 鼠标拖拽可选择任意范围文本
+- [x] Shift+←/→ 扩展/收缩选择
+- [x] Ctrl+A 全选
+- [x] 选区有高亮背景色
+- [x] 打字替换选中文本
 
 #### 7.2 剪贴板
 
@@ -751,9 +745,9 @@ public interface IClipboard
 - Ctrl+V：在光标处粘贴（替换选中文本）
 
 **验收标准**：
-- [ ] Ctrl+C/X/V 与系统剪贴板互通
-- [ ] 无选中时 Ctrl+C/X 不操作
-- [ ] 粘贴替换选中文本
+- [x] Ctrl+C/X/V 与系统剪贴板互通
+- [x] 无选中时 Ctrl+C/X 不操作
+- [x] 粘贴替换选中文本
 
 #### 7.3 Undo/Redo
 
@@ -767,10 +761,10 @@ private record TextOperation(TextOpType Type, int Position, string OldText, stri
 **快捷键**：Ctrl+Z 撤销、Ctrl+Y 重做。
 
 **验收标准**：
-- [ ] 单次打字/删除可撤销
-- [ ] 连续打字合并为一个撤销单元
-- [ ] 撤销后可重做
-- [ ] 新操作清空重做栈
+- [x] 单次打字/删除可撤销
+- [x] 连续打字合并为一个撤销单元
+- [x] 撤销后可重做
+- [x] 新操作清空重做栈
 
 #### 7.4 其他进阶功能
 
@@ -789,6 +783,9 @@ private record TextOperation(TextOpType Type, int Position, string OldText, stri
 ### P8：更多控件
 
 #### 8.1 优先级排序
+
+> 以下保留 P8 初始排期作为追踪记录；`UIScrollBox`、菜单、树、列表、下拉、对话框、标签页等已在 P8 落地，
+> 当前剩余项见「当前问题与差距分析 §2.2」及分阶段计划。
 
 | 优先级 | 控件 | 理由 |
 |--------|------|------|
@@ -965,10 +962,11 @@ slider.Bind(nameof(UISlider.Value), viewModel, vm => vm.Volume, (vm, v) => vm.Vo
 - ~~**单遍布局无内容自适应**~~：✅ P6 已解决（两阶段 Measure/Arrange）。
 - **字符串级文本纹理**：每段文本一张纹理，纹理数随字符串数增长，需换字形图集 + 嵌入字体（跨平台一致）。
   → 详见「当前问题与差距分析 §1.3」和「P9 §9.1」。
-- ~~**无裁剪**~~：✅ P6 scissor 裁剪已实现。**滚动/弹出层**仍待 P8（`UIScrollBox`、下拉/菜单/对话框）。
-- **文本框仅 v1**：选择/剪贴板/Undo/多行/掩码等均未实现。
+- ~~**无裁剪**~~：✅ P6 scissor 裁剪已实现；✅ P8 `UIScrollBox` 与 Overlay 下拉/菜单/对话框已实现。
+- **文本框仍为单行实现**：选择、剪贴板、Undo/Redo、掩码等已实现，多行和 IME 组合态仍待 P7。
   → 详见「当前问题与差距分析 §2.1」和「P7」。
-- **控件覆盖率 ~30%**：编辑器核心面板（TreeView/ListView/Menu/Window）均缺失。
+- **控件覆盖率约 70%**：编辑器核心 Tree/List/Menu/Dialog/Tab/Combo/PropertyGrid 已具备，
+  `UIWindow`、`UIImage`、Radio/Spinner/Tooltip 和虚拟化仍待补。
   → 详见「当前问题与差距分析 §2.2」和「P8」。
 - **无样式系统/数据绑定**：外观硬编码，UI 与逻辑强耦合。
   → 详见「当前问题与差距分析 §四」和「P10」。
@@ -999,18 +997,18 @@ slider.Bind(nameof(UISlider.Value), viewModel, vm => vm.Volume, (vm, v) => vm.Vo
 |---|---|---|---|
 | P0 | 输入系统（Key/MouseButton/WindowInput/InputState/InputManager） | ✅ | 平台无关输入抽象 |
 | P1 | UI 渲染核心（UIPrimitive/UIRenderer overlay/UI.wgsl/UseUI） | ✅ | 多纹理分批 overlay pass |
-| P2 | 控件树 + 布局（UIElement/UICanvas/UIStackPanel/UIPanel） | ✅ | 保留模式控件树 + 单遍布局 |
+| P2 | 控件树 + 布局（UIElement/UICanvas/UIPanel/Stack/Dock） | ✅ | 保留模式控件树 + Measure/Arrange |
 | P3 | 字体/文本（TextRenderer 字符串级 + UILabel + 多纹理渲染器） | ✅ | 字符串级文本渲染 |
 | P4 | 交互（HitTest + 事件路由 + UIButton/UITextBox v1） | ✅ | 鼠标/键盘事件路由 |
 | P5 | 完整控件 + 主题 + 编辑器接入（UICheckbox/UISlider/UITheme/EditorLayout） | ✅ | 编辑器骨架 |
 | P6 | 内容自适应布局 + 裁剪 + 焦点增强 + Grid/Wrap | ✅ | Measure/Arrange、scissor、Tab导航、GridPanel、WrapPanel |
-| P7 | 文本框进阶（选择/复制粘贴/词删除/Undo/剪贴板/IME/多行/掩码） | ⏳ | 生产可用文本输入框 |
-| P8 | 更多控件（ScrollBox/Image/Menu/Tree/List/Combo/Window/Tab/Progress/Radio/Spinner/Tooltip） | 🔶 部分 | ScrollBox/ListView/TreeView/Menu/TabView/SplitPanel/ComboBox/Toolbar/Dialog/PropertyGrid 已落地；Image/Progress/Radio/Spinner/Tooltip/Window 待补 |
+| P7 | 文本框进阶（多行、IME 组合态、输入校验） | 🔶 部分 | 单行选择/剪贴板/Undo/Redo/掩码已落地；多行与 IME 组合态待补 |
+| P8 | 编辑器控件与 Overlay（ScrollBox/Menu/Tree/List/Combo/Dialog/Tab 等） | 🔶 部分 | 编辑器刚需控件已落地；Image/Radio/Spinner/Tooltip/Window/虚拟化待补 |
 | P9 | 渲染打磨（字形图集/嵌入字体/圆角边框阴影/九宫格/增量绘制/DPI） | ⏳ | 高质量渲染 + 性能优化 |
 | P10 | 主题样式系统 + 数据绑定 + 无障碍/本地化 | ⏳ | 可定制外观 + MVVM 支持 |
 
-> 说明：P0~P5 已实现并通过本机 GPU 复跑；P6~P10 对应上文「控件清单与功能规划」的 ⏳ 项，
-> 具体功能逐条见该节，详细规格见「P6~P10 详细规格」。
+> 说明：P0~P6 已实现并通过本机 GPU 复跑；P7/P8 为部分落地，P9/P10 为后续扩展。
+> 具体功能逐条见「控件清单与功能规划」，实施规格见「P6~P10 详细规格」。
 
 ## 关联文档
 

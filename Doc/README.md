@@ -1,7 +1,7 @@
 # Spark.Engine 项目设计与现状
 
 > 状态：持续演进中
-> 最后更新：2026-08-26
+> 最后更新：2026-09-02
 > 本文是项目级设计总览，明确区分「已实现」与「设计（未实现）」。
 > 渲染管线详设见 [RenderPipeline-Design.md](./RenderPipeline-Design.md)；逻辑/渲染线程场景同步机制见
 > [SceneSync-Design.md](./SceneSync-Design.md)。
@@ -19,7 +19,8 @@ FScene / FSceneProxy / FSceneRenderer 模式。
 
 当前处于**早期原型阶段**：核心渲染管线已具备前向光照（Blinn-Phong + 法线贴图 + 阴影贴图）、
 声明式帧图（RenderGraph）、保留模式 UI 系统（控件树 + 输入 + overlay 渲染）、
-场景代理同步（SceneGen 源生成器）。**编辑器仍为空壳，UI 控件覆盖率约 30%。**
+场景代理同步（SceneGen 源生成器）。编辑器已具备工作台骨架、命令历史和 `.scene` 持久化基础，下一阶段优先补齐
+UE 风格层级编辑、资产导入/Cook 和 Edit/Play 隔离。
 
 ## 解决方案结构
 
@@ -43,7 +44,7 @@ Spark.Engine.slnx
 │  │  └─ Worlds/             World（含 Scene）/WorldContext
 │  ├─ Spark.Engine.SceneGen/ 源生成器（netstandard2.0，按 [SceneProxy]/[ScenePayload] 生成 proxy/payload）
 │  ├─ Spark.Engine.Desktop/  桌面平台后端（net11.0，Silk.NET.Windowing + Silk.NET.Input）
-│  └─ Spark.Engine.Editor/   编辑器（net11.0，空壳）
+│  └─ Spark.Engine.Editor/   编辑器（net11.0，工作台/场景文档/Play/导入/Cook）
 ├─ Demo/
 │  ├─ Demo/                  演示内容类库（场景搭建 + WallSwinger + UI 验收场景，平台无关）
 │  └─ Demo.Desktop/          桌面入口（引导 + 平台启动，引用 Demo）
@@ -160,7 +161,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 - `World`：`AddActor`/`RemoveActor`（延迟增删，同帧 Add+Remove 正确处理）、`Update`（对副本迭代防重入崩溃）、
   `CollectCameras`、`Scene` 注册表；异常路径 try/finally 保证列表一致
-- `WorldContext`：`CurrentWorld` 可设置
+- `WorldContext`：`CurrentWorld` 与独立 `RuntimeWorld` 并存，`ActiveWorld` 优先驱动运行时 World
 - `Actor`：`BeginPlay`/`Update`/`EndPlay` 生命周期、`Components`/`GetComponent<T>`/世界归属，转发组件生命周期
 - `ActorComponent`：`BeginPlay`/`Update`/`EndPlay`（对应 UE 的 TickComponent）；带 `[SceneProxy]` 的
   组件的这些生命周期由 SceneGen 生成的 partial 实现，组件只写 `[ScenePayload]` 字段与 `OnProxyMapped`
@@ -300,8 +301,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 | UI 系统（控件树 + 输入 + 文本 + overlay 渲染 + 交互） | ✅ | ✅ |
 | 渲染视图控件（UIRenderView：离屏渲染 → UI 采样 + 自适应分辨率） | ✅ | ✅ |
 
-> 注：UI P6-fix / P8 控件 / P8 审计修复三轮均已在本机 GPU 实机运行验收场景逐项目视确认，
-> 用户验收通过（2026-08-31）；42 个单元测试同步通过。
+> 注：UI P6-fix / P8 控件 / P8 审计修复三轮均已在本机 GPU 实机运行验收场景逐项目确认，
+> 用户验收通过（2026-08-31）；当前自动化测试共 105 个。
 
 ### 20. 编辑器控件集（P8，2026-08-26）
 
@@ -319,7 +320,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - **属性网格** `UIPropertyGrid`：反射对象属性生成标签 + 值编辑行（int/float/bool/string）+ `PropertyChanged`
 - **Overlay 弹出层**：`UICanvas.Overlays`——菜单/对话框覆盖在兄弟元素之上、不参与布局流；
   绘制在 Root 之后、命中测试优先；每帧注入 TextRenderer/Canvas
-- 单元测试：`EditorControlTests`（42 个用例，覆盖滚动钳位/列表选择/树层级/标签页/分割/下拉/属性网格/
+- 单元测试：`EditorControlTests`（覆盖滚动钳位/列表选择/树层级/标签页/分割/下拉/属性网格/
   布局稳定性/文本高度/滚动裁剪等）
 - 验收入口：`Demo/Demo/EditorControlsVerifyOverlay.cs`（VerifyHub 第 5 个按钮，9 个子场景），**已通过用户逐场景验收（2026-08-31）**
 
@@ -342,8 +343,8 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 ### P0 —— 当前阶段：编辑器 MVP 落地
 
-**目标**：控件已补齐（2026-08-26），下一步把 `Spark.Engine.Editor` 从空壳变成最小可用编辑器。
-UI 控件覆盖率已达 ~70%（10 个编辑器刚需控件落地）。
+**目标**：控件基础已具备，下一步把 `Spark.Engine.Editor` 推进为可持续工作的场景编辑器。
+当前 UI 控件覆盖率约 70%（编辑器刚需控件已落地）。
 
 #### 已落地（2026-08-26，见「一、已实现 §20」）
 
@@ -375,13 +376,18 @@ UI 控件覆盖率已达 ~70%（10 个编辑器刚需控件落地）。
 - 渲染视口（UIRenderView 嵌入编辑器面板）
 - 菜单栏 + 工具栏（新建/打开/保存场景）
 - 资产浏览器（浏览/拖拽 StaticMesh/Material 到场景）
+- UE 风格 SceneComponent 层级、RootComponent、Socket 和挂载规则
+- EditorWorld / RuntimeWorld 隔离，Play/Stop 不污染编辑场景
+- 自定义 `.scene` / `.asset` 场景资产与 Windows `.pak` Cook
+- glTF StaticMesh 导入（保留节点层级）
 
 ### P1 —— 性能与稳定性
 
-1. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，只重算/提交变化的对象，静态对象复用上一帧快照（当前每帧全量快照）
-2. **主循环忙等改造**：帧率限制用 `Sleep`/`Yield` 替代 `continue` 自旋
-3. ~~UI 三轮验收~~：✅ 已完成（2026-08-31 用户 GPU 实机逐场景确认通过）
-4. **单元测试补齐**：UI 布局/文本/滚动已有 42 个测试（`EditorControlTests` 等）；`DualFrameBuffer`/`BoundingSphere`/`Frustum`/`SceneSnapshot` 核心模块测试待补
+1. **UE 场景层级**：RootComponent、AttachParent/AttachChildren、Socket、挂载规则和层级 dirty 传播已完成基础运行时实现；编辑器拖拽和资产 Socket 待补
+2. **场景持久化与编辑器运行隔离**：SceneDocument/`.scene`、独立 RuntimeWorld 实例化、EditorContext Play/Stop 和 EngineApplication 双 World 调度已完成
+3. **dirty 标记 + 增量更新**：`SceneComponent` 变换 setter 标记 dirty，只重算/提交变化的对象，静态对象复用上一帧快照（当前每帧全量快照）
+4. ~~UI 三轮验收~~：✅ 已完成（2026-08-31 用户 GPU 实机逐场景确认通过）
+5. **单元测试补齐**：当前自动化测试共 105 个；`BoundingSphere`/`Frustum`/`SceneSnapshot` 及 GPU 集成测试仍需补齐
 
 ### P2 —— 渲染能力扩展
 
@@ -393,7 +399,7 @@ UI 控件覆盖率已达 ~70%（10 个编辑器刚需控件落地）。
 
 ### P3 —— 引擎完善
 
-9. **异步资源加载/缓存**：`ResourceManager` 异步加载 + 磁盘缓存
+9. **资产管线完善**：`.gltf` StaticMesh 导入和 Windows Cook 包写入已完成；Asset Registry、GLB/材质纹理导入、运行时 `.pak` 加载待补，后续再做异步/增量 Cook
 10. **`ViewportRect` 分屏 / 编辑器多视图**：一个 surface 渲染多个子视口
 11. **PresentMode 可配置**：VSync 开关由 `EngineOptions` 暴露
 12. **surface lost 完整恢复**：当前跳帧+重配，需更完整策略
@@ -462,6 +468,11 @@ UI 控件覆盖率已达 ~70%（10 个编辑器刚需控件落地）。
 | ADR-20 | 先 `Lit`(Blinn-Phong)，`PBR` 作为顺延扩展 |
 | ADR-21 | 管线抽象 `IRenderPipeline` + DI 注册切换 |
 | ADR-22 | 多 pass 用 `ShaderPass` 枚举，缓存键 `(MaterialShaderKey, ShaderPass)` |
+| ADR-27 | SceneComponent 采用 UE 式 Root/AttachParent/AttachChildren 树，支持 Socket 和三维独立挂载规则 |
+| ADR-28 | 编辑器 World 与 Runtime World 隔离；运行时从 SceneDocument 实例化，不共享可变 Actor/Component |
+| ADR-29 | 持久资产使用 Guid；运行时 ResourceId 与渲染 ProxyId 独立分配 |
+| ADR-30 | 自定义 `.scene` / `.asset` / `.pak` 格式；首版 Windows Cook，Cook 接口保留跨平台扩展点 |
+| ADR-31 | glTF 首版只导入 StaticMesh，默认保留节点层级 |
 
 ## 构建与运行
 
@@ -486,3 +497,5 @@ dotnet run --project Demo/Demo.Desktop
 - [ShadowMapping-Design.md](./ShadowMapping-Design.md) — 阴影贴图设计
 - [UI-System-Design.md](./UI-System-Design.md) — UI 系统设计
 - [UIRenderView-Design.md](./UIRenderView-Design.md) — 渲染视图控件设计
+- [SceneHierarchy-Design.md](./SceneHierarchy-Design.md) — UE 风格场景层级、Socket 与挂载规则
+- [AssetPipeline-Design.md](./AssetPipeline-Design.md) — 自定义资产格式、glTF 导入与 Cook
