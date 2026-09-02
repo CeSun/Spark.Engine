@@ -221,6 +221,18 @@ public sealed class UIComboBox : UIElement
 
     protected internal override void OnMouseDrag(Vector2 position)
     {
+        UpdateDropDownHover(position);
+    }
+
+    protected internal override void OnMouseMove(Vector2 position)
+    {
+        // 下拉展开后，普通鼠标移动也必须更新高亮项；仅在拖拽事件中更新会导致
+        // 鼠标悬停无反馈，且点击项时 SelectedIndex 仍为 -1。
+        UpdateDropDownHover(position);
+    }
+
+    private void UpdateDropDownHover(Vector2 position)
+    {
         if (!_isOpen)
             return;
 

@@ -25,7 +25,8 @@ public struct UIPrimitive
 
     /// <summary>
     /// Scissor 裁剪矩形（P6）：x, y, width, height（窗口逻辑像素）。
-    /// Width ≤ 0 或 Height ≤ 0 表示无裁剪。由 <see cref="UIManager"/> 在添加基元时从裁剪栈注入。
+    /// 默认值（宽/高为 0）表示无裁剪；负宽或负高表示空交集，即完全裁剪。
+    /// 由 <see cref="UIManager"/> 在添加基元时从裁剪栈注入。
     /// </summary>
     public Vector4 ScissorRect;
 }

@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Reflection;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
+using Spark.Engine.Input;
 using Spark.Engine.UI;
 using Spark.Engine.Worlds;
 
@@ -15,13 +16,10 @@ namespace Spark.Engine.Editor;
 public sealed class EditorUi
 {
     private readonly World _world;
-    private readonly HierarchyPanel _hierarchy;
-    private readonly UILabel _inspectorTitle;
-    private readonly UIPropertyGrid _propertyGrid;
-    private readonly UILabel _status;
-    private readonly UIStackPanel _viewportArea;
-    private readonly UILabel _selectionStatus;
-    private readonly UILabel _modeStatus;
+    private readonly EditorHierarchyPanel _hierarchy;
+    private readonly EditorInspectorPanel _inspector;
+    private readonly EditorViewportPanel _viewport;
+    private readonly EditorStatusBarPanel _statusBar;
     private readonly EditorContext _context;
 
     private object? _selectedTarget;
@@ -33,118 +31,81 @@ public sealed class EditorUi
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
         _context = new EditorContext(_world);
-        var theme = UITheme.Default;
-
         var root = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
-            BackgroundColor = theme.WindowBackground, // 铺满窗口，遮挡底层 3D 场景
+            BackgroundColor = UITheme.Default.WindowBackground, // 铺满窗口，遮挡底层 3D 场景
         };
 
-        var menuBar = new UIMenuBar { FixedSize = new UISize(0f, 28f), BackgroundColor = theme.TitleBarBackground };
-        menuBar.AddMenu("File", menu =>
-        {
-            menu.AddItem(new UIMenuItem("Save Scene", () => SetStatus("Save is available through the scene service.")) { Shortcut = "Ctrl+S" });
-            menu.AddItem(new UIMenuItem("Reload", () => SetStatus("Reload requested.")) { Shortcut = "Ctrl+R" });
-        });
-        menuBar.AddMenu("Edit", menu =>
-        {
-            menu.AddItem(new UIMenuItem("Undo", Undo) { Shortcut = "Ctrl+Z" });
-            menu.AddItem(new UIMenuItem("Redo", Redo) { Shortcut = "Ctrl+Y" });
-        });
-        menuBar.AddMenu("Window", menu =>
-        {
-            menu.AddItem(new UIMenuItem("Reset Layout", () => SetStatus("Layout reset requested.")));
-        });
-        if (backToHub != null)
-        {
-            menuBar.AddChild(new UIButton { Text = "Back to Hub", Padding = UIEdgeInsets.HorizontalVertical(8f, 2f), Clicked = backToHub });
-        }
-        root.AddChild(menuBar);
+        root.AddChild(new EditorMenuPanel(
+            save: () => SetStatus("Save is available through the scene service."),
+            reload: () => SetStatus("Reload requested."),
+            undo: Undo,
+            redo: Redo,
+            resetLayout: () => SetStatus("Layout reset requested."),
+            backToHub));
 
-        var toolbar = new UIToolbar { FixedSize = new UISize(0f, 34f), BackgroundColor = theme.PanelBackground };
-        toolbar.AddButton("Select", () => SetStatus("Select tool active."));
-        toolbar.AddButton("Move", () => SetStatus("Move tool active."));
-        toolbar.AddButton("Rotate", () => SetStatus("Rotate tool active."));
-        toolbar.AddButton("Scale", () => SetStatus("Scale tool active."));
-        toolbar.AddSeparator();
-        toolbar.AddButton("Add Actor", AddActor);
-        toolbar.AddButton("Duplicate", DuplicateSelection);
-        toolbar.AddButton("Rename", RenameSelection);
-        toolbar.AddButton("Delete", DeleteSelection);
-        toolbar.AddSeparator();
-        toolbar.AddButton("Play", () => SetStatus("Play requested."));
-        root.AddChild(toolbar);
+        root.AddChild(new EditorToolbarPanel(
+            select: () => SetStatus("Select tool active."),
+            move: () => SetStatus("Move tool active."),
+            rotate: () => SetStatus("Rotate tool active."),
+            scale: () => SetStatus("Scale tool active."),
+            addActor: AddActor,
+            duplicate: DuplicateSelection,
+            rename: RenameSelection,
+            delete: DeleteSelection,
+            play: () => SetStatus("Play requested.")));
 
         // 中部：层级 + 视口（透明）+ 检查器
         var content = new UIStackPanel { Orientation = UIOrientation.Horizontal, FixedSize = new UISize(0f, 0f) };
 
-        _hierarchy = new HierarchyPanel(_world);
-        var hierarchyPanel = new UIStackPanel
-        {
-            Orientation = UIOrientation.Vertical,
-            FixedSize = new UISize(220f, 0f),
-            BackgroundColor = theme.PanelBackground,
-        };
-        hierarchyPanel.AddChild(new UILabel { Text = "SCENE HIERARCHY", TextColor = theme.TextDimColor, Padding = UIEdgeInsets.HorizontalVertical(8f, 6f) });
-        hierarchyPanel.AddChild(_hierarchy.Element);
-        content.AddChild(hierarchyPanel);
+        _hierarchy = new EditorHierarchyPanel(_world);
+        content.AddChild(_hierarchy);
 
-        // 视口区（深色背景，UIRenderView 画中画嵌入此处显示 3D 画面）
-        _viewportArea = new UIStackPanel
-        {
-            Orientation = UIOrientation.Vertical,
-            FixedSize = new UISize(0f, 0f),
-            BackgroundColor = new Vector4(0.05f, 0.05f, 0.08f, 1f),
-        };
-        _viewportArea.AddChild(new UILabel { Text = "VIEWPORT", TextColor = theme.TextDimColor, Padding = UIEdgeInsets.HorizontalVertical(8f, 6f) });
-        content.AddChild(_viewportArea);
+        _viewport = new EditorViewportPanel();
+        content.AddChild(_viewport);
 
-        var inspector = new UIStackPanel
-        {
-            Orientation = UIOrientation.Vertical,
-            FixedSize = new UISize(260f, 0f),
-            Padding = UIEdgeInsets.All(8f),
-            Spacing = 4f,
-            BackgroundColor = theme.PanelBackground,
-        };
-        _inspectorTitle = new UILabel { Text = "Inspector", TextColor = theme.TextColor };
-        inspector.AddChild(new UILabel { Text = "INSPECTOR", TextColor = theme.TextDimColor });
-        inspector.AddChild(_inspectorTitle);
-
-        _propertyGrid = new UIPropertyGrid
-        {
-            FixedSize = new UISize(0f, 0f), // 拉伸填满剩余
-            BackgroundColor = new Vector4(0f, 0f, 0f, 0f), // 透明：用面板背景
-            PropertyEditRequested = RequestPropertyEdit,
-        };
-        inspector.AddChild(_propertyGrid);
-        content.AddChild(inspector);
+        _inspector = new EditorInspectorPanel(RequestPropertyEdit);
+        content.AddChild(_inspector);
 
         root.AddChild(content);
 
         // 状态栏
-        var statusBar = new UIStackPanel
-        {
-            Orientation = UIOrientation.Horizontal,
-            FixedSize = new UISize(0f, 20f),
-            Padding = UIEdgeInsets.HorizontalVertical(8f, 2f),
-            BackgroundColor = theme.StatusBarBackground,
-        };
-        _status = new UILabel { Text = "Ready", TextColor = theme.TextDimColor };
-        _selectionStatus = new UILabel { Text = "Nothing selected", TextColor = theme.TextDimColor };
-        _modeStatus = new UILabel { Text = "Editor", TextColor = theme.TextDimColor };
-        statusBar.AddChild(_status);
-        statusBar.AddChild(_selectionStatus);
-        statusBar.AddChild(_modeStatus);
-        root.AddChild(statusBar);
+        _statusBar = new EditorStatusBarPanel();
+        root.AddChild(_statusBar);
 
         Root = root;
         _hierarchy.SelectionChanged += target => _context.Selection.Selected = target;
         _context.Selection.Changed += _ => UpdateInspector();
+        _context.DirtyChanged += _ => UpdateInspectorTitle();
     }
 
-    private void SetStatus(string message) => _status.Text = message;
+    /// <summary>处理 Canvas 级编辑器快捷键。</summary>
+    public void HandleGlobalKey(Key key, KeyMask keysDown, UIElement? focusedElement)
+    {
+        // 文本输入控件保留编辑快捷键，避免 Delete/F2 或 Ctrl+Z 修改场景。
+        if (focusedElement is UITextBox)
+            return;
+
+        bool ctrl = keysDown.IsDown(Key.LeftControl) || keysDown.IsDown(Key.RightControl);
+        switch (key)
+        {
+            case Key.Z when ctrl:
+                Undo();
+                break;
+            case Key.Y when ctrl:
+                Redo();
+                break;
+            case Key.Delete:
+                DeleteSelection();
+                break;
+            case Key.F2:
+                RenameSelection();
+                break;
+        }
+    }
+
+    private void SetStatus(string message) => _statusBar.SetStatus(message);
     private void Undo() => SetStatus(_context.Undo() ? "Undo completed." : "Nothing to undo.");
     private void Redo() => SetStatus(_context.Redo() ? "Redo completed." : "Nothing to redo.");
 
@@ -214,7 +175,7 @@ public sealed class EditorUi
         }
         _context.Execute(new DelegateEditorCommand("Delete Actor", () => _world.RemoveActor(actor), () => _world.AddActor(actor)));
         _selectedTarget = null;
-        _propertyGrid.Target = null;
+        _inspector.Target = null;
         SetStatus("Actor queued for deletion.");
     }
 
@@ -225,7 +186,7 @@ public sealed class EditorUi
         // The render view is the work area, so it must consume the remaining
         // viewport space instead of retaining the old demo thumbnail size.
         control.FixedSize = new UISize(0f, 0f);
-        _viewportArea.AddChild(control);
+        _viewport.SetRenderView(control);
     }
 
     /// <summary>每帧调用：层级树按签名重建；状态栏 Actor/组件计数与检查器实时更新。</summary>
@@ -241,25 +202,25 @@ public sealed class EditorUi
             components += actor.Components.Count();
         }
 
-        _status.Text = $"Actors: {actors}  Components: {components}";
-        _selectionStatus.Text = _selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}";
+        _statusBar.SetStatus($"Actors: {actors}  Components: {components}");
+        _statusBar.SetSelection(_selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}");
 
         // 选中对象被移除时清空检查器
         if (_selectedTarget is Actor removedActor && !_world.Actors.Contains(removedActor))
         {
             _selectedTarget = null;
-            _propertyGrid.Target = null;
-            _inspectorTitle.Text = "Inspector";
+            _inspector.Target = null;
+            _inspector.SetTitle("Inspector");
         }
 
-        _propertyGrid.Refresh();
+        _inspector.Refresh();
     }
 
     private void UpdateInspector()
     {
         _selectedTarget = _context.Selection.Selected;
-        _propertyGrid.Target = _selectedTarget;
-        _selectionStatus.Text = _selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}";
+        _inspector.Target = _selectedTarget;
+        _statusBar.SetSelection(_selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}");
         UpdateInspectorTitle();
     }
 
@@ -272,6 +233,6 @@ public sealed class EditorUi
             null => "Inspector",
             _ => _selectedTarget.GetType().Name,
         };
-        _inspectorTitle.Text = _context.IsDirty ? $"{title} *" : title;
+        _inspector.SetTitle(_context.IsDirty ? $"{title} *" : title);
     }
 }

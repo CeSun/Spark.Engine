@@ -36,6 +36,12 @@ public sealed class UICanvas
     /// <summary>焦点环宽度（逻辑像素）。</summary>
     public float FocusRingWidth { get; set; } = 2f;
 
+    /// <summary>
+    /// Canvas 级快捷键回调。控件键盘事件处理后触发，可用于编辑器命令、全局关闭等操作。
+    /// 回调参数依次为按键、本帧仍处于按下状态的按键掩码和当前焦点元素。
+    /// </summary>
+    public Action<Key, KeyMask, UIElement?>? GlobalKeyDown { get; set; }
+
     public UICanvas(int targetId)
     {
         TargetId = targetId;
@@ -294,6 +300,13 @@ public sealed class UICanvas
 
             if (!string.IsNullOrEmpty(input.Text))
                 _focused.OnTextInput(input.Text);
+        }
+
+        // 全局快捷键在控件处理之后触发，避免吞掉控件自身的按键事件。
+        foreach (var key in input.KeysPressed.Enumerate())
+        {
+            if (key != Key.Tab)
+                GlobalKeyDown?.Invoke(key, input.KeysDown, _focused);
         }
     }
 

@@ -129,6 +129,31 @@ public class EditorControlTests
         Assert.False(root.IsSelected);
     }
 
+    [Fact]
+    public void TreeView_ClickArrow_TogglesExpandedState()
+    {
+        var tree = new UITreeView { FixedSize = new UISize(200f, 120f) };
+        var rootItem = new UITreeViewItem("Root") { IsExpanded = true };
+        rootItem.AddSubItem(new UITreeViewItem("Child"));
+        tree.AddRoot(rootItem);
+
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(tree);
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 120f), Root = root };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        var buttonsDown = default(MouseButtonMask);
+        buttonsDown.Set(MouseButton.Left, true);
+        var arrow = new Vector2(8f, 12f);
+        canvas.Update(new InputState(arrow, Vector2.Zero, 0f,
+            buttonsDown, buttonsDown, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(arrow, Vector2.Zero, 0f,
+            default, default, buttonsDown, default, default, default, string.Empty), renderer);
+
+        Assert.False(rootItem.IsExpanded);
+    }
+
     // ———————————— UITabView ————————————
 
     [Fact]
@@ -417,6 +442,78 @@ public class EditorControlTests
         Assert.NotNull(canvas.Root);
         Assert.Equal(400f, canvas.Root!.Bounds.Width);
         Assert.Equal(300f, canvas.Root!.Bounds.Height);
+    }
+
+    [Fact]
+    public void Canvas_GlobalKeyDownReceivesPressedKeyAndFocusedElement()
+    {
+        var canvas = new UICanvas(0)
+        {
+            Size = new Vector2(200f, 100f),
+            Root = new UIStackPanel { Orientation = UIOrientation.Vertical },
+        };
+        var key = KeyMask.None;
+        key.Set(Key.Z, true);
+        Key? received = null;
+        UIElement? receivedFocus = null;
+        canvas.GlobalKeyDown = (pressed, _, focused) =>
+        {
+            received = pressed;
+            receivedFocus = focused;
+        };
+
+        canvas.Update(new InputState(Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default, key, key, default, string.Empty), CreateTextRenderer());
+
+        Assert.Equal(Key.Z, received);
+        Assert.Null(receivedFocus);
+    }
+
+    [Fact]
+    public void ComboBox_MouseMoveThenClick_SelectsDropDownItem()
+    {
+        var combo = new UIComboBox { FixedSize = new UISize(160f, 26f) };
+        combo.AddItem("First");
+        combo.AddItem("Second");
+        combo.AddItem("Third");
+
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(combo);
+        var canvas = new UICanvas(0)
+        {
+            Size = new Vector2(200f, 200f),
+            Root = root,
+        };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        // 打开下拉框，并执行一次 Paint 生成下拉项矩形。
+        var down = default(MouseButtonMask);
+        down.Set(MouseButton.Left, true);
+        var pressed = new InputState(new Vector2(10f, 10f), Vector2.Zero, 0f,
+            down, down, default, default, default, default, string.Empty);
+        canvas.Update(pressed, renderer);
+        var ui = new UIManager();
+        canvas.Paint(ui);
+
+        var released = new InputState(new Vector2(10f, 10f), Vector2.Zero, 0f,
+            default, default, down, default, default, default, string.Empty);
+        canvas.Update(released, renderer);
+        canvas.Paint(ui);
+
+        // 普通鼠标移动（没有按键）到第二项，再按下/抬起。
+        var hoverPoint = new Vector2(10f, 26f + 26f + 4f);
+        canvas.Update(new InputState(hoverPoint, Vector2.Zero, 0f,
+            default, default, default, default, default, default, string.Empty), renderer);
+        canvas.Paint(ui);
+
+        canvas.Update(new InputState(hoverPoint, Vector2.Zero, 0f,
+            down, down, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(hoverPoint, Vector2.Zero, 0f,
+            default, default, down, default, default, default, string.Empty), renderer);
+
+        Assert.Equal(1, combo.SelectedIndex);
+        Assert.Equal("Second", combo.SelectedText);
     }
 
     [Fact]

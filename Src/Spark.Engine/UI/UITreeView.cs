@@ -37,6 +37,7 @@ public class UITreeViewItem : UIElement
     public Vector4 ArrowColor { get; set; } = new(0.60f, 0.60f, 0.60f, 1f);
 
     private bool _hovered;
+    private Vector2 _lastPointerPosition;
 
     /// <summary>展开/折叠切换回调。</summary>
     public Action<UITreeViewItem>? Toggled { get; set; }
@@ -154,11 +155,35 @@ public class UITreeViewItem : UIElement
         _hovered = false;
     }
 
+    protected internal override void OnMouseMove(Vector2 position)
+    {
+        _lastPointerPosition = position;
+    }
+
+    protected internal override void OnMouseDrag(Vector2 position)
+    {
+        _lastPointerPosition = position;
+    }
+
     protected internal override void OnMouseClick()
     {
+        // 箭头区域负责展开/折叠；点击文本区域仍然只选中/激活该项。
+        if (!IsLeaf && IsArrowHit(_lastPointerPosition))
+            Toggle();
+
         // Selection must happen on the row itself; the tree flattens logical
         // children into a panel, so the parent cannot infer which row was hit.
         Clicked?.Invoke(this);
+    }
+
+    private bool IsArrowHit(Vector2 point)
+    {
+        float indent = IndentLevel * IndentWidth;
+        float arrowX = Bounds.X + indent + 4f;
+        float arrowSize = 10f;
+        // 适当扩大命中范围，避免用户必须精确点在 10px 绘制三角形上。
+        var hitRect = new UIRect(arrowX - 4f, Bounds.Y, arrowSize + 8f, Bounds.Height);
+        return hitRect.Contains(point);
     }
 
     /// <summary>切换展开/折叠（仅非叶子节点）。</summary>
@@ -229,8 +254,7 @@ public sealed class UITreeView : UIElement
     public void AddRoot(UITreeViewItem item)
     {
         item.IndentLevel = 0;
-        item.Toggled = OnItemToggled;
-        item.Clicked = OnItemClicked;
+        AssignCallbacksRecursive(item);
         _roots.Add(item);
         RebuildFlatList();
     }
@@ -339,9 +363,18 @@ public sealed class UITreeView : UIElement
 
         foreach (var item in _flatList)
         {
+            item.Toggled = OnItemToggled;
             item.Clicked = OnItemClicked;
             _itemsPanel.AddChild(item);
         }
+    }
+
+    private void AssignCallbacksRecursive(UITreeViewItem item)
+    {
+        item.Toggled = OnItemToggled;
+        item.Clicked = OnItemClicked;
+        foreach (var child in item.SubItems)
+            AssignCallbacksRecursive(child);
     }
 
     private void FlattenRecursive(UITreeViewItem item)
