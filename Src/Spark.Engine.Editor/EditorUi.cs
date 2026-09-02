@@ -107,6 +107,10 @@ public sealed class EditorUi
     public EditorPlayState PlayState => _context.PlayState;
     public object? SelectedTarget => _context.Selection.Selected;
     public IReadOnlyList<object> SelectedTargets => _context.Selection.Items;
+    /// <summary>当前场景服务提供的最近场景路径；非 Binary 服务返回空列表。</summary>
+    public IReadOnlyList<string> RecentScenePaths
+        => (_sceneService as BinaryEditorSceneService)?.RecentFiles.Paths ?? Array.Empty<string>();
+    public string? CurrentScenePath => (_sceneService as BinaryEditorSceneService)?.Path;
     public GizmoOperation ActiveGizmoOperation => _gizmoOperation;
     public GizmoSpace ActiveGizmoSpace => _gizmoSpace;
     public bool IsGizmoDragging => _gizmo.IsDragging;

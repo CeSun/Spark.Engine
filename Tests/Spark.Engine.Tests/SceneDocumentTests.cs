@@ -1021,6 +1021,58 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void RecentFilesMaintainsMruOrderAndConfiguredLimit()
+    {
+        var recent = new EditorRecentFiles(2);
+        var first = Path.Combine(Path.GetTempPath(), "spark-first.scene");
+        var second = Path.Combine(Path.GetTempPath(), "spark-second.scene");
+        var third = Path.Combine(Path.GetTempPath(), "spark-third.scene");
+
+        recent.Add(first);
+        recent.Add(second);
+        recent.Add(first);
+        recent.Add(third);
+
+        Assert.Equal(new[] { Path.GetFullPath(third), Path.GetFullPath(first) }, recent.Paths);
+        Assert.True(recent.Remove(first));
+        Assert.False(recent.Remove(first));
+        Assert.Single(recent.Paths);
+    }
+
+    [Fact]
+    public void RecentFilesRoundTripsUtf8PathsAndIgnoresBlankLines()
+    {
+        var settingsPath = GetTempPath();
+        var recent = new EditorRecentFiles(3);
+        var first = Path.Combine(Path.GetTempPath(), "场景一.scene");
+        var second = Path.Combine(Path.GetTempPath(), "scene-two.scene");
+        recent.Add(first);
+        recent.Add(second);
+        recent.Save(settingsPath);
+
+        File.AppendAllText(settingsPath, Environment.NewLine + Environment.NewLine);
+        var restored = new EditorRecentFiles(3);
+        restored.Load(settingsPath);
+
+        Assert.Equal(recent.Paths, restored.Paths);
+    }
+
+    [Fact]
+    public void BinarySceneServiceAddsSavedAndLoadedPathToRecentFiles()
+    {
+        var scenePath = GetTempPath();
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        world.AddActor(new Actor());
+        var recent = new EditorRecentFiles();
+        var service = new BinaryEditorSceneService(scenePath, recent);
+
+        Assert.True(service.Save(world));
+        Assert.Equal(Path.GetFullPath(scenePath), Assert.Single(recent.Paths));
+        service.Load();
+        Assert.Equal(Path.GetFullPath(scenePath), Assert.Single(recent.Paths));
+    }
+
+    [Fact]
     public void TransformGizmoDoesNotApplyGroupDeltaTwiceToSelectedDescendant()
     {
         var camera = new CameraComponent();
