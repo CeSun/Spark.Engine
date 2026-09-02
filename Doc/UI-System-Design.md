@@ -22,6 +22,10 @@
 > Demo.Desktop 逐场景目视确认，未发现问题。剩余为 P7/P9/P10 打磨项。
 > 本文与当前代码同步，记录**实际落地形态**与已知偏差。
 
+> **P7 单行文本增强（当前增量）**：`UITextBox` 已支持选择、鼠标拖选、Shift/Ctrl 导航、剪贴板抽象、
+> 删除/替换、Undo/Redo、Placeholder、ReadOnly、MaxLength、Password 掩码和超长文本水平滚动；
+> 多行排版与 IME 组合态仍待后续实现。
+
 ## 概述
 
 Spark.Engine 的 3D 场景走「逻辑线程 → `SceneProxy` → `SceneSnapshot` → 渲染线程」的单通道，
@@ -68,7 +72,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | `UIPanel` | UIPanel.cs | 纯色矩形叶节点 |
 | `UILabel` | UILabel.cs | 文本标签（`Text`/`TextColor`） |
 | `UIButton` | UIButton.cs | 按钮（背景 + 文本 + 悬停/按下态 + `Clicked` 回调） |
-| `UITextBox` | UITextBox.cs | 单行输入框 v1（焦点 + 基础编辑 + 光标闪烁；选择/剪贴板/Undo 等⏳ P7） |
+| `UITextBox` | UITextBox.cs | 单行输入框（选择/剪贴板/Undo/Redo/掩码/水平滚动；多行与 IME ⏳） |
 | `UICheckbox` | UICheckbox.cs | 复选框（`IsChecked` + `CheckedChanged`） |
 | `UISlider` | UISlider.cs | 滑杆（拖拽取值 0..1 + `ValueChanged`） |
 | `UICanvas` | UICanvas.cs | 每窗口画布：`Update(input)`（Arrange+路由）+ `Paint(ui)` + 焦点 + **`Overlays` 弹出层** |
@@ -105,6 +109,8 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 
 - `EditorLayout.Build()`：编辑器骨架（菜单栏 + 层级面板 + 透明视口区 + 检查器 + 状态栏），用 `UITheme`。
 - `UseEditor()`：注册 UI overlay，并在游戏内容初始化后自动把 `EditorUi` 挂到主窗口、注册逐帧刷新；可选配置回调用于定制编辑器视口。
+- `IEditorSceneService`：编辑器保存/重载边界；宿主通过 `UseEditor(..., sceneService)` 或
+  `EditorLayout.Build(..., sceneService)` 注入具体文件/资产库实现，编辑器负责 Dirty 与撤销历史闭环。
 
 ## 控件清单与功能规划
 
@@ -194,7 +200,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 ### 三、文本框（UITextBox）功能详解
 
 > 输入框是交互最重的控件，这里把「光标 / 选择 / 编辑 / 剪贴板 / IME / 显示样式」逐项列全。
-> 当前状态：🔶 v1 仅实现基础编辑与光标，大部分进阶功能待 P7 落地。
+> 当前状态：🔶 单行编辑能力已完成；多行排版、IME 组合态等进阶能力仍待后续迭代。
 
 #### 光标与导航
 - ✅ 左/右移动、Home/End、光标闪烁（530ms 可见/隐藏，聚焦/按键/输入时重置）。

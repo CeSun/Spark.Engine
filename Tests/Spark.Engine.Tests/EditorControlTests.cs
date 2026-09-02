@@ -470,6 +470,75 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void TextBox_SelectReplaceUndoRedo_WorksThroughCanvasInput()
+    {
+        var textBox = new UITextBox { FixedSize = new UISize(200f, 30f), Text = "hello" };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(textBox);
+        var canvas = new UICanvas(0) { Size = new Vector2(240f, 60f), Root = root };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+        canvas.Focus(textBox);
+
+        var ctrl = KeyMask.None;
+        ctrl.Set(Key.LeftControl, true);
+        var selectAll = ctrl;
+        selectAll.Set(Key.A, true);
+        canvas.Update(new InputState(Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default, selectAll, selectAll, default, string.Empty), renderer);
+
+        var input = new InputState(Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default, ctrl, default, default, "world");
+        canvas.Update(input, renderer);
+        Assert.Equal("world", textBox.Text);
+        Assert.Equal(0, textBox.SelectionLength);
+        Assert.True(textBox.CanUndo);
+
+        var undo = new KeyMask();
+        undo.Set(Key.Z, true);
+        canvas.Update(new InputState(Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default, ctrl, undo, default, string.Empty), renderer);
+        Assert.Equal("hello", textBox.Text);
+
+        var redo = new KeyMask();
+        redo.Set(Key.Y, true);
+        canvas.Update(new InputState(Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default, ctrl, redo, default, string.Empty), renderer);
+        Assert.Equal("world", textBox.Text);
+    }
+
+    [Fact]
+    public void TextBox_ClipboardCopyPaste_UsesInjectedClipboard()
+    {
+        var clipboard = new MemoryClipboard();
+        var textBox = new UITextBox { Text = "copy me", Clipboard = clipboard };
+        textBox.SelectAll();
+
+        // 通过公开编辑 API 验证剪贴板依赖可以替换为平台实现；输入路由负责快捷键转发。
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(textBox);
+        var canvas = new UICanvas(0) { Size = new Vector2(240f, 60f), Root = root };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+        canvas.Focus(textBox);
+
+        var ctrl = KeyMask.None;
+        ctrl.Set(Key.LeftControl, true);
+        var copy = new KeyMask();
+        copy.Set(Key.C, true);
+        canvas.Update(new InputState(Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default, ctrl, copy, default, string.Empty), renderer);
+        Assert.Equal("copy me", clipboard.GetText());
+
+        textBox.Text = "";
+        var paste = new KeyMask();
+        paste.Set(Key.V, true);
+        canvas.Update(new InputState(Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default, ctrl, paste, default, string.Empty), renderer);
+        Assert.Equal("copy me", textBox.Text);
+    }
+
+    [Fact]
     public void ComboBox_MouseMoveThenClick_SelectsDropDownItem()
     {
         var combo = new UIComboBox { FixedSize = new UISize(160f, 26f) };

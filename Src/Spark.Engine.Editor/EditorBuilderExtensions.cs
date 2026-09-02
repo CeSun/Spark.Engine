@@ -14,7 +14,8 @@ public static class EditorBuilderExtensions
     /// <param name="configure">可选的编辑器 UI 配置，在自动挂载后执行。</param>
     public static EngineBuilder UseEditor(
         this EngineBuilder builder,
-        Action<EngineApplication, EditorUi>? configure = null)
+        Action<EngineApplication, EditorUi>? configure = null,
+        IEditorSceneService? sceneService = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -34,6 +35,9 @@ public static class EditorBuilderExtensions
 
         if (configure != null)
             registration.Configure += configure;
+
+        if (sceneService != null)
+            registration.SceneService = sceneService;
 
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IEngineApplicationInitializer, EditorApplicationInitializer>());

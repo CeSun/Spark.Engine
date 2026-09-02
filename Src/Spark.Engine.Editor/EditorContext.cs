@@ -55,6 +55,13 @@ public sealed class EditorContext
 
     public void MarkSaved() => SetDirty(false);
 
+    /// <summary>标记外部重载完成并丢弃重载前的撤销/重做命令。</summary>
+    public void MarkReloaded()
+    {
+        History.Clear();
+        SetDirty(false);
+    }
+
     private void SetDirty(bool value)
     {
         if (IsDirty == value) return;

@@ -10,5 +10,9 @@ namespace Spark.Engine.Editor;
 /// </summary>
 public static class EditorLayout
 {
-    public static EditorUi Build(World world, Action? backToHub = null) => new(world, backToHub);
+    public static EditorUi Build(
+        World world,
+        Action? backToHub = null,
+        IEditorSceneService? sceneService = null)
+        => new(world, backToHub, sceneService);
 }

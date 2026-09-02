@@ -292,7 +292,7 @@ public sealed class UICanvas
                 // Tab 已处理，不转发给控件
                 if (key == Key.Tab)
                     continue;
-                _focused.OnKeyDown(key);
+                _focused.OnKeyDown(key, input.KeysDown);
             }
 
             foreach (var key in input.KeysReleased.Enumerate())

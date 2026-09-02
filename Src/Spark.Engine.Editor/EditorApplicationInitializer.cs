@@ -16,7 +16,7 @@ internal sealed class EditorApplicationInitializer(EditorRegistration registrati
         var viewport = application.WindowManager.GetViewport(application.WindowManager.MainWindow)
             ?? throw new InvalidOperationException("The editor requires a viewport for the main window.");
 
-        var editorUi = new EditorUi(world);
+        var editorUi = new EditorUi(world, sceneService: registration.SceneService);
         var canvas = application.UIManager.GetOrCreateCanvas(viewport.Id);
         canvas.Root = editorUi.Root;
         canvas.GlobalKeyDown = (key, keysDown, focused) => editorUi.HandleGlobalKey(key, keysDown, focused);
@@ -29,4 +29,6 @@ internal sealed class EditorApplicationInitializer(EditorRegistration registrati
 internal sealed class EditorRegistration
 {
     public Action<EngineApplication, EditorUi>? Configure { get; set; }
+
+    public IEditorSceneService? SceneService { get; set; }
 }

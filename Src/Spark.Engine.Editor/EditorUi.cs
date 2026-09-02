@@ -21,15 +21,17 @@ public sealed class EditorUi
     private readonly EditorViewportPanel _viewport;
     private readonly EditorStatusBarPanel _statusBar;
     private readonly EditorContext _context;
+    private readonly IEditorSceneService? _sceneService;
 
     private object? _selectedTarget;
 
     /// <summary>编辑器根元素（挂到主窗口画布 Root）。</summary>
     public UIElement Root { get; }
 
-    public EditorUi(World world, Action? backToHub = null)
+    public EditorUi(World world, Action? backToHub = null, IEditorSceneService? sceneService = null)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
+        _sceneService = sceneService;
         _context = new EditorContext(_world);
         var root = new UIStackPanel
         {
@@ -38,8 +40,8 @@ public sealed class EditorUi
         };
 
         root.AddChild(new EditorMenuPanel(
-            save: () => SetStatus("Save is available through the scene service."),
-            reload: () => SetStatus("Reload requested."),
+            save: SaveScene,
+            reload: ReloadScene,
             undo: Undo,
             redo: Redo,
             resetLayout: () => SetStatus("Layout reset requested."),
@@ -96,6 +98,12 @@ public sealed class EditorUi
             case Key.Y when ctrl:
                 Redo();
                 break;
+            case Key.S when ctrl:
+                SaveScene();
+                break;
+            case Key.R when ctrl:
+                ReloadScene();
+                break;
             case Key.Delete:
                 DeleteSelection();
                 break;
@@ -108,6 +116,60 @@ public sealed class EditorUi
     private void SetStatus(string message) => _statusBar.SetStatus(message);
     private void Undo() => SetStatus(_context.Undo() ? "Undo completed." : "Nothing to undo.");
     private void Redo() => SetStatus(_context.Redo() ? "Redo completed." : "Nothing to redo.");
+
+    private void SaveScene()
+    {
+        if (_sceneService == null)
+        {
+            SetStatus("No scene service configured.");
+            return;
+        }
+
+        try
+        {
+            if (_sceneService.Save(_world))
+            {
+                _context.MarkSaved();
+                SetStatus("Scene saved.");
+            }
+            else
+            {
+                SetStatus("Scene save was cancelled.");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Scene save failed: {ex.Message}");
+        }
+    }
+
+    private void ReloadScene()
+    {
+        if (_sceneService == null)
+        {
+            SetStatus("No scene service configured.");
+            return;
+        }
+
+        try
+        {
+            if (_sceneService.Reload(_world))
+            {
+                _context.MarkReloaded();
+                _context.Selection.Selected = null;
+                SetStatus("Scene reloaded.");
+                Refresh();
+            }
+            else
+            {
+                SetStatus("Scene reload was cancelled.");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Scene reload failed: {ex.Message}");
+        }
+    }
 
     private void RequestPropertyEdit(object target, string propertyName, object? oldValue, object? newValue)
     {

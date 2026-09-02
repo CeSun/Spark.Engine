@@ -225,6 +225,9 @@ public abstract class UIElement
     {
     }
 
+    /// <summary>带修饰键状态的键盘事件。默认转发到旧版单参数钩子，保持控件兼容。</summary>
+    protected internal virtual void OnKeyDown(Key key, KeyMask keysDown) => OnKeyDown(key);
+
     protected internal virtual void OnKeyUp(Key key)
     {
     }

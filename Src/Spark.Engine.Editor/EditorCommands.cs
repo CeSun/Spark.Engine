@@ -19,6 +19,13 @@ public sealed class EditorCommandHistory
     public bool CanUndo => _undo.Count != 0;
     public bool CanRedo => _redo.Count != 0;
 
+    /// <summary>清空历史；场景从磁盘重载后，旧命令已不再适用于当前对象图。</summary>
+    public void Clear()
+    {
+        _undo.Clear();
+        _redo.Clear();
+    }
+
     public void Execute(IEditorCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
