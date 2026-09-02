@@ -270,6 +270,13 @@ public abstract class UIElement
     {
     }
 
+    /// <summary>按指定鼠标键捕获拖拽。默认仅把左键转发到旧版拖拽钩子。</summary>
+    protected internal virtual void OnMouseDrag(Vector2 position, MouseButton button)
+    {
+        if (button == MouseButton.Left)
+            OnMouseDrag(position);
+    }
+
     /// <summary>鼠标悬停移动（未按下时也通知），由画布每帧通知当前 hovered 元素。</summary>
     protected internal virtual void OnMouseMove(Vector2 position)
     {
@@ -300,6 +307,11 @@ public abstract class UIElement
 
     /// <summary>IME 预编辑状态；组合串只用于预览，最终提交仍通过 <see cref="OnTextInput"/>。</summary>
     protected internal virtual void OnTextComposition(string text, bool isComposing)
+    {
+    }
+
+    /// <summary>当前输入帧；用于需要连续按键和帧时间的视口类控件。</summary>
+    protected internal virtual void OnInputFrame(InputState input, float deltaTime)
     {
     }
 

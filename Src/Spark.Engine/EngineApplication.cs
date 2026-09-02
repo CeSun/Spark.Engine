@@ -274,7 +274,7 @@ public class EngineApplication
 
             var canvas = _ui.GetOrCreateCanvas(viewport.Id);
             canvas.Size = window.Size;
-            canvas.Update(_input.GetState(window), _ui.Text);
+            canvas.Update(_input.GetState(window), _ui.Text, deltaTime);
             window.Input.ImeCandidatePosition = canvas.ImeCandidatePosition;
             canvas.Paint(_ui);
         }

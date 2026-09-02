@@ -206,17 +206,23 @@ public static class DemoApp
             ResolutionScale = 1.5f,
             MaintainAspectRatio = true,
         };
-        CameraComponent? offscreenCamera = null;
+        Guid? offscreenCameraGuid = null;
         renderViewControl.RenderViewResizeRequested = (oldId, width, height) =>
         {
             var next = app.CreateRenderView(width, height);
-            if (offscreenCamera != null)
-                offscreenCamera.RenderTarget = next;
+            var editorWorld = app.WorldContext.CurrentWorld;
+            var currentCamera = editorWorld == null
+                ? null
+                : FindComponent<CameraComponent>(editorWorld, offscreenCameraGuid);
+            if (currentCamera != null)
+                currentCamera.RenderTarget = next;
             if (app.RenderTargets.TryGet(oldId, out var oldTarget) && oldTarget is TextureRenderTarget oldTex)
                 app.DestroyRenderView(oldTex);
             return next.Id;
         };
-        offscreenCamera = AddCamera(world, renderView, eye: new Vector3(-3f, 3f, 3f), lookAt: new Vector3(0f, 0f, -2f));
+        var offscreenCamera = AddCamera(world, renderView, eye: new Vector3(-3f, 3f, 3f),
+            lookAt: new Vector3(0f, 0f, -2f), editorOnly: true);
+        offscreenCameraGuid = offscreenCamera.ComponentGuid;
 
         editorUi.SetPictureInPicture(renderViewControl);
     }
@@ -258,7 +264,12 @@ public static class DemoApp
     }
 
     /// <summary>创建相机 Actor 并摆到指定视角（WorldTransform = R·T，GetViewMatrix = Invert(WorldTransform)）。</summary>
-    private static CameraComponent AddCamera(World world, RenderTarget target, Vector3 eye, Vector3 lookAt)
+    private static CameraComponent AddCamera(
+        World world,
+        RenderTarget target,
+        Vector3 eye,
+        Vector3 lookAt,
+        bool editorOnly = false)
     {
         var camera = new CameraComponent { RenderTarget = target };
 
@@ -267,7 +278,7 @@ public static class DemoApp
         camera.RelativeLocation = eye;
         camera.RelativeRotation = System.Numerics.Quaternion.CreateFromRotationMatrix(cameraWorld);
 
-        var actor = new Actor();
+        var actor = editorOnly ? new EditorViewportCameraActor() : new Actor();
         actor.AddOwnedComponent(camera);
         world.AddActor(actor);
         return camera;

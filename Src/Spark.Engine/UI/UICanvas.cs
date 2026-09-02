@@ -26,7 +26,7 @@ public sealed class UICanvas
     public List<UIElement> Overlays { get; } = new();
 
     private UIElement? _hovered;
-    private UIElement? _pressed;
+    private readonly UIElement?[] _pressedButtons = new UIElement?[8];
     private UIElement? _focused;
 
     /// <summary>焦点是否由键盘导航触发（:focus-visible 语义）。仅当为 true 时绘制焦点环。</summary>
@@ -50,7 +50,7 @@ public sealed class UICanvas
     }
 
     /// <summary>两阶段布局根控件到画布尺寸，并路由输入事件（每帧在 <see cref="Paint"/> 前调用）。</summary>
-    public void Update(InputState input, TextRenderer? textRenderer = null)
+    public void Update(InputState input, TextRenderer? textRenderer = null, float deltaTime = 0f)
     {
         if (Root == null || Size.X <= 0f || Size.Y <= 0f)
             return;
@@ -58,7 +58,7 @@ public sealed class UICanvas
         Layout(textRenderer);
 
         int overlayCount = Overlays.Count;
-        RouteInput(input);
+        RouteInput(input, deltaTime);
 
         // RouteInput 可能替换 Root（如按钮点击切换页面）：新 Root 尚未布局，
         // 立即补一次布局，避免当帧 Paint 空白（闪烁露出底层 3D 场景）。
@@ -194,7 +194,7 @@ public sealed class UICanvas
         return Root!.HitTest(point);
     }
 
-    private void RouteInput(InputState input)
+    private void RouteInput(InputState input, float deltaTime)
     {
         var point = input.MousePosition;
 
@@ -210,35 +210,55 @@ public sealed class UICanvas
         // 未按下时也通知悬停移动（用于 hover 态 / 悬停命中检测，如分割条）
         _hovered?.OnMouseMove(point);
 
-        // 鼠标按下/抬起/点击
-        if (input.IsButtonPressed(MouseButton.Left))
+        // 连续输入首先送达悬停项和已捕获项；按下事件随后可基于同一帧状态处理。
+        _hovered?.OnInputFrame(input, deltaTime);
+        for (var index = 0; index < _pressedButtons.Length; index++)
         {
-            _pressed = hovered;
-            _pressed?.OnMouseDown(MouseButton.Left);
-            if (_pressed is { Focusable: true })
-                Focus(_pressed, focusVisible: false); // 鼠标聚焦不显示焦点环
-            else if (_pressed == null)
-                ClearFocus(); // P6: 点击空白取消焦点
-
-            // 任何鼠标按下都清除 focus-visible（用户切换到鼠标交互）
-            _focusVisible = false;
+            var captured = _pressedButtons[index];
+            if (captured == null || ReferenceEquals(captured, _hovered))
+                continue;
+            var alreadyNotified = false;
+            for (var previous = 0; previous < index; previous++)
+                alreadyNotified |= ReferenceEquals(_pressedButtons[previous], captured);
+            if (!alreadyNotified)
+                captured.OnInputFrame(input, deltaTime);
         }
 
-        if (input.IsButtonReleased(MouseButton.Left))
+        // 所有鼠标键均可捕获；Click 仍只由左键产生，保持现有控件行为。
+        for (var index = 0; index < _pressedButtons.Length; index++)
         {
+            var button = (MouseButton)index;
+            if (input.IsButtonPressed(button))
+            {
+                _pressedButtons[index] = hovered;
+                hovered?.OnMouseDown(button);
+                if (hovered is { Focusable: true })
+                    Focus(hovered, focusVisible: false);
+                else if (button == MouseButton.Left && hovered == null)
+                    ClearFocus();
+                _focusVisible = false;
+            }
+
+            if (!input.IsButtonReleased(button))
+                continue;
             var released = HitTestTop(point);
-            var target = _pressed ?? released;
-            target?.OnMouseUp(MouseButton.Left, point, input.KeysDown);
+            var captured = _pressedButtons[index];
+            var target = captured ?? released;
+            target?.OnMouseUp(button, point, input.KeysDown);
 
-            if (_pressed != null && _pressed == released)
-                _pressed.OnMouseClick(input.KeysDown);
+            if (button == MouseButton.Left && captured != null && ReferenceEquals(captured, released))
+                captured.OnMouseClick(input.KeysDown);
 
-            _pressed = null;
+            _pressedButtons[index] = null;
         }
 
-        // 拖拽：按住期间每帧通知被按住的元素
-        if (_pressed != null)
-            _pressed.OnMouseDrag(point);
+        // 拖拽：每个按住的鼠标键独立通知其捕获元素。
+        for (var index = 0; index < _pressedButtons.Length; index++)
+        {
+            var button = (MouseButton)index;
+            if (input.IsButtonDown(button))
+                _pressedButtons[index]?.OnMouseDrag(point, button);
+        }
 
         // 滚轮：路由到 hovered 元素（沿祖先链向上冒泡寻找处理者）
         if (input.ScrollDelta != 0f)

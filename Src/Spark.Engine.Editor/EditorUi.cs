@@ -26,9 +26,11 @@ public sealed class EditorUi
     private readonly EditorContext _context;
     private readonly IEditorSceneService? _sceneService;
     private readonly TransformGizmoController _gizmo = new();
+    private readonly EditorCameraController _cameraController = new();
     private GizmoOperation _gizmoOperation = GizmoOperation.Move;
     private GizmoSpace _gizmoSpace = GizmoSpace.World;
     private bool _suppressViewportClick;
+    private UIRenderView? _renderViewControl;
 
     private object? _selectedTarget;
 
@@ -109,6 +111,7 @@ public sealed class EditorUi
     public GizmoSpace ActiveGizmoSpace => _gizmoSpace;
     public bool IsGizmoDragging => _gizmo.IsDragging;
     public bool GridSnapEnabled => _gizmo.SnapSettings.Enabled;
+    public EditorCameraNavigationMode CameraNavigationMode => _cameraController.Mode;
     public Vector3 TranslationSnapIncrement
     {
         get => _gizmo.SnapSettings.TranslationIncrement;
@@ -148,6 +151,7 @@ public sealed class EditorUi
     {
         try
         {
+            _cameraController.Cancel();
             if (_context.PlayState == EditorPlayState.Play)
             {
                 _context.Stop();
@@ -200,6 +204,9 @@ public sealed class EditorUi
                 break;
             case Key.F2:
                 RenameSelection();
+                break;
+            case Key.F:
+                FocusSelectionInViewport();
                 break;
         }
     }
@@ -392,10 +399,12 @@ public sealed class EditorUi
     public void SetPictureInPicture(UIRenderView control)
     {
         ArgumentNullException.ThrowIfNull(control);
+        _renderViewControl = control;
         control.ClickedWithModifiers += (point, keysDown) => HandleViewportClick(control, point, keysDown);
         control.PointerPressed += point => HandleViewportPointerPressed(control, point);
         control.PointerDragged += point => HandleViewportPointerDragged(control, point);
         control.PointerReleased += point => HandleViewportPointerReleased(control, point);
+        control.InputUpdated += (input, deltaTime) => HandleViewportInput(control, input, deltaTime);
         control.OverlayPainter = PaintGizmoOverlay;
         var resizeRequested = control.RenderViewResizeRequested;
         if (resizeRequested != null)
@@ -546,6 +555,8 @@ public sealed class EditorUi
 
     private void HandleViewportPointerPressed(UIRenderView control, Vector2 point)
     {
+        if (_cameraController.IsNavigating)
+            return;
         if (_context.PlayState != EditorPlayState.Edit || _context.Selection.Selected is not SceneComponent component)
             return;
         var camera = FindViewportCamera(control.RenderViewId);
@@ -570,6 +581,41 @@ public sealed class EditorUi
         EndGizmoDrag();
         _suppressViewportClick = true;
     }
+
+    private void HandleViewportInput(UIRenderView control, InputState input, float deltaTime)
+    {
+        var camera = FindViewportCamera(control.RenderViewId);
+        if (camera == null)
+            return;
+        var alt = input.KeysDown.IsDown(Key.LeftAlt) || input.KeysDown.IsDown(Key.RightAlt);
+        if (alt && input.IsButtonPressed(MouseButton.Left))
+            _suppressViewportClick = true;
+        var pivot = _context.PlayState == EditorPlayState.Edit
+            ? GetSelectedSpatialComponents().LastOrDefault()?.WorldTransform.Translation
+            : null;
+        _cameraController.Update(camera, input, deltaTime, pivot);
+    }
+
+    private void FocusSelectionInViewport()
+    {
+        if (_renderViewControl == null)
+            return;
+        var camera = FindViewportCamera(_renderViewControl.RenderViewId);
+        var targets = GetSelectedSpatialComponents();
+        if (camera == null || targets.Count == 0 || !_cameraController.Focus(camera, targets))
+        {
+            SetStatus("Select a spatial object to focus.");
+            return;
+        }
+        SetStatus(targets.Count == 1 ? "Focused selected object." : $"Focused {targets.Count} selected objects.");
+    }
+
+    private IReadOnlyList<SceneComponent> GetSelectedSpatialComponents()
+        => _context.Selection.Items.Select(GetSpatialComponent)
+            .Where(component => component != null)
+            .Cast<SceneComponent>()
+            .Distinct()
+            .ToArray();
 
     private void HandleHierarchyDrop(object draggedTarget, object dropTarget, Vector2 position)
     {
@@ -625,7 +671,7 @@ public sealed class EditorUi
     }
 
     private CameraComponent? FindViewportCamera(int targetId)
-        => _context.World.EnumerateActors(includePendingActors: true)
+        => _context.ActiveWorld.EnumerateActors(includePendingActors: true)
             .SelectMany(actor => actor.Components)
             .OfType<CameraComponent>()
             .FirstOrDefault(item => item.RenderTarget?.Id == targetId);

@@ -381,6 +381,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - 自定义 `.scene` / `.asset` 场景资产与 Windows `.pak` Cook
 - glTF StaticMesh 导入（保留节点层级）
 - 层级树/Viewport 多选、批量删除、Socket 拖放挂载和 Actor 深复制
+- 瞬态编辑器相机：右键飞行、Middle 平移、Alt+Left 轨道、滚轮推拉、`F` 聚焦，Reload/Play 不污染场景
 
 ### P1 —— 性能与稳定性
 

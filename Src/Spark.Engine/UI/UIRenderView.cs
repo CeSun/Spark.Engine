@@ -33,6 +33,7 @@ public sealed class UIRenderView : UIElement
     public event Action<Vector2>? PointerPressed;
     public event Action<Vector2>? PointerDragged;
     public event Action<Vector2>? PointerReleased;
+    public event Action<InputState, float>? InputUpdated;
     public Action<UIManager, int, UIRect, int>? OverlayPainter { get; set; }
     /// <summary>渲染视图 ID（由 UIManager.RegisterRenderView 分配）。</summary>
     public int RenderViewId { get; set; }
@@ -61,6 +62,7 @@ public sealed class UIRenderView : UIElement
     public UIRenderView()
     {
         ClipToBounds = true;
+        Focusable = true;
     }
 
     protected override UISize OnMeasure(UISize availableSize)
@@ -129,6 +131,9 @@ public sealed class UIRenderView : UIElement
         Clicked?.Invoke(_lastPointerPosition);
         ClickedWithModifiers?.Invoke(_lastPointerPosition, keysDown);
     }
+
+    protected internal override void OnInputFrame(InputState input, float deltaTime)
+        => InputUpdated?.Invoke(input, deltaTime);
 
     /// <summary>显示尺寸变化超过阈值时请求重建离屏渲染目标。</summary>
     private void TryRequestResize(UIManager ui)

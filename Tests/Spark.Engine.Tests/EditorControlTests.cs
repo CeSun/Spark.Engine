@@ -65,6 +65,34 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void RenderView_ReceivesContinuousInputWhileRightMouseIsCaptured()
+    {
+        var view = new UIRenderView();
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 100f), Root = view };
+        var renderer = CreateTextRenderer();
+        var updates = 0;
+        var lastDeltaTime = 0f;
+        var clicks = 0;
+        view.InputUpdated += (_, deltaTime) => { updates++; lastDeltaTime = deltaTime; };
+        view.Clicked += _ => clicks++;
+        canvas.Update(default, renderer);
+        updates = 0;
+        var right = default(MouseButtonMask);
+        right.Set(MouseButton.Right, true);
+
+        canvas.Update(new InputState(new Vector2(50f), Vector2.Zero, 0f,
+            right, right, default, default, default, default, string.Empty), renderer, 0.02f);
+        canvas.Update(new InputState(new Vector2(250f, 50f), new Vector2(200f, 0f), 0f,
+            right, default, default, default, default, default, string.Empty), renderer, 0.03f);
+        canvas.Update(new InputState(new Vector2(250f, 50f), Vector2.Zero, 0f,
+            default, default, right, default, default, default, string.Empty), renderer, 0.04f);
+
+        Assert.Equal(3, updates);
+        Assert.Equal(0.04f, lastDeltaTime);
+        Assert.Equal(0, clicks);
+    }
+
+    [Fact]
     public void TextBox_ExplicitZeroWidth_FillsParentInsteadOfGrowingWithText()
     {
         var root = new UIStackPanel { Orientation = UIOrientation.Vertical };

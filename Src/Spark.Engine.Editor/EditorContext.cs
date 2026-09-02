@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Numerics;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Resources;
@@ -177,6 +178,7 @@ public sealed class EditorContext : IDisposable
             previous.Scene.ResourceManager, AssetRegistry, RuntimeActorFactory);
         try
         {
+            CloneEditorViewportCameras(previous, next);
             BindCameraTargets(previous, next);
             next.Update(0f, tickActors: false);
         }
@@ -210,6 +212,7 @@ public sealed class EditorContext : IDisposable
         var runtime = document.InstantiateWorld(World.Scene.ResourceManager, AssetRegistry, RuntimeActorFactory);
         try
         {
+            CloneEditorViewportCameras(World, runtime);
             RuntimeWorldInitializer?.Invoke(runtime);
             BindCameraTargets(World, runtime);
             _worldContext?.SetRuntimeWorld(runtime);
@@ -281,6 +284,37 @@ public sealed class EditorContext : IDisposable
         {
             if (editorCamerasByGuid.TryGetValue(runtimeCamera.ComponentGuid, out var editorCamera))
                 runtimeCamera.RenderTarget = editorCamera.RenderTarget;
+        }
+    }
+
+    private static void CloneEditorViewportCameras(World sourceWorld, World destination)
+    {
+        foreach (var source in sourceWorld.EnumerateActors(includePendingActors: true)
+                     .Where(actor => Attribute.IsDefined(
+                         actor.GetType(), typeof(SceneTransientAttribute), inherit: true))
+                     .SelectMany(actor => actor.Components)
+                     .OfType<CameraComponent>()
+                     .Where(camera => camera.RenderTarget != null))
+        {
+            if (!Matrix4x4.Decompose(source.WorldTransform, out var scale, out var rotation, out var location))
+                continue;
+            var camera = new CameraComponent
+            {
+                ComponentGuid = source.ComponentGuid,
+                RenderTarget = source.RenderTarget,
+                FieldOfView = source.FieldOfView,
+                NearPlane = source.NearPlane,
+                FarPlane = source.FarPlane,
+                ClearColor = source.ClearColor,
+                RelativeLocation = location,
+                RelativeRotation = rotation,
+                RelativeScale = scale,
+            };
+            foreach (var socket in source.Sockets)
+                camera.DefineSocket(socket.Key, socket.Value);
+            var actor = new EditorViewportCameraActor { Name = source.Owner?.Name ?? "Editor Viewport Camera" };
+            actor.AddOwnedComponent(camera);
+            destination.AddActor(actor);
         }
     }
 
