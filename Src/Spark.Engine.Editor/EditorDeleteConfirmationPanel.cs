@@ -13,6 +13,10 @@ internal sealed class EditorDeleteConfirmationPanel : UIElement
     public EditorDeleteConfirmationPanel(Action<Actor> confirmed)
     {
         _confirmed = confirmed ?? throw new ArgumentNullException(nameof(confirmed));
+        // The dialog is registered on UICanvas.Overlays when shown. Keep this
+        // carrier hidden so it never participates in the editor's layout or
+        // paints once as a normal child and again as an overlay.
+        Visible = false;
         _dialog = new UIDialog
         {
             Title = "Delete Actor",
