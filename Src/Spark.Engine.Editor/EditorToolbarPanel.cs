@@ -16,7 +16,8 @@ internal sealed class EditorToolbarPanel : UIElement
         Action duplicate,
         Action rename,
         Action delete,
-        Action play)
+        Action play,
+        Action openControlTests)
     {
         _toolbar = new UIToolbar
         {
@@ -35,6 +36,7 @@ internal sealed class EditorToolbarPanel : UIElement
         _toolbar.AddButton("Delete", delete);
         _toolbar.AddSeparator();
         _toolbar.AddButton("Play", play);
+        _toolbar.AddButton("UI Tests", openControlTests);
 
         AddChild(_toolbar);
     }

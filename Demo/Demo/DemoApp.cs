@@ -175,6 +175,8 @@ public static class DemoApp
     /// <summary>配置由 <c>UseEditor()</c> 创建的编辑器视口。</summary>
     public static void ConfigureEditor(EngineApplication app, EditorUi editorUi)
     {
+        editorUi.SetControlTestWindowLauncher(() => ControlTestWindow.Open(app));
+
         var world = app.WorldContext.CurrentWorld
             ?? throw new InvalidOperationException("The demo world must be initialized before the editor.");
 

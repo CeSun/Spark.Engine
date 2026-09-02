@@ -20,6 +20,7 @@ public sealed class EditorUi
     private readonly EditorInspectorPanel _inspector;
     private readonly EditorViewportPanel _viewport;
     private readonly EditorStatusBarPanel _statusBar;
+    private readonly EditorToolbarPanel _toolbar;
     private readonly EditorContext _context;
     private readonly IEditorSceneService? _sceneService;
 
@@ -47,7 +48,7 @@ public sealed class EditorUi
             resetLayout: () => SetStatus("Layout reset requested."),
             backToHub));
 
-        root.AddChild(new EditorToolbarPanel(
+        _toolbar = new EditorToolbarPanel(
             select: () => SetStatus("Select tool active."),
             move: () => SetStatus("Move tool active."),
             rotate: () => SetStatus("Rotate tool active."),
@@ -56,7 +57,9 @@ public sealed class EditorUi
             duplicate: DuplicateSelection,
             rename: RenameSelection,
             delete: DeleteSelection,
-            play: () => SetStatus("Play requested.")));
+            play: () => SetStatus("Play requested."),
+            openControlTests: () => _openControlTests?.Invoke());
+        root.AddChild(_toolbar);
 
         // 中部：层级 + 视口（透明）+ 检查器
         var content = new UIStackPanel { Orientation = UIOrientation.Horizontal, FixedSize = new UISize(0f, 0f) };
@@ -80,6 +83,14 @@ public sealed class EditorUi
         _hierarchy.SelectionChanged += target => _context.Selection.Selected = target;
         _context.Selection.Changed += _ => UpdateInspector();
         _context.DirtyChanged += _ => UpdateInspectorTitle();
+    }
+
+    private Action? _openControlTests;
+
+    /// <summary>绑定宿主提供的控件测试窗口入口。</summary>
+    public void SetControlTestWindowLauncher(Action launcher)
+    {
+        _openControlTests = launcher ?? throw new ArgumentNullException(nameof(launcher));
     }
 
     /// <summary>处理 Canvas 级编辑器快捷键。</summary>
