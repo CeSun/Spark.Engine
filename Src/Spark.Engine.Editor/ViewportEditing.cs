@@ -152,6 +152,74 @@ public enum GizmoAxis : byte
     Z,
 }
 
+/// <summary>编辑器变换吸附设置。增量必须为有限正数；Enabled=false 时保留原始连续变换。</summary>
+public sealed class TransformSnapSettings
+{
+    public bool Enabled { get; set; } = true;
+    private Vector3 _translationIncrement = Vector3.One;
+    private float _rotationIncrementDegrees = 15f;
+    private Vector3 _scaleIncrement = new(0.1f);
+
+    public Vector3 TranslationIncrement
+    {
+        get => _translationIncrement;
+        set { ValidateIncrement(value, nameof(TranslationIncrement)); _translationIncrement = value; }
+    }
+
+    public float RotationIncrementDegrees
+    {
+        get => _rotationIncrementDegrees;
+        set
+        {
+            if (!float.IsFinite(value) || value <= 0f)
+                throw new ArgumentOutOfRangeException(nameof(RotationIncrementDegrees), "Rotation increment must be finite and greater than zero.");
+            _rotationIncrementDegrees = value;
+        }
+    }
+
+    public Vector3 ScaleIncrement
+    {
+        get => _scaleIncrement;
+        set { ValidateIncrement(value, nameof(ScaleIncrement)); _scaleIncrement = value; }
+    }
+
+    public void Validate()
+    {
+        ValidateIncrement(TranslationIncrement, nameof(TranslationIncrement));
+        if (!float.IsFinite(RotationIncrementDegrees) || RotationIncrementDegrees <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(RotationIncrementDegrees), "Rotation increment must be finite and greater than zero.");
+        ValidateIncrement(ScaleIncrement, nameof(ScaleIncrement));
+    }
+
+    public float SnapTranslationDelta(float delta, GizmoAxis axis)
+        => Enabled ? Snap(delta, GetAxisIncrement(TranslationIncrement, axis)) : delta;
+
+    public float SnapRotationDelta(float radians)
+        => Enabled ? Snap(radians, RotationIncrementDegrees * (MathF.PI / 180f)) : radians;
+
+    public float SnapScaleDelta(float delta, GizmoAxis axis)
+        => Enabled ? Snap(delta, GetAxisIncrement(ScaleIncrement, axis)) : delta;
+
+    private static float GetAxisIncrement(Vector3 increment, GizmoAxis axis) => axis switch
+    {
+        GizmoAxis.X => increment.X,
+        GizmoAxis.Y => increment.Y,
+        _ => increment.Z,
+    };
+
+    private static float Snap(float value, float increment)
+        => increment > 0f && float.IsFinite(value)
+            ? MathF.Round(value / increment, MidpointRounding.AwayFromZero) * increment
+            : value;
+
+    private static void ValidateIncrement(Vector3 value, string name)
+    {
+        if (!float.IsFinite(value.X) || !float.IsFinite(value.Y) || !float.IsFinite(value.Z) ||
+            value.X <= 0f || value.Y <= 0f || value.Z <= 0f)
+            throw new ArgumentOutOfRangeException(name, "All increments must be finite and greater than zero.");
+    }
+}
+
 public readonly record struct GizmoAxisHit(GizmoAxis Axis, float Distance);
 public readonly record struct GizmoAxisSegment(GizmoAxis Axis, Vector2 Start, Vector2 End);
 
@@ -175,6 +243,8 @@ public sealed class TransformGizmoController
     private Vector3 _oldScale;
     private Matrix4x4 _oldWorldTransform;
     private bool _dragging;
+
+    public TransformSnapSettings SnapSettings { get; } = new();
 
     public bool IsDragging => _dragging;
     public GizmoAxis Axis => _axis;
@@ -305,12 +375,13 @@ public sealed class TransformGizmoController
         if (_space == GizmoSpace.Local)
         {
             var localAxis = AxisVector(_axis);
-            _target.RelativeLocation = _oldLocation + localAxis * scalar;
+            var snappedScalar = SnapSettings.SnapTranslationDelta(scalar, _axis);
+            _target.RelativeLocation = _oldLocation + localAxis * snappedScalar;
             return;
         }
 
         var desiredWorld = _oldWorldTransform;
-        desiredWorld.Translation += _axisWorld * scalar;
+        desiredWorld.Translation += _axisWorld * SnapSettings.SnapTranslationDelta(scalar, _axis);
         ApplyWorldTransform(_target, desiredWorld);
     }
 
@@ -323,6 +394,7 @@ public sealed class TransformGizmoController
         if (start.LengthSquared() < 0.0001f || current.LengthSquared() < 0.0001f)
             return;
         var angle = MathF.Atan2(start.X * current.Y - start.Y * current.X, Vector2.Dot(start, current));
+        angle = SnapSettings.SnapRotationDelta(angle);
         var rotation = Quaternion.CreateFromAxisAngle(_space == GizmoSpace.Local ? AxisVector(_axis) : _axisWorld, angle);
         _target.RelativeRotation = Quaternion.Normalize(Quaternion.Concatenate(_oldRotation, rotation));
     }
@@ -331,7 +403,7 @@ public sealed class TransformGizmoController
     {
         if (_target == null)
             return;
-        var factor = MathF.Max(0.01f, 1f + scalar);
+        var factor = MathF.Max(0.01f, 1f + SnapSettings.SnapScaleDelta(scalar, _axis));
         var scale = _oldScale;
         switch (_axis)
         {

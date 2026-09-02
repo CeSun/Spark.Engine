@@ -494,6 +494,48 @@ public sealed class SceneDocumentTests
         Assert.True(component.RelativeLocation.X > 0.4f);
     }
 
+    [Fact]
+    public void TransformSnapSettingsRoundToConfiguredIncrements()
+    {
+        var settings = new TransformSnapSettings
+        {
+            TranslationIncrement = new Vector3(1f, 2f, 0.5f),
+            RotationIncrementDegrees = 15f,
+            ScaleIncrement = new Vector3(0.1f),
+        };
+
+        Assert.Equal(2f, settings.SnapTranslationDelta(1.6f, GizmoAxis.X));
+        Assert.Equal(-2f, settings.SnapTranslationDelta(-1.1f, GizmoAxis.Y));
+        Assert.Equal(0.5f, settings.SnapTranslationDelta(0.26f, GizmoAxis.Z));
+        Assert.Equal(15f * MathF.PI / 180f, settings.SnapRotationDelta(22f * MathF.PI / 180f), 5);
+        Assert.Equal(0.2f, settings.SnapScaleDelta(0.17f, GizmoAxis.X));
+
+        settings.Enabled = false;
+        Assert.Equal(1.6f, settings.SnapTranslationDelta(1.6f, GizmoAxis.X));
+    }
+
+    [Fact]
+    public void TransformGizmoMoveUsesSnappedDeltaFromDragStart()
+    {
+        using var world = new World(new ResourceManager());
+        var cameraActor = new Actor();
+        var camera = new CameraComponent();
+        cameraActor.AddOwnedComponent(camera);
+        world.AddActor(cameraActor);
+        var actor = new Actor { Name = "Target" };
+        var component = new SceneComponent { RelativeLocation = new Vector3(0f, 0f, -4f) };
+        actor.AddOwnedComponent(component);
+        world.AddActor(actor);
+        world.Update(0.016f);
+
+        var gizmo = new TransformGizmoController();
+        gizmo.SnapSettings.TranslationIncrement = new Vector3(1f);
+        Assert.True(gizmo.BeginDrag(component, camera, new Vector2(58f, 50f), new Vector2(100f, 100f), GizmoOperation.Move, GizmoSpace.World));
+        Assert.True(gizmo.UpdateDrag(new Vector2(68f, 50f)));
+        Assert.Equal(1f, component.RelativeLocation.X, 3);
+        gizmo.CancelDrag();
+    }
+
     private static StaticMesh CreateTestMesh(Vector3 center, float size)
     {
         var vertices = new[]

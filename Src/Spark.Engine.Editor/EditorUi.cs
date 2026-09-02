@@ -63,7 +63,8 @@ public sealed class EditorUi
             rename: RenameSelection,
             delete: DeleteSelection,
             play: TogglePlay,
-            openControlTests: () => _openControlTests?.Invoke());
+            openControlTests: () => _openControlTests?.Invoke(),
+            toggleSnap: ToggleGridSnap);
         root.AddChild(_toolbar);
 
         // 中部：层级 + 视口（透明）+ 检查器
@@ -98,6 +99,29 @@ public sealed class EditorUi
     public GizmoOperation ActiveGizmoOperation => _gizmoOperation;
     public GizmoSpace ActiveGizmoSpace => _gizmoSpace;
     public bool IsGizmoDragging => _gizmo.IsDragging;
+    public bool GridSnapEnabled => _gizmo.SnapSettings.Enabled;
+    public Vector3 TranslationSnapIncrement
+    {
+        get => _gizmo.SnapSettings.TranslationIncrement;
+        set => _gizmo.SnapSettings.TranslationIncrement = value;
+    }
+    public float RotationSnapIncrementDegrees
+    {
+        get => _gizmo.SnapSettings.RotationIncrementDegrees;
+        set => _gizmo.SnapSettings.RotationIncrementDegrees = value;
+    }
+    public Vector3 ScaleSnapIncrement
+    {
+        get => _gizmo.SnapSettings.ScaleIncrement;
+        set => _gizmo.SnapSettings.ScaleIncrement = value;
+    }
+
+    public void ToggleGridSnap()
+    {
+        _gizmo.SnapSettings.Enabled = !_gizmo.SnapSettings.Enabled;
+        _toolbar.SetSnapEnabled(_gizmo.SnapSettings.Enabled);
+        SetStatus(_gizmo.SnapSettings.Enabled ? "Grid snapping enabled." : "Grid snapping disabled.");
+    }
 
     /// <summary>注册 RuntimeWorld 创建后的宿主行为恢复逻辑。</summary>
     public void SetRuntimeWorldInitializer(Action<World> initializer)

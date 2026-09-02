@@ -6,6 +6,7 @@ namespace Spark.Engine.Editor;
 internal sealed class EditorToolbarPanel : UIElement
 {
     private readonly UIToolbar _toolbar;
+    private readonly UIToolbarButton _snapButton;
 
     public EditorToolbarPanel(
         Action select,
@@ -17,7 +18,8 @@ internal sealed class EditorToolbarPanel : UIElement
         Action rename,
         Action delete,
         Action play,
-        Action openControlTests)
+        Action openControlTests,
+        Action toggleSnap)
     {
         _toolbar = new UIToolbar
         {
@@ -29,6 +31,8 @@ internal sealed class EditorToolbarPanel : UIElement
         _toolbar.AddButton("Move", move);
         _toolbar.AddButton("Rotate", rotate);
         _toolbar.AddButton("Scale", scale);
+        _snapButton = _toolbar.AddButton("Snap: On", toggleSnap);
+        _snapButton.Tooltip = "Toggle transform grid snapping";
         _toolbar.AddSeparator();
         _toolbar.AddButton("Add Actor", addActor);
         _toolbar.AddButton("Duplicate", duplicate);
@@ -40,6 +44,8 @@ internal sealed class EditorToolbarPanel : UIElement
 
         AddChild(_toolbar);
     }
+
+    public void SetSnapEnabled(bool enabled) => _snapButton.Text = enabled ? "Snap: On" : "Snap: Off";
 
     protected override UISize OnMeasure(UISize availableSize)
     {
