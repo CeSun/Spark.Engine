@@ -158,6 +158,9 @@ void DetachFromComponent(DetachmentTransformRules rules);
 `SetupAttachment` 用于构造和场景加载阶段，记录待注册的父节点和 Socket；`AttachToComponent` 用于编辑器操作和运行时动态挂载。
 注册/BeginPlay 后的挂载必须更新代理、包围盒和渲染线程同步数据。组件销毁或 Actor 移出 World 时，先解除层级关系，再注销 SceneProxy。
 
+Actor 移出 World 时仅解除跨 Actor 挂载，Actor 自己拥有的组件树保持不变。挂在被移除 Actor 下的其他 Actor
+使用 `KeepWorldTransform` 脱离，不级联删除；若待移除操作在生命周期提交前被撤销，则恢复原父组件、Socket 和局部变换。
+
 ## 7. 编辑器与运行时 World 隔离
 
 编辑器必须保持编辑对象静止，游戏运行时使用独立 World：

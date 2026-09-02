@@ -2,6 +2,7 @@ using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Render;
 using Spark.Engine.Resources;
+using System.Numerics;
 using System.Runtime.ExceptionServices;
 
 namespace Spark.Engine.Worlds;
@@ -11,6 +12,7 @@ public class World : IDisposable
     private List<Actor> _actors = [];
     private List<Actor> _pendingAddActors = [];
     private List<Actor> _pendingRemoveActors = [];
+    private readonly Dictionary<Actor, List<ExternalAttachmentState>> _detachedAttachments = [];
     private readonly HashSet<SceneResource> _ownedResources = [];
     private int _disposed;
 
@@ -60,8 +62,12 @@ public class World : IDisposable
         if (actor == null) throw new ArgumentNullException(nameof(actor));
         if (actor.World != null && !ReferenceEquals(actor.World, this))
             throw new InvalidOperationException("An Actor cannot belong to multiple Worlds.");
-        if (_pendingRemoveActors.Remove(actor))
+        if (_pendingRemoveActors.Contains(actor))
+        {
+            RestoreExternalAttachments(actor);
+            _pendingRemoveActors.Remove(actor);
             return;
+        }
         if (_actors.Contains(actor) || _pendingAddActors.Contains(actor))
             return;
 
@@ -77,6 +83,7 @@ public class World : IDisposable
         // 同帧 Add 后 Remove：取消添加，actor 从不进入世界，代理不泄漏（中2）
         if (_pendingAddActors.Remove(actor))
         {
+            DetachExternalAttachments(actor);
             actor.SetWorld(null);
             return;
         }
@@ -84,6 +91,7 @@ public class World : IDisposable
         if (!_actors.Contains(actor) || _pendingRemoveActors.Contains(actor))
             return;
 
+        _detachedAttachments[actor] = DetachExternalAttachments(actor);
         _pendingRemoveActors.Add(actor);
     }
 
@@ -132,6 +140,7 @@ public class World : IDisposable
                 _actors.Remove(actor);
                 actor.SetWorld(null);
                 _pendingRemoveActors.Remove(actor);
+                _detachedAttachments.Remove(actor);
             }
         }
 
@@ -220,15 +229,20 @@ public class World : IDisposable
             return;
 
         foreach (var actor in _pendingAddActors)
+        {
+            DetachExternalAttachments(actor);
             actor.SetWorld(null);
+        }
         _pendingAddActors.Clear();
         _pendingRemoveActors.Clear();
+        _detachedAttachments.Clear();
 
         Exception? firstException = null;
         foreach (var actor in _actors.ToArray())
         {
             try
             {
+                DetachExternalAttachments(actor);
                 DeactivateActor(actor);
             }
             catch (Exception ex)
@@ -282,4 +296,55 @@ public class World : IDisposable
         if (firstException != null)
             ExceptionDispatchInfo.Capture(firstException).Throw();
     }
+
+    private static List<ExternalAttachmentState> DetachExternalAttachments(Actor actor)
+    {
+        var states = new List<ExternalAttachmentState>();
+        var seenChildren = new HashSet<SceneComponent>();
+        foreach (var component in actor.Components.OfType<SceneComponent>().ToArray())
+        {
+            if (component.AttachParent is { } externalParent && !ReferenceEquals(externalParent.Owner, actor))
+                Detach(component, externalParent);
+
+            foreach (var child in component.AttachChildren.ToArray())
+            {
+                if (!ReferenceEquals(child.Owner, actor))
+                    Detach(child, component);
+            }
+        }
+        return states;
+
+        void Detach(SceneComponent child, SceneComponent parent)
+        {
+            if (!seenChildren.Add(child))
+                return;
+            states.Add(new ExternalAttachmentState(
+                child, parent, child.AttachSocketName,
+                child.RelativeLocation, child.RelativeRotation, child.RelativeScale));
+            child.DetachFromComponent(DetachmentTransformRules.KeepWorldTransform);
+        }
+    }
+
+    private void RestoreExternalAttachments(Actor actor)
+    {
+        if (!_detachedAttachments.TryGetValue(actor, out var states))
+            return;
+        foreach (var state in states)
+        {
+            state.Child.AttachToComponent(
+                state.Parent, AttachmentTransformRules.KeepRelativeTransform, state.SocketName);
+            state.Child.RelativeLocation = state.RelativeLocation;
+            state.Child.RelativeRotation = state.RelativeRotation;
+            state.Child.RelativeScale = state.RelativeScale;
+        }
+        _detachedAttachments.Remove(actor);
+    }
+
+    private sealed record ExternalAttachmentState(
+        SceneComponent Child,
+        SceneComponent Parent,
+        string? SocketName,
+        Vector3 RelativeLocation,
+        Quaternion RelativeRotation,
+        Vector3 RelativeScale);
 }

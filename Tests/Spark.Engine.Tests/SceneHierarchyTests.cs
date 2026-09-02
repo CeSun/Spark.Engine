@@ -131,4 +131,73 @@ public sealed class SceneHierarchyTests
         Assert.True(parent.IsTransformDirty);
         Assert.True(child.IsTransformDirty);
     }
+
+    [Fact]
+    public void RemovingParentActorDetachesExternalChildAndKeepsWorldTransform()
+    {
+        using var world = new World(new ResourceManager());
+        var parentActor = new Actor();
+        var parent = new SceneComponent { RelativeLocation = new Vector3(10f, 0f, 0f) };
+        parentActor.AddOwnedComponent(parent);
+        var childActor = new Actor();
+        var child = new SceneComponent { RelativeLocation = new Vector3(2f, 0f, 0f) };
+        childActor.AddOwnedComponent(child);
+        child.SetupAttachment(parent);
+        world.AddActor(parentActor);
+        world.AddActor(childActor);
+        world.Update(0.016f, tickActors: false);
+
+        world.RemoveActor(parentActor);
+
+        Assert.Null(child.AttachParent);
+        Assert.DoesNotContain(child, parent.AttachChildren);
+        Assert.Equal(new Vector3(12f, 0f, 0f), child.WorldTransform.Translation);
+        Assert.Same(world, childActor.World);
+    }
+
+    [Fact]
+    public void CancellingParentActorRemovalRestoresExternalAttachment()
+    {
+        using var world = new World(new ResourceManager());
+        var parentActor = new Actor();
+        var parent = new SceneComponent { RelativeLocation = new Vector3(10f, 0f, 0f) };
+        parent.DefineSocket("Mount", Matrix4x4.CreateTranslation(3f, 0f, 0f));
+        parentActor.AddOwnedComponent(parent);
+        var childActor = new Actor();
+        var child = new SceneComponent { RelativeLocation = new Vector3(2f, 0f, 0f) };
+        childActor.AddOwnedComponent(child);
+        child.SetupAttachment(parent, "Mount");
+        world.AddActor(parentActor);
+        world.AddActor(childActor);
+        world.Update(0.016f, tickActors: false);
+
+        world.RemoveActor(parentActor);
+        world.AddActor(parentActor);
+
+        Assert.Same(parent, child.AttachParent);
+        Assert.Equal("Mount", child.AttachSocketName);
+        Assert.Equal(new Vector3(2f, 0f, 0f), child.RelativeLocation);
+        Assert.Equal(new Vector3(15f, 0f, 0f), child.WorldTransform.Translation);
+    }
+
+    [Fact]
+    public void RemovingChildActorClearsExternalParentChildren()
+    {
+        using var world = new World(new ResourceManager());
+        var parentActor = new Actor();
+        var parent = new SceneComponent();
+        parentActor.AddOwnedComponent(parent);
+        var childActor = new Actor();
+        var child = new SceneComponent();
+        childActor.AddOwnedComponent(child);
+        child.SetupAttachment(parent);
+        world.AddActor(parentActor);
+        world.AddActor(childActor);
+        world.Update(0.016f, tickActors: false);
+
+        world.RemoveActor(childActor);
+
+        Assert.Empty(parent.AttachChildren);
+        Assert.Null(child.AttachParent);
+    }
 }
