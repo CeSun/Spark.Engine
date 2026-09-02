@@ -37,7 +37,7 @@ Spark.Engine.slnx
 │  │  │  ├─ RenderGraph/     帧图（RenderGraph + 资源句柄/池 + 可视化 + 图形化配置基础）
 │  │  │  └─ UI/              渲染线程 UI overlay（UIRenderer + UI.wgsl）
 │  │  ├─ Input/              输入抽象（Key/KeyMask/MouseButton/WindowInput/InputState/InputManager）
-│  │  ├─ UI/                 保留模式控件树（UIElement/UIPanel/UILabel/UIButton/UITextBox/UICheckbox/UISlider/UIStackPanel/UIGridPanel/UIDockPanel/UIWrapPanel/UIRenderView/UIManager/TextRenderer/UITheme）
+│  │  ├─ UI/                 保留模式控件树（UIElement/UIPanel/UILabel/UIButton/UITextBox/UICheckbox/UISlider/UIProgressBar/UIStackPanel/UIGridPanel/UIDockPanel/UIWrapPanel/UIRenderView/UIManager/TextRenderer/UITheme）
 │  │  ├─ Components/         组件（CameraComponent + LightComponent/Point/Directional/Spot + StaticMeshComponent + SkeletalMeshComponent）
 │  │  ├─ Threads/            RenderThread（外壳）/EngineSynchronizationContext
 │  │  └─ Worlds/             World（含 Scene）/WorldContext
@@ -257,7 +257,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - **控件树**（保留模式，对齐 Slate/WPF/UGUI）：
   - 布局容器：`UIStackPanel`（垂直/水平）、`UIGridPanel`（行列定义 + RowSpan/ColumnSpan + Auto/Star/Pixel 轨）、
     `UIDockPanel`（Top/Bottom/Left/Right/Fill）、`UIWrapPanel`（自动换行）
-  - 叶控件：`UIPanel`、`UILabel`、`UIButton`、`UITextBox`（v1 单行）、`UICheckbox`、`UISlider`
+  - 叶控件：`UIPanel`、`UILabel`、`UIButton`、`UITextBox`（v1 单行）、`UICheckbox`、`UISlider`、`UIProgressBar`
   - 树操作：`AddChild`（重挂自动摘除旧父 + 环检测）、`RemoveChild`、`ClearChildren`
   - 两阶段布局：`Measure`（内容自适应）→ `Arrange`（分配空间）；`FixedSize ≤ 0` = 拉伸填充
   - 裁剪：scissor 裁剪 + `ClipToBounds`（含 HitTest 受裁剪约束）；裁剪栈按 targetId 隔离
@@ -366,7 +366,7 @@ UI 控件覆盖率已达 ~70%（10 个编辑器刚需控件落地）。
 
 - 样式系统初版（颜色/字体/间距可配置，替代硬编码 `UITheme`）
 - 键盘焦点增强（Tab 导航完善、焦点环改进）
-- 缺控件：Image / ProgressBar / RadioButton / Spinner / Tooltip / Window
+- 缺控件：Image / RadioButton / Spinner / Tooltip / Window
 
 #### 编辑器 MVP 落地（下一步）
 
@@ -403,7 +403,7 @@ UI 控件覆盖率已达 ~70%（10 个编辑器刚需控件落地）。
 ### P4 —— UI 打磨
 
 15. **文本框进阶（P7）**：选择/复制粘贴/词删除/Undo/剪贴板/IME/多行/掩码
-16. **更多控件（P8）**：Image/ProgressBar/RadioButton/Spinner/Tooltip/Window
+16. **更多控件（P8）**：Image/RadioButton/Spinner/Tooltip/Window（ProgressBar 已完成）
 17. **渲染质量（P9）**：字形图集 + 嵌入字体（中文支持）、圆角/边框/阴影/渐变/九宫格/DPI 缩放/脏标记增量绘制
 18. **样式系统 + 数据绑定（P10）**：可定制主题、MVVM 绑定
 

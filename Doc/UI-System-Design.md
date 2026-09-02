@@ -131,7 +131,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | 布局 | `UIScrollBox` | ⏳ | 滚动容器（依赖 scissor 裁剪 + 滚动条） |
 | 显示 | `UILabel` | ✅ | 文本标签 + Measure 自适应（缺对齐/换行） |
 | 显示 | `UIImage` | ⏳ | 图片 / 九宫格（9-slice） |
-| 显示 | `UIProgressBar` | ⏳ | 进度条 |
+| 显示 | `UIProgressBar` | ✅ | 确定性进度条（0..1） |
 | 交互 | `UIButton` | ✅ | 按钮三态+点击 + Measure 自适应（缺禁用态/图标/快捷键/Toggle） |
 | 交互 | `UITextBox` | 🔶 | 单行输入框 v1：仅基础编辑+光标（缺选择/剪贴板/Undo/多行/掩码等，详见第三节） |
 | 交互 | `UICheckbox` | ✅ | 复选框 + Measure 自适应（缺三态/键盘Space/禁用态） |

@@ -11,6 +11,45 @@ namespace Spark.Engine.Tests;
 /// </summary>
 public class EditorControlTests
 {
+    // ———————————— UIProgressBar ————————————
+
+    [Fact]
+    public void ProgressBar_Value_IsClampedAndRaisesOnlyOnChange()
+    {
+        var progress = new UIProgressBar();
+        var changes = new List<float>();
+        progress.ValueChanged = changes.Add;
+
+        progress.Value = -1f;
+        progress.Value = 0.5f;
+        progress.Value = 0.5f;
+        progress.Value = 2f;
+
+        Assert.Equal(1f, progress.Value);
+        Assert.Equal(new[] { 0.5f, 1f }, changes);
+    }
+
+    [Fact]
+    public void ProgressBar_Paint_DrawsTrackAndPartialFill()
+    {
+        var progress = new UIProgressBar { Value = 0.25f };
+        var canvas = new UICanvas(0)
+        {
+            Size = new Vector2(200f, 40f),
+            Root = progress,
+        };
+        canvas.Update(default, CreateTextRenderer());
+
+        var ui = new UIManager();
+        canvas.Paint(ui);
+        var primitives = ui.Primitives.Span.ToArray();
+
+        Assert.Equal(2, primitives.Length);
+        Assert.Equal(200f, primitives[0].Rect.Z, precision: 3);
+        Assert.Equal(50f, primitives[1].Rect.Z, precision: 3);
+        Assert.Equal(primitives[0].Rect.W, primitives[1].Rect.W, precision: 3);
+    }
+
     // ———————————— UIScrollBox ————————————
 
     [Fact]
