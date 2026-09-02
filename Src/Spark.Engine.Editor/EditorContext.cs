@@ -152,11 +152,12 @@ public sealed class EditorContext : IDisposable
         World.CollectCameraComponents(editorCameras);
         runtime.CollectCameraComponents(runtimeCameras);
 
-        // RenderTarget 是窗口/贴图资源，不属于场景文档；按稳定相机顺序绑定到运行时实例。
-        for (var index = 0; index < runtimeCameras.Count; index++)
+        // RenderTarget 是窗口/贴图资源，不属于场景文档；只绑定同一稳定组件身份的相机。
+        var editorCamerasByGuid = editorCameras.ToDictionary(camera => camera.ComponentGuid);
+        foreach (var runtimeCamera in runtimeCameras)
         {
-            if (index < editorCameras.Count)
-                runtimeCameras[index].RenderTarget = editorCameras[index].RenderTarget;
+            if (editorCamerasByGuid.TryGetValue(runtimeCamera.ComponentGuid, out var editorCamera))
+                runtimeCamera.RenderTarget = editorCamera.RenderTarget;
         }
     }
 

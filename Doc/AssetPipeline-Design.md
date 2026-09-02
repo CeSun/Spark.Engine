@@ -113,7 +113,7 @@ Material 当前仍是可变资源，因此 Play 时按 AssetGuid 为每个 Runti
 `.asset` 首版编解码（StaticMesh 和基础 Material）、`AssetRegistry`（AssetGuid、来源/依赖/状态、目录扫描和懒加载）、
 `RuntimeActorFactory`（自定义组件和运行时行为注册）和
 `WindowsCookBackend`（版本化 `PAK0` 包、AssetGuid/依赖索引、确定性排序、原子写入）。`.scene` 格式当前为
-版本 3，StaticMesh/SkeletalMesh/Material 组件会保存 AssetGuid 引用，LightComponent 状态会随组件保存；
+版本 4，StaticMesh/SkeletalMesh/Material 组件会保存 AssetGuid 引用，LightComponent 状态和 Camera 视图参数会随组件保存；
 RuntimeWorld 与 EditorWorld 使用不同的全局 ProxyId，避免渲染实例状态串用。编辑器 Play 使用同一个
 `ResourceManager` 共享不可变 Mesh/Texture 资产，避免同一资源被两个管理器重复接管；可变 Material 使用 World 持有的运行时副本。
 GLB、材质/纹理导入、完整纹理依赖加载以及 ResourceManager 从 `.pak` 的运行时加载仍待实现。

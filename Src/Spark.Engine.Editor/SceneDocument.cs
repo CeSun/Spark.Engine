@@ -9,7 +9,7 @@ namespace Spark.Engine.Editor;
 /// <summary>编辑器场景的稳定内存表示；它是保存和 RuntimeWorld 实例化的共同输入。</summary>
 public sealed class SceneDocument
 {
-    public const ushort CurrentFormatVersion = 3;
+    public const ushort CurrentFormatVersion = 4;
     public Guid SceneGuid { get; set; } = Guid.NewGuid();
     public ushort FormatVersion { get; init; } = CurrentFormatVersion;
     public List<SceneActorDocument> Actors { get; } = [];
@@ -49,6 +49,10 @@ public sealed class SceneDocument
                     LightInnerConeAngle = (component as LightComponent)?.InnerConeAngle ?? 0f,
                     LightOuterConeAngle = (component as LightComponent)?.OuterConeAngle ?? MathF.PI / 4f,
                     LightCastShadow = (component as LightComponent)?.CastShadow ?? false,
+                    CameraFieldOfView = (component as CameraComponent)?.FieldOfView ?? 60f,
+                    CameraNearPlane = (component as CameraComponent)?.NearPlane ?? 0.1f,
+                    CameraFarPlane = (component as CameraComponent)?.FarPlane ?? 1000f,
+                    CameraClearColor = (component as CameraComponent)?.ClearColor ?? new Vector4(0.10f, 0.15f, 0.25f, 1f),
                 });
                 if (scene != null)
                     actorDocument.Components[^1].Sockets = scene.Sockets.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
@@ -131,6 +135,13 @@ public sealed class SceneDocument
                         light.OuterConeAngle = componentRecord.LightOuterConeAngle;
                         light.CastShadow = componentRecord.LightCastShadow;
                     }
+                    if (component is CameraComponent camera)
+                    {
+                        camera.FieldOfView = componentRecord.CameraFieldOfView;
+                        camera.NearPlane = componentRecord.CameraNearPlane;
+                        camera.FarPlane = componentRecord.CameraFarPlane;
+                        camera.ClearColor = componentRecord.CameraClearColor;
+                    }
                     actor.AddOwnedComponent(component);
                     if (component is SceneComponent scene)
                     {
@@ -207,6 +218,10 @@ public sealed class SceneComponentDocument
     public float LightInnerConeAngle { get; init; }
     public float LightOuterConeAngle { get; init; } = MathF.PI / 4f;
     public bool LightCastShadow { get; init; }
+    public float CameraFieldOfView { get; init; } = 60f;
+    public float CameraNearPlane { get; init; } = 0.1f;
+    public float CameraFarPlane { get; init; } = 1000f;
+    public Vector4 CameraClearColor { get; init; } = new(0.10f, 0.15f, 0.25f, 1f);
     public Dictionary<string, Matrix4x4> Sockets { get; set; } = new(StringComparer.Ordinal);
 }
 
@@ -258,6 +273,10 @@ internal static class SceneDocumentBinary
                         writer.Write(component.LightInnerConeAngle);
                         writer.Write(component.LightOuterConeAngle);
                         writer.Write(component.LightCastShadow);
+                        writer.Write(component.CameraFieldOfView);
+                        writer.Write(component.CameraNearPlane);
+                        writer.Write(component.CameraFarPlane);
+                        WriteVector4(writer, component.CameraClearColor);
                         WriteVector3(writer, component.RelativeLocation);
                         WriteQuaternion(writer, component.RelativeRotation);
                         WriteVector3(writer, component.RelativeScale);
@@ -331,6 +350,10 @@ internal static class SceneDocumentBinary
                     LightInnerConeAngle = reader.ReadSingle(),
                     LightOuterConeAngle = reader.ReadSingle(),
                     LightCastShadow = reader.ReadBoolean(),
+                    CameraFieldOfView = reader.ReadSingle(),
+                    CameraNearPlane = reader.ReadSingle(),
+                    CameraFarPlane = reader.ReadSingle(),
+                    CameraClearColor = ReadVector4(reader),
                     RelativeLocation = ReadVector3(reader),
                     RelativeRotation = ReadQuaternion(reader),
                     RelativeScale = ReadVector3(reader),
@@ -371,6 +394,8 @@ internal static class SceneDocumentBinary
     private static Guid? ReadNullableGuid(BinaryReader reader) => reader.ReadBoolean() ? new Guid(reader.ReadBytes(16)) : null;
     private static void WriteVector3(BinaryWriter writer, Vector3 value) { writer.Write(value.X); writer.Write(value.Y); writer.Write(value.Z); }
     private static Vector3 ReadVector3(BinaryReader reader) => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+    private static void WriteVector4(BinaryWriter writer, Vector4 value) { writer.Write(value.X); writer.Write(value.Y); writer.Write(value.Z); writer.Write(value.W); }
+    private static Vector4 ReadVector4(BinaryReader reader) => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
     private static void WriteQuaternion(BinaryWriter writer, Quaternion value) { writer.Write(value.X); writer.Write(value.Y); writer.Write(value.Z); writer.Write(value.W); }
     private static Quaternion ReadQuaternion(BinaryReader reader) => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
     private static void WriteMatrix4x4(BinaryWriter writer, Matrix4x4 value)

@@ -105,6 +105,37 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void BinaryRoundTripPreservesCameraViewSettings()
+    {
+        using var world = new World(new ResourceManager());
+        var camera = new CameraComponent
+        {
+            FieldOfView = 75f,
+            NearPlane = 0.25f,
+            FarPlane = 2500f,
+            ClearColor = new Vector4(0.05f, 0.1f, 0.2f, 1f),
+        };
+        var actor = new Actor { Name = "Camera" };
+        actor.AddOwnedComponent(camera);
+        world.AddActor(actor);
+        world.Update(0.016f, tickActors: false);
+        var path = GetTempPath();
+        try
+        {
+            SceneDocument.Capture(world).Save(path);
+            var loaded = Assert.Single(Assert.Single(SceneDocument.Load(path).Actors).Components);
+            Assert.Equal(75f, loaded.CameraFieldOfView);
+            Assert.Equal(0.25f, loaded.CameraNearPlane);
+            Assert.Equal(2500f, loaded.CameraFarPlane);
+            Assert.Equal(camera.ClearColor, loaded.CameraClearColor);
+        }
+        finally
+        {
+            DeleteIfExists(path);
+        }
+    }
+
+    [Fact]
     public void InstantiateWorldCreatesIndependentObjectsAndRestoresAttachment()
     {
         using var editorWorld = new World(new ResourceManager());

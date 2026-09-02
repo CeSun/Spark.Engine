@@ -190,27 +190,52 @@ public sealed class WorldLifecycleTests
     }
 
     [Fact]
-    public void RuntimeCameraTargetFollowsEditorTargetReplacement()
+    public void RuntimeCameraRestoresSettingsAndBindsTargetByComponentGuid()
     {
         using var world = new World(new ResourceManager());
         var firstTarget = new TestRenderTarget(1);
         var secondTarget = new TestRenderTarget(2);
-        var editorCamera = new CameraComponent { RenderTarget = firstTarget };
+        var editorCameraGuid = Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff0");
+        var injectedCameraGuid = Guid.Parse("00000000-0000-0000-0000-000000000010");
+        var editorCamera = new CameraComponent
+        {
+            ComponentGuid = editorCameraGuid,
+            RenderTarget = firstTarget,
+            FieldOfView = 72f,
+            NearPlane = 0.2f,
+            FarPlane = 2048f,
+            ClearColor = new Vector4(0.2f, 0.3f, 0.4f, 1f),
+        };
         var actor = new Actor();
         actor.AddOwnedComponent(editorCamera);
         world.AddActor(actor);
         world.Update(0.016f);
 
         using var editor = new EditorContext(world);
+        editor.RegisterRuntimeBehavior((runtime, _) =>
+        {
+            var injectedActor = new Actor { Name = "Runtime Camera" };
+            injectedActor.AddOwnedComponent(new CameraComponent { ComponentGuid = injectedCameraGuid });
+            runtime.AddActor(injectedActor);
+        });
         Assert.True(editor.Play());
-        var runtimeCamera = new List<CameraComponent>();
-        editor.RuntimeWorld!.CollectCameraComponents(runtimeCamera);
-        Assert.Same(firstTarget, runtimeCamera[0].RenderTarget);
+        var runtimeCameras = new List<CameraComponent>();
+        editor.RuntimeWorld!.CollectCameraComponents(runtimeCameras);
+        Assert.Equal(2, runtimeCameras.Count);
+        var matchingCamera = Assert.Single(runtimeCameras, camera => camera.ComponentGuid == editorCameraGuid);
+        var injectedCamera = Assert.Single(runtimeCameras, camera => camera.ComponentGuid == injectedCameraGuid);
+        Assert.Same(firstTarget, matchingCamera.RenderTarget);
+        Assert.Null(injectedCamera.RenderTarget);
+        Assert.Equal(editorCamera.FieldOfView, matchingCamera.FieldOfView);
+        Assert.Equal(editorCamera.NearPlane, matchingCamera.NearPlane);
+        Assert.Equal(editorCamera.FarPlane, matchingCamera.FarPlane);
+        Assert.Equal(editorCamera.ClearColor, matchingCamera.ClearColor);
 
         editorCamera.RenderTarget = secondTarget;
         editor.SyncRuntimeCameraTargets();
 
-        Assert.Same(secondTarget, runtimeCamera[0].RenderTarget);
+        Assert.Same(secondTarget, matchingCamera.RenderTarget);
+        Assert.Null(injectedCamera.RenderTarget);
     }
 
     [Fact]
