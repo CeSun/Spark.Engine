@@ -45,6 +45,9 @@ public class UITreeViewItem : UIElement
     /// <summary>点击回调。</summary>
     public Action<UITreeViewItem>? Clicked { get; set; }
 
+    /// <summary>带当前修饰键状态的点击回调。</summary>
+    public Action<UITreeViewItem, KeyMask>? ClickedWithModifiers { get; set; }
+
     public UITreeViewItem()
     {
         Focusable = true;
@@ -176,6 +179,15 @@ public class UITreeViewItem : UIElement
         Clicked?.Invoke(this);
     }
 
+    protected internal override void OnMouseClick(KeyMask keysDown)
+    {
+        if (!IsLeaf && IsArrowHit(_lastPointerPosition))
+            Toggle();
+
+        Clicked?.Invoke(this);
+        ClickedWithModifiers?.Invoke(this, keysDown);
+    }
+
     private bool IsArrowHit(Vector2 point)
     {
         float indent = IndentLevel * IndentWidth;
@@ -198,7 +210,7 @@ public class UITreeViewItem : UIElement
 }
 
 /// <summary>
-/// 树视图：层级树控件，支持展开/折叠、单选、键盘导航。
+/// 树视图：层级树控件，支持展开/折叠、可选多选和键盘导航。
 /// <para>
 /// 内部使用 <see cref="UIScrollBox"/> 作为滚动容器。
 /// 扁平化显示：所有可见项按深度优先遍历排列在一个 <see cref="UIStackPanel"/> 中。
@@ -211,9 +223,17 @@ public sealed class UITreeView : UIElement
     private readonly List<UITreeViewItem> _roots = new();
 
     private readonly List<UITreeViewItem> _flatList = new(); // 展开后的扁平列表
+    private readonly List<UITreeViewItem> _selectedItems = new();
+    private readonly IReadOnlyList<UITreeViewItem> _selectedItemsView;
+    private UITreeViewItem? _selectionAnchor;
 
     /// <summary>选中项变化回调。</summary>
     public Action<UITreeViewItem?>? SelectionChanged { get; set; }
+
+    /// <summary>整个选择集合变化回调；最后操作的项为 <see cref="SelectedItem"/>。</summary>
+    public Action<IReadOnlyList<UITreeViewItem>>? SelectionSetChanged { get; set; }
+
+    public bool AllowMultipleSelection { get; set; }
 
     /// <summary>项点击/激活回调。</summary>
     public Action<UITreeViewItem>? ItemActivated { get; set; }
@@ -231,9 +251,12 @@ public sealed class UITreeView : UIElement
     /// <summary>当前选中项。</summary>
     public UITreeViewItem? SelectedItem { get; private set; }
 
+    public IReadOnlyList<UITreeViewItem> SelectedItems => _selectedItemsView;
+
     public UITreeView()
     {
         ClipToBounds = true;
+        _selectedItemsView = _selectedItems.AsReadOnly();
 
         _itemsPanel = new UIStackPanel
         {
@@ -266,8 +289,9 @@ public sealed class UITreeView : UIElement
             return false;
         item.Toggled = null;
         item.Clicked = null;
-        if (SelectedItem == item)
-            SelectItem(null);
+        item.ClickedWithModifiers = null;
+        if (_selectedItems.Any(selected => ContainsItem(item, selected)))
+            SelectItems(_selectedItems.Where(selected => !ContainsItem(item, selected)));
         RebuildFlatList();
         return true;
     }
@@ -285,21 +309,38 @@ public sealed class UITreeView : UIElement
     /// <summary>选中指定项。</summary>
     public void SelectItem(UITreeViewItem? item)
     {
-        if (SelectedItem == item)
+        SelectItems(item == null ? Array.Empty<UITreeViewItem>() : new[] { item }, item);
+        _selectionAnchor = item;
+    }
+
+    /// <summary>替换选择集合；不属于当前树的项会被忽略。</summary>
+    public void SelectItems(IEnumerable<UITreeViewItem> items, UITreeViewItem? primary = null)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var next = items.Where(IsTreeItem).Distinct().ToList();
+        if (!AllowMultipleSelection && next.Count > 1)
+            next = new List<UITreeViewItem> { primary != null && next.Contains(primary) ? primary : next[^1] };
+
+        var nextPrimary = primary != null && next.Contains(primary)
+            ? primary
+            : next.LastOrDefault();
+        if (ReferenceEquals(SelectedItem, nextPrimary) &&
+            _selectedItems.Count == next.Count && _selectedItems.SequenceEqual(next))
             return;
 
-        if (SelectedItem != null)
-            SelectedItem.IsSelected = false;
+        foreach (var selected in _selectedItems)
+            selected.IsSelected = false;
+        _selectedItems.Clear();
+        _selectedItems.AddRange(next);
+        foreach (var selected in _selectedItems)
+            selected.IsSelected = true;
 
-        SelectedItem = item;
-
+        SelectedItem = nextPrimary;
         if (SelectedItem != null)
-        {
-            SelectedItem.IsSelected = true;
             _scrollBox.ScrollIntoView(SelectedItem);
-        }
 
         SelectionChanged?.Invoke(SelectedItem);
+        SelectionSetChanged?.Invoke(_selectedItemsView);
     }
 
     /// <summary>展开所有节点。</summary>
@@ -338,9 +379,23 @@ public sealed class UITreeView : UIElement
         RebuildFlatList();
     }
 
-    private void OnItemClicked(UITreeViewItem item)
+    private void OnItemClicked(UITreeViewItem item, KeyMask keysDown)
     {
-        SelectItem(item);
+        bool ctrl = keysDown.IsDown(Key.LeftControl) || keysDown.IsDown(Key.RightControl);
+        bool shift = keysDown.IsDown(Key.LeftShift) || keysDown.IsDown(Key.RightShift);
+        if (!AllowMultipleSelection || (!ctrl && !shift))
+        {
+            SelectItem(item);
+        }
+        else if (shift && _selectionAnchor != null)
+        {
+            SelectRange(_selectionAnchor, item, additive: ctrl);
+        }
+        else
+        {
+            ToggleItem(item);
+            _selectionAnchor = item;
+        }
         ItemActivated?.Invoke(item);
     }
 
@@ -348,6 +403,7 @@ public sealed class UITreeView : UIElement
     {
         item.Toggled = null;
         item.Clicked = null;
+        item.ClickedWithModifiers = null;
         foreach (var child in item.SubItems)
             ClearCallbacks(child);
     }
@@ -364,7 +420,8 @@ public sealed class UITreeView : UIElement
         foreach (var item in _flatList)
         {
             item.Toggled = OnItemToggled;
-            item.Clicked = OnItemClicked;
+            item.Clicked = null;
+            item.ClickedWithModifiers = OnItemClicked;
             _itemsPanel.AddChild(item);
         }
     }
@@ -372,7 +429,8 @@ public sealed class UITreeView : UIElement
     private void AssignCallbacksRecursive(UITreeViewItem item)
     {
         item.Toggled = OnItemToggled;
-        item.Clicked = OnItemClicked;
+        item.Clicked = null;
+        item.ClickedWithModifiers = OnItemClicked;
         foreach (var child in item.SubItems)
             AssignCallbacksRecursive(child);
     }
@@ -410,24 +468,29 @@ public sealed class UITreeView : UIElement
     }
 
     protected internal override void OnKeyDown(Key key)
+        => OnKeyDown(key, default);
+
+    protected internal override void OnKeyDown(Key key, KeyMask keysDown)
     {
         if (_flatList.Count == 0)
             return;
 
         int idx = SelectedItem != null ? _flatList.IndexOf(SelectedItem) : -1;
 
+        bool shift = AllowMultipleSelection &&
+            (keysDown.IsDown(Key.LeftShift) || keysDown.IsDown(Key.RightShift));
         switch (key)
         {
             case Key.Down:
             {
                 if (idx < _flatList.Count - 1)
-                    SelectItem(_flatList[idx + 1]);
+                    SelectFromKeyboard(_flatList[idx + 1], shift);
                 break;
             }
             case Key.Up:
             {
                 if (idx > 0)
-                    SelectItem(_flatList[idx - 1]);
+                    SelectFromKeyboard(_flatList[idx - 1], shift);
                 break;
             }
             case Key.Left:
@@ -485,5 +548,47 @@ public sealed class UITreeView : UIElement
                 break;
             }
         }
+    }
+
+    private bool IsTreeItem(UITreeViewItem item)
+        => _roots.Any(root => ContainsItem(root, item));
+
+    private static bool ContainsItem(UITreeViewItem root, UITreeViewItem target)
+        => ReferenceEquals(root, target) || root.SubItems.Any(child => ContainsItem(child, target));
+
+    private void ToggleItem(UITreeViewItem item)
+    {
+        var next = _selectedItems.ToList();
+        if (!next.Remove(item))
+            next.Add(item);
+        SelectItems(next, next.Contains(item) ? item : next.LastOrDefault());
+    }
+
+    private void SelectRange(UITreeViewItem anchor, UITreeViewItem item, bool additive)
+    {
+        int first = _flatList.IndexOf(anchor);
+        int last = _flatList.IndexOf(item);
+        if (first < 0 || last < 0)
+        {
+            SelectItem(item);
+            return;
+        }
+        if (first > last)
+            (first, last) = (last, first);
+        var next = additive ? _selectedItems.ToList() : new List<UITreeViewItem>();
+        foreach (var selected in _flatList.GetRange(first, last - first + 1))
+        {
+            if (!next.Contains(selected))
+                next.Add(selected);
+        }
+        SelectItems(next, item);
+    }
+
+    private void SelectFromKeyboard(UITreeViewItem item, bool extend)
+    {
+        if (extend && _selectionAnchor != null)
+            SelectRange(_selectionAnchor, item, additive: false);
+        else
+            SelectItem(item);
     }
 }

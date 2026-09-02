@@ -33,11 +33,20 @@ internal sealed class EditorHierarchyPanel : UIElement
         set => _hierarchy.SelectionChanged = value;
     }
 
+    public Action<IReadOnlyList<object>, object?>? SelectionSetChanged
+    {
+        get => _hierarchy.SelectionSetChanged;
+        set => _hierarchy.SelectionSetChanged = value;
+    }
+
     public void Refresh() => _hierarchy.Refresh();
 
     public void SetWorld(Spark.Engine.Worlds.World world) => _hierarchy.SetWorld(world);
 
     public void SelectTarget(object? target) => _hierarchy.SelectTarget(target);
+
+    public void SelectTargets(IEnumerable<object> targets, object? primary = null)
+        => _hierarchy.SelectTargets(targets, primary);
 
     protected override UISize OnMeasure(UISize availableSize)
     {

@@ -7,10 +7,10 @@ namespace Spark.Engine.Editor;
 internal sealed class EditorDeleteConfirmationPanel : UIElement
 {
     private readonly UIDialog _dialog;
-    private readonly Action<Actor> _confirmed;
-    private Actor? _pendingActor;
+    private readonly Action<IReadOnlyList<Actor>> _confirmed;
+    private IReadOnlyList<Actor>? _pendingActors;
 
-    public EditorDeleteConfirmationPanel(Action<Actor> confirmed)
+    public EditorDeleteConfirmationPanel(Action<IReadOnlyList<Actor>> confirmed)
     {
         _confirmed = confirmed ?? throw new ArgumentNullException(nameof(confirmed));
         // The dialog is registered on UICanvas.Overlays when shown. Keep this
@@ -29,21 +29,31 @@ internal sealed class EditorDeleteConfirmationPanel : UIElement
         AddChild(_dialog);
     }
 
-    public void Request(Actor actor)
+    public void Request(IReadOnlyList<Actor> actors)
     {
-        ArgumentNullException.ThrowIfNull(actor);
-        _pendingActor = actor;
-        var name = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
-        _dialog.Message = $"Delete '{name}' from the current scene?";
+        ArgumentNullException.ThrowIfNull(actors);
+        if (actors.Count == 0)
+            throw new ArgumentException("At least one Actor is required.", nameof(actors));
+        _pendingActors = actors.ToArray();
+        if (actors.Count == 1)
+        {
+            var actor = actors[0];
+            var name = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
+            _dialog.Message = $"Delete '{name}' from the current scene?";
+        }
+        else
+        {
+            _dialog.Message = $"Delete {actors.Count} Actors from the current scene?";
+        }
         _dialog.Show();
     }
 
     private void OnClosed(int buttonIndex)
     {
-        var actor = _pendingActor;
-        _pendingActor = null;
-        if (buttonIndex == 1 && actor != null)
-            _confirmed(actor);
+        var actors = _pendingActors;
+        _pendingActors = null;
+        if (buttonIndex == 1 && actors != null)
+            _confirmed(actors);
     }
 
     protected override UISize OnMeasure(UISize availableSize)

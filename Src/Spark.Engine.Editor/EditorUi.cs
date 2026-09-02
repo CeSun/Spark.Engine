@@ -93,7 +93,7 @@ public sealed class EditorUi
         root.AddChild(_statusBar);
 
         Root = root;
-        _hierarchy.SelectionChanged += target => _context.Selection.Selected = target;
+        _hierarchy.SelectionSetChanged += (targets, primary) => _context.Selection.Set(targets, primary);
         _context.Selection.Changed += _ => UpdateInspector();
         _context.DirtyChanged += _ => UpdateInspectorTitle();
         _context.WorldChanged += (_, next) => _hierarchy.SetWorld(next);
@@ -101,6 +101,8 @@ public sealed class EditorUi
 
     /// <summary>当前编辑器 Play 状态，供宿主同步窗口标题或工具栏。</summary>
     public EditorPlayState PlayState => _context.PlayState;
+    public object? SelectedTarget => _context.Selection.Selected;
+    public IReadOnlyList<object> SelectedTargets => _context.Selection.Items;
     public GizmoOperation ActiveGizmoOperation => _gizmoOperation;
     public GizmoSpace ActiveGizmoSpace => _gizmoSpace;
     public bool IsGizmoDragging => _gizmo.IsDragging;
@@ -334,33 +336,45 @@ public sealed class EditorUi
 
     private void DeleteSelection()
     {
-        if (_selectedTarget is not Actor actor)
+        var actors = _context.Selection.Items.OfType<Actor>().Distinct().ToArray();
+        if (actors.Length == 0)
         {
-            SetStatus("Select an Actor to delete.");
+            SetStatus("Select one or more Actors to delete.");
             return;
         }
-        _deleteConfirmation.Request(actor);
-        SetStatus("Confirm Actor deletion.");
+        _deleteConfirmation.Request(actors);
+        SetStatus(actors.Length == 1 ? "Confirm Actor deletion." : $"Confirm deletion of {actors.Length} Actors.");
     }
 
-    private void ConfirmDeleteSelection(Actor actor)
+    private void ConfirmDeleteSelection(IReadOnlyList<Actor> requestedActors)
     {
-        if (!_context.World.Actors.Contains(actor))
+        var actors = requestedActors.Where(_context.World.Actors.Contains).Distinct().ToArray();
+        if (actors.Length == 0)
         {
-            SetStatus("Actor is no longer in the scene.");
+            SetStatus("Selected Actors are no longer in the scene.");
             return;
         }
-        _context.Execute(new DelegateEditorCommand("Delete Actor", () => _context.World.RemoveActor(actor), () => _context.World.AddActor(actor)));
-        _selectedTarget = null;
-        _inspector.Target = null;
-        SetStatus("Actor queued for deletion.");
+        _context.Execute(new DelegateEditorCommand(
+            actors.Length == 1 ? "Delete Actor" : $"Delete {actors.Length} Actors",
+            () =>
+            {
+                foreach (var actor in actors)
+                    _context.World.RemoveActor(actor);
+            },
+            () =>
+            {
+                foreach (var actor in actors)
+                    _context.World.AddActor(actor);
+            }));
+        _context.Selection.Selected = null;
+        SetStatus(actors.Length == 1 ? "Actor queued for deletion." : $"{actors.Length} Actors queued for deletion.");
     }
 
     /// <summary>把渲染视图控件嵌入中间视口区（画中画显示引擎画面）。</summary>
     public void SetPictureInPicture(UIRenderView control)
     {
         ArgumentNullException.ThrowIfNull(control);
-        control.Clicked += point => HandleViewportClick(control, point);
+        control.ClickedWithModifiers += (point, keysDown) => HandleViewportClick(control, point, keysDown);
         control.PointerPressed += point => HandleViewportPointerPressed(control, point);
         control.PointerDragged += point => HandleViewportPointerDragged(control, point);
         control.PointerReleased += point => HandleViewportPointerReleased(control, point);
@@ -383,12 +397,30 @@ public sealed class EditorUi
     }
 
     /// <summary>以渲染视图坐标执行一次 CPU 拾取，并同步层级树和 Inspector 选择。</summary>
-    public ViewportHit? PickViewport(Vector2 point, Vector2 viewportSize, CameraComponent camera)
+    public ViewportHit? PickViewport(
+        Vector2 point,
+        Vector2 viewportSize,
+        CameraComponent camera,
+        KeyMask modifiers = default)
     {
         if (_context.PlayState != EditorPlayState.Edit)
             return null;
         var hit = ViewportPicker.Pick(_context.World, camera, point, viewportSize);
-        _context.Selection.Selected = hit?.Component;
+        bool ctrl = modifiers.IsDown(Key.LeftControl) || modifiers.IsDown(Key.RightControl);
+        bool shift = modifiers.IsDown(Key.LeftShift) || modifiers.IsDown(Key.RightShift);
+        if (hit?.Component is { } component)
+        {
+            if (ctrl)
+                _context.Selection.Toggle(component);
+            else if (shift)
+                _context.Selection.Add(component);
+            else
+                _context.Selection.Selected = component;
+        }
+        else if (!ctrl && !shift)
+        {
+            _context.Selection.Selected = null;
+        }
         return hit;
     }
 
@@ -425,7 +457,7 @@ public sealed class EditorUi
 
     public void CancelGizmoDrag() => _gizmo.CancelDrag();
 
-    private void HandleViewportClick(UIRenderView control, Vector2 point)
+    private void HandleViewportClick(UIRenderView control, Vector2 point, KeyMask modifiers)
     {
         if (_suppressViewportClick)
         {
@@ -438,7 +470,7 @@ public sealed class EditorUi
             return;
 
         var localPoint = point - new Vector2(control.Bounds.X, control.Bounds.Y);
-        PickViewport(localPoint, new Vector2(control.Bounds.Width, control.Bounds.Height), camera);
+        PickViewport(localPoint, new Vector2(control.Bounds.Width, control.Bounds.Height), camera, modifiers);
     }
 
     private void HandleViewportPointerPressed(UIRenderView control, Vector2 point)
@@ -508,7 +540,8 @@ public sealed class EditorUi
         // 覆盖没有经过 SetPictureInPicture 的宿主 resize 回调，确保下一帧仍指向最新目标。
         _context.SyncRuntimeCameraTargets();
         _hierarchy.Refresh();
-        _hierarchy.SelectTarget(_context.Selection.Selected);
+        RemoveInvalidSelection();
+        _hierarchy.SelectTargets(_context.Selection.Items, _context.Selection.Selected);
 
         int actors = 0, components = 0;
         foreach (var actor in _context.World.Actors)
@@ -518,17 +551,9 @@ public sealed class EditorUi
         }
 
         _statusBar.SetStatus($"Actors: {actors}  Components: {components}");
-        _statusBar.SetSelection(_selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}");
+        _statusBar.SetSelection(GetSelectionStatus());
         var assetErrorCount = (_context.AssetRegistry as IAssetRegistryDiagnostics)?.Diagnostics.Count ?? 0;
         _statusBar.SetMode(assetErrorCount == 0 ? "Assets: OK" : $"Asset errors: {assetErrorCount}");
-
-        // 选中对象被移除时清空检查器
-        if (_selectedTarget is Actor removedActor && !_context.World.Actors.Contains(removedActor))
-        {
-            _selectedTarget = null;
-            _inspector.Target = null;
-            _inspector.SetTitle("Inspector");
-        }
 
         _inspector.Refresh();
     }
@@ -537,7 +562,7 @@ public sealed class EditorUi
     {
         _selectedTarget = _context.Selection.Selected;
         _inspector.Target = _selectedTarget;
-        _statusBar.SetSelection(_selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}");
+        _statusBar.SetSelection(GetSelectionStatus());
         UpdateInspectorTitle();
     }
 
@@ -552,4 +577,32 @@ public sealed class EditorUi
         };
         _inspector.SetTitle(_context.IsDirty ? $"{title} *" : title);
     }
+
+    private string GetSelectionStatus()
+        => _context.Selection.Count switch
+        {
+            0 => "Nothing selected",
+            1 => $"Selected: {_selectedTarget?.GetType().Name}",
+            var count => $"Selected: {count} objects (primary: {_selectedTarget?.GetType().Name})",
+        };
+
+    private void RemoveInvalidSelection()
+    {
+        var valid = _context.Selection.Items.Where(IsInEditorWorld).ToArray();
+        var primary = _context.Selection.Selected;
+        if (primary != null && !valid.Any(item => ReferenceEquals(item, primary)))
+            primary = valid.LastOrDefault();
+        _context.Selection.Set(valid, primary);
+    }
+
+    private bool IsInEditorWorld(object target)
+        => target switch
+        {
+            Actor actor => _context.World.EnumerateActors(includePendingActors: true)
+                .Any(candidate => ReferenceEquals(candidate, actor)),
+            SceneComponent component => component.Owner is { } owner &&
+                _context.World.EnumerateActors(includePendingActors: true)
+                    .Any(candidate => ReferenceEquals(candidate, owner)),
+            _ => false,
+        };
 }

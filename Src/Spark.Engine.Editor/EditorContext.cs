@@ -13,19 +13,96 @@ public enum EditorPlayState
 
 public sealed class EditorSelection
 {
+    private readonly List<object> _items = new();
+    private readonly IReadOnlyList<object> _itemsView;
     private object? _selected;
+
+    public EditorSelection()
+    {
+        _itemsView = _items.AsReadOnly();
+    }
+
+    /// <summary>当前选择集合；最后操作的主选对象由 <see cref="Selected"/> 返回。</summary>
+    public IReadOnlyList<object> Items => _itemsView;
+
+    public int Count => _items.Count;
+
     public object? Selected
     {
         get => _selected;
-        set
+        set => Set(value == null ? Array.Empty<object>() : new[] { value }, value);
+    }
+
+    public bool Contains(object target) => IndexOfReference(_items, target) >= 0;
+
+    public void Add(object target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        if (Contains(target))
         {
-            if (ReferenceEquals(_selected, value)) return;
-            _selected = value;
-            Changed?.Invoke(value);
+            Set(_items, target);
+            return;
         }
+        Set(_items.Append(target), target);
+    }
+
+    public void Toggle(object target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        var next = _items.ToList();
+        var index = IndexOfReference(next, target);
+        if (index >= 0)
+            next.RemoveAt(index);
+        else
+            next.Add(target);
+        Set(next, index < 0 ? target : next.LastOrDefault());
+    }
+
+    public void Set(IEnumerable<object> targets, object? primary = null)
+    {
+        ArgumentNullException.ThrowIfNull(targets);
+        var next = new List<object>();
+        foreach (var target in targets)
+        {
+            if (target != null && IndexOfReference(next, target) < 0)
+                next.Add(target);
+        }
+
+        var nextPrimary = primary != null && IndexOfReference(next, primary) >= 0
+            ? primary
+            : next.LastOrDefault();
+        if (ReferenceEquals(_selected, nextPrimary) && SequenceEqualByReference(_items, next))
+            return;
+
+        _items.Clear();
+        _items.AddRange(next);
+        _selected = nextPrimary;
+        Changed?.Invoke(_selected);
     }
 
     public event Action<object?>? Changed;
+
+    private static int IndexOfReference(IReadOnlyList<object> items, object target)
+    {
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (ReferenceEquals(items[i], target))
+                return i;
+        }
+        return -1;
+    }
+
+    private static bool SequenceEqualByReference(IReadOnlyList<object> left, IReadOnlyList<object> right)
+    {
+        if (left.Count != right.Count)
+            return false;
+        for (int i = 0; i < left.Count; i++)
+        {
+            if (!ReferenceEquals(left[i], right[i]))
+                return false;
+        }
+        return true;
+    }
 }
 
 public sealed class EditorContext : IDisposable

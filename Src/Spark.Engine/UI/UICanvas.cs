@@ -231,7 +231,7 @@ public sealed class UICanvas
             target?.OnMouseUp(MouseButton.Left);
 
             if (_pressed != null && _pressed == released)
-                _pressed.OnMouseClick();
+                _pressed.OnMouseClick(input.KeysDown);
 
             _pressed = null;
         }

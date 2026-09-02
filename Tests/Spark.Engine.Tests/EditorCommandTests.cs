@@ -64,6 +64,47 @@ public sealed class EditorCommandTests
     }
 
     [Fact]
+    public void Selection_MaintainsSetAndPrimaryByReference()
+    {
+        var selection = new EditorSelection();
+        var first = new object();
+        var second = new object();
+        var notifications = 0;
+        selection.Changed += _ => notifications++;
+
+        selection.Selected = first;
+        selection.Add(second);
+
+        Assert.Equal(2, selection.Count);
+        Assert.Equal(new[] { first, second }, selection.Items);
+        Assert.Same(second, selection.Selected);
+
+        selection.Toggle(first);
+        Assert.Single(selection.Items);
+        Assert.Same(second, selection.Selected);
+
+        selection.Toggle(second);
+        Assert.Empty(selection.Items);
+        Assert.Null(selection.Selected);
+        Assert.Equal(4, notifications);
+    }
+
+    [Fact]
+    public void Selection_SetSameReferences_DoesNotNotifyAgain()
+    {
+        var selection = new EditorSelection();
+        var first = new object();
+        var second = new object();
+        var notifications = 0;
+        selection.Changed += _ => notifications++;
+
+        selection.Set(new[] { first, second }, second);
+        selection.Set(new[] { first, second }, second);
+
+        Assert.Equal(1, notifications);
+    }
+
+    [Fact]
     public void History_Clear_RemovesUndoAndRedo()
     {
         var value = 0;

@@ -15,16 +15,32 @@ public sealed class HierarchyPanel
     private readonly UITreeView _tree;
 
     private string _lastSignature = string.Empty;
+    private bool _suppressSelectionChanged;
 
     /// <summary>选中项变化：参数为选中的 Actor/Component 或 null。</summary>
     public Action<object?>? SelectionChanged { get; set; }
 
+    /// <summary>选择集合变化；第二个参数为最后操作的主选目标。</summary>
+    public Action<IReadOnlyList<object>, object?>? SelectionSetChanged { get; set; }
+
     public HierarchyPanel(World world)
     {
         _world = world;
-        _tree = new UITreeView { BackgroundColor = new(0f, 0f, 0f, 0f) };
+        _tree = new UITreeView
+        {
+            BackgroundColor = new(0f, 0f, 0f, 0f),
+            AllowMultipleSelection = true,
+        };
         _tree.FixedSize = new UISize(0f, 0f); // ≤0 = 拉伸填满（否则高度只有一行 ItemHeight）
-        _tree.SelectionChanged += item => SelectionChanged?.Invoke((item as WorldTreeItem)?.Target);
+        _tree.SelectionSetChanged += items =>
+        {
+            if (_suppressSelectionChanged)
+                return;
+            var targets = items.OfType<WorldTreeItem>().Select(item => item.Target).ToArray();
+            var primary = (_tree.SelectedItem as WorldTreeItem)?.Target;
+            SelectionChanged?.Invoke(primary);
+            SelectionSetChanged?.Invoke(targets, primary);
+        };
     }
 
     /// <summary>树控件本身（挂进编辑器布局）。</summary>
@@ -39,6 +55,9 @@ public sealed class HierarchyPanel
 
     /// <summary>当前选中的目标（Actor 或 Component；无选中为 null）。</summary>
     public object? SelectedTarget => (_tree.SelectedItem as WorldTreeItem)?.Target;
+
+    public IReadOnlyList<object> SelectedTargets
+        => _tree.SelectedItems.OfType<WorldTreeItem>().Select(item => item.Target).ToArray();
 
     /// <summary>每帧调用：结构签名变化时重建树（O(n) 快速比对，展开/选中态跨重建保留）。</summary>
     public void Refresh()
@@ -67,22 +86,30 @@ public sealed class HierarchyPanel
 
     private void Rebuild()
     {
-        var selected = SelectedTarget;
+        var selected = SelectedTargets;
+        var primary = SelectedTarget;
 
-        _tree.Clear();
-        foreach (var actor in _world.Actors)
+        _suppressSelectionChanged = true;
+        try
         {
-            var displayName = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
-            var actorItem = new WorldTreeItem(actor, $"{displayName} [{actor.Components.Count()}]");
-            foreach (var component in actor.Components)
-                actorItem.AddSubItem(new WorldTreeItem(component, component.GetType().Name));
-            _tree.AddRoot(actorItem);
-        }
+            _tree.Clear();
+            foreach (var actor in _world.Actors)
+            {
+                var displayName = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
+                var actorItem = new WorldTreeItem(actor, $"{displayName} [{actor.Components.Count()}]");
+                foreach (var component in actor.Components)
+                    actorItem.AddSubItem(new WorldTreeItem(component, component.GetType().Name));
+                _tree.AddRoot(actorItem);
+            }
 
-        // 恢复展开状态 + 选中态
-        _tree.ExpandAll();
-        if (selected != null && FindItem(_tree.Roots, selected) is { } item)
-            _tree.SelectItem(item);
+            // 恢复展开状态 + 选中态
+            _tree.ExpandAll();
+            SelectTargets(selected, primary);
+        }
+        finally
+        {
+            _suppressSelectionChanged = false;
+        }
     }
 
     private static WorldTreeItem? FindItem(IReadOnlyList<UITreeViewItem> items, object target)
@@ -107,6 +134,18 @@ public sealed class HierarchyPanel
 
         if (FindItem(_tree.Roots, target) is { } item)
             _tree.SelectItem(item);
+    }
+
+    public void SelectTargets(IEnumerable<object> targets, object? primary = null)
+    {
+        ArgumentNullException.ThrowIfNull(targets);
+        var items = targets
+            .Select(target => FindItem(_tree.Roots, target))
+            .Where(item => item != null)
+            .Cast<WorldTreeItem>()
+            .ToArray();
+        var primaryItem = primary == null ? null : FindItem(_tree.Roots, primary);
+        _tree.SelectItems(items, primaryItem);
     }
 
     /// <summary>持有引擎对象引用的树项（选中回调向上抛 Target）。</summary>

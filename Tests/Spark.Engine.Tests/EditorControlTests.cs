@@ -204,6 +204,36 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void TreeView_MultipleSelection_SupportsControlToggleAndShiftRange()
+    {
+        var tree = new UITreeView
+        {
+            AllowMultipleSelection = true,
+            FixedSize = new UISize(200f, 120f),
+        };
+        var items = Enumerable.Range(0, 4).Select(i => new UITreeViewItem($"Item {i}")).ToArray();
+        foreach (var item in items)
+            tree.AddRoot(item);
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 120f), Root = tree };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        ClickRow(canvas, renderer, row: 0);
+        ClickRow(canvas, renderer, row: 2, Key.LeftControl);
+
+        Assert.Equal(new[] { items[0], items[2] }, tree.SelectedItems);
+        Assert.Same(items[2], tree.SelectedItem);
+
+        ClickRow(canvas, renderer, row: 3, Key.LeftShift);
+
+        Assert.Equal(new[] { items[2], items[3] }, tree.SelectedItems);
+        Assert.Same(items[3], tree.SelectedItem);
+        Assert.False(items[0].IsSelected);
+        Assert.True(items[2].IsSelected);
+        Assert.True(items[3].IsSelected);
+    }
+
+    [Fact]
     public void TreeView_ClickArrow_TogglesExpandedState()
     {
         var tree = new UITreeView { FixedSize = new UISize(200f, 120f) };
@@ -226,6 +256,20 @@ public class EditorControlTests
             default, default, buttonsDown, default, default, default, string.Empty), renderer);
 
         Assert.False(rootItem.IsExpanded);
+    }
+
+    private static void ClickRow(UICanvas canvas, TextRenderer renderer, int row, Key modifier = Key.Unknown)
+    {
+        var point = new Vector2(60f, row * 24f + 12f);
+        var buttons = default(MouseButtonMask);
+        buttons.Set(MouseButton.Left, true);
+        var keys = default(KeyMask);
+        if (modifier != Key.Unknown)
+            keys.Set(modifier, true);
+        canvas.Update(new InputState(point, Vector2.Zero, 0f,
+            buttons, buttons, default, keys, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(point, Vector2.Zero, 0f,
+            default, default, buttons, keys, default, default, string.Empty), renderer);
     }
 
     // ———————————— UITabView ————————————

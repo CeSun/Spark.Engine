@@ -276,6 +276,9 @@ public abstract class UIElement
     {
     }
 
+    /// <summary>带当前修饰键状态的点击事件。默认转发到旧版无参数钩子。</summary>
+    protected internal virtual void OnMouseClick(KeyMask keysDown) => OnMouseClick();
+
     protected internal virtual void OnKeyDown(Key key)
     {
     }

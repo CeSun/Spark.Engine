@@ -28,6 +28,8 @@ public sealed class UIRenderView : UIElement
     private Vector2 _lastPointerPosition;
     /// <summary>鼠标在渲染视图内点击时触发，坐标为 UI 画布坐标。</summary>
     public event Action<Vector2>? Clicked;
+    /// <summary>鼠标点击及当时的修饰键状态。</summary>
+    public event Action<Vector2, KeyMask>? ClickedWithModifiers;
     public event Action<Vector2>? PointerPressed;
     public event Action<Vector2>? PointerDragged;
     public event Action<Vector2>? PointerReleased;
@@ -121,6 +123,12 @@ public sealed class UIRenderView : UIElement
     }
 
     protected internal override void OnMouseClick() => Clicked?.Invoke(_lastPointerPosition);
+
+    protected internal override void OnMouseClick(KeyMask keysDown)
+    {
+        Clicked?.Invoke(_lastPointerPosition);
+        ClickedWithModifiers?.Invoke(_lastPointerPosition, keysDown);
+    }
 
     /// <summary>显示尺寸变化超过阈值时请求重建离屏渲染目标。</summary>
     private void TryRequestResize(UIManager ui)
