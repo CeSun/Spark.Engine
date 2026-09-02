@@ -50,6 +50,27 @@ public class EditorControlTests
         Assert.Equal(primitives[0].Rect.W, primitives[1].Rect.W, precision: 3);
     }
 
+    [Fact]
+    public void TextBox_ExplicitZeroWidth_FillsParentInsteadOfGrowingWithText()
+    {
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        var textBox = new UITextBox
+        {
+            FixedSize = new UISize(0f, 30f),
+            Text = "short",
+        };
+        root.AddChild(textBox);
+        var canvas = new UICanvas(0) { Size = new Vector2(320f, 80f), Root = root };
+
+        canvas.Update(default, CreateTextRenderer());
+        var initialWidth = textBox.Bounds.Width;
+        textBox.Text = "a much longer value that must remain inside the parent width";
+        canvas.Update(default, CreateTextRenderer());
+
+        Assert.Equal(320f, initialWidth, precision: 3);
+        Assert.Equal(initialWidth, textBox.Bounds.Width, precision: 3);
+    }
+
     // ———————————— UIScrollBox ————————————
 
     [Fact]

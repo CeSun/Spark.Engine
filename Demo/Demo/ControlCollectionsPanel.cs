@@ -13,6 +13,7 @@ internal sealed class ControlCollectionsPanel : UIElement
         _panel = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
+            FixedSize = new UISize(0f, 350f),
             Padding = UIEdgeInsets.All(10f),
             Spacing = 7f,
             BackgroundColor = theme.PanelBackground,

@@ -109,8 +109,10 @@ public sealed class UITextBox : UIElement
 
         var textRenderer = GetTextRenderer();
         float textW = textRenderer == null ? 0f : textRenderer.Measure(DisplayText).X;
-        float w = FixedSize is { } fsv && fsv.Width > 0f
-            ? fsv.Width
+        // An explicitly supplied FixedSize with width <= 0 is the layout
+        // system's fill marker. Only an omitted FixedSize uses content sizing.
+        float w = FixedSize is { } fsv
+            ? (fsv.Width > 0f ? fsv.Width : 0f)
             : System.Math.Max(60f, textW + Padding.Left + Padding.Right + 10f);
         float h = FixedSize is { } fsv2 && fsv2.Height > 0f ? fsv2.Height : DefaultMinHeight;
         return new UISize(w, h);
