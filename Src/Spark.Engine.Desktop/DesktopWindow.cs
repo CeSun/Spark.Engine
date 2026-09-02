@@ -19,6 +19,7 @@ public class DesktopWindow : IWindow
     private readonly WindowInput _input = new();
 
     private SilkInput.IInputContext? _inputContext;
+    private WindowsImeContext? _imeContext;
 
     public RenderSurface? Surface => _surface;
 
@@ -50,6 +51,7 @@ public class DesktopWindow : IWindow
 
     public void PollEvents()
     {
+        _imeContext?.SetCandidatePosition(_input.ImeCandidatePosition);
         _window.DoEvents();
     }
 
@@ -68,12 +70,19 @@ public class DesktopWindow : IWindow
         _surface.Resize((uint)framebuffer.X, (uint)framebuffer.Y);
 
         InitializeInput();
+        if (OperatingSystem.IsWindows() && _window.Native?.Win32 is { } win32)
+        {
+            try { _imeContext = new WindowsImeContext(win32.Hwnd, _input); }
+            catch { _imeContext = null; }
+        }
     }
 
     public void Uninitialize()
     {
         // 只释放输入上下文。原生窗口销毁走 S4 握手：渲染线程释放 surface 后经 RenderTargetRegistry 登记，
         // 逻辑线程在下一帧 ProcessNativeDisposals 中调 DisposeNative 销毁（Silk/GLFW 原生窗口须在逻辑线程销毁）。
+        _imeContext?.Dispose();
+        _imeContext = null;
         _inputContext?.Dispose();
         _inputContext = null;
     }

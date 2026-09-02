@@ -24,7 +24,7 @@ internal sealed class ControlInputPanel : UIElement
 
         var textBox = new UITextBox
         {
-            PlaceholderText = "Type here: selection, clipboard and undo are enabled",
+            PlaceholderText = "请输入中文：支持输入法组合、选择、剪贴板和撤销",
             Clipboard = new MemoryClipboard(),
             FixedSize = new UISize(0f, 30f),
             Padding = UIEdgeInsets.HorizontalVertical(8f, 4f),

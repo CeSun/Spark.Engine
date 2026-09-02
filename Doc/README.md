@@ -408,9 +408,9 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 ### P4 —— UI 打磨
 
-15. **文本框进阶（P7）**：选择/复制粘贴/词删除/Undo/剪贴板/IME/多行/掩码
+15. **文本框进阶（P7）**：Windows IME、选择/复制粘贴/词删除/Undo/剪贴板/掩码已完成；多行与跨平台 IME 待补
 16. **更多控件（P8）**：Image/RadioButton/Spinner/Tooltip/Window（ProgressBar 已完成）
-17. **渲染质量（P9）**：字形图集 + 嵌入字体（中文支持）、圆角/边框/阴影/渐变/九宫格/DPI 缩放/脏标记增量绘制
+17. **渲染质量（P9）**：已有系统 CJK 字体 fallback；仍需字形图集 + 嵌入字体、圆角/边框/阴影/渐变/九宫格/DPI 缩放/脏标记增量绘制
 18. **样式系统 + 数据绑定（P10）**：可定制主题、MVVM 绑定
 
 ### P5 —— RenderGraph 深化

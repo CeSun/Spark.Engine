@@ -7,7 +7,7 @@ namespace Spark.Engine.UI;
 
 /// <summary>
 /// 单行文本输入框：支持光标、鼠标定位/拖选、Shift/Ctrl 导航、剪贴板和 Undo/Redo。
-/// 多行排版和 IME 组合态保留给后续版本。
+/// 支持 IME 单行组合态预览；多行排版保留给后续版本。
 /// </summary>
 public sealed class UITextBox : UIElement
 {
@@ -21,6 +21,8 @@ public sealed class UITextBox : UIElement
     private Vector2 _lastPointerPosition;
     private float _horizontalOffset;
     private EditKind _lastEditKind;
+    private string _compositionText = string.Empty;
+    private bool _isComposing;
 
     private readonly Stopwatch _blinkTimer = Stopwatch.StartNew();
 
@@ -94,6 +96,18 @@ public sealed class UITextBox : UIElement
 
     public bool CanRedo => _redo.Count > 0;
 
+    public Vector2? ImeCandidatePosition
+    {
+        get
+        {
+            if (!_focused || GetTextRenderer() is not { } renderer)
+                return null;
+            var display = GetPreviewText(out var visualCursor);
+            var x = Bounds.X + Padding.Left - _horizontalOffset + renderer.Measure(display[..visualCursor]).X;
+            return new Vector2(x, Bounds.Y + Padding.Top + renderer.LineHeight);
+        }
+    }
+
     private const float DefaultMinHeight = 24f;
 
     public UITextBox()
@@ -125,14 +139,14 @@ public sealed class UITextBox : UIElement
 
         var textRenderer = ui.Text;
         EnsureCursorVisible();
-        string displayText = DisplayText;
+        string displayText = GetPreviewText(out var visualCursor);
         bool showPlaceholder = _buffer.Length == 0 && !string.IsNullOrEmpty(PlaceholderText) && !_focused;
         string shownText = showPlaceholder ? PlaceholderText : displayText;
 
         float textX = rect.X + Padding.Left - _horizontalOffset;
         float textY = rect.Y + Padding.Top;
 
-        if (!showPlaceholder && HasSelection)
+        if (!showPlaceholder && HasSelection && !_isComposing)
         {
             float selectionX = textX + textRenderer.Measure(displayText[..SelectionStart]).X;
             float selectionW = textRenderer.Measure(displayText.Substring(SelectionStart, SelectionLength)).X;
@@ -142,9 +156,21 @@ public sealed class UITextBox : UIElement
         if (!string.IsNullOrEmpty(shownText))
             textRenderer.DrawText(ui, targetId, shownText, new Vector2(textX, textY), showPlaceholder ? PlaceholderColor : TextColor);
 
+        if (_isComposing && _compositionText.Length > 0 && MaskChar == null)
+        {
+            var compositionStart = SelectionStart;
+            var prefixWidth = textRenderer.Measure(displayText[..compositionStart]).X;
+            var compositionWidth = textRenderer.Measure(_compositionText).X;
+            ui.DrawRect(
+                targetId,
+                new Vector2(textX + prefixWidth, textY + textRenderer.LineHeight - 1f),
+                new Vector2(System.Math.Max(1f, compositionWidth), 1f),
+                TextColor);
+        }
+
         if (_focused && IsCursorVisible())
         {
-            float cursorX = textX + textRenderer.Measure(displayText[.._cursor]).X;
+            float cursorX = textX + textRenderer.Measure(displayText[..visualCursor]).X;
             ui.DrawRect(targetId, new Vector2(cursorX, textY), new Vector2(1.5f, textRenderer.LineHeight), new Vector4(1f, 1f, 1f, 0.9f));
         }
     }
@@ -172,6 +198,11 @@ public sealed class UITextBox : UIElement
         {
             _blinkTimer.Restart();
             EnsureCursorVisible();
+        }
+        else
+        {
+            _isComposing = false;
+            _compositionText = string.Empty;
         }
     }
 
@@ -203,6 +234,8 @@ public sealed class UITextBox : UIElement
 
     protected internal override void OnTextInput(string text)
     {
+        _isComposing = false;
+        _compositionText = string.Empty;
         if (ReadOnly || string.IsNullOrEmpty(text))
             return;
 
@@ -218,9 +251,19 @@ public sealed class UITextBox : UIElement
         ReplaceSelection(text, EditKind.Insert);
     }
 
+    protected internal override void OnTextComposition(string text, bool isComposing)
+    {
+        _isComposing = isComposing && !ReadOnly && MaskChar == null;
+        _compositionText = _isComposing ? text ?? string.Empty : string.Empty;
+        _blinkTimer.Restart();
+        EnsureCursorVisible();
+    }
+
     protected internal override void OnKeyDown(Key key, KeyMask keysDown)
     {
         _blinkTimer.Restart();
+        if (_isComposing)
+            return;
         bool ctrl = keysDown.IsDown(Key.LeftControl) || keysDown.IsDown(Key.RightControl);
         bool shift = keysDown.IsDown(Key.LeftShift) || keysDown.IsDown(Key.RightShift);
 
@@ -469,13 +512,26 @@ public sealed class UITextBox : UIElement
             return;
 
         float available = System.Math.Max(1f, Bounds.Width - Padding.Left - Padding.Right - 4f);
-        float cursorX = renderer.Measure(DisplayText[.._cursor]).X;
+        var display = GetPreviewText(out var visualCursor);
+        float cursorX = renderer.Measure(display[..visualCursor]).X;
         if (cursorX < _horizontalOffset)
             _horizontalOffset = cursorX;
         else if (cursorX > _horizontalOffset + available)
             _horizontalOffset = cursorX - available;
 
-        float total = renderer.Measure(DisplayText).X;
+        float total = renderer.Measure(display).X;
         _horizontalOffset = System.Math.Clamp(_horizontalOffset, 0f, System.Math.Max(0f, total - available));
+    }
+
+    private string GetPreviewText(out int visualCursor)
+    {
+        var display = DisplayText;
+        visualCursor = _cursor;
+        if (!_isComposing || _compositionText.Length == 0 || MaskChar != null)
+            return display;
+
+        var start = SelectionStart;
+        visualCursor = start + _compositionText.Length;
+        return display.Remove(start, SelectionLength).Insert(start, _compositionText);
     }
 }

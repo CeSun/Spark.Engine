@@ -1,7 +1,7 @@
 # UI 系统设计（UI System Design）
 
 > 状态：P0~P6 与 P8 编辑器核心控件已实现，P6-fix / P8 控件 / P8 审计三轮均已本机 GPU 实机验收通过（2026-08-31）；
-> P7 多行/IME 组合态、P9/P10 仍是后续工作。
+> P7 的 Windows IME 单行组合态已完成；多行、P9/P10 仍是后续工作。
 > P6 原有两阶段 Measure/Arrange、scissor 裁剪、Tab 焦点导航、焦点环可视化、UIGridPanel/UIWrapPanel 布局容器。
 > 文字渲染问题（拉伸/错位/裁剪）已全部定位并修复（见「踩坑经验」1/2/2b/6/6b）；
 > 复选框文字对齐、Demo 控件显式高度、输入框光标闪烁也已落地。
@@ -25,7 +25,7 @@
 
 > **P7 单行文本增强（当前增量）**：`UITextBox` 已支持选择、鼠标拖选、Shift/Ctrl 导航、剪贴板抽象、
 > 删除/替换、Undo/Redo、Placeholder、ReadOnly、MaxLength、Password 掩码和超长文本水平滚动；
-> 多行排版与 IME 组合态仍待后续实现。
+> Windows IME 单行组合态已实现；多行排版与跨平台 IME 仍待后续实现。
 
 ## 概述
 
@@ -73,7 +73,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | `UIPanel` | UIPanel.cs | 纯色矩形叶节点 |
 | `UILabel` | UILabel.cs | 文本标签（`Text`/`TextColor`） |
 | `UIButton` | UIButton.cs | 按钮（背景 + 文本 + 悬停/按下态 + `Clicked` 回调） |
-| `UITextBox` | UITextBox.cs | 单行输入框（选择/剪贴板/Undo/Redo/掩码/水平滚动；多行与 IME 组合态 ⏳） |
+| `UITextBox` | UITextBox.cs | 单行输入框（选择/剪贴板/Undo/Redo/掩码/水平滚动/Windows IME 组合态；多行 ⏳） |
 | `UICheckbox` | UICheckbox.cs | 复选框（`IsChecked` + `CheckedChanged`） |
 | `UISlider` | UISlider.cs | 滑杆（拖拽取值 0..1 + `ValueChanged`） |
 | `UICanvas` | UICanvas.cs | 每窗口画布：`Update(input)`（Arrange+路由）+ `Paint(ui)` + 焦点 + **`Overlays` 弹出层** |
@@ -134,7 +134,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | 显示 | `UIImage` | ⏳ | 图片 / 九宫格（9-slice） |
 | 显示 | `UIProgressBar` | ✅ | 确定性进度条（0..1） |
 | 交互 | `UIButton` | ✅ | 按钮三态+点击 + Measure 自适应（缺禁用态/图标/快捷键/Toggle） |
-| 交互 | `UITextBox` | 🔶 | 单行输入框：选择/剪贴板/Undo/Redo/Placeholder/ReadOnly/MaxLength/掩码已实现，多行与 IME 组合态待补 |
+| 交互 | `UITextBox` | 🔶 | 单行输入框：选择/剪贴板/Undo/Redo/Placeholder/ReadOnly/MaxLength/掩码/Windows IME 已实现，多行待补 |
 | 交互 | `UICheckbox` | ✅ | 复选框 + Measure 自适应（缺三态/键盘Space/禁用态） |
 | 交互 | `UIRadioButton` + `UIRadioGroup` | ⏳ | 单选按钮（互斥分组） |
 | 交互 | `UISlider` | ✅ | 水平滑杆 0..1 + Measure 自适应（缺 Min/Max/Step/垂直/键盘/范围） |
@@ -203,7 +203,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 ### 三、文本框（UITextBox）功能详解
 
 > 输入框是交互最重的控件，这里把「光标 / 选择 / 编辑 / 剪贴板 / IME / 显示样式」逐项列全。
-> 当前状态：🔶 单行编辑能力已完成；多行排版、IME 组合态等进阶能力仍待后续迭代。
+> 当前状态：🔶 单行编辑与 Windows IME 组合态已完成；多行排版和跨平台 IME 仍待后续迭代。
 
 #### 光标与导航
 - ✅ 左/右移动、Home/End、Ctrl+←/→ 按词移动、鼠标点击定位、光标闪烁（530ms 可见/隐藏，聚焦/按键/输入时重置）。
@@ -224,7 +224,8 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 
 #### 输入法（IME）
 - ✅ `OnTextInput` 接收合成后的文本。
-- ⏳ IME 组合态可视化（候选下划线/高亮）、光标定位到组合区、组合提交/取消回调。
+- ✅ Windows IME 组合态可视化（组合串下划线）、光标/候选窗定位、组合提交和取消。
+- ⏳ Linux/macOS 输入法桥接与更细粒度的候选分段高亮。
 
 #### 显示与样式
 - ✅ `TextColor`/`BackgroundColor`/`Padding`、光标闪烁、`Focusable`、占位文本、密码掩码、只读、
@@ -301,7 +302,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | ADR-23 | UI 基元 `UIPrimitive` 作为 `SceneSnapshot` 的 `UIPrimitives` 字段（`FrameBuffer<UIPrimitive>`），复用双缓冲与值快照 |
 | ADR-24 | UI 渲染为 `IGraphOverlay`（DI 注册），`SceneRenderPipeline.Render` 在 `BuildGraph` 后追加 |
 | ADR-25 | 输入抽象在核心库（引擎枚举 + `InputState`），Silk.NET 事件在 Desktop 映射 |
-| ADR-26 | 文本栅格化用 SixLabors.Fonts + ImageSharp.Drawing，**字符串级纹理**（v1），系统字体（Arial→Segoe UI→DejaVu Sans 回退） |
+| ADR-26 | 文本栅格化用 SixLabors.Fonts + ImageSharp.Drawing，**字符串级纹理**（v1），系统字体并为 CJK 配置微软雅黑/Noto 等 fallback |
 | ADR-27 | UI 多纹理按 `TextureId` 分批绘制，顶点写入**累积 offset**（`DrawIndexed` 的 `baseVertex`），避免批次覆盖 |
 | ADR-28 | RGBA8 纹理上传的 `BytesPerRow` 必须 **256 对齐**（WebGPU `COPY_BYTES_PER_ROW_ALIGNMENT`），紧密数据重排为对齐 stride |
 
@@ -473,9 +474,9 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | 剪贴板 | Ctrl+C/X/V、`IClipboard` 平台抽象 | 无 | - |
 | 显示 | Placeholder、Password、ReadOnly、MaxLength、水平滚动 | 禁用态、输入过滤/校验、对齐 | P7-Medium |
 | 多行 | ❌ | 自动换行 + 垂直滚动 | P7-High |
-| IME | 接收文本提交 | 组合态可视化、候选下划线、提交/取消回调 | P7-High |
+| IME | Windows 组合态可视化、候选窗定位、提交/取消 | Linux/macOS 平台桥接、候选分段高亮 | P7-High |
 
-**影响**：编辑器属性输入和搜索框可用；脚本编辑、多行文本和中文 IME 仍需后续迭代。
+**影响**：Windows 编辑器属性输入、搜索框和中文 IME 可用；脚本编辑、多行文本及跨平台 IME 仍需后续迭代。
 
 #### 2.2 控件覆盖率与剩余控件（→ P8/P9）
 
@@ -963,7 +964,7 @@ slider.Bind(nameof(UISlider.Value), viewModel, vm => vm.Volume, (vm, v) => vm.Vo
 - **字符串级文本纹理**：每段文本一张纹理，纹理数随字符串数增长，需换字形图集 + 嵌入字体（跨平台一致）。
   → 详见「当前问题与差距分析 §1.3」和「P9 §9.1」。
 - ~~**无裁剪**~~：✅ P6 scissor 裁剪已实现；✅ P8 `UIScrollBox` 与 Overlay 下拉/菜单/对话框已实现。
-- **文本框仍为单行实现**：选择、剪贴板、Undo/Redo、掩码等已实现，多行和 IME 组合态仍待 P7。
+- **文本框仍为单行实现**：选择、剪贴板、Undo/Redo、掩码和 Windows IME 已实现，多行及跨平台 IME 仍待 P7。
   → 详见「当前问题与差距分析 §2.1」和「P7」。
 - **控件覆盖率约 70%**：编辑器核心 Tree/List/Menu/Dialog/Tab/Combo/PropertyGrid 已具备，
   `UIWindow`、`UIImage`、Radio/Spinner/Tooltip 和虚拟化仍待补。
@@ -1002,7 +1003,7 @@ slider.Bind(nameof(UISlider.Value), viewModel, vm => vm.Volume, (vm, v) => vm.Vo
 | P4 | 交互（HitTest + 事件路由 + UIButton/UITextBox v1） | ✅ | 鼠标/键盘事件路由 |
 | P5 | 完整控件 + 主题 + 编辑器接入（UICheckbox/UISlider/UITheme/EditorLayout） | ✅ | 编辑器骨架 |
 | P6 | 内容自适应布局 + 裁剪 + 焦点增强 + Grid/Wrap | ✅ | Measure/Arrange、scissor、Tab导航、GridPanel、WrapPanel |
-| P7 | 文本框进阶（多行、IME 组合态、输入校验） | 🔶 部分 | 单行选择/剪贴板/Undo/Redo/掩码已落地；多行与 IME 组合态待补 |
+| P7 | 文本框进阶（多行、IME 组合态、输入校验） | 🔶 部分 | 单行选择/剪贴板/Undo/Redo/掩码/Windows IME 已落地；多行与跨平台 IME 待补 |
 | P8 | 编辑器控件与 Overlay（ScrollBox/Menu/Tree/List/Combo/Dialog/Tab 等） | 🔶 部分 | 编辑器刚需控件已落地；Image/Radio/Spinner/Tooltip/Window/虚拟化待补 |
 | P9 | 渲染打磨（字形图集/嵌入字体/圆角边框阴影/九宫格/增量绘制/DPI） | ⏳ | 高质量渲染 + 性能优化 |
 | P10 | 主题样式系统 + 数据绑定 + 无障碍/本地化 | ⏳ | 可定制外观 + MVVM 支持 |

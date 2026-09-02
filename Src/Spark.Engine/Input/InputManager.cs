@@ -42,7 +42,9 @@ public sealed class InputManager
                 input.KeysDown,
                 keysPressed,
                 keysReleased,
-                text);
+                text,
+                input.CompositionText,
+                input.IsComposing);
 
             _states[window] = state;
             _previous[window] = (input.Buttons, input.KeysDown);

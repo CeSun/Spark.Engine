@@ -98,9 +98,8 @@ canvas.Root = someDockPanel; someDockPanel.AddChild(view);
 - 冒烟测试（本地 GPU）：程序运行稳定；首帧 RenderGraph dump 确认
   `BlinnPhong(Target=3)`（离屏场景 pass）→ `UIOverlay(Target=4)` 读 `res_3`（采样依赖正确）；
   自适应重建后目标 Id 更新为新 `TextureRenderTarget`，UI pass 读取新目标。
-- 已知限制：UI 文本渲染器当前依赖系统字体（Arial/Segoe UI 等），字体覆盖和字形缓存由操作系统决定，
-  尚未内置稳定的 CJK 字体、字形图集或中文 IME 组合态支持。编辑器目标是嵌入可授权 CJK 字体、统一字形图集，
-  并在 Windows 输入层接入中文 IME；在此之前应避免把系统字体渲染结果当作跨机器一致的资源。
+- 当前 Windows 输入层已接入中文 IME 组合串、候选窗光标定位和提交；文本渲染使用微软雅黑/Noto CJK 等系统字体 fallback。
+  仍未内置稳定的 CJK 字体或字形图集，因此不同机器的字形结果可能不同，不能把系统字体渲染结果当作跨机器一致的资源。
 
 ## 未决事项
 

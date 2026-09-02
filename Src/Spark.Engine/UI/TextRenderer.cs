@@ -17,6 +17,7 @@ public sealed class TextRenderer
     private const float Dpi = 72f; // 1pt = 1px，与测量/渲染保持一致
 
     private readonly Font _font;
+    private readonly IReadOnlyList<FontFamily> _fallbackFontFamilies;
     private readonly Dictionary<string, int> _textureIds = new();
     private readonly Dictionary<int, Vector2> _textureSizes = new();
     // 每个 UI 文本纹理的「墨水原点偏移」：DrawText 绘制四边形时把纹理左上角放到 position + offset，
@@ -29,26 +30,27 @@ public sealed class TextRenderer
     private const int MaxCachedTextures = 512;
     private const uint EvictionAge = 3;
 
-    public TextRenderer(Font font)
+    public TextRenderer(Font font, IReadOnlyList<FontFamily>? fallbackFontFamilies = null)
     {
         _font = font;
+        _fallbackFontFamilies = fallbackFontFamilies ?? Array.Empty<FontFamily>();
         // 行高 = 含 ascender/descender 的参考字形 ("Ag") 的行框高度，与文本内容无关。
         // 布局/垂直居中应使用它而非 Measure 的墨水包围盒高度（后者随文本字符变化，
         // 会导致同字号按钮高度不一致、文字基线不对齐）。
-        LineHeight = MeasureLineHeight(font);
+        LineHeight = MeasureLineHeight(font, _fallbackFontFamilies);
     }
 
     /// <summary>字体行高（逻辑像素），与文本内容无关。</summary>
     public float LineHeight { get; }
 
-    private static float MeasureLineHeight(Font font)
+    private static float MeasureLineHeight(Font font, IReadOnlyList<FontFamily> fallbackFontFamilies)
     {
         // 用多行文本测真实排版行高（含 line gap）：
         // SixLabors 多行渲染时每行行距比单行墨水盒高，若用墨水盒当行高，
         // N 行文本实际渲染高度 > N × LineHeight → 布局分配不足 → 文字底部被裁剪。
         // 三行墨水盒总高 = 2×行高 + 单行墨水盒高（首末行各一个墨水盒，中间是行距）
         // → 行高 = (三行高 - 单行高) / 2
-        var options = new RichTextOptions(font) { Dpi = Dpi, Origin = new PointF(0f, 0f) };
+        var options = CreateOptions(font, fallbackFontFamilies, new PointF(0f, 0f));
         var one = TextMeasurer.MeasureBounds("Ag", options).Height;
         var three = TextMeasurer.MeasureBounds("Ag\nAg\nAg", options).Height;
         float lineHeight = (three - one) / 2f;
@@ -189,7 +191,7 @@ public sealed class TextRenderer
     /// <summary>取文本紧贴墨水包围盒（相对 Origin=(0,0)，即行框左上角）。</summary>
     private FontRectangle MeasureBounds(string text)
     {
-        var options = new RichTextOptions(_font) { Dpi = Dpi, Origin = new PointF(0f, 0f) };
+        var options = CreateOptions(_font, _fallbackFontFamilies, new PointF(0f, 0f));
         return TextMeasurer.MeasureBounds(text, options);
     }
 
@@ -214,6 +216,7 @@ public sealed class TextRenderer
         {
             Dpi = Dpi,
             Origin = new PointF(1f - left, 1f - top),
+            FallbackFontFamilies = _fallbackFontFamilies,
         };
 
         using var image = new Image<Rgba32>(width, height);
@@ -233,4 +236,15 @@ public sealed class TextRenderer
         ui.EnqueueTexture(new UITextureUpload(id, (uint)width, (uint)height, rgba));
         return id;
     }
+
+    private static RichTextOptions CreateOptions(
+        Font font,
+        IReadOnlyList<FontFamily> fallbackFontFamilies,
+        PointF origin)
+        => new(font)
+        {
+            Dpi = Dpi,
+            Origin = origin,
+            FallbackFontFamilies = fallbackFontFamilies,
+        };
 }

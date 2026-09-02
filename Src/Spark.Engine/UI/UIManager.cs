@@ -248,7 +248,8 @@ public sealed class UIManager
     private static TextRenderer CreateDefaultTextRenderer()
     {
         var font = LoadSystemFont(16f);
-        return new TextRenderer(font);
+        var fallbacks = LoadFallbackFonts(font.Family);
+        return new TextRenderer(font, fallbacks);
     }
 
     private static Font LoadSystemFont(float size)
@@ -263,5 +264,21 @@ public sealed class UIManager
             return family.CreateFont(size, FontStyle.Regular);
 
         throw new InvalidOperationException("No system fonts available for UI text rendering.");
+    }
+
+    private static IReadOnlyList<FontFamily> LoadFallbackFonts(FontFamily primary)
+    {
+        var result = new List<FontFamily>();
+        foreach (var name in new[]
+                 {
+                     "Microsoft YaHei UI", "Microsoft YaHei", "SimSun", "Noto Sans CJK SC",
+                     "Noto Sans SC", "PingFang SC", "WenQuanYi Micro Hei", "DejaVu Sans",
+                 })
+        {
+            if (SystemFonts.TryGet(name, out var family) &&
+                !family.Equals(primary) && !result.Contains(family))
+                result.Add(family);
+        }
+        return result;
     }
 }

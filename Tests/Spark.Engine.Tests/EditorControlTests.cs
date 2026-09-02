@@ -630,6 +630,45 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void TextBox_ImeCompositionPreviewsWithoutMutatingUntilCommit()
+    {
+        var textBox = new UITextBox { FixedSize = new UISize(200f, 30f), Text = "编辑" };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(textBox);
+        var canvas = new UICanvas(0) { Size = new Vector2(240f, 60f), Root = root };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+        canvas.Focus(textBox);
+
+        canvas.Update(new InputState(
+            Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default,
+            default, default, default,
+            string.Empty, "qi", isComposing: true), renderer);
+
+        Assert.Equal("编辑", textBox.Text);
+        Assert.NotNull(canvas.ImeCandidatePosition);
+        var backspace = new KeyMask();
+        backspace.Set(Key.Backspace, true);
+        canvas.Update(new InputState(
+            Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default,
+            backspace, backspace, default,
+            string.Empty, "qi", isComposing: true), renderer);
+        Assert.Equal("编辑", textBox.Text);
+
+        canvas.Update(new InputState(
+            Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default,
+            default, default, default,
+            "器", string.Empty, isComposing: false), renderer);
+        Assert.Equal("编辑器", textBox.Text);
+        Assert.True(textBox.CanUndo);
+        textBox.Undo();
+        Assert.Equal("编辑", textBox.Text);
+    }
+
+    [Fact]
     public void TextBox_ClipboardCopyPaste_UsesInjectedClipboard()
     {
         var clipboard = new MemoryClipboard();

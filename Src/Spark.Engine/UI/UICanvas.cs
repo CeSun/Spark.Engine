@@ -16,6 +16,8 @@ public sealed class UICanvas
 
     public UIElement? Root { get; set; }
 
+    public Vector2? ImeCandidatePosition => (_focused as UITextBox)?.ImeCandidatePosition;
+
     /// <summary>
     /// 弹出层（Overlay）：绘制在 Root 之上、命中测试优先于 Root 的元素列表。
     /// 用于菜单弹出面板、对话框遮罩等需要覆盖兄弟元素且不参与布局流的控件。
@@ -294,6 +296,7 @@ public sealed class UICanvas
         // 键盘 + 文本 → 焦点元素
         if (_focused != null)
         {
+            _focused.OnTextComposition(input.CompositionText, input.IsComposing);
             foreach (var key in input.KeysPressed.Enumerate())
             {
                 // Tab 已处理，不转发给控件

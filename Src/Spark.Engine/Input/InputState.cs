@@ -29,6 +29,10 @@ public readonly struct InputState
     /// <summary>本帧输入的文本字符；无输入时为空字符串。</summary>
     public readonly string Text;
 
+    public readonly string CompositionText;
+
+    public readonly bool IsComposing;
+
     public InputState(
         Vector2 mousePosition,
         Vector2 mouseDelta,
@@ -39,7 +43,9 @@ public readonly struct InputState
         KeyMask keysDown,
         KeyMask keysPressed,
         KeyMask keysReleased,
-        string text)
+        string text,
+        string compositionText = "",
+        bool isComposing = false)
     {
         MousePosition = mousePosition;
         MouseDelta = mouseDelta;
@@ -51,6 +57,8 @@ public readonly struct InputState
         KeysPressed = keysPressed;
         KeysReleased = keysReleased;
         Text = text;
+        CompositionText = compositionText ?? string.Empty;
+        IsComposing = isComposing;
     }
 
     public bool IsButtonDown(MouseButton button) => ButtonsDown.IsDown(button);

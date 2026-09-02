@@ -291,6 +291,11 @@ public abstract class UIElement
     {
     }
 
+    /// <summary>IME 预编辑状态；组合串只用于预览，最终提交仍通过 <see cref="OnTextInput"/>。</summary>
+    protected internal virtual void OnTextComposition(string text, bool isComposing)
+    {
+    }
+
     protected internal virtual void OnFocusChanged(bool focused)
     {
     }

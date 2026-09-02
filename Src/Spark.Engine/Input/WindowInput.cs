@@ -27,6 +27,20 @@ public sealed class WindowInput
     /// <summary>本帧输入的文本字符（KeyChar 累积）。</summary>
     public readonly StringBuilder Text = new();
 
+    /// <summary>IME 当前预编辑串；提交文本仍进入 <see cref="Text"/>。</summary>
+    public string CompositionText { get; private set; } = string.Empty;
+
+    public bool IsComposing { get; private set; }
+
+    /// <summary>文本控件请求的 IME 候选窗位置（窗口逻辑像素）。</summary>
+    public Vector2? ImeCandidatePosition { get; set; }
+
+    public void SetTextComposition(string text, bool isComposing)
+    {
+        IsComposing = isComposing;
+        CompositionText = isComposing ? text ?? string.Empty : string.Empty;
+    }
+
     /// <summary>帧首清掉边沿量（位移/滚轮/文本）；按住状态（按钮/按键/位置）保留。</summary>
     internal void BeginFrame()
     {
