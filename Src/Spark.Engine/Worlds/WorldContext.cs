@@ -27,17 +27,27 @@ public sealed class WorldContext : IDisposable
     /// <summary>卸载当前 World 后切换到新 World。</summary>
     public void SetCurrentWorld(World? world)
     {
+        var previous = ExchangeCurrentWorld(world);
+        previous?.Dispose();
+    }
+
+    /// <summary>
+    /// 原子替换当前 World 并把旧实例的所有权交给调用方。调用方必须负责 Dispose 返回值。
+    /// 用于编辑器先完整构建新场景、再提交切换的事务边界。
+    /// </summary>
+    public World? ExchangeCurrentWorld(World? world)
+    {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(WorldContext));
 
         if (ReferenceEquals(_currentWorld, world))
-            return;
+            return null;
         if (ReferenceEquals(_runtimeWorld, world))
             throw new InvalidOperationException("RuntimeWorld cannot also be the CurrentWorld.");
 
         var previous = _currentWorld;
         _currentWorld = world;
-        previous?.Dispose();
+        return previous;
     }
 
     /// <summary>设置独立运行时 World；替换旧运行时 World，但始终保留 CurrentWorld。</summary>

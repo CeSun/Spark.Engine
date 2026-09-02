@@ -80,6 +80,15 @@ public sealed class SceneDocument
     /// </summary>
     public World InstantiateWorld(ResourceManager resourceManager, IAssetRegistry? assetRegistry = null,
         RuntimeActorFactory? runtimeActorFactory = null)
+        => InstantiateWorld(resourceManager, assetRegistry, runtimeActorFactory, isRuntimeWorld: true);
+
+    /// <summary>创建编辑器 World；共享 Registry 资产，但不复制运行时材质、不注入 gameplay 行为。</summary>
+    public World InstantiateEditorWorld(ResourceManager resourceManager, IAssetRegistry? assetRegistry = null,
+        RuntimeActorFactory? runtimeActorFactory = null)
+        => InstantiateWorld(resourceManager, assetRegistry, runtimeActorFactory, isRuntimeWorld: false);
+
+    private World InstantiateWorld(ResourceManager resourceManager, IAssetRegistry? assetRegistry,
+        RuntimeActorFactory? runtimeActorFactory, bool isRuntimeWorld)
     {
         ArgumentNullException.ThrowIfNull(resourceManager);
         var world = new World(resourceManager);
@@ -110,7 +119,7 @@ public sealed class SceneDocument
                         }
                         if (componentRecord.MaterialAssetGuid is { } materialGuid)
                         {
-                            staticMesh.Material = ResolveRuntimeMaterial(materialGuid);
+                            staticMesh.Material = ResolveMaterial(materialGuid);
                         }
                     }
                     else if (component is SkeletalMeshComponent skeletalMesh)
@@ -123,7 +132,7 @@ public sealed class SceneDocument
                         }
                         if (componentRecord.MaterialAssetGuid is { } materialGuid)
                         {
-                            skeletalMesh.Material = ResolveRuntimeMaterial(materialGuid);
+                            skeletalMesh.Material = ResolveMaterial(materialGuid);
                         }
                     }
                     if (component is LightComponent light)
@@ -170,7 +179,8 @@ public sealed class SceneDocument
                 }
             }
 
-            runtimeActorFactory.InitializeWorld(world, this);
+            if (isRuntimeWorld)
+                runtimeActorFactory.InitializeWorld(world, this);
             return world;
         }
         catch
@@ -179,8 +189,14 @@ public sealed class SceneDocument
             throw;
         }
 
-        Material ResolveRuntimeMaterial(Guid materialGuid)
+        Material ResolveMaterial(Guid materialGuid)
         {
+            if (!isRuntimeWorld)
+            {
+                if (assetRegistry == null || assetRegistry.Resolve(materialGuid) is not Material editorMaterial)
+                    throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved as Material.");
+                return editorMaterial;
+            }
             if (runtimeMaterials.TryGetValue(materialGuid, out var existing))
                 return existing;
             if (assetRegistry == null || assetRegistry.Resolve(materialGuid) is not Material source)

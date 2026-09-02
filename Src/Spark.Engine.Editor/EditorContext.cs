@@ -30,7 +30,7 @@ public sealed class EditorSelection
 
 public sealed class EditorContext : IDisposable
 {
-    public World World { get; }
+    public World World { get; private set; }
     private readonly WorldContext? _worldContext;
     public World? RuntimeWorld { get; private set; }
     public World ActiveWorld => RuntimeWorld ?? World;
@@ -44,6 +44,7 @@ public sealed class EditorContext : IDisposable
     public bool IsDirty { get; private set; }
     public event Action<bool>? DirtyChanged;
     public event Action<EditorPlayState>? PlayStateChanged;
+    public event Action<World, World>? WorldChanged;
 
     public EditorContext(World world, WorldContext? worldContext = null,
         IAssetRegistry? assetRegistry = null, RuntimeActorFactory? runtimeActorFactory = null)
@@ -83,6 +84,43 @@ public sealed class EditorContext : IDisposable
         SetDirty(false);
     }
 
+    /// <summary>从已校验文档构建新 EditorWorld，并在成功后原子替换当前场景。</summary>
+    public void Reload(SceneDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (PlayState != EditorPlayState.Edit)
+            throw new InvalidOperationException("Stop Play before reloading the editor scene.");
+
+        RegisterWorldAssets();
+        var previous = World;
+        if (_worldContext != null && !ReferenceEquals(_worldContext.CurrentWorld, previous))
+            throw new InvalidOperationException("EditorContext no longer owns WorldContext.CurrentWorld.");
+        var next = document.InstantiateEditorWorld(
+            previous.Scene.ResourceManager, AssetRegistry, RuntimeActorFactory);
+        try
+        {
+            BindCameraTargets(previous, next);
+            next.Update(0f, tickActors: false);
+        }
+        catch
+        {
+            next.Dispose();
+            throw;
+        }
+
+        if (_worldContext != null)
+        {
+            var exchanged = _worldContext.ExchangeCurrentWorld(next);
+            if (!ReferenceEquals(exchanged, previous))
+                throw new InvalidOperationException("WorldContext returned an unexpected previous World.");
+        }
+        World = next;
+        previous.Dispose();
+        Selection.Selected = null;
+        MarkReloaded();
+        WorldChanged?.Invoke(previous, next);
+    }
+
     /// <summary>从当前编辑文档创建独立 RuntimeWorld；编辑 World 不进入运行时生命周期。</summary>
     public bool Play()
     {
@@ -95,7 +133,7 @@ public sealed class EditorContext : IDisposable
         try
         {
             RuntimeWorldInitializer?.Invoke(runtime);
-            BindCameraTargets(runtime);
+            BindCameraTargets(World, runtime);
             _worldContext?.SetRuntimeWorld(runtime);
         }
         catch
@@ -138,19 +176,19 @@ public sealed class EditorContext : IDisposable
     public void SyncRuntimeCameraTargets()
     {
         if (RuntimeWorld != null)
-            BindCameraTargets(RuntimeWorld);
+            BindCameraTargets(World, RuntimeWorld);
     }
 
     /// <summary>注册一个只作用于新建 RuntimeWorld 的行为扩展。</summary>
     public void RegisterRuntimeBehavior(Action<World, SceneDocument> behavior)
         => RuntimeActorFactory.RegisterWorldBehavior(behavior);
 
-    private void BindCameraTargets(World runtime)
+    private static void BindCameraTargets(World source, World destination)
     {
         var editorCameras = new List<CameraComponent>();
         var runtimeCameras = new List<CameraComponent>();
-        World.CollectCameraComponents(editorCameras);
-        runtime.CollectCameraComponents(runtimeCameras);
+        source.CollectCameraComponents(editorCameras);
+        destination.CollectCameraComponents(runtimeCameras);
 
         // RenderTarget 是窗口/贴图资源，不属于场景文档；只绑定同一稳定组件身份的相机。
         var editorCamerasByGuid = editorCameras.ToDictionary(camera => camera.ComponentGuid);

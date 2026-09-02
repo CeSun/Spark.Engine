@@ -148,15 +148,16 @@ public sealed class EditorCommandTests
     {
         using var world = new Spark.Engine.Worlds.World(new Spark.Engine.Resources.ResourceManager());
         var saveCalls = 0;
-        var reloadCalls = 0;
+        var loadCalls = 0;
+        var document = new SceneDocument();
         var service = new DelegateEditorSceneService(
             save: value => { Assert.Same(world, value); saveCalls++; return true; },
-            reload: value => { Assert.Same(world, value); reloadCalls++; return false; });
+            load: () => { loadCalls++; return document; });
 
         Assert.True(service.Save(world));
-        Assert.False(service.Reload(world));
+        Assert.Same(document, service.Load());
         Assert.Equal(1, saveCalls);
-        Assert.Equal(1, reloadCalls);
+        Assert.Equal(1, loadCalls);
     }
 
     [Fact]

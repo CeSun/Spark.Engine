@@ -11,7 +11,7 @@ namespace Spark.Engine.Editor;
 /// </summary>
 public sealed class HierarchyPanel
 {
-    private readonly World _world;
+    private World _world;
     private readonly UITreeView _tree;
 
     private string _lastSignature = string.Empty;
@@ -29,6 +29,13 @@ public sealed class HierarchyPanel
 
     /// <summary>树控件本身（挂进编辑器布局）。</summary>
     public UIElement Element => _tree;
+
+    public void SetWorld(World world)
+    {
+        _world = world ?? throw new ArgumentNullException(nameof(world));
+        _lastSignature = string.Empty;
+        _tree.Clear();
+    }
 
     /// <summary>当前选中的目标（Actor 或 Component；无选中为 null）。</summary>
     public object? SelectedTarget => (_tree.SelectedItem as WorldTreeItem)?.Target;

@@ -60,6 +60,22 @@ public sealed class WorldLifecycleTests
     }
 
     [Fact]
+    public void ExchangeCurrentWorldReturnsPreviousWithoutDisposingIt()
+    {
+        using var context = new WorldContext();
+        var previous = new World(new ResourceManager());
+        var next = new World(new ResourceManager());
+        context.CurrentWorld = previous;
+
+        var exchanged = context.ExchangeCurrentWorld(next);
+
+        Assert.Same(previous, exchanged);
+        Assert.Same(next, context.CurrentWorld);
+        previous.Update(0f, tickActors: false);
+        previous.Dispose();
+    }
+
+    [Fact]
     public void DisposingWorldCleansPendingActorsAndIsIdempotent()
     {
         var world = new World(new ResourceManager());

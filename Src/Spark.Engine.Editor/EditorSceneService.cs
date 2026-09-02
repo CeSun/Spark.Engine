@@ -8,17 +8,18 @@ public interface IEditorSceneService
 {
     bool Save(World world);
 
-    bool Reload(World world);
+    /// <summary>读取场景文档；返回 null 表示用户取消。World 的构建和切换由 EditorContext 负责。</summary>
+    SceneDocument? Load();
 }
 
 /// <summary>便于宿主接入文件、资产库或远程场景服务的委托实现。</summary>
 public sealed class DelegateEditorSceneService(
     Func<World, bool>? save = null,
-    Func<World, bool>? reload = null) : IEditorSceneService
+    Func<SceneDocument?>? load = null) : IEditorSceneService
 {
     public bool Save(World world) => save?.Invoke(world) ?? false;
 
-    public bool Reload(World world) => reload?.Invoke(world) ?? false;
+    public SceneDocument? Load() => load?.Invoke();
 }
 
 /// <summary>使用自定义二进制 `.scene` 文件的编辑器场景服务。</summary>
@@ -41,15 +42,13 @@ public sealed class BinaryEditorSceneService(string path) : IEditorSceneService
         return true;
     }
 
-    /// <summary>读取并校验场景文档；World 重建由后续实例化服务负责。</summary>
-    public bool Reload(World world)
+    public SceneDocument Load()
     {
-        ArgumentNullException.ThrowIfNull(world);
         LastLoadedDocument = SceneDocument.Load(Path);
-        return true;
+        return LastLoadedDocument;
     }
 
-    public SceneDocument LoadDocument() => SceneDocument.Load(Path);
+    public SceneDocument LoadDocument() => Load();
 
     /// <summary>加载磁盘场景并通过 AssetGuid 解析资产后创建独立 World。</summary>
     public World LoadWorld(ResourceManager resourceManager, IAssetRegistry assetRegistry,

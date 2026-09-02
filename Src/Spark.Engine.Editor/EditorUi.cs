@@ -15,7 +15,6 @@ namespace Spark.Engine.Editor;
 /// </summary>
 public sealed class EditorUi
 {
-    private readonly World _world;
     private readonly EditorHierarchyPanel _hierarchy;
     private readonly EditorInspectorPanel _inspector;
     private readonly EditorViewportPanel _viewport;
@@ -37,9 +36,9 @@ public sealed class EditorUi
 
     public EditorUi(World world, Action? backToHub = null, IEditorSceneService? sceneService = null, WorldContext? worldContext = null)
     {
-        _world = world ?? throw new ArgumentNullException(nameof(world));
+        ArgumentNullException.ThrowIfNull(world);
         _sceneService = sceneService;
-        _context = new EditorContext(_world, worldContext);
+        _context = new EditorContext(world, worldContext);
         var root = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
@@ -72,7 +71,7 @@ public sealed class EditorUi
         // 中部：层级 + 视口（透明）+ 检查器
         var content = new UIStackPanel { Orientation = UIOrientation.Horizontal, FixedSize = new UISize(0f, 0f) };
 
-        _hierarchy = new EditorHierarchyPanel(_world);
+        _hierarchy = new EditorHierarchyPanel(_context.World);
         content.AddChild(_hierarchy);
 
         _viewport = new EditorViewportPanel();
@@ -97,6 +96,7 @@ public sealed class EditorUi
         _hierarchy.SelectionChanged += target => _context.Selection.Selected = target;
         _context.Selection.Changed += _ => UpdateInspector();
         _context.DirtyChanged += _ => UpdateInspectorTitle();
+        _context.WorldChanged += (_, next) => _hierarchy.SetWorld(next);
     }
 
     /// <summary>当前编辑器 Play 状态，供宿主同步窗口标题或工具栏。</summary>
@@ -224,7 +224,7 @@ public sealed class EditorUi
 
         try
         {
-            if (_sceneService.Save(_world))
+            if (_sceneService.Save(_context.World))
             {
                 _context.MarkSaved();
                 SetStatus("Scene saved.");
@@ -250,10 +250,10 @@ public sealed class EditorUi
 
         try
         {
-            if (_sceneService.Reload(_world))
+            var document = _sceneService.Load();
+            if (document != null)
             {
-                _context.MarkReloaded();
-                _context.Selection.Selected = null;
+                _context.Reload(document);
                 SetStatus("Scene reloaded.");
                 Refresh();
             }
@@ -290,7 +290,7 @@ public sealed class EditorUi
     private void AddActor()
     {
         var actor = new Actor { Name = NextActorName("Actor") };
-        _context.Execute(new DelegateEditorCommand("Add Actor", () => _world.AddActor(actor), () => _world.RemoveActor(actor)));
+        _context.Execute(new DelegateEditorCommand("Add Actor", () => _context.World.AddActor(actor), () => _context.World.RemoveActor(actor)));
         _context.Selection.Selected = actor;
         SetStatus("Actor queued for creation.");
     }
@@ -304,7 +304,7 @@ public sealed class EditorUi
         }
         var prefix = string.IsNullOrWhiteSpace(source.Name) ? source.GetType().Name : source.Name + " Copy";
         var copy = new Actor { Name = NextActorName(prefix) };
-        _context.Execute(new DelegateEditorCommand("Duplicate Actor", () => _world.AddActor(copy), () => _world.RemoveActor(copy)));
+        _context.Execute(new DelegateEditorCommand("Duplicate Actor", () => _context.World.AddActor(copy), () => _context.World.RemoveActor(copy)));
         _context.Selection.Selected = copy;
         SetStatus("Actor duplicated.");
     }
@@ -324,7 +324,7 @@ public sealed class EditorUi
 
     private string NextActorName(string prefix)
     {
-        var used = _world.Actors.Select(actor => actor.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var used = _context.World.Actors.Select(actor => actor.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var candidate = prefix;
         var index = 2;
         while (used.Contains(candidate))
@@ -345,12 +345,12 @@ public sealed class EditorUi
 
     private void ConfirmDeleteSelection(Actor actor)
     {
-        if (!_world.Actors.Contains(actor))
+        if (!_context.World.Actors.Contains(actor))
         {
             SetStatus("Actor is no longer in the scene.");
             return;
         }
-        _context.Execute(new DelegateEditorCommand("Delete Actor", () => _world.RemoveActor(actor), () => _world.AddActor(actor)));
+        _context.Execute(new DelegateEditorCommand("Delete Actor", () => _context.World.RemoveActor(actor), () => _context.World.AddActor(actor)));
         _selectedTarget = null;
         _inspector.Target = null;
         SetStatus("Actor queued for deletion.");
@@ -387,7 +387,7 @@ public sealed class EditorUi
     {
         if (_context.PlayState != EditorPlayState.Edit)
             return null;
-        var hit = ViewportPicker.Pick(_world, camera, point, viewportSize);
+        var hit = ViewportPicker.Pick(_context.World, camera, point, viewportSize);
         _context.Selection.Selected = hit?.Component;
         return hit;
     }
@@ -396,7 +396,7 @@ public sealed class EditorUi
     public bool ApplyRelativeTransform(SceneComponent component, Vector3 location, Quaternion rotation, Vector3 scale)
     {
         ArgumentNullException.ThrowIfNull(component);
-        if (_context.PlayState != EditorPlayState.Edit || !ReferenceEquals(component.Owner?.World, _world))
+        if (_context.PlayState != EditorPlayState.Edit || !ReferenceEquals(component.Owner?.World, _context.World))
             return false;
         _context.Execute(new TransformChangeCommand(component, location, rotation, scale));
         SetStatus("Transform changed.");
@@ -469,7 +469,7 @@ public sealed class EditorUi
     }
 
     private CameraComponent? FindViewportCamera(int targetId)
-        => _world.EnumerateActors(includePendingActors: true)
+        => _context.World.EnumerateActors(includePendingActors: true)
             .SelectMany(actor => actor.Components)
             .OfType<CameraComponent>()
             .FirstOrDefault(item => item.RenderTarget?.Id == targetId);
@@ -511,7 +511,7 @@ public sealed class EditorUi
         _hierarchy.SelectTarget(_context.Selection.Selected);
 
         int actors = 0, components = 0;
-        foreach (var actor in _world.Actors)
+        foreach (var actor in _context.World.Actors)
         {
             actors++;
             components += actor.Components.Count();
@@ -523,7 +523,7 @@ public sealed class EditorUi
         _statusBar.SetMode(assetErrorCount == 0 ? "Assets: OK" : $"Asset errors: {assetErrorCount}");
 
         // 选中对象被移除时清空检查器
-        if (_selectedTarget is Actor removedActor && !_world.Actors.Contains(removedActor))
+        if (_selectedTarget is Actor removedActor && !_context.World.Actors.Contains(removedActor))
         {
             _selectedTarget = null;
             _inspector.Target = null;

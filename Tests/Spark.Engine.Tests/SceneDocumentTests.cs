@@ -2,6 +2,7 @@ using System.Numerics;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Editor;
+using Spark.Engine.Render.Common;
 using Spark.Engine.Resources;
 using Spark.Engine.Worlds;
 using Xunit;
@@ -100,7 +101,7 @@ public sealed class SceneDocumentTests
             var service = new BinaryEditorSceneService(path);
             Assert.True(service.Save(world));
             Assert.NotNull(service.LastLoadedDocument);
-            Assert.True(service.Reload(world));
+            Assert.NotNull(service.Load());
             Assert.Equal(actor.ActorGuid, Assert.Single(service.LastLoadedDocument!.Actors).ActorGuid);
         }
         finally
@@ -228,6 +229,96 @@ public sealed class SceneDocumentTests
         Assert.Null(context.RuntimeWorld);
         Assert.Single(editorWorld.Actors);
         Assert.Equal(new Vector3(3, 0, 0), component.RelativeLocation);
+    }
+
+    [Fact]
+    public void EditorContextReloadAtomicallyReplacesWorldAndPreservesCameraTarget()
+    {
+        using var worldContext = new WorldContext();
+        var original = new World(new ResourceManager());
+        var cameraActor = new Actor { Name = "Saved Camera" };
+        var target = new TestRenderTarget(77);
+        var camera = new CameraComponent { RenderTarget = target };
+        cameraActor.AddOwnedComponent(camera);
+        original.AddActor(cameraActor);
+        original.Update(0.016f, tickActors: false);
+        worldContext.CurrentWorld = original;
+        using var context = new EditorContext(original, worldContext);
+        context.Execute(new DelegateEditorCommand("dirty", () => { }, () => { }));
+        context.Selection.Selected = cameraActor;
+        var document = SceneDocument.Capture(original);
+        cameraActor.Name = "Unsaved Camera";
+
+        context.Reload(document);
+
+        Assert.NotSame(original, context.World);
+        Assert.Same(context.World, worldContext.CurrentWorld);
+        Assert.Equal("Saved Camera", Assert.Single(context.World.Actors).Name);
+        var loadedCamera = Assert.Single(context.World.Actors).GetComponent<CameraComponent>();
+        Assert.Same(target, loadedCamera!.RenderTarget);
+        Assert.Null(context.Selection.Selected);
+        Assert.False(context.IsDirty);
+        Assert.False(context.History.CanUndo);
+        Assert.Throws<ObjectDisposedException>(() => original.Update(0f, tickActors: false));
+    }
+
+    [Fact]
+    public void EditorContextReloadFailureKeepsCurrentWorldAndEditorState()
+    {
+        using var world = new World(new ResourceManager());
+        var actor = new Actor { Name = "Current" };
+        actor.AddOwnedComponent(new SceneComponent());
+        world.AddActor(actor);
+        world.Update(0.016f, tickActors: false);
+        using var context = new EditorContext(world);
+        context.Execute(new DelegateEditorCommand("dirty", () => { }, () => { }));
+        context.Selection.Selected = actor;
+        var invalid = new SceneDocument();
+        var invalidActor = new SceneActorDocument { ActorGuid = Guid.NewGuid(), Name = "Invalid" };
+        invalidActor.Components.Add(new SceneComponentDocument
+        {
+            ComponentGuid = Guid.NewGuid(),
+            ComponentType = "Missing.Component.Type, Missing.Assembly",
+        });
+        invalid.Actors.Add(invalidActor);
+
+        Assert.Throws<InvalidDataException>(() => context.Reload(invalid));
+
+        Assert.Same(world, context.World);
+        Assert.Same(actor, context.Selection.Selected);
+        Assert.True(context.IsDirty);
+        Assert.True(context.History.CanUndo);
+        Assert.Equal("Current", Assert.Single(world.Actors).Name);
+    }
+
+    [Fact]
+    public void EditorInstantiationSharesMaterialAndSkipsRuntimeBehaviors()
+    {
+        using var source = new World(new ResourceManager());
+        var mesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY)], [0]);
+        var material = new Material();
+        var actor = new Actor();
+        actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh, Material = material });
+        source.AddActor(actor);
+        source.Update(0.016f, tickActors: false);
+        var registry = new AssetRegistry();
+        registry.Register(mesh);
+        registry.Register(material);
+        var factory = new RuntimeActorFactory();
+        var runtimeBehaviorCalled = false;
+        factory.RegisterWorldBehavior((_, _) => runtimeBehaviorCalled = true);
+
+        using var editorWorld = SceneDocument.Capture(source)
+            .InstantiateEditorWorld(source.Scene.ResourceManager, registry, factory);
+        editorWorld.Update(0f, tickActors: false);
+        var loaded = Assert.Single(editorWorld.Actors).GetComponent<StaticMeshComponent>();
+
+        Assert.Same(mesh, loaded!.Mesh);
+        Assert.Same(material, loaded.Material);
+        Assert.False(runtimeBehaviorCalled);
+        mesh.Dispose();
+        material.Dispose();
     }
 
     [Fact]
@@ -773,5 +864,14 @@ public sealed class SceneDocumentTests
     private static void DeleteIfExists(string path)
     {
         if (File.Exists(path)) File.Delete(path);
+    }
+
+    private sealed class TestRenderTarget(int id) : RenderTarget(id)
+    {
+        public override uint Width => 1;
+        public override uint Height => 1;
+        public override Silk.NET.WebGPU.TextureFormat Format => Silk.NET.WebGPU.TextureFormat.Rgba8Unorm;
+        public override RenderTargetSession BeginRenderSession() => default;
+        public override void Dispose() { }
     }
 }

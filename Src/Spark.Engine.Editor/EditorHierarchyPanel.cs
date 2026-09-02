@@ -35,6 +35,8 @@ internal sealed class EditorHierarchyPanel : UIElement
 
     public void Refresh() => _hierarchy.Refresh();
 
+    public void SetWorld(Spark.Engine.Worlds.World world) => _hierarchy.SetWorld(world);
+
     public void SelectTarget(object? target) => _hierarchy.SelectTarget(target);
 
     protected override UISize OnMeasure(UISize availableSize)

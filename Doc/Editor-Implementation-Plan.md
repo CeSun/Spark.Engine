@@ -59,7 +59,7 @@ EditorApplication
 交付任务：
 
 1. ✅ `SceneDocument`、二进制 `.scene` 格式和版本号。
-2. ✅ `BinaryEditorSceneService.Save/LoadDocument`；`Reload(World)` 当前只校验并缓存文档。
+2. ✅ `BinaryEditorSceneService.Save/Load`；Reload 先构建并验证新的 EditorWorld，成功后通过 `WorldContext` 原子切换，失败不修改当前场景。
 3. 脏状态、关闭确认、最近文件。
 4. 自动保存和崩溃恢复文件。
 5. 加载错误面板和不可恢复资源引用提示。
