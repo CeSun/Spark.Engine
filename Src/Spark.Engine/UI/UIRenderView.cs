@@ -1,4 +1,5 @@
 using System.Numerics;
+using Spark.Engine.Input;
 
 namespace Spark.Engine.UI;
 
@@ -27,6 +28,10 @@ public sealed class UIRenderView : UIElement
     private Vector2 _lastPointerPosition;
     /// <summary>鼠标在渲染视图内点击时触发，坐标为 UI 画布坐标。</summary>
     public event Action<Vector2>? Clicked;
+    public event Action<Vector2>? PointerPressed;
+    public event Action<Vector2>? PointerDragged;
+    public event Action<Vector2>? PointerReleased;
+    public Action<UIManager, int, UIRect, int>? OverlayPainter { get; set; }
     /// <summary>渲染视图 ID（由 UIManager.RegisterRenderView 分配）。</summary>
     public int RenderViewId { get; set; }
 
@@ -92,11 +97,28 @@ public sealed class UIRenderView : UIElement
             var rect = CalculateDisplayRect(ui);
             ui.DrawRenderView(targetId, RenderViewId, new Vector2(rect.X, rect.Y), new Vector2(rect.Width, rect.Height));
         }
+        OverlayPainter?.Invoke(ui, targetId, Bounds, RenderViewId);
     }
 
     protected internal override void OnMouseMove(Vector2 position) => _lastPointerPosition = position;
 
-    protected internal override void OnMouseDrag(Vector2 position) => _lastPointerPosition = position;
+    protected internal override void OnMouseDrag(Vector2 position)
+    {
+        _lastPointerPosition = position;
+        PointerDragged?.Invoke(position);
+    }
+
+    protected internal override void OnMouseDown(MouseButton button)
+    {
+        if (button == MouseButton.Left)
+            PointerPressed?.Invoke(_lastPointerPosition);
+    }
+
+    protected internal override void OnMouseUp(MouseButton button)
+    {
+        if (button == MouseButton.Left)
+            PointerReleased?.Invoke(_lastPointerPosition);
+    }
 
     protected internal override void OnMouseClick() => Clicked?.Invoke(_lastPointerPosition);
 

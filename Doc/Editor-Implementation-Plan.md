@@ -10,7 +10,7 @@
 - UI 基础控件：树、列表、分栏、菜单、工具栏、滚动、属性网格
 - 初版 `EditorCommandHistory`：可执行、撤销、重做
 
-当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览会初始化渲染代理但冻结 gameplay Tick，Viewport 已支持 CPU 包围球拾取、轴命中和可撤销变换，
+当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览会初始化渲染代理但冻结 gameplay Tick，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换，
 `EditorContext` 已接入 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；主循环已支持
 EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产和光照状态可恢复。`AssetRegistry` 已统一 AssetGuid 解析，
 `RuntimeActorFactory` 已提供自定义组件和 Runtime 行为注册入口；旧的 `RuntimeWorldInitializer` 仅作为兼容接口保留。
@@ -71,7 +71,7 @@ EditorApplication
 交付任务：
 
 1. ✅ 射线拾取和树/视口双向选择（首版 CPU 包围球，后续可替换 GPU ID buffer）。
-2. ⏳ Transform Gizmo：平移、旋转、缩放（轴命中和拖拽计算已就绪，轴绘制和输入路由待实现）。
+2. ⏳ Transform Gizmo：平移、旋转、缩放（轴绘制、命中和输入路由已接入，网格吸附和多选待实现）。
 3. 网格、吸附、世界/局部坐标。
 4. 聚焦选中对象、相机控制和视图书签。
 5. 所有 Gizmo 操作封装成可撤销命令。
@@ -125,7 +125,7 @@ EditorApplication
 1. ⏳ Asset Registry 的磁盘错误面板和导入产物登记
 2. Runtime Actor Factory 的自定义 Actor 类型和行为数据持久化
 3. ✅ 场景加载时通过 AssetGuid 恢复 StaticMesh/基础 Material
-4. ✅ Viewport 拾取和 Gizmo 轴命中/拖拽计算；⏳ 轴绘制与 UI 输入路由
+4. ✅ Viewport 拾取、Gizmo 轴绘制/命中/输入路由；⏳ 网格吸附与多选变换
 5. 脏状态、保存确认和最近文件
 
 每完成一个任务，必须同时提交逻辑测试和至少一个端到端验收场景，避免继续积累“看起来有控件、实际不能工作”的功能。

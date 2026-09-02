@@ -206,7 +206,7 @@ public unsafe sealed class UIRenderer : IGraphOverlay
 
             _vertices.Clear();
             for (int i = start; i < end; i++)
-                AppendQuad(_targetPrimitives[i], width, height);
+                AppendPrimitive(_targetPrimitives[i], width, height);
 
             DrawBatch(pass, api, textureId, vertexOffset, _vertices.Count, scissor, width, height);
             vertexOffset += _vertices.Count;
@@ -351,6 +351,32 @@ public unsafe sealed class UIRenderer : IGraphOverlay
             _textureBindGroups[upload.Id] = (nint)bindGroup;
         }
     }
+
+    private void AppendPrimitive(in UIPrimitive primitive, float width, float height)
+    {
+        if (!primitive.IsLine)
+        {
+            AppendQuad(primitive, width, height);
+            return;
+        }
+
+        var delta = primitive.LineEnd - primitive.LineStart;
+        var length = delta.Length();
+        if (length < 0.001f)
+            return;
+        var normal = new Vector2(-delta.Y, delta.X) / length * (primitive.LineThickness * 0.5f);
+        var p0 = primitive.LineStart + normal;
+        var p1 = primitive.LineEnd + normal;
+        var p2 = primitive.LineEnd - normal;
+        var p3 = primitive.LineStart - normal;
+        _vertices.Add(new UIVertex { Position = ToNdc(p0, width, height), UV = new Vector2(0f, 0f), Color = primitive.Color });
+        _vertices.Add(new UIVertex { Position = ToNdc(p1, width, height), UV = new Vector2(1f, 0f), Color = primitive.Color });
+        _vertices.Add(new UIVertex { Position = ToNdc(p2, width, height), UV = new Vector2(1f, 1f), Color = primitive.Color });
+        _vertices.Add(new UIVertex { Position = ToNdc(p3, width, height), UV = new Vector2(0f, 1f), Color = primitive.Color });
+    }
+
+    private static Vector2 ToNdc(Vector2 point, float width, float height)
+        => new(point.X / width * 2f - 1f, 1f - point.Y / height * 2f);
 
     private void ProcessTextureReleases()
     {

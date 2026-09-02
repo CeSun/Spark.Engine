@@ -153,6 +153,7 @@ public enum GizmoAxis : byte
 }
 
 public readonly record struct GizmoAxisHit(GizmoAxis Axis, float Distance);
+public readonly record struct GizmoAxisSegment(GizmoAxis Axis, Vector2 Start, Vector2 End);
 
 /// <summary>
 /// Transform Gizmo 的输入状态机。它只负责投影、命中和变换计算，渲染层可独立绘制轴和高亮。
@@ -179,6 +180,26 @@ public sealed class TransformGizmoController
     public GizmoAxis Axis => _axis;
     public GizmoOperation Operation => _operation;
     public GizmoSpace Space => _space;
+
+    public IReadOnlyList<GizmoAxisSegment> GetAxisSegments(SceneComponent target, CameraComponent camera,
+        Vector2 viewportSize, GizmoSpace space = GizmoSpace.World)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(camera);
+        if (viewportSize.X <= 0f || viewportSize.Y <= 0f)
+            return Array.Empty<GizmoAxisSegment>();
+        var pivot = Project(target.WorldTransform.Translation, camera, viewportSize);
+        var cameraDistance = Vector3.Distance(camera.WorldTransform.Translation, target.WorldTransform.Translation);
+        var axisLength = MathF.Max(0.5f, cameraDistance * 0.18f);
+        var segments = new GizmoAxisSegment[3];
+        foreach (var axis in Enum.GetValues<GizmoAxis>())
+        {
+            var index = (int)axis;
+            var end = Project(target.WorldTransform.Translation + GetAxisWorld(target, axis, space) * axisLength, camera, viewportSize);
+            segments[index] = new GizmoAxisSegment(axis, pivot, end);
+        }
+        return segments;
+    }
 
     public GizmoAxisHit? HitTest(SceneComponent target, CameraComponent camera, Vector2 pointer,
         Vector2 viewportSize, GizmoSpace space, float pixelTolerance = 10f)

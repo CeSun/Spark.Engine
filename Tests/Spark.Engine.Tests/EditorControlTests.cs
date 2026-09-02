@@ -51,6 +51,20 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void UIManager_DrawLine_EmitsLinePrimitiveWithThickness()
+    {
+        var ui = new UIManager();
+        ui.DrawLine(7, new Vector2(10f, 20f), new Vector2(80f, 60f), 3f, Vector4.One);
+
+        var primitive = Assert.Single(ui.Primitives.Span.ToArray());
+        Assert.True(primitive.IsLine);
+        Assert.Equal(new Vector2(10f, 20f), primitive.LineStart);
+        Assert.Equal(new Vector2(80f, 60f), primitive.LineEnd);
+        Assert.Equal(3f, primitive.LineThickness);
+        Assert.Equal(7, primitive.TargetId);
+    }
+
+    [Fact]
     public void TextBox_ExplicitZeroWidth_FillsParentInsteadOfGrowingWithText()
     {
         var root = new UIStackPanel { Orientation = UIOrientation.Vertical };

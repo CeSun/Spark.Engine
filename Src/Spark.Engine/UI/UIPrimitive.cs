@@ -29,4 +29,10 @@ public struct UIPrimitive
     /// 由 <see cref="UIManager"/> 在添加基元时从裁剪栈注入。
     /// </summary>
     public Vector4 ScissorRect;
+
+    /// <summary>线段模式：当为 true 时使用 LineStart/LineEnd/LineThickness 生成屏幕空间四边形。</summary>
+    public bool IsLine;
+    public Vector2 LineStart;
+    public Vector2 LineEnd;
+    public float LineThickness;
 }

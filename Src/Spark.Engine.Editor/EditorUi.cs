@@ -26,6 +26,8 @@ public sealed class EditorUi
     private readonly IEditorSceneService? _sceneService;
     private readonly TransformGizmoController _gizmo = new();
     private GizmoOperation _gizmoOperation = GizmoOperation.Move;
+    private GizmoSpace _gizmoSpace = GizmoSpace.World;
+    private bool _suppressViewportClick;
 
     private object? _selectedTarget;
 
@@ -94,6 +96,7 @@ public sealed class EditorUi
     /// <summary>当前编辑器 Play 状态，供宿主同步窗口标题或工具栏。</summary>
     public EditorPlayState PlayState => _context.PlayState;
     public GizmoOperation ActiveGizmoOperation => _gizmoOperation;
+    public GizmoSpace ActiveGizmoSpace => _gizmoSpace;
     public bool IsGizmoDragging => _gizmo.IsDragging;
 
     /// <summary>注册 RuntimeWorld 创建后的宿主行为恢复逻辑。</summary>
@@ -312,6 +315,10 @@ public sealed class EditorUi
     {
         ArgumentNullException.ThrowIfNull(control);
         control.Clicked += point => HandleViewportClick(control, point);
+        control.PointerPressed += point => HandleViewportPointerPressed(control, point);
+        control.PointerDragged += point => HandleViewportPointerDragged(control, point);
+        control.PointerReleased += point => HandleViewportPointerReleased(control, point);
+        control.OverlayPainter = PaintGizmoOverlay;
         var resizeRequested = control.RenderViewResizeRequested;
         if (resizeRequested != null)
         {
@@ -374,16 +381,73 @@ public sealed class EditorUi
 
     private void HandleViewportClick(UIRenderView control, Vector2 point)
     {
+        if (_suppressViewportClick)
+        {
+            _suppressViewportClick = false;
+            return;
+        }
         var targetId = control.RenderViewId;
-        var camera = _world.EnumerateActors(includePendingActors: true)
-            .SelectMany(actor => actor.Components)
-            .OfType<CameraComponent>()
-            .FirstOrDefault(item => item.RenderTarget?.Id == targetId);
+        var camera = FindViewportCamera(targetId);
         if (camera == null)
             return;
 
         var localPoint = point - new Vector2(control.Bounds.X, control.Bounds.Y);
         PickViewport(localPoint, new Vector2(control.Bounds.Width, control.Bounds.Height), camera);
+    }
+
+    private void HandleViewportPointerPressed(UIRenderView control, Vector2 point)
+    {
+        if (_context.PlayState != EditorPlayState.Edit || _context.Selection.Selected is not SceneComponent component)
+            return;
+        var camera = FindViewportCamera(control.RenderViewId);
+        if (camera == null)
+            return;
+        var localPoint = point - new Vector2(control.Bounds.X, control.Bounds.Y);
+        _suppressViewportClick = BeginGizmoDrag(localPoint, new Vector2(control.Bounds.Width, control.Bounds.Height), camera, _gizmoSpace);
+    }
+
+    private void HandleViewportPointerDragged(UIRenderView control, Vector2 point)
+    {
+        if (!_gizmo.IsDragging)
+            return;
+        var localPoint = point - new Vector2(control.Bounds.X, control.Bounds.Y);
+        UpdateGizmoDrag(localPoint);
+    }
+
+    private void HandleViewportPointerReleased(UIRenderView control, Vector2 point)
+    {
+        if (!_gizmo.IsDragging)
+            return;
+        EndGizmoDrag();
+        _suppressViewportClick = true;
+    }
+
+    private CameraComponent? FindViewportCamera(int targetId)
+        => _world.EnumerateActors(includePendingActors: true)
+            .SelectMany(actor => actor.Components)
+            .OfType<CameraComponent>()
+            .FirstOrDefault(item => item.RenderTarget?.Id == targetId);
+
+    private void PaintGizmoOverlay(UIManager ui, int targetId, UIRect bounds, int renderViewId)
+    {
+        if (_context.PlayState != EditorPlayState.Edit || _context.Selection.Selected is not SceneComponent component)
+            return;
+        var camera = FindViewportCamera(renderViewId);
+        if (camera == null || bounds.Width <= 0f || bounds.Height <= 0f)
+            return;
+        var size = new Vector2(bounds.Width, bounds.Height);
+        var segments = _gizmo.GetAxisSegments(component, camera, size, _gizmoSpace);
+        var colors = new[]
+        {
+            new Vector4(0.9f, 0.15f, 0.15f, 1f),
+            new Vector4(0.2f, 0.85f, 0.25f, 1f),
+            new Vector4(0.2f, 0.45f, 1f, 1f),
+        };
+        foreach (var segment in segments)
+            ui.DrawLine(targetId, new Vector2(bounds.X, bounds.Y) + segment.Start,
+                new Vector2(bounds.X, bounds.Y) + segment.End, 3f, colors[(int)segment.Axis]);
+        var pivot = new Vector2(bounds.X, bounds.Y) + segments[0].Start;
+        ui.DrawRect(targetId, pivot - new Vector2(4f), new Vector2(8f, 8f), Vector4.One);
     }
 
     private void SetGizmoOperation(GizmoOperation operation)

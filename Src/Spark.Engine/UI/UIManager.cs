@@ -158,6 +158,23 @@ public sealed class UIManager
         });
     }
 
+    /// <summary>绘制屏幕空间线段；渲染线程会将其展开为带厚度的四边形。</summary>
+    public void DrawLine(int targetId, Vector2 start, Vector2 end, float thickness, Vector4 color)
+    {
+        var clip = CurrentClip(targetId);
+        _primitives.Add(new UIPrimitive
+        {
+            TargetId = targetId,
+            Color = color,
+            TextureId = 0,
+            IsLine = true,
+            LineStart = start,
+            LineEnd = end,
+            LineThickness = MathF.Max(1f, thickness),
+            ScissorRect = clip.HasValue ? new Vector4(clip.Value.X, clip.Value.Y, clip.Value.Width, clip.Value.Height) : default,
+        });
+    }
+
     /// <summary>逻辑线程：排队一个 UI 纹理待渲染线程上传。</summary>
     public void EnqueueTexture(UITextureUpload upload) => _pendingTextures.Enqueue(upload);
 
