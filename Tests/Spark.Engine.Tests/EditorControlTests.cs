@@ -646,6 +646,42 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void ComboBox_DropDownOverlay_IsPaintedAfterLaterSibling()
+    {
+        var combo = new UIComboBox { FixedSize = new UISize(160f, 26f) };
+        combo.AddItem("First");
+        combo.AddItem("Second");
+        var sibling = new UIPanel
+        {
+            FixedSize = new UISize(160f, 80f),
+            Color = new Vector4(1f, 0f, 0f, 1f),
+        };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(combo);
+        root.AddChild(sibling);
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 160f), Root = root };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        var down = default(MouseButtonMask);
+        down.Set(MouseButton.Left, true);
+        canvas.Update(new InputState(new Vector2(10f, 10f), Vector2.Zero, 0f,
+            down, down, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(new Vector2(10f, 10f), Vector2.Zero, 0f,
+            default, default, down, default, default, default, string.Empty), renderer);
+        canvas.Update(default, renderer);
+
+        var ui = new UIManager();
+        canvas.Paint(ui);
+        var primitives = ui.Primitives.Span.ToArray();
+        int siblingIndex = Array.FindIndex(primitives, p => p.Color.X > 0.9f && p.Color.Y < 0.1f && p.Rect.Z > 50f);
+        int dropDownIndex = Array.FindIndex(primitives, p => p.Rect.Y > 25f && p.Rect.Z >= 150f && p.Color.Z > 0.1f);
+
+        Assert.True(siblingIndex >= 0);
+        Assert.True(dropDownIndex > siblingIndex, "Drop-down primitives must be painted after later siblings.");
+    }
+
+    [Fact]
     public void GridPanel_AutoRow_WithFixedSize_MeasuresContent()
     {
         // 回归：FixedSize 高度 > 0 时 OnMeasure 曾提前返回，跳过 Auto 轨尺寸收集，

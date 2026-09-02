@@ -146,34 +146,36 @@ public sealed class UIComboBox : UIElement
         ui.DrawRect(targetId, new Vector2(arrowX + 2f, arrowY + 2f), new Vector2(arrowSize - 4f, 2f), ArrowColor);
         ui.DrawRect(targetId, new Vector2(arrowX + 3f, arrowY + 4f), new Vector2(arrowSize - 6f, 2f), ArrowColor);
 
-        // 下拉面板
-        if (_isOpen)
+    }
+
+    /// <summary>在整个控件树的基础内容之后绘制下拉层，避免被后续同级控件遮挡。</summary>
+    protected override void OnPaintOverlay(UIManager ui, int targetId)
+    {
+        if (!_isOpen)
+            return;
+
+        var textRenderer = GetTextRenderer();
+        ui.DrawRect(targetId, new Vector2(_dropDownRect.X, _dropDownRect.Y),
+            new Vector2(_dropDownRect.Width, _dropDownRect.Height), DropDownColor);
+
+        _dropDownItemRects.Clear();
+        float itemH = DefaultHeight;
+        int visibleCount = System.Math.Min(_items.Count, _visibleDropDownItems);
+        for (int i = 0; i < visibleCount; i++)
         {
-            // 面板背景
-            ui.DrawRect(targetId, new Vector2(_dropDownRect.X, _dropDownRect.Y),
-                new Vector2(_dropDownRect.Width, _dropDownRect.Height), DropDownColor);
+            var itemRect = new UIRect(_dropDownRect.X, _dropDownRect.Y + i * itemH, _dropDownRect.Width, itemH);
+            _dropDownItemRects.Add(itemRect);
 
-            // 下拉项（只绘制可见数量，超出面板高度的项不显示）
-            _dropDownItemRects.Clear();
-            float itemH = DefaultHeight;
-            int visibleCount = System.Math.Min(_items.Count, _visibleDropDownItems);
-            for (int i = 0; i < visibleCount; i++)
+            Vector4 itemBg = i == _selectedIndex ? DropDownSelectedColor :
+                             i == _dropDownHovered ? DropDownHoverColor : new(0f, 0f, 0f, 0f);
+            if (itemBg.W > 0f)
+                ui.DrawRect(targetId, new Vector2(itemRect.X, itemRect.Y), new Vector2(itemRect.Width, itemRect.Height), itemBg);
+
+            if (textRenderer != null)
             {
-                var itemRect = new UIRect(_dropDownRect.X, _dropDownRect.Y + i * itemH, _dropDownRect.Width, itemH);
-                _dropDownItemRects.Add(itemRect);
-
-                Vector4 itemBg = i == _selectedIndex ? DropDownSelectedColor :
-                                 i == _dropDownHovered ? DropDownHoverColor : new(0f, 0f, 0f, 0f);
-                if (itemBg.W > 0f)
-                    ui.DrawRect(targetId, new Vector2(itemRect.X, itemRect.Y), new Vector2(itemRect.Width, itemRect.Height), itemBg);
-
-                if (textRenderer != null)
-                {
-                    float textY = itemRect.Y + (itemRect.Height - textRenderer.LineHeight) * 0.5f;
-                    // 精确截断：下拉项文本超宽时不溢出面板
-                    var display = textRenderer.Truncate(_items[i], itemRect.Width - 16f);
-                    textRenderer.DrawText(ui, targetId, display, new Vector2(itemRect.X + 8f, textY), TextColor);
-                }
+                float textY = itemRect.Y + (itemRect.Height - textRenderer.LineHeight) * 0.5f;
+                var display = textRenderer.Truncate(_items[i], itemRect.Width - 16f);
+                textRenderer.DrawText(ui, targetId, display, new Vector2(itemRect.X + 8f, textY), TextColor);
             }
         }
     }
@@ -216,6 +218,7 @@ public sealed class UIComboBox : UIElement
         else
         {
             _isOpen = true;
+            UpdateDropDownLayout();
         }
     }
 
@@ -279,6 +282,7 @@ public sealed class UIComboBox : UIElement
                 case Key.Enter:
                     _isOpen = true;
                     _dropDownHovered = _selectedIndex;
+                    UpdateDropDownLayout();
                     break;
                 case Key.Up:
                     if (_selectedIndex > 0)
@@ -290,5 +294,12 @@ public sealed class UIComboBox : UIElement
                     break;
             }
         }
+    }
+
+    private void UpdateDropDownLayout()
+    {
+        float dropH = System.Math.Min(MaxDropDownHeight, _items.Count * DefaultHeight);
+        _dropDownRect = new UIRect(Bounds.X, Bounds.Bottom, Bounds.Width, dropH);
+        _visibleDropDownItems = DefaultHeight > 0f ? (int)(dropH / DefaultHeight) : 0;
     }
 }

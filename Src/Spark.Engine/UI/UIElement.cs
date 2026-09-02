@@ -128,8 +128,17 @@ public abstract class UIElement
     {
     }
 
-    /// <summary>绘制自身与子元素（深度优先，先父后子 → 子绘制在上层）。裁剪栈 push/pop 用 try/finally 保证异常时平衡。</summary>
+    /// <summary>
+    /// 绘制自身与子元素。基础内容和 Overlay 分两个阶段处理：先完整绘制控件树的基础内容，
+    /// 再统一绘制 Overlay，确保下拉面板/滚动条不会被同级后续控件覆盖。
+    /// </summary>
     public void Paint(UIManager ui, int targetId)
+    {
+        PaintContent(ui, targetId);
+        PaintOverlays(ui, targetId);
+    }
+
+    private void PaintContent(UIManager ui, int targetId)
     {
         if (!Visible)
             return;
@@ -141,8 +150,28 @@ public abstract class UIElement
         {
             OnPaint(ui, targetId);
             foreach (var child in _children)
-                child.Paint(ui, targetId);
-            OnPaintOverlay(ui, targetId); // 子元素之后绘制（滚动条等需盖在内容上的装饰）
+                child.PaintContent(ui, targetId);
+        }
+        finally
+        {
+            if (ClipToBounds)
+                ui.PopClip(targetId);
+        }
+    }
+
+    private void PaintOverlays(UIManager ui, int targetId)
+    {
+        if (!Visible)
+            return;
+
+        if (ClipToBounds)
+            ui.PushClip(targetId, Bounds);
+
+        try
+        {
+            foreach (var child in _children)
+                child.PaintOverlays(ui, targetId);
+            OnPaintOverlay(ui, targetId);
         }
         finally
         {

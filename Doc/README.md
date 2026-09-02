@@ -313,7 +313,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
   按 `Position` 定位、分隔线/快捷键显示、选中后自动关闭）
 - **对话框** `UIDialog`：模态遮罩（Overlay 铺满画布拦截鼠标）+ 居中面板 + 按钮（默认/取消）+ Escape/Enter
 - **标签页** `UITabView`/`UITabItem`：动态标签宽度 + 关闭按钮（`CanClose`）+ 内容切换
-- **下拉框** `UIComboBox`：点击展开/收起 + 键盘导航 + 选中回调（下拉绘制在控件下方，非 Overlay——已知限制）
+- **下拉框** `UIComboBox`：点击展开/收起 + 键盘导航 + 选中回调 + Overlay 绘制层
 - **分割面板** `UISplitPanel`：水平/垂直分割 + 拖拽调整比例 + 最小尺寸约束
 - **工具栏** `UIToolbar`/`UIToolbarButton`：水平按钮组 + 分隔符
 - **属性网格** `UIPropertyGrid`：反射对象属性生成标签 + 值编辑行（int/float/bool/string）+ `PropertyChanged`
@@ -355,7 +355,7 @@ UI 控件覆盖率已达 ~70%（10 个编辑器刚需控件落地）。
 | `UIMenuBar` / `UIMenuPanel` / `UIMenuItem` | ✅ 菜单栏 + 弹出菜单（Overlay） |
 | `UIDialog` / `UIDialogButton` | ✅ 模态对话框（Overlay 遮罩） |
 | `UITabView` / `UITabItem` | ✅ 标签页 + 关闭按钮 |
-| `UIComboBox` | ✅ 下拉选择（已知限制：非 Overlay） |
+| `UIComboBox` | ✅ 下拉选择 + Overlay 绘制层 |
 | `UISplitPanel` | ✅ 可拖拽分割面板 |
 | `UIPropertyGrid` | ✅ 属性网格（反射 + 编辑） |
 | `UIToolbar` / `UIToolbarButton` | ✅ 工具栏 |

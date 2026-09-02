@@ -90,7 +90,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | `UIMenuBar` / `UIMenuBarItem` | UIMenu.cs | 菜单栏（顶级菜单项 + 点击展开/收起下拉） |
 | `UIDialog` / `UIDialogButton` | UIDialog.cs | 模态对话框（遮罩铺满画布 + 居中面板 + 按钮 + Escape/Enter 处理） |
 | `UITabView` / `UITabItem` | UITabView.cs | 标签页（动态标签宽度 + 关闭按钮 + 内容切换） |
-| `UIComboBox` | UIComboBox.cs | 下拉选择框（点击展开/收起 + 键盘导航 + 选中回调；下拉绘制在控件下方，非 Overlay） |
+| `UIComboBox` | UIComboBox.cs | 下拉选择框（点击展开/收起 + 键盘导航 + 选中回调；下拉绘制在统一 Overlay 阶段） |
 | `UISplitPanel` | UISplitPanel.cs | 可拖拽分割面板（水平/垂直 + 比例 + 最小尺寸约束） |
 | `UIToolbar` / `UIToolbarButton` | UIToolbar.cs | 工具栏（水平按钮组 + 分隔符） |
 | `UIPropertyGrid` | UIPropertyGrid.cs | 属性网格（反射对象属性 + 标签/值编辑器行 + `PropertyChanged` 回调） |
@@ -991,7 +991,6 @@ slider.Bind(nameof(UISlider.Value), viewModel, vm => vm.Volume, (vm, v) => vm.Vo
 **滚轮事件**：`UIElement.OnMouseWheel(float delta)` 虚方法 + `UICanvas.RouteInput` 把滚轮
 沿 hovered 元素祖先链向上冒泡（`ScrollDelta` 来自 `InputState`，Windows 标准 ±120）。
 
-已知限制：`UIComboBox` 下拉直接绘制在控件下方（未用 Overlay），会被后续兄弟元素覆盖；
 `UIScrollBox` 滚动条拖拽在当前命中体系下需点击滚动条本体（拖拽由 `OnMouseDrag` 驱动）。
 
 ## 分阶段计划（现状）
