@@ -89,6 +89,85 @@ public sealed class GltfImporterTests
         }
     }
 
+    [Fact]
+    public void ImportServiceWritesStableAssetsAndCreatesUndoableActors()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "spark-gltf-service-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var sourcePath = Path.Combine(root, "triangle.gltf");
+        WriteTriangleGltf(sourcePath);
+        try
+        {
+            using var world = new World(new ResourceManager());
+            using var context = new EditorContext(world);
+            var result = new GltfImportService().ImportIntoEditor(
+                sourcePath, Path.Combine(root, "AssetsA"), context);
+
+            var importedAsset = Assert.Single(result.Assets);
+            Assert.True(File.Exists(importedAsset.AssetPath));
+            Assert.Equal(importedAsset.AssetGuid, AssetFileCodec.ReadMetadata(importedAsset.AssetPath).AssetGuid);
+            Assert.Same(importedAsset.Resource, context.AssetRegistry.Resolve(importedAsset.AssetGuid));
+            Assert.Equal(2, world.EnumerateActors(includePendingActors: true).Count());
+            Assert.True(context.IsDirty);
+            Assert.True(context.History.CanUndo);
+
+            world.Update(0f, tickActors: false);
+            Assert.Same(result.Actors[0].RootComponent, result.Actors[1].RootComponent!.AttachParent);
+            Assert.True(context.Undo());
+            Assert.Empty(world.EnumerateActors(includePendingActors: true));
+            world.Update(0f, tickActors: false);
+
+            Assert.True(context.Redo());
+            Assert.Equal(2, world.EnumerateActors(includePendingActors: true).Count());
+            Assert.Same(result.Actors[0].RootComponent, result.Actors[1].RootComponent!.AttachParent);
+            Assert.Equal(new Vector3(2, 3, 4), result.Actors[1].RootComponent!.RelativeLocation);
+
+            using var secondWorld = new World(new ResourceManager());
+            using var secondContext = new EditorContext(secondWorld);
+            var second = new GltfImportService().ImportIntoEditor(
+                sourcePath, Path.Combine(root, "AssetsB"), secondContext);
+            Assert.Equal(importedAsset.AssetGuid, Assert.Single(second.Assets).AssetGuid);
+
+            foreach (var asset in result.Assets.Concat(second.Assets))
+                asset.Resource.Dispose();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static void WriteTriangleGltf(string path)
+    {
+        var bytes = new byte[42];
+        WriteFloat(bytes, 0, 0); WriteFloat(bytes, 4, 0); WriteFloat(bytes, 8, 0);
+        WriteFloat(bytes, 12, 1); WriteFloat(bytes, 16, 0); WriteFloat(bytes, 20, 0);
+        WriteFloat(bytes, 24, 0); WriteFloat(bytes, 28, 1); WriteFloat(bytes, 32, 0);
+        BitConverter.GetBytes((ushort)0).CopyTo(bytes, 36);
+        BitConverter.GetBytes((ushort)1).CopyTo(bytes, 38);
+        BitConverter.GetBytes((ushort)2).CopyTo(bytes, 40);
+        var encoded = Convert.ToBase64String(bytes);
+        File.WriteAllText(path, $$"""
+        {
+          "asset": { "version": "2.0" },
+          "buffers": [{ "byteLength": 42, "uri": "data:application/octet-stream;base64,{{encoded}}" }],
+          "bufferViews": [
+            { "buffer": 0, "byteOffset": 0, "byteLength": 36 },
+            { "buffer": 0, "byteOffset": 36, "byteLength": 6 }
+          ],
+          "accessors": [
+            { "bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3" },
+            { "bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR" }
+          ],
+          "meshes": [{ "primitives": [{ "attributes": { "POSITION": 0 }, "indices": 1 }] }],
+          "nodes": [
+            { "name": "Root", "children": [1] },
+            { "name": "Triangle", "mesh": 0, "translation": [2, 3, 4] }
+          ]
+        }
+        """);
+    }
+
     private static void WriteFloat(byte[] buffer, int offset, float value)
         => BitConverter.GetBytes(value).CopyTo(buffer, offset);
 }

@@ -61,8 +61,7 @@ Source File / glTF
 - 保留 glTF 节点层级和节点局部变换。
 - 每个可渲染节点生成一个静态网格实例或对应场景组件。
 - 导入位置、法线、UV、顶点颜色、索引。
-- 导入 BaseColor、Normal、Metallic-Roughness 纹理引用。
-- 将 glTF 材质参数映射到引擎 Material；当前仍由 Blinn-Phong 管线消费。
+- 首版不导入 glTF Material 和 Texture，只生成引擎 StaticMesh 资产。
 - 暂不导入 Skeleton、Animation、Morph Target。
 
 默认保留节点层级，便于编辑器层级树查看和修改；后续可以提供“合并网格”导入选项。
@@ -111,7 +110,8 @@ Material 当前仍是可变资源，因此 Play 时按 AssetGuid 为每个 Runti
 
 ## 8. 后续扩展
 
-当前已落地：`GltfStaticMeshImporter`（`.gltf` JSON、内嵌/外部 buffer、StaticMesh、节点层级）、
+当前已落地：`GltfStaticMeshImporter`（`.gltf` JSON、内嵌/外部 buffer、StaticMesh、节点层级）和
+`GltfImportService`（按“规范化源路径 + mesh index”生成稳定 AssetGuid、写入 `.asset`、登记 Registry、命令式创建 Actor）、
 `.asset` 首版编解码（StaticMesh、Texture2D 和基础 Material，含材质纹理依赖）、`AssetRegistry`（AssetGuid、来源/依赖/状态、目录扫描和懒加载）、
 `RuntimeActorFactory`（自定义组件和运行时行为注册）和
 `WindowsCookBackend`（版本化 `PAK0` 包、AssetGuid/依赖索引、确定性排序、原子写入）。`.scene` 格式当前为

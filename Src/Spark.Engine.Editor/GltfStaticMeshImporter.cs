@@ -15,12 +15,14 @@ public sealed class GltfNodeAsset
     public string Name { get; init; } = string.Empty;
     public int? ParentIndex { get; internal set; }
     public Matrix4x4 LocalTransform { get; init; } = Matrix4x4.Identity;
+    public int? MeshIndex { get; init; }
     public StaticMesh? Mesh { get; init; }
 }
 
 public sealed class GltfImportResult
 {
     public string SourcePath { get; init; } = string.Empty;
+    public IReadOnlyList<StaticMesh?> Meshes { get; init; } = Array.Empty<StaticMesh?>();
     public IReadOnlyList<GltfNodeAsset> Nodes { get; init; } = Array.Empty<GltfNodeAsset>();
 }
 
@@ -53,14 +55,13 @@ public sealed class GltfStaticMeshImporter
         var buffers = LoadBuffers(root, Path.GetDirectoryName(fullPath)!);
         var meshes = ParseMeshes(root, buffers);
         var nodes = ParseNodes(root, meshes);
-        return new GltfImportResult { SourcePath = fullPath, Nodes = nodes };
+        return new GltfImportResult { SourcePath = fullPath, Meshes = meshes, Nodes = nodes };
     }
 
-    /// <summary>把导入结果转为编辑器 World 中的 Actor/Component 层级。</summary>
-    public IReadOnlyList<Actor> CreateActors(GltfImportResult result, World world)
+    /// <summary>把导入结果构建为尚未加入 World 的 Actor/Component 层级。</summary>
+    public IReadOnlyList<Actor> BuildActors(GltfImportResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
-        ArgumentNullException.ThrowIfNull(world);
 
         var actors = new Actor[result.Nodes.Count];
         var roots = new SceneComponent[result.Nodes.Count];
@@ -86,6 +87,14 @@ public sealed class GltfStaticMeshImporter
             roots[i].AttachToComponent(roots[parent], AttachmentTransformRules.KeepRelativeTransform);
         }
 
+        return actors;
+    }
+
+    /// <summary>把导入结果转为编辑器 World 中的 Actor/Component 层级。</summary>
+    public IReadOnlyList<Actor> CreateActors(GltfImportResult result, World world)
+    {
+        ArgumentNullException.ThrowIfNull(world);
+        var actors = BuildActors(result);
         foreach (var actor in actors)
             world.AddActor(actor);
         return actors;
@@ -220,12 +229,14 @@ public sealed class GltfStaticMeshImporter
                             Matrix4x4.CreateTranslation(translation.X, translation.Y, translation.Z);
             }
 
+            int? sourceMeshIndex = null;
             StaticMesh? mesh = null;
             if (node.TryGetProperty("mesh", out var meshIndex))
             {
                 var indexValue = meshIndex.GetInt32();
                 if ((uint)indexValue >= (uint)meshes.Count)
                     throw new InvalidDataException("glTF node references an invalid mesh.");
+                sourceMeshIndex = indexValue;
                 mesh = meshes[indexValue];
             }
             result.Add(new GltfNodeAsset
@@ -233,6 +244,7 @@ public sealed class GltfStaticMeshImporter
                 Index = index,
                 Name = node.TryGetProperty("name", out var name) ? name.GetString() ?? string.Empty : string.Empty,
                 LocalTransform = transform,
+                MeshIndex = sourceMeshIndex,
                 Mesh = mesh,
             });
         }
