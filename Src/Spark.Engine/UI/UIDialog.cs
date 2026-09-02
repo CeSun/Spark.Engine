@@ -92,6 +92,7 @@ public sealed class UIDialog : UIElement
         var canvas = Canvas ?? FindCanvas();
         if (canvas != null && !canvas.Overlays.Contains(this))
             canvas.Overlays.Add(this);
+        canvas?.Focus(this);
     }
 
     /// <summary>关闭对话框，触发回调。</summary>
@@ -102,6 +103,8 @@ public sealed class UIDialog : UIElement
 
         var canvas = Canvas ?? FindCanvas();
         canvas?.Overlays.Remove(this);
+        if (canvas?.FocusedElement == this)
+            canvas.ClearFocus();
         Closed?.Invoke(buttonIndex);
     }
 

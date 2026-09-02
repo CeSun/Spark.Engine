@@ -505,6 +505,54 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void Canvas_OverlayAddedDuringRouteInput_IsLaidOutSameFrame()
+    {
+        var canvas = new UICanvas(0) { Size = new Vector2(400f, 300f) };
+        var dialog = new UIDialog { Title = "Confirm", Message = "Proceed?" };
+        dialog.Buttons.Add(new UIDialogButton("Cancel", isCancel: true));
+        var button = new UIButton
+        {
+            Text = "Open",
+            FixedSize = new UISize(100f, 30f),
+            Clicked = dialog.Show,
+        };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(button);
+        root.AddChild(dialog);
+        canvas.Root = root;
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        var down = default(MouseButtonMask);
+        down.Set(MouseButton.Left, true);
+        canvas.Update(new InputState(new Vector2(10f, 10f), Vector2.Zero, 0f,
+            down, down, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(new Vector2(10f, 10f), Vector2.Zero, 0f,
+            default, default, down, default, default, default, string.Empty), renderer);
+
+        Assert.True(dialog.IsOpen);
+        Assert.Contains(dialog, canvas.Overlays);
+        Assert.True(dialog.Bounds.Width > 0f);
+        Assert.True(dialog.Bounds.Height > 0f);
+    }
+
+    [Fact]
+    public void Dialog_ShowAndClose_ManagesCanvasFocus()
+    {
+        var canvas = new UICanvas(0) { Size = new Vector2(320f, 200f) };
+        var dialog = new UIDialog { Title = "Confirm" };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(dialog);
+        canvas.Root = root;
+        canvas.Update(default, CreateTextRenderer());
+
+        dialog.Show();
+        Assert.Same(dialog, canvas.FocusedElement);
+        dialog.Close();
+        Assert.Null(canvas.FocusedElement);
+    }
+
+    [Fact]
     public void Canvas_GlobalKeyDownReceivesPressedKeyAndFocusedElement()
     {
         var canvas = new UICanvas(0)

@@ -21,6 +21,7 @@ public sealed class EditorUi
     private readonly EditorViewportPanel _viewport;
     private readonly EditorStatusBarPanel _statusBar;
     private readonly EditorToolbarPanel _toolbar;
+    private readonly EditorDeleteConfirmationPanel _deleteConfirmation;
     private readonly EditorContext _context;
     private readonly IEditorSceneService? _sceneService;
 
@@ -74,6 +75,9 @@ public sealed class EditorUi
         content.AddChild(_inspector);
 
         root.AddChild(content);
+
+        _deleteConfirmation = new EditorDeleteConfirmationPanel(ConfirmDeleteSelection);
+        root.AddChild(_deleteConfirmation);
 
         // 状态栏
         _statusBar = new EditorStatusBarPanel();
@@ -244,6 +248,17 @@ public sealed class EditorUi
         if (_selectedTarget is not Actor actor)
         {
             SetStatus("Select an Actor to delete.");
+            return;
+        }
+        _deleteConfirmation.Request(actor);
+        SetStatus("Confirm Actor deletion.");
+    }
+
+    private void ConfirmDeleteSelection(Actor actor)
+    {
+        if (!_world.Actors.Contains(actor))
+        {
+            SetStatus("Actor is no longer in the scene.");
             return;
         }
         _context.Execute(new DelegateEditorCommand("Delete Actor", () => _world.RemoveActor(actor), () => _world.AddActor(actor)));

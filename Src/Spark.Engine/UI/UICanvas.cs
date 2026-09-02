@@ -55,11 +55,12 @@ public sealed class UICanvas
 
         Layout(textRenderer);
 
+        int overlayCount = Overlays.Count;
         RouteInput(input);
 
         // RouteInput 可能替换 Root（如按钮点击切换页面）：新 Root 尚未布局，
         // 立即补一次布局，避免当帧 Paint 空白（闪烁露出底层 3D 场景）。
-        if (Root != _lastLayoutRoot)
+        if (Root != _lastLayoutRoot || overlayCount != Overlays.Count)
             Layout(textRenderer);
     }
 
