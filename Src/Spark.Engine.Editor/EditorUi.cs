@@ -21,6 +21,7 @@ public sealed class EditorUi
     private readonly EditorStatusBarPanel _statusBar;
     private readonly EditorToolbarPanel _toolbar;
     private readonly EditorDeleteConfirmationPanel _deleteConfirmation;
+    private readonly EditorCloseConfirmationPanel _closeConfirmation;
     private readonly EditorAssetErrorsPanel _assetErrors;
     private readonly UIMenuPanel _attachMenu = new() { MinWidth = 220f, MaxWidth = 420f };
     private readonly EditorContext _context;
@@ -89,6 +90,9 @@ public sealed class EditorUi
         _deleteConfirmation = new EditorDeleteConfirmationPanel(ConfirmDeleteSelection);
         root.AddChild(_deleteConfirmation);
 
+        _closeConfirmation = new EditorCloseConfirmationPanel(TrySaveScene);
+        root.AddChild(_closeConfirmation);
+
         _assetErrors = new EditorAssetErrorsPanel(_context.AssetRegistry);
         root.AddChild(_assetErrors);
 
@@ -111,6 +115,25 @@ public sealed class EditorUi
     public IReadOnlyList<string> RecentScenePaths
         => (_sceneService as BinaryEditorSceneService)?.RecentFiles.Paths ?? Array.Empty<string>();
     public string? CurrentScenePath => (_sceneService as BinaryEditorSceneService)?.Path;
+    public bool IsDirty => _context.IsDirty;
+
+    /// <summary>
+    /// 请求关闭编辑器。无脏数据时立即执行关闭回调；有脏数据时显示确认对话框。
+    /// 宿主应在窗口关闭入口调用此方法。
+    /// </summary>
+    public bool RequestClose(Action close)
+    {
+        ArgumentNullException.ThrowIfNull(close);
+        if (!_context.IsDirty)
+        {
+            close();
+            return true;
+        }
+
+        _closeConfirmation.Request(close);
+        SetStatus("Choose whether to save the current scene before closing.");
+        return false;
+    }
     public GizmoOperation ActiveGizmoOperation => _gizmoOperation;
     public GizmoSpace ActiveGizmoSpace => _gizmoSpace;
     public bool IsGizmoDragging => _gizmo.IsDragging;
@@ -267,12 +290,14 @@ public sealed class EditorUi
         catch (Exception ex) { SetStatus($"Redo failed: {ex.Message}"); }
     }
 
-    private void SaveScene()
+    private void SaveScene() => TrySaveScene();
+
+    private bool TrySaveScene()
     {
         if (_sceneService == null)
         {
             SetStatus("No scene service configured.");
-            return;
+            return false;
         }
 
         try
@@ -281,15 +306,18 @@ public sealed class EditorUi
             {
                 _context.MarkSaved();
                 SetStatus("Scene saved.");
+                return true;
             }
             else
             {
                 SetStatus("Scene save was cancelled.");
+                return false;
             }
         }
         catch (Exception ex)
         {
             SetStatus($"Scene save failed: {ex.Message}");
+            return false;
         }
     }
 

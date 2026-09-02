@@ -187,6 +187,36 @@ public sealed class EditorCommandTests
     }
 
     [Fact]
+    public void EditorUi_RequestCloseClosesImmediatelyWhenSceneIsClean()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var editor = new EditorUi(world);
+        var closeCalls = 0;
+
+        Assert.True(editor.RequestClose(() => closeCalls++));
+        Assert.Equal(1, closeCalls);
+    }
+
+    [Fact]
+    public void EditorUi_RequestCloseDefersWhenSceneIsDirty()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var component = new SceneComponent();
+        var actor = new Actor();
+        actor.AddOwnedComponent(component);
+        world.AddActor(actor);
+        world.Update(0f, tickActors: false);
+        var editor = new EditorUi(world);
+
+        Assert.True(editor.ApplyRelativeTransform(component, Vector3.One, Quaternion.Identity, Vector3.One));
+        var closeCalls = 0;
+
+        Assert.True(editor.IsDirty);
+        Assert.False(editor.RequestClose(() => closeCalls++));
+        Assert.Equal(0, closeCalls);
+    }
+
+    [Fact]
     public void DelegateSceneService_ForwardsWorldAndResult()
     {
         using var world = new Spark.Engine.Worlds.World(new Spark.Engine.Resources.ResourceManager());
