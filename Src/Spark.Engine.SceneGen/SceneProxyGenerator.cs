@@ -208,6 +208,8 @@ public sealed class SceneProxyGenerator : IIncrementalGenerator
         sb.AppendLine("        SyncProxy();");
         sb.AppendLine("    }");
         sb.AppendLine();
+        sb.AppendLine("    public override void RefreshSceneProxy() => SyncProxy();");
+        sb.AppendLine();
         sb.AppendLine("    public override void EndPlay()");
         sb.AppendLine("    {");
         sb.AppendLine("        base.EndPlay();");

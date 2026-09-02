@@ -1,3 +1,4 @@
+using System.Numerics;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Editor;
@@ -87,6 +88,38 @@ public sealed class WorldLifecycleTests
         world.Update(0.016f, tickActors: false);
         Assert.Equal(0, actor.UpdateCount);
         world.Dispose();
+    }
+
+    [Fact]
+    public void EditorPreviewRefreshesStaticMeshProxyAfterTransformEditWithoutGameplayTick()
+    {
+        using var world = new World(new ResourceManager());
+        var mesh = new StaticMesh(
+            [
+                new StaticMeshVertex(new(-0.5f, -0.5f, 0f), Vector3.One, Vector2.Zero, Vector3.UnitZ),
+                new StaticMeshVertex(new(0.5f, -0.5f, 0f), Vector3.One, Vector2.UnitX, Vector3.UnitZ),
+                new StaticMeshVertex(new(0f, 0.5f, 0f), Vector3.One, Vector2.UnitY, Vector3.UnitZ),
+            ],
+            [0, 1, 2]);
+        var actor = new Actor();
+        var component = new StaticMeshComponent { Mesh = mesh };
+        actor.AddOwnedComponent(component);
+        world.AddActor(actor);
+        world.Update(0.016f, tickActors: false);
+
+        var before = new SceneSnapshot();
+        world.Scene.Capture(before);
+        Assert.Single(before.Objects);
+        Assert.Equal(0f, before.Objects[0].WorldTransform.Translation.X);
+
+        component.RelativeLocation = new Vector3(3f, 0f, 0f);
+        world.Update(0.016f, tickActors: false);
+
+        var after = new SceneSnapshot();
+        world.Scene.Capture(after);
+        Assert.Single(after.Objects);
+        Assert.Equal(3f, after.Objects[0].WorldTransform.Translation.X);
+        mesh.Dispose();
     }
 
     [Fact]

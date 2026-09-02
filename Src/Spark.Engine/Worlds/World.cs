@@ -115,7 +115,16 @@ public class World : IDisposable
         }
 
         if (!tickActors)
+        {
+            // 编辑器预览不执行 gameplay Tick，但 Inspector/Gizmo 仍可能修改变换或资源；
+            // 只同步代理，保证下一帧渲染看到最新状态。
+            foreach (var actor in _actors.ToArray())
+            {
+                foreach (var component in actor.Components.ToArray())
+                    component.RefreshSceneProxy();
+            }
             return;
+        }
 
         // 更新：副本迭代，回调重入增删不影响本帧集合（中3）
         foreach (var actor in _actors.ToArray())

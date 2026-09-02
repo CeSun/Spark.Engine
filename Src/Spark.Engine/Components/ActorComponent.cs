@@ -16,6 +16,12 @@ public class ActorComponent
     /// <summary>每逻辑帧更新（对应 UE 的 TickComponent）。</summary>
     public virtual void Update(float deltaTime) { }
 
+    /// <summary>
+    /// 编辑器预览使用的渲染代理同步钩子。该调用只复制当前组件状态到 SceneProxy，
+    /// 不执行 gameplay Tick；带代理的生成组件会覆盖此方法。
+    /// </summary>
+    public virtual void RefreshSceneProxy() { }
+
     /// <summary>离开世界时调用（对应 UE 的 EndPlay）。</summary>
     public virtual void EndPlay() { }
 }
