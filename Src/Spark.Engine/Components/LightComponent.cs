@@ -16,20 +16,20 @@ public abstract partial class LightComponent : SceneComponent
     /// <summary>光源类型（子类构造时固定，只读于外部）。</summary>
     [ScenePayload] public LightType Type { get; protected set; } = LightType.Point;
 
-    [ScenePayload] public Vector3 Color { get; set; } = Vector3.One;
+    [ScenePayload, SceneProperty] public Vector3 Color { get; set; } = Vector3.One;
 
-    [ScenePayload] public float Intensity { get; set; } = 1f;
+    [ScenePayload, SceneProperty] public float Intensity { get; set; } = 1f;
 
     /// <summary>点光/聚光的衰减半径；平行光忽略。</summary>
-    [ScenePayload] public float Range { get; set; } = 100f;
+    [ScenePayload, SceneProperty] public float Range { get; set; } = 100f;
 
     /// <summary>聚光内锥角（弧度）。</summary>
-    [ScenePayload] public float InnerConeAngle { get; set; }
+    [ScenePayload, SceneProperty] public float InnerConeAngle { get; set; }
 
     /// <summary>聚光外锥角（弧度）。</summary>
-    [ScenePayload] public float OuterConeAngle { get; set; } = MathF.PI / 4f;
+    [ScenePayload, SceneProperty] public float OuterConeAngle { get; set; } = MathF.PI / 4f;
 
-    [ScenePayload] public bool CastShadow { get; set; }
+    [ScenePayload, SceneProperty] public bool CastShadow { get; set; }
 
     partial void OnProxyMapped(LightSceneProxy proxy)
     {

@@ -12,14 +12,14 @@ public class CameraComponent : SceneComponent
     public Viewport? Viewport => RenderTarget as Viewport;
 
     /// <summary>垂直视场角（度）。</summary>
-    public float FieldOfView { get; set; } = 60f;
+    [SceneProperty] public float FieldOfView { get; set; } = 60f;
 
-    public float NearPlane { get; set; } = 0.1f;
+    [SceneProperty] public float NearPlane { get; set; } = 0.1f;
 
-    public float FarPlane { get; set; } = 1000f;
+    [SceneProperty] public float FarPlane { get; set; } = 1000f;
 
     /// <summary>清屏色；仅当该目标组内第一个相机时生效。</summary>
-    public Vector4 ClearColor { get; set; } = new(0.10f, 0.15f, 0.25f, 1.0f);
+    [SceneProperty] public Vector4 ClearColor { get; set; } = new(0.10f, 0.15f, 0.25f, 1.0f);
 
     /// <summary>由世界变换推导的视图矩阵。</summary>
     public Matrix4x4 GetViewMatrix()

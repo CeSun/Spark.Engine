@@ -12,13 +12,13 @@ namespace Spark.Engine.Components;
 public partial class StaticMeshComponent : SceneComponent
 {
     /// <summary>网格资产（资源成员：进 payload 时降级为 MeshId）。</summary>
-    [ScenePayload] public StaticMesh? Mesh { get; set; }
+    [ScenePayload, SceneProperty] public StaticMesh? Mesh { get; set; }
 
     /// <summary>材质资产（资源成员：进 payload 时降级为 MaterialId；null = 引擎默认材质）。</summary>
-    [ScenePayload] public Material? Material { get; set; }
+    [ScenePayload, SceneProperty] public Material? Material { get; set; }
 
     /// <summary>是否投射阴影（进 header 的 Visibility 标记，阴影 pass 据此收集 caster）。</summary>
-    public bool CastShadow { get; set; } = true;
+    [SceneProperty] public bool CastShadow { get; set; } = true;
 
     partial void OnProxyMapped(StaticMeshSceneProxy proxy)
     {

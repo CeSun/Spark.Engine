@@ -9,7 +9,7 @@ namespace Spark.Engine.Editor;
 /// <summary>编辑器场景的稳定内存表示；它是保存和 RuntimeWorld 实例化的共同输入。</summary>
 public sealed class SceneDocument
 {
-    public const ushort CurrentFormatVersion = 4;
+    public const ushort CurrentFormatVersion = 5;
     public Guid SceneGuid { get; set; } = Guid.NewGuid();
     public ushort FormatVersion { get; init; } = CurrentFormatVersion;
     public List<SceneActorDocument> Actors { get; } = [];
@@ -20,9 +20,12 @@ public sealed class SceneDocument
         var document = new SceneDocument();
         foreach (var actor in world.EnumerateActors(includePendingActors: true).OrderBy(a => a.ActorGuid))
         {
+            if (Attribute.IsDefined(actor.GetType(), typeof(SceneTransientAttribute), inherit: true))
+                continue;
             var actorDocument = new SceneActorDocument
             {
                 ActorGuid = actor.ActorGuid,
+                ActorType = actor.GetType().AssemblyQualifiedName ?? actor.GetType().FullName ?? actor.GetType().Name,
                 Name = actor.Name,
                 RootComponentGuid = actor.RootComponent?.ComponentGuid,
             };
@@ -39,20 +42,7 @@ public sealed class SceneDocument
                     RelativeLocation = scene?.RelativeLocation ?? Vector3.Zero,
                     RelativeRotation = scene?.RelativeRotation ?? Quaternion.Identity,
                     RelativeScale = scene?.RelativeScale ?? Vector3.One,
-                    MeshAssetGuid = (component as StaticMeshComponent)?.Mesh?.AssetGuid,
-                    SkeletalMeshAssetGuid = (component as SkeletalMeshComponent)?.Mesh?.AssetGuid,
-                    MaterialAssetGuid = (component as StaticMeshComponent)?.Material?.AssetGuid
-                        ?? (component as SkeletalMeshComponent)?.Material?.AssetGuid,
-                    LightColor = (component as LightComponent)?.Color ?? Vector3.One,
-                    LightIntensity = (component as LightComponent)?.Intensity ?? 1f,
-                    LightRange = (component as LightComponent)?.Range ?? 100f,
-                    LightInnerConeAngle = (component as LightComponent)?.InnerConeAngle ?? 0f,
-                    LightOuterConeAngle = (component as LightComponent)?.OuterConeAngle ?? MathF.PI / 4f,
-                    LightCastShadow = (component as LightComponent)?.CastShadow ?? false,
-                    CameraFieldOfView = (component as CameraComponent)?.FieldOfView ?? 60f,
-                    CameraNearPlane = (component as CameraComponent)?.NearPlane ?? 0.1f,
-                    CameraFarPlane = (component as CameraComponent)?.FarPlane ?? 1000f,
-                    CameraClearColor = (component as CameraComponent)?.ClearColor ?? new Vector4(0.10f, 0.15f, 0.25f, 1f),
+                    Properties = ScenePropertySerializer.Capture(component),
                 });
                 if (scene != null)
                     actorDocument.Components[^1].Sockets = scene.Sockets.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
@@ -95,7 +85,6 @@ public sealed class SceneDocument
         runtimeActorFactory ??= new RuntimeActorFactory();
         var components = new Dictionary<Guid, SceneComponent>();
         var actorRecords = Actors.OrderBy(a => a.ActorGuid).ToArray();
-        var actors = new Dictionary<Guid, Actor>();
         var runtimeMaterials = new Dictionary<Guid, Material>();
 
         try
@@ -103,54 +92,12 @@ public sealed class SceneDocument
             foreach (var actorRecord in actorRecords)
             {
                 var actor = runtimeActorFactory.CreateActor(actorRecord);
-                actors.Add(actor.ActorGuid, actor);
                 foreach (var componentRecord in actorRecord.Components.OrderBy(c => c.ComponentGuid))
                 {
                     var component = runtimeActorFactory.CreateComponent(componentRecord);
 
                     component.ComponentGuid = componentRecord.ComponentGuid;
-                    if (component is StaticMeshComponent staticMesh)
-                    {
-                        if (componentRecord.MeshAssetGuid is { } meshGuid)
-                        {
-                            if (assetRegistry == null || assetRegistry.Resolve(meshGuid) is not StaticMesh mesh)
-                                throw new InvalidDataException($"Mesh asset '{meshGuid}' could not be resolved as StaticMesh.");
-                            staticMesh.Mesh = mesh;
-                        }
-                        if (componentRecord.MaterialAssetGuid is { } materialGuid)
-                        {
-                            staticMesh.Material = ResolveMaterial(materialGuid);
-                        }
-                    }
-                    else if (component is SkeletalMeshComponent skeletalMesh)
-                    {
-                        if (componentRecord.SkeletalMeshAssetGuid is { } meshGuid)
-                        {
-                            if (assetRegistry == null || assetRegistry.Resolve(meshGuid) is not SkeletalMesh mesh)
-                                throw new InvalidDataException($"Skeletal mesh asset '{meshGuid}' could not be resolved as SkeletalMesh.");
-                            skeletalMesh.Mesh = mesh;
-                        }
-                        if (componentRecord.MaterialAssetGuid is { } materialGuid)
-                        {
-                            skeletalMesh.Material = ResolveMaterial(materialGuid);
-                        }
-                    }
-                    if (component is LightComponent light)
-                    {
-                        light.Color = componentRecord.LightColor;
-                        light.Intensity = componentRecord.LightIntensity;
-                        light.Range = componentRecord.LightRange;
-                        light.InnerConeAngle = componentRecord.LightInnerConeAngle;
-                        light.OuterConeAngle = componentRecord.LightOuterConeAngle;
-                        light.CastShadow = componentRecord.LightCastShadow;
-                    }
-                    if (component is CameraComponent camera)
-                    {
-                        camera.FieldOfView = componentRecord.CameraFieldOfView;
-                        camera.NearPlane = componentRecord.CameraNearPlane;
-                        camera.FarPlane = componentRecord.CameraFarPlane;
-                        camera.ClearColor = componentRecord.CameraClearColor;
-                    }
+                    ScenePropertySerializer.Restore(component, componentRecord.Properties, ResolveAsset);
                     actor.AddOwnedComponent(component);
                     if (component is SceneComponent scene)
                     {
@@ -205,12 +152,25 @@ public sealed class SceneDocument
             runtimeMaterials.Add(materialGuid, runtimeCopy);
             return runtimeCopy;
         }
+
+        SceneResource ResolveAsset(Guid assetGuid, Type expectedType)
+        {
+            SceneResource resource = typeof(Material).IsAssignableFrom(expectedType)
+                ? ResolveMaterial(assetGuid)
+                : assetRegistry?.Resolve(assetGuid)
+                    ?? throw new InvalidDataException($"Asset '{assetGuid}' is not registered.");
+            if (!expectedType.IsInstanceOfType(resource))
+                throw new InvalidDataException(
+                    $"Asset '{assetGuid}' is {resource.GetType().Name}, expected {expectedType.Name}.");
+            return resource;
+        }
     }
 }
 
 public sealed class SceneActorDocument
 {
     public Guid ActorGuid { get; init; }
+    public string ActorType { get; init; } = typeof(Actor).AssemblyQualifiedName!;
     public string Name { get; init; } = string.Empty;
     public Guid? RootComponentGuid { get; init; }
     public List<SceneComponentDocument> Components { get; } = [];
@@ -225,19 +185,7 @@ public sealed class SceneComponentDocument
     public Vector3 RelativeLocation { get; init; }
     public Quaternion RelativeRotation { get; init; } = Quaternion.Identity;
     public Vector3 RelativeScale { get; init; } = Vector3.One;
-    public Guid? MeshAssetGuid { get; init; }
-    public Guid? SkeletalMeshAssetGuid { get; init; }
-    public Guid? MaterialAssetGuid { get; init; }
-    public Vector3 LightColor { get; init; } = Vector3.One;
-    public float LightIntensity { get; init; } = 1f;
-    public float LightRange { get; init; } = 100f;
-    public float LightInnerConeAngle { get; init; }
-    public float LightOuterConeAngle { get; init; } = MathF.PI / 4f;
-    public bool LightCastShadow { get; init; }
-    public float CameraFieldOfView { get; init; } = 60f;
-    public float CameraNearPlane { get; init; } = 0.1f;
-    public float CameraFarPlane { get; init; } = 1000f;
-    public Vector4 CameraClearColor { get; init; } = new(0.10f, 0.15f, 0.25f, 1f);
+    public Dictionary<string, ScenePropertyValue> Properties { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, Matrix4x4> Sockets { get; set; } = new(StringComparer.Ordinal);
 }
 
@@ -271,6 +219,7 @@ internal static class SceneDocumentBinary
                 foreach (var actor in document.Actors.OrderBy(a => a.ActorGuid))
                 {
                     writer.Write(actor.ActorGuid.ToByteArray());
+                    WriteString(writer, actor.ActorType);
                     WriteString(writer, actor.Name);
                     WriteNullableGuid(writer, actor.RootComponentGuid);
                     writer.Write(actor.Components.Count);
@@ -280,19 +229,6 @@ internal static class SceneDocumentBinary
                         WriteString(writer, component.ComponentType);
                         WriteNullableGuid(writer, component.ParentComponentGuid);
                         WriteNullableString(writer, component.AttachSocketName);
-                        WriteNullableGuid(writer, component.MeshAssetGuid);
-                        WriteNullableGuid(writer, component.SkeletalMeshAssetGuid);
-                        WriteNullableGuid(writer, component.MaterialAssetGuid);
-                        WriteVector3(writer, component.LightColor);
-                        writer.Write(component.LightIntensity);
-                        writer.Write(component.LightRange);
-                        writer.Write(component.LightInnerConeAngle);
-                        writer.Write(component.LightOuterConeAngle);
-                        writer.Write(component.LightCastShadow);
-                        writer.Write(component.CameraFieldOfView);
-                        writer.Write(component.CameraNearPlane);
-                        writer.Write(component.CameraFarPlane);
-                        WriteVector4(writer, component.CameraClearColor);
                         WriteVector3(writer, component.RelativeLocation);
                         WriteQuaternion(writer, component.RelativeRotation);
                         WriteVector3(writer, component.RelativeScale);
@@ -301,6 +237,13 @@ internal static class SceneDocumentBinary
                         {
                             writer.Write(socket.Key);
                             WriteMatrix4x4(writer, socket.Value);
+                        }
+                        writer.Write(component.Properties.Count);
+                        foreach (var property in component.Properties.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                        {
+                            WriteString(writer, property.Key);
+                            writer.Write((byte)property.Value.Kind);
+                            WritePropertyValue(writer, property.Value);
                         }
                     }
                 }
@@ -336,7 +279,7 @@ internal static class SceneDocumentBinary
         var document = new SceneDocument
         {
             FormatVersion = version,
-            SceneGuid = new Guid(reader.ReadBytes(16)),
+            SceneGuid = ReadGuid(reader),
         };
 
         var actorCount = ReadCount(reader, "actor");
@@ -344,7 +287,8 @@ internal static class SceneDocumentBinary
         {
             var actor = new SceneActorDocument
             {
-                ActorGuid = new Guid(reader.ReadBytes(16)),
+                ActorGuid = ReadGuid(reader),
+                ActorType = ReadString(reader),
                 Name = ReadString(reader),
                 RootComponentGuid = ReadNullableGuid(reader),
             };
@@ -353,23 +297,10 @@ internal static class SceneDocumentBinary
             {
                 actor.Components.Add(new SceneComponentDocument
                 {
-                    ComponentGuid = new Guid(reader.ReadBytes(16)),
+                    ComponentGuid = ReadGuid(reader),
                     ComponentType = ReadString(reader),
                     ParentComponentGuid = ReadNullableGuid(reader),
                     AttachSocketName = ReadNullableString(reader),
-                    MeshAssetGuid = ReadNullableGuid(reader),
-                    SkeletalMeshAssetGuid = ReadNullableGuid(reader),
-                    MaterialAssetGuid = ReadNullableGuid(reader),
-                    LightColor = ReadVector3(reader),
-                    LightIntensity = reader.ReadSingle(),
-                    LightRange = reader.ReadSingle(),
-                    LightInnerConeAngle = reader.ReadSingle(),
-                    LightOuterConeAngle = reader.ReadSingle(),
-                    LightCastShadow = reader.ReadBoolean(),
-                    CameraFieldOfView = reader.ReadSingle(),
-                    CameraNearPlane = reader.ReadSingle(),
-                    CameraFarPlane = reader.ReadSingle(),
-                    CameraClearColor = ReadVector4(reader),
                     RelativeLocation = ReadVector3(reader),
                     RelativeRotation = ReadQuaternion(reader),
                     RelativeScale = ReadVector3(reader),
@@ -377,6 +308,15 @@ internal static class SceneDocumentBinary
                 var socketCount = ReadCount(reader, "socket");
                 for (var socketIndex = 0; socketIndex < socketCount; socketIndex++)
                     actor.Components[^1].Sockets.Add(ReadString(reader), ReadMatrix4x4(reader));
+                var propertyCount = ReadCount(reader, "property");
+                for (var propertyIndex = 0; propertyIndex < propertyCount; propertyIndex++)
+                {
+                    var propertyName = ReadString(reader);
+                    var kind = (ScenePropertyKind)reader.ReadByte();
+                    if (!Enum.IsDefined(kind))
+                        throw new InvalidDataException($"Unknown scene property kind {(byte)kind}.");
+                    actor.Components[^1].Properties.Add(propertyName, ReadPropertyValue(reader, kind));
+                }
             }
             document.Actors.Add(actor);
         }
@@ -407,7 +347,8 @@ internal static class SceneDocumentBinary
         writer.Write(value.HasValue);
         if (value.HasValue) writer.Write(value.Value.ToByteArray());
     }
-    private static Guid? ReadNullableGuid(BinaryReader reader) => reader.ReadBoolean() ? new Guid(reader.ReadBytes(16)) : null;
+    private static Guid? ReadNullableGuid(BinaryReader reader) => reader.ReadBoolean() ? ReadGuid(reader) : null;
+    private static Guid ReadGuid(BinaryReader reader) => new(ReadExactly(reader, 16));
     private static void WriteVector3(BinaryWriter writer, Vector3 value) { writer.Write(value.X); writer.Write(value.Y); writer.Write(value.Z); }
     private static Vector3 ReadVector3(BinaryReader reader) => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
     private static void WriteVector4(BinaryWriter writer, Vector4 value) { writer.Write(value.X); writer.Write(value.Y); writer.Write(value.Z); writer.Write(value.W); }
@@ -426,4 +367,56 @@ internal static class SceneDocumentBinary
         reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(),
         reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(),
         reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+
+    private static void WritePropertyValue(BinaryWriter writer, ScenePropertyValue property)
+    {
+        switch (property.Kind)
+        {
+            case ScenePropertyKind.Null: break;
+            case ScenePropertyKind.Boolean: writer.Write(property.Get<bool>()); break;
+            case ScenePropertyKind.Int64: writer.Write(property.Get<long>()); break;
+            case ScenePropertyKind.UInt64: writer.Write(property.Get<ulong>()); break;
+            case ScenePropertyKind.Single: writer.Write(property.Get<float>()); break;
+            case ScenePropertyKind.Double: writer.Write(property.Get<double>()); break;
+            case ScenePropertyKind.String: WriteString(writer, property.Get<string>()); break;
+            case ScenePropertyKind.Guid:
+            case ScenePropertyKind.AssetReference: writer.Write(property.Get<Guid>().ToByteArray()); break;
+            case ScenePropertyKind.Vector2: WriteVector2(writer, property.Get<Vector2>()); break;
+            case ScenePropertyKind.Vector3: WriteVector3(writer, property.Get<Vector3>()); break;
+            case ScenePropertyKind.Vector4: WriteVector4(writer, property.Get<Vector4>()); break;
+            case ScenePropertyKind.Quaternion: WriteQuaternion(writer, property.Get<Quaternion>()); break;
+            case ScenePropertyKind.Matrix4x4: WriteMatrix4x4(writer, property.Get<Matrix4x4>()); break;
+            default: throw new InvalidDataException($"Unknown scene property kind {(byte)property.Kind}.");
+        }
+    }
+
+    private static ScenePropertyValue ReadPropertyValue(BinaryReader reader, ScenePropertyKind kind)
+        => kind switch
+        {
+            ScenePropertyKind.Null => new(kind, null),
+            ScenePropertyKind.Boolean => new(kind, reader.ReadBoolean()),
+            ScenePropertyKind.Int64 => new(kind, reader.ReadInt64()),
+            ScenePropertyKind.UInt64 => new(kind, reader.ReadUInt64()),
+            ScenePropertyKind.Single => new(kind, reader.ReadSingle()),
+            ScenePropertyKind.Double => new(kind, reader.ReadDouble()),
+            ScenePropertyKind.String => new(kind, ReadString(reader)),
+            ScenePropertyKind.Guid or ScenePropertyKind.AssetReference => new(kind, new Guid(ReadExactly(reader, 16))),
+            ScenePropertyKind.Vector2 => new(kind, ReadVector2(reader)),
+            ScenePropertyKind.Vector3 => new(kind, ReadVector3(reader)),
+            ScenePropertyKind.Vector4 => new(kind, ReadVector4(reader)),
+            ScenePropertyKind.Quaternion => new(kind, ReadQuaternion(reader)),
+            ScenePropertyKind.Matrix4x4 => new(kind, ReadMatrix4x4(reader)),
+            _ => throw new InvalidDataException($"Unknown scene property kind {(byte)kind}.")
+        };
+
+    private static void WriteVector2(BinaryWriter writer, Vector2 value) { writer.Write(value.X); writer.Write(value.Y); }
+    private static Vector2 ReadVector2(BinaryReader reader) => new(reader.ReadSingle(), reader.ReadSingle());
+
+    private static byte[] ReadExactly(BinaryReader reader, int count)
+    {
+        var bytes = reader.ReadBytes(count);
+        if (bytes.Length != count)
+            throw new InvalidDataException("Unexpected end of scene file.");
+        return bytes;
+    }
 }

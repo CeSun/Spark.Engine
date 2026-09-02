@@ -12,15 +12,15 @@ namespace Spark.Engine.Components;
 [SceneProxy(SceneCategory.SkeletalMesh)]
 public partial class SkeletalMeshComponent : SceneComponent
 {
-    [ScenePayload] public SkeletalMesh? Mesh { get; set; }
+    [ScenePayload, SceneProperty] public SkeletalMesh? Mesh { get; set; }
 
-    [ScenePayload] public Material? Material { get; set; }
+    [ScenePayload, SceneProperty] public Material? Material { get; set; }
 
     /// <summary>当前骨骼世界变换（长度 = Mesh.BoneCount；缺省按单位阵处理）。仅逻辑线程读写。</summary>
     public Matrix4x4[]? BoneTransforms { get; set; }
 
     /// <summary>是否投射阴影（进 header 的 Visibility 标记，阴影 pass 据此收集 caster）。</summary>
-    public bool CastShadow { get; set; } = true;
+    [SceneProperty] public bool CastShadow { get; set; } = true;
 
     /// <summary>皮肤矩阵（每帧计算，进 payload；payload 只承载值，不携带数组引用）。</summary>
     [ScenePayload]

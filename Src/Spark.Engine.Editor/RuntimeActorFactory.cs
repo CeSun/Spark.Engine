@@ -9,8 +9,24 @@ namespace Spark.Engine.Editor;
 /// </summary>
 public sealed class RuntimeActorFactory
 {
+    private readonly Dictionary<string, Func<Actor>> _actorFactories = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Func<ActorComponent>> _componentFactories = new(StringComparer.Ordinal);
     private readonly List<Action<World, SceneDocument>> _worldBehaviors = [];
+
+    public void RegisterActor<T>(string? typeName = null) where T : Actor, new()
+    {
+        var key = typeName ?? typeof(T).AssemblyQualifiedName ?? typeof(T).FullName ?? typeof(T).Name;
+        _actorFactories[key] = static () => new T();
+        if (typeof(T).FullName is { } fullName)
+            _actorFactories[fullName] = static () => new T();
+    }
+
+    public void RegisterActor(string typeName, Func<Actor> factory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(typeName);
+        ArgumentNullException.ThrowIfNull(factory);
+        _actorFactories[typeName] = factory;
+    }
 
     public void RegisterComponent<T>(string? typeName = null) where T : ActorComponent, new()
     {
@@ -35,7 +51,25 @@ public sealed class RuntimeActorFactory
     }
 
     internal Actor CreateActor(SceneActorDocument record)
-        => new() { ActorGuid = record.ActorGuid, Name = record.Name };
+    {
+        Actor actor;
+        if (_actorFactories.TryGetValue(record.ActorType, out var registered))
+        {
+            actor = registered();
+        }
+        else
+        {
+            var type = Type.GetType(record.ActorType, throwOnError: false);
+            if (type == null || !typeof(Actor).IsAssignableFrom(type) || type.IsAbstract)
+                throw new InvalidDataException($"Cannot instantiate Actor type '{record.ActorType}'.");
+            if (Activator.CreateInstance(type) is not Actor created)
+                throw new InvalidDataException($"Actor type '{record.ActorType}' has no public parameterless constructor.");
+            actor = created;
+        }
+        actor.ActorGuid = record.ActorGuid;
+        actor.Name = record.Name;
+        return actor;
+    }
 
     internal ActorComponent CreateComponent(SceneComponentDocument record)
     {

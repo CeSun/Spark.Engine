@@ -127,8 +127,8 @@ public sealed class SceneDocumentTests
         {
             SceneDocument.Capture(world).Save(path);
             var component = Assert.Single(SceneDocument.Load(path).Actors).Components.Single();
-            Assert.Equal(mesh.AssetGuid, component.MeshAssetGuid);
-            Assert.Equal(material.AssetGuid, component.MaterialAssetGuid);
+            Assert.Equal(mesh.AssetGuid, component.Properties["Mesh"].Get<Guid>());
+            Assert.Equal(material.AssetGuid, component.Properties["Material"].Get<Guid>());
         }
         finally
         {
@@ -158,10 +158,10 @@ public sealed class SceneDocumentTests
         {
             SceneDocument.Capture(world).Save(path);
             var loaded = Assert.Single(Assert.Single(SceneDocument.Load(path).Actors).Components);
-            Assert.Equal(75f, loaded.CameraFieldOfView);
-            Assert.Equal(0.25f, loaded.CameraNearPlane);
-            Assert.Equal(2500f, loaded.CameraFarPlane);
-            Assert.Equal(camera.ClearColor, loaded.CameraClearColor);
+            Assert.Equal(75f, loaded.Properties["FieldOfView"].Get<float>());
+            Assert.Equal(0.25f, loaded.Properties["NearPlane"].Get<float>());
+            Assert.Equal(2500f, loaded.Properties["FarPlane"].Get<float>());
+            Assert.Equal(camera.ClearColor, loaded.Properties["ClearColor"].Get<Vector4>());
         }
         finally
         {
@@ -319,6 +319,91 @@ public sealed class SceneDocumentTests
         Assert.False(runtimeBehaviorCalled);
         mesh.Dispose();
         material.Dispose();
+    }
+
+    [Fact]
+    public void BinaryRoundTripRestoresStaticAndSkeletalShadowFlags()
+    {
+        using var source = new World(new ResourceManager());
+        var staticMesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY)], [0]);
+        var skeletalMesh = new SkeletalMesh(
+            [new SkeletalMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY, 0, Vector4.UnitX)],
+            [0], [Matrix4x4.Identity]);
+        var actor = new Actor();
+        actor.AddOwnedComponent(new StaticMeshComponent { Mesh = staticMesh, CastShadow = false });
+        actor.AddOwnedComponent(new SkeletalMeshComponent { Mesh = skeletalMesh, CastShadow = false });
+        source.AddActor(actor);
+        source.Update(0f, tickActors: false);
+        var registry = new AssetRegistry();
+        registry.Register(staticMesh);
+        registry.Register(skeletalMesh);
+        var path = GetTempPath();
+        try
+        {
+            SceneDocument.Capture(source).Save(path);
+            using var restored = SceneDocument.Load(path)
+                .InstantiateEditorWorld(source.Scene.ResourceManager, registry);
+            restored.Update(0f, tickActors: false);
+
+            var restoredActor = Assert.Single(restored.Actors);
+            Assert.False(restoredActor.GetComponent<StaticMeshComponent>()!.CastShadow);
+            Assert.False(restoredActor.GetComponent<SkeletalMeshComponent>()!.CastShadow);
+        }
+        finally
+        {
+            DeleteIfExists(path);
+            staticMesh.Dispose();
+            skeletalMesh.Dispose();
+        }
+    }
+
+    [Fact]
+    public void CustomActorAndScenePropertiesRoundTrip()
+    {
+        using var source = new World(new ResourceManager());
+        var actor = new CustomActor { Name = "Custom" };
+        actor.AddOwnedComponent(new CustomSceneComponent
+        {
+            Count = 42,
+            Direction = new Vector3(1f, 2f, 3f),
+            Label = null,
+            RuntimeOnly = 99f,
+        });
+        source.AddActor(actor);
+        source.Update(0f, tickActors: false);
+        var path = GetTempPath();
+        try
+        {
+            SceneDocument.Capture(source).Save(path);
+            var loaded = SceneDocument.Load(path);
+            Assert.Contains(typeof(CustomActor).FullName!, Assert.Single(loaded.Actors).ActorType);
+
+            using var restored = loaded.InstantiateEditorWorld(source.Scene.ResourceManager);
+            restored.Update(0f, tickActors: false);
+            var restoredActor = Assert.IsType<CustomActor>(Assert.Single(restored.Actors));
+            var component = Assert.IsType<CustomSceneComponent>(Assert.Single(restoredActor.Components));
+            Assert.Equal(42, component.Count);
+            Assert.Equal(new Vector3(1f, 2f, 3f), component.Direction);
+            Assert.Null(component.Label);
+            Assert.Equal(-1f, component.RuntimeOnly);
+        }
+        finally
+        {
+            DeleteIfExists(path);
+        }
+    }
+
+    [Fact]
+    public void CaptureOmitsSceneTransientActors()
+    {
+        using var world = new World(new ResourceManager());
+        world.AddActor(new Actor { Name = "Persistent" });
+        world.AddActor(new TransientActor { Name = "Runtime only" });
+
+        var document = SceneDocument.Capture(world);
+
+        Assert.Equal("Persistent", Assert.Single(document.Actors).Name);
     }
 
     [Fact]
@@ -846,12 +931,13 @@ public sealed class SceneDocumentTests
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
             {
                 stream.Position = 4;
-                stream.WriteByte(0xFF);
-                stream.WriteByte(0x7F);
+                stream.WriteByte(4);
+                stream.WriteByte(0);
             }
 
             var error = Assert.Throws<InvalidDataException>(() => SceneDocument.Load(path));
             Assert.Contains("Unsupported scene format version", error.Message);
+            Assert.Contains("version 4", error.Message);
         }
         finally
         {
@@ -873,5 +959,22 @@ public sealed class SceneDocumentTests
         public override Silk.NET.WebGPU.TextureFormat Format => Silk.NET.WebGPU.TextureFormat.Rgba8Unorm;
         public override RenderTargetSession BeginRenderSession() => default;
         public override void Dispose() { }
+    }
+
+    public sealed class CustomActor : Actor
+    {
+    }
+
+    public sealed class CustomSceneComponent : SceneComponent
+    {
+        [SceneProperty] public int Count { get; set; }
+        [SceneProperty] public Vector3 Direction { get; set; }
+        [SceneProperty] public string? Label { get; set; } = "constructor default";
+        public float RuntimeOnly { get; set; } = -1f;
+    }
+
+    [SceneTransient]
+    public sealed class TransientActor : Actor
+    {
     }
 }

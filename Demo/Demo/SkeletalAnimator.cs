@@ -5,6 +5,7 @@ using Spark.Engine.Components;
 namespace Demo;
 
 /// <summary>每帧绕关节（原点）摆动骨骼网格的上段（bone1），验证 GPU 蒙皮。</summary>
+[SceneTransient]
 public sealed class SkeletalAnimator : Actor
 {
     private readonly SkeletalMeshComponent _mesh;

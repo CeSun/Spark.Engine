@@ -60,11 +60,13 @@ EditorApplication
 
 1. ✅ `SceneDocument`、二进制 `.scene` 格式和版本号。
 2. ✅ `BinaryEditorSceneService.Save/Load`；Reload 先构建并验证新的 EditorWorld，成功后通过 `WorldContext` 原子切换，失败不修改当前场景。
-3. 脏状态、关闭确认、最近文件。
-4. 自动保存和崩溃恢复文件。
-5. 加载错误面板和不可恢复资源引用提示。
+3. ✅ v5 保存 Actor 类型和 `[SceneProperty]` 类型化组件属性块；`[SceneTransient]` 排除仅运行时 Actor，旧版本明确拒绝且暂不迁移。
+4. 脏状态、关闭确认、最近文件。
+5. 自动保存和崩溃恢复文件。
+6. 加载错误面板和不可恢复资源引用提示。
 
-验收：序列化 round-trip 保留场景 GUID、Actor/Component GUID、挂载关系、Socket 和相对变换；不支持的版本给出明确错误。
+验收：序列化 round-trip 保留场景 GUID、Actor/Component GUID、具体类型、挂载关系、Socket、相对变换和显式标注属性；
+EditorWorld 共享资产、RuntimeWorld 隔离可变材质；不支持的版本给出明确错误。
 
 ### M3：Viewport 编辑
 
