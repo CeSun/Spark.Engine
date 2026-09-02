@@ -213,6 +213,6 @@ AttachmentTransformRules 不写入场景文件。加载时按父节点拓扑顺�
 2. ✅ `KeepRelative` / `KeepWorld` / `SnapToTarget`，以及 Detach 保持世界变换。
 3. ✅ `ISceneSocketProvider` 与普通组件 Socket；跨 Actor 挂载限制在同一 World。
 4. ✅ SceneProxy 读取层级计算后的 WorldTransform，变换 setter 向后代传播 dirty。
-5. ✅ `AttachComponentCommand` 已支持可撤销挂载；⏳ 编辑器层级树拖拽接线。
+5. ✅ `AttachComponentCommand` 已支持可撤销挂载；⏳ 编辑器层级树拖拽接线；Viewport 变换命令已支持可撤销局部 TRS。
 6. ✅ SceneDocument 二进制序列化、加载、RuntimeWorld 实例化、AssetGuid 解析和 EditorContext Play/Stop；⏳ `.pak` Runtime Loader。
 7. ⏳ StaticMesh Socket、跨资产 Socket 和后续骨骼 Socket。

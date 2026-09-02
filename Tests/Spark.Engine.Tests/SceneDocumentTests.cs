@@ -414,6 +414,69 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void ViewportPickerReturnsNearestRenderableAtScreenCenter()
+    {
+        using var world = new World(new ResourceManager());
+        var cameraActor = new Actor { Name = "EditorCamera" };
+        var camera = new CameraComponent();
+        cameraActor.AddOwnedComponent(camera);
+        world.AddActor(cameraActor);
+
+        var farMesh = CreateTestMesh(new Vector3(0f, 0f, -8f), 0.5f);
+        var nearMesh = CreateTestMesh(new Vector3(0f, 0f, -4f), 0.5f);
+        var farActor = new Actor { Name = "Far" };
+        var farComponent = new StaticMeshComponent { Mesh = farMesh };
+        farActor.AddOwnedComponent(farComponent);
+        world.AddActor(farActor);
+        var nearActor = new Actor { Name = "Near" };
+        var nearComponent = new StaticMeshComponent { Mesh = nearMesh };
+        nearActor.AddOwnedComponent(nearComponent);
+        world.AddActor(nearActor);
+        world.Update(0.016f);
+
+        var hit = ViewportPicker.Pick(world, camera, new Vector2(50f, 50f), new Vector2(100f, 100f));
+
+        Assert.NotNull(hit);
+        Assert.Same(nearComponent, hit!.Value.Component);
+        Assert.True(hit.Value.Distance > 0f);
+        farMesh.Dispose();
+        nearMesh.Dispose();
+    }
+
+    [Fact]
+    public void TransformChangeCommandSupportsUndoAndRedo()
+    {
+        using var world = new World(new ResourceManager());
+        var actor = new Actor();
+        var component = new SceneComponent { RelativeLocation = Vector3.One };
+        actor.AddOwnedComponent(component);
+        world.AddActor(actor);
+        world.Update(0.016f);
+        var history = new EditorCommandHistory();
+        var command = new TransformChangeCommand(component, new Vector3(4f, 5f, 6f), Quaternion.Identity, new Vector3(2f));
+
+        history.Execute(command);
+        Assert.Equal(new Vector3(4f, 5f, 6f), component.RelativeLocation);
+        Assert.Equal(new Vector3(2f), component.RelativeScale);
+        Assert.True(history.Undo());
+        Assert.Equal(Vector3.One, component.RelativeLocation);
+        Assert.Equal(Vector3.One, component.RelativeScale);
+        Assert.True(history.Redo());
+        Assert.Equal(new Vector3(4f, 5f, 6f), component.RelativeLocation);
+    }
+
+    private static StaticMesh CreateTestMesh(Vector3 center, float size)
+    {
+        var vertices = new[]
+        {
+            new StaticMeshVertex(center + new Vector3(-size, -size, 0f), Vector3.One, Vector2.Zero, Vector3.UnitZ),
+            new StaticMeshVertex(center + new Vector3(size, -size, 0f), Vector3.One, Vector2.UnitX, Vector3.UnitZ),
+            new StaticMeshVertex(center + new Vector3(0f, size, 0f), Vector3.One, Vector2.UnitY, Vector3.UnitZ),
+        };
+        return new StaticMesh(vertices, [0, 1, 2]);
+    }
+
+    [Fact]
     public void BinaryReaderRejectsUnsupportedVersion()
     {
         var path = GetTempPath();

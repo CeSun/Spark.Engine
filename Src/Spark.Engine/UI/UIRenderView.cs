@@ -24,6 +24,9 @@ namespace Spark.Engine.UI;
 /// </summary>
 public sealed class UIRenderView : UIElement
 {
+    private Vector2 _lastPointerPosition;
+    /// <summary>鼠标在渲染视图内点击时触发，坐标为 UI 画布坐标。</summary>
+    public event Action<Vector2>? Clicked;
     /// <summary>渲染视图 ID（由 UIManager.RegisterRenderView 分配）。</summary>
     public int RenderViewId { get; set; }
 
@@ -90,6 +93,12 @@ public sealed class UIRenderView : UIElement
             ui.DrawRenderView(targetId, RenderViewId, new Vector2(rect.X, rect.Y), new Vector2(rect.Width, rect.Height));
         }
     }
+
+    protected internal override void OnMouseMove(Vector2 position) => _lastPointerPosition = position;
+
+    protected internal override void OnMouseDrag(Vector2 position) => _lastPointerPosition = position;
+
+    protected internal override void OnMouseClick() => Clicked?.Invoke(_lastPointerPosition);
 
     /// <summary>显示尺寸变化超过阈值时请求重建离屏渲染目标。</summary>
     private void TryRequestResize(UIManager ui)

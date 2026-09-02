@@ -307,6 +307,7 @@ public sealed class EditorUi
     public void SetPictureInPicture(UIRenderView control)
     {
         ArgumentNullException.ThrowIfNull(control);
+        control.Clicked += point => HandleViewportClick(control, point);
         var resizeRequested = control.RenderViewResizeRequested;
         if (resizeRequested != null)
         {
@@ -322,6 +323,41 @@ public sealed class EditorUi
         // viewport space instead of retaining the old demo thumbnail size.
         control.FixedSize = new UISize(0f, 0f);
         _viewport.SetRenderView(control);
+    }
+
+    /// <summary>以渲染视图坐标执行一次 CPU 拾取，并同步层级树和 Inspector 选择。</summary>
+    public ViewportHit? PickViewport(Vector2 point, Vector2 viewportSize, CameraComponent camera)
+    {
+        if (_context.PlayState != EditorPlayState.Edit)
+            return null;
+        var hit = ViewportPicker.Pick(_world, camera, point, viewportSize);
+        _context.Selection.Selected = hit?.Component;
+        return hit;
+    }
+
+    /// <summary>提交一次可撤销的局部变换修改；Gizmo 拖拽应在释放时调用一次。</summary>
+    public bool ApplyRelativeTransform(SceneComponent component, Vector3 location, Quaternion rotation, Vector3 scale)
+    {
+        ArgumentNullException.ThrowIfNull(component);
+        if (_context.PlayState != EditorPlayState.Edit || !ReferenceEquals(component.Owner?.World, _world))
+            return false;
+        _context.Execute(new TransformChangeCommand(component, location, rotation, scale));
+        SetStatus("Transform changed.");
+        return true;
+    }
+
+    private void HandleViewportClick(UIRenderView control, Vector2 point)
+    {
+        var targetId = control.RenderViewId;
+        var camera = _world.EnumerateActors(includePendingActors: true)
+            .SelectMany(actor => actor.Components)
+            .OfType<CameraComponent>()
+            .FirstOrDefault(item => item.RenderTarget?.Id == targetId);
+        if (camera == null)
+            return;
+
+        var localPoint = point - new Vector2(control.Bounds.X, control.Bounds.Y);
+        PickViewport(localPoint, new Vector2(control.Bounds.Width, control.Bounds.Height), camera);
     }
 
     /// <summary>每帧调用：层级树按签名重建；状态栏 Actor/组件计数与检查器实时更新。</summary>
