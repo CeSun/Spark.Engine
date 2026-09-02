@@ -258,6 +258,40 @@ public class EditorControlTests
         Assert.False(rootItem.IsExpanded);
     }
 
+    [Fact]
+    public void TreeView_DraggingRowOntoAnother_RaisesDropEvent()
+    {
+        var tree = new UITreeView { FixedSize = new UISize(200f, 80f) };
+        var source = new UITreeViewItem("Source");
+        var target = new UITreeViewItem("Target");
+        tree.AddRoot(source);
+        tree.AddRoot(target);
+        UITreeViewItem? droppedSource = null;
+        UITreeViewItem? droppedTarget = null;
+        tree.ItemDropped = (from, to, _) =>
+        {
+            droppedSource = from;
+            droppedTarget = to;
+        };
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 80f), Root = tree };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+        var buttons = default(MouseButtonMask);
+        buttons.Set(MouseButton.Left, true);
+        var sourcePoint = new Vector2(60f, 12f);
+        var targetPoint = new Vector2(60f, 36f);
+
+        canvas.Update(new InputState(sourcePoint, Vector2.Zero, 0f,
+            buttons, buttons, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(targetPoint, targetPoint - sourcePoint, 0f,
+            buttons, default, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(targetPoint, Vector2.Zero, 0f,
+            default, default, buttons, default, default, default, string.Empty), renderer);
+
+        Assert.Same(source, droppedSource);
+        Assert.Same(target, droppedTarget);
+    }
+
     private static void ClickRow(UICanvas canvas, TextRenderer renderer, int row, Key modifier = Key.Unknown)
     {
         var point = new Vector2(60f, row * 24f + 12f);

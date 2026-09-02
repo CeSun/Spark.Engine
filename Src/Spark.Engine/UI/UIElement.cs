@@ -261,6 +261,10 @@ public abstract class UIElement
     {
     }
 
+    /// <summary>带释放位置和修饰键状态的鼠标抬起事件。默认转发到旧版钩子。</summary>
+    protected internal virtual void OnMouseUp(MouseButton button, Vector2 position, KeyMask keysDown)
+        => OnMouseUp(button);
+
     /// <summary>按住期间鼠标移动（拖拽），由画布每帧通知被按住的元素。</summary>
     protected internal virtual void OnMouseDrag(Vector2 position)
     {

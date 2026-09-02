@@ -228,7 +228,7 @@ public sealed class UICanvas
         {
             var released = HitTestTop(point);
             var target = _pressed ?? released;
-            target?.OnMouseUp(MouseButton.Left);
+            target?.OnMouseUp(MouseButton.Left, point, input.KeysDown);
 
             if (_pressed != null && _pressed == released)
                 _pressed.OnMouseClick(input.KeysDown);

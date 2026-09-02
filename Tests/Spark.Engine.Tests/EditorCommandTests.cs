@@ -225,6 +225,51 @@ public sealed class EditorCommandTests
         Assert.Equal(new Vector3(12, 0, 0), child.WorldTransform.Translation);
     }
 
+    [Fact]
+    public void AttachComponentsCommand_RollsBackEarlierChildrenWhenLaterAttachFails()
+    {
+        var oldParent = new SceneComponent { RelativeLocation = new Vector3(10f, 0f, 0f) };
+        var first = new SceneComponent { RelativeLocation = new Vector3(2f, 0f, 0f) };
+        first.SetupAttachment(oldParent);
+        var cycleRoot = new SceneComponent();
+        var target = new SceneComponent();
+        target.SetupAttachment(cycleRoot);
+        var command = new AttachComponentsCommand(
+            new[] { first, cycleRoot }, target, AttachmentTransformRules.KeepWorldTransform);
+
+        Assert.Throws<InvalidOperationException>(() => command.Execute());
+
+        Assert.Same(oldParent, first.AttachParent);
+        Assert.Equal(new Vector3(2f, 0f, 0f), first.RelativeLocation);
+        Assert.Equal(new Vector3(12f, 0f, 0f), first.WorldTransform.Translation);
+        Assert.Null(cycleRoot.AttachParent);
+        Assert.Same(cycleRoot, target.AttachParent);
+    }
+
+    [Fact]
+    public void EditorUi_AttachSelection_SupportsSocketAndKeepWorldRule()
+    {
+        using var world = new Spark.Engine.Worlds.World(new Spark.Engine.Resources.ResourceManager());
+        var childActor = new Spark.Engine.Actors.Actor { Name = "Child" };
+        var child = new SceneComponent { RelativeLocation = new Vector3(2f, 0f, 0f) };
+        childActor.AddOwnedComponent(child);
+        var parentActor = new Spark.Engine.Actors.Actor { Name = "Parent" };
+        var parent = new SceneComponent { RelativeLocation = new Vector3(10f, 0f, 0f) };
+        parent.DefineSocket("Mount", Matrix4x4.CreateTranslation(5f, 0f, 0f));
+        parentActor.AddOwnedComponent(parent);
+        world.AddActor(childActor);
+        world.AddActor(parentActor);
+        world.Update(0f, tickActors: false);
+        var editor = new EditorUi(world);
+
+        Assert.True(editor.AttachSelection(
+            childActor, parentActor, AttachmentTransformRules.KeepWorldTransform, "Mount"));
+
+        Assert.Same(parent, child.AttachParent);
+        Assert.Equal("Mount", child.AttachSocketName);
+        Assert.Equal(new Vector3(2f, 0f, 0f), child.WorldTransform.Translation);
+    }
+
     private sealed class EditableTarget
     {
         public int Value { get; set; }

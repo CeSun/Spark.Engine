@@ -108,3 +108,47 @@ public sealed class AttachComponentCommand : IEditorCommand
         _child.RelativeScale = _oldScale;
     }
 }
+
+/// <summary>把多个顶层组件作为单个原子编辑器事务挂载到同一父节点。</summary>
+public sealed class AttachComponentsCommand : IEditorCommand
+{
+    private readonly IReadOnlyList<AttachComponentCommand> _commands;
+
+    public string Description => _commands.Count == 1 ? "Attach Component" : $"Attach {_commands.Count} Components";
+
+    public AttachComponentsCommand(
+        IEnumerable<SceneComponent> children,
+        SceneComponent parent,
+        AttachmentTransformRules rules,
+        string? socketName = null)
+    {
+        ArgumentNullException.ThrowIfNull(children);
+        ArgumentNullException.ThrowIfNull(parent);
+        var unique = children.Distinct().ToArray();
+        if (unique.Length == 0)
+            throw new ArgumentException("At least one child component is required.", nameof(children));
+        _commands = unique.Select(child => new AttachComponentCommand(child, parent, rules, socketName)).ToArray();
+    }
+
+    public void Execute()
+    {
+        var completed = 0;
+        try
+        {
+            for (; completed < _commands.Count; completed++)
+                _commands[completed].Execute();
+        }
+        catch
+        {
+            for (var index = completed - 1; index >= 0; index--)
+                _commands[index].Undo();
+            throw;
+        }
+    }
+
+    public void Undo()
+    {
+        for (var index = _commands.Count - 1; index >= 0; index--)
+            _commands[index].Undo();
+    }
+}

@@ -1,6 +1,6 @@
 # Spark.Engine 场景层级与组件挂载设计
 
-> 状态：基础运行时能力已实现，编辑器集成与资产 Socket 仍在开发（UE 风格，Windows 编辑器优先）
+> 状态：基础运行时能力与编辑器层级拖放已实现，资产 Socket 仍在开发（UE 风格，Windows 编辑器优先）
 > 目标：补齐 `World -> Actor -> SceneComponent` 的空间层级，支持 RootComponent、Socket、挂载规则和编辑器层级编辑。
 > 参考：UE `USceneComponent`、`AActor::AttachToComponent`、`FAttachmentTransformRules`。
 
@@ -216,6 +216,6 @@ AttachmentTransformRules 不写入场景文件。加载时按父节点拓扑顺�
 2. ✅ `KeepRelative` / `KeepWorld` / `SnapToTarget`，以及 Detach 保持世界变换。
 3. ✅ `ISceneSocketProvider` 与普通组件 Socket；跨 Actor 挂载限制在同一 World。
 4. ✅ SceneProxy 读取层级计算后的 WorldTransform，变换 setter 向后代传播 dirty。
-5. ✅ `AttachComponentCommand` 已支持可撤销挂载；⏳ 编辑器层级树拖拽接线；Viewport 变换命令已支持可撤销局部 TRS。
+5. ✅ 编辑器层级树拖放已接入原子 `AttachComponentsCommand`：默认 KeepWorld，有 Socket 时可选择组件/Socket 与 KeepWorld、KeepRelative、Snap 规则；Viewport 变换命令已支持可撤销局部 TRS。
 6. ✅ SceneDocument 二进制序列化、加载、RuntimeWorld 实例化、AssetGuid 解析、EditorContext Play/Stop 和 `.pak` Runtime Loader。
 7. ⏳ StaticMesh Socket、跨资产 Socket 和后续骨骼 Socket。

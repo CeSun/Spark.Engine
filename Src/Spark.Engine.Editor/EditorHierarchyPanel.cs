@@ -39,6 +39,12 @@ internal sealed class EditorHierarchyPanel : UIElement
         set => _hierarchy.SelectionSetChanged = value;
     }
 
+    public Action<object, object, System.Numerics.Vector2>? ItemDropped
+    {
+        get => _hierarchy.ItemDropped;
+        set => _hierarchy.ItemDropped = value;
+    }
+
     public void Refresh() => _hierarchy.Refresh();
 
     public void SetWorld(Spark.Engine.Worlds.World world) => _hierarchy.SetWorld(world);

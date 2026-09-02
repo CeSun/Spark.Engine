@@ -23,6 +23,9 @@ public sealed class HierarchyPanel
     /// <summary>选择集合变化；第二个参数为最后操作的主选目标。</summary>
     public Action<IReadOnlyList<object>, object?>? SelectionSetChanged { get; set; }
 
+    /// <summary>层级项拖放完成；参数为源目标、放置目标和画布位置。</summary>
+    public Action<object, object, System.Numerics.Vector2>? ItemDropped { get; set; }
+
     public HierarchyPanel(World world)
     {
         _world = world;
@@ -41,6 +44,8 @@ public sealed class HierarchyPanel
             SelectionChanged?.Invoke(primary);
             SelectionSetChanged?.Invoke(targets, primary);
         };
+        _tree.ItemDropped += (source, target, position) =>
+            ItemDropped?.Invoke(((WorldTreeItem)source).Target, ((WorldTreeItem)target).Target, position);
     }
 
     /// <summary>树控件本身（挂进编辑器布局）。</summary>
@@ -77,9 +82,17 @@ public sealed class HierarchyPanel
         var sb = new System.Text.StringBuilder();
         foreach (var actor in _world.Actors)
         {
-            sb.Append(actor.GetHashCode()).Append(':').Append(actor.Name).Append(';');
+            sb.Append(actor.ActorGuid).Append(':').Append(actor.Name).Append(';');
             foreach (var component in actor.Components)
-                sb.Append(component.GetType().Name).Append(',');
+            {
+                sb.Append(component.ComponentGuid).Append(':').Append(component.GetType().Name);
+                if (component is SceneComponent scene)
+                {
+                    sb.Append('>').Append(scene.AttachParent?.ComponentGuid)
+                        .Append('@').Append(scene.AttachSocketName);
+                }
+                sb.Append(',');
+            }
         }
         return sb.ToString();
     }
@@ -98,7 +111,7 @@ public sealed class HierarchyPanel
                 var displayName = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
                 var actorItem = new WorldTreeItem(actor, $"{displayName} [{actor.Components.Count()}]");
                 foreach (var component in actor.Components)
-                    actorItem.AddSubItem(new WorldTreeItem(component, component.GetType().Name));
+                    actorItem.AddSubItem(new WorldTreeItem(component, GetComponentLabel(component)));
                 _tree.AddRoot(actorItem);
             }
 
@@ -122,6 +135,18 @@ public sealed class HierarchyPanel
                 return sub;
         }
         return null;
+    }
+
+    private static string GetComponentLabel(ActorComponent component)
+    {
+        if (component is not SceneComponent { AttachParent: { } parent } scene)
+            return component.GetType().Name;
+        var parentOwner = parent.Owner;
+        var parentName = parentOwner == null
+            ? parent.GetType().Name
+            : string.IsNullOrWhiteSpace(parentOwner.Name) ? parentOwner.GetType().Name : parentOwner.Name;
+        var socket = scene.AttachSocketName == null ? string.Empty : $":{scene.AttachSocketName}";
+        return $"{component.GetType().Name} -> {parentName}/{parent.GetType().Name}{socket}";
     }
 
     public void SelectTarget(object? target)

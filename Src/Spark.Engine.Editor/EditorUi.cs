@@ -22,6 +22,7 @@ public sealed class EditorUi
     private readonly EditorToolbarPanel _toolbar;
     private readonly EditorDeleteConfirmationPanel _deleteConfirmation;
     private readonly EditorAssetErrorsPanel _assetErrors;
+    private readonly UIMenuPanel _attachMenu = new() { MinWidth = 220f, MaxWidth = 420f };
     private readonly EditorContext _context;
     private readonly IEditorSceneService? _sceneService;
     private readonly TransformGizmoController _gizmo = new();
@@ -72,6 +73,7 @@ public sealed class EditorUi
         var content = new UIStackPanel { Orientation = UIOrientation.Horizontal, FixedSize = new UISize(0f, 0f) };
 
         _hierarchy = new EditorHierarchyPanel(_context.World);
+        _hierarchy.ItemDropped += HandleHierarchyDrop;
         content.AddChild(_hierarchy);
 
         _viewport = new EditorViewportPanel();
@@ -435,6 +437,59 @@ public sealed class EditorUi
         return true;
     }
 
+    /// <summary>按层级拖放语义挂载当前选择；拖动未选目标时只挂载该目标。</summary>
+    public bool AttachSelection(
+        object draggedTarget,
+        object dropTarget,
+        AttachmentTransformRules rules,
+        string? socketName = null)
+    {
+        ArgumentNullException.ThrowIfNull(draggedTarget);
+        ArgumentNullException.ThrowIfNull(dropTarget);
+        if (_context.PlayState != EditorPlayState.Edit)
+            return false;
+        var parent = GetSpatialComponent(dropTarget);
+        if (parent == null || !IsInEditorWorld(parent))
+        {
+            SetStatus("Drop target has no SceneComponent.");
+            return false;
+        }
+
+        var sourceTargets = _context.Selection.Contains(draggedTarget)
+            ? _context.Selection.Items
+            : new[] { draggedTarget };
+        var candidates = sourceTargets
+            .Select(GetSpatialComponent)
+            .Where(component => component != null && IsInEditorWorld(component))
+            .Cast<SceneComponent>()
+            .Distinct()
+            .ToArray();
+        var children = candidates
+            .Where(candidate => !candidates.Any(other =>
+                !ReferenceEquals(other, candidate) && IsAncestor(other, candidate)))
+            .ToArray();
+        if (children.Length == 0)
+        {
+            SetStatus("Drag one or more spatial Actors or Components.");
+            return false;
+        }
+
+        try
+        {
+            _context.Execute(new AttachComponentsCommand(children, parent, rules, socketName));
+            var destination = socketName == null ? parent.GetType().Name : $"{parent.GetType().Name}:{socketName}";
+            SetStatus(children.Length == 1
+                ? $"Attached component to {destination}."
+                : $"Attached {children.Length} components to {destination}.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Attach failed: {ex.Message}");
+            return false;
+        }
+    }
+
     public bool BeginGizmoDrag(Vector2 point, Vector2 viewportSize, CameraComponent camera,
         GizmoSpace space = GizmoSpace.World)
     {
@@ -498,6 +553,59 @@ public sealed class EditorUi
             return;
         EndGizmoDrag();
         _suppressViewportClick = true;
+    }
+
+    private void HandleHierarchyDrop(object draggedTarget, object dropTarget, Vector2 position)
+    {
+        var parent = GetSpatialComponent(dropTarget);
+        if (parent == null)
+        {
+            SetStatus("Drop target has no SceneComponent.");
+            return;
+        }
+
+        if (parent.Sockets.Count == 0)
+        {
+            AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.KeepWorldTransform);
+            return;
+        }
+
+        _attachMenu.Clear();
+        AddAttachmentMenuOptions(draggedTarget, dropTarget, socketName: null, "Component");
+        _attachMenu.AddSeparator();
+        foreach (var socketName in parent.Sockets.Keys.Order(StringComparer.Ordinal))
+            AddAttachmentMenuOptions(draggedTarget, dropTarget, socketName, $"Socket {socketName}");
+        _attachMenu.Canvas = Root.FindCanvas();
+        _attachMenu.Show(position);
+        SetStatus("Choose attachment target and transform rule.");
+    }
+
+    private void AddAttachmentMenuOptions(object draggedTarget, object dropTarget, string? socketName, string label)
+    {
+        _attachMenu.AddItem(new UIMenuItem($"{label} - Keep World",
+            () => AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.KeepWorldTransform, socketName)));
+        _attachMenu.AddItem(new UIMenuItem($"{label} - Keep Relative",
+            () => AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.KeepRelativeTransform, socketName)));
+        _attachMenu.AddItem(new UIMenuItem($"{label} - Snap",
+            () => AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.SnapToTargetIncludingScale, socketName)));
+    }
+
+    private static SceneComponent? GetSpatialComponent(object target)
+        => target switch
+        {
+            SceneComponent component => component,
+            Actor actor => actor.RootComponent,
+            _ => null,
+        };
+
+    private static bool IsAncestor(SceneComponent ancestor, SceneComponent component)
+    {
+        for (var parent = component.AttachParent; parent != null; parent = parent.AttachParent)
+        {
+            if (ReferenceEquals(parent, ancestor))
+                return true;
+        }
+        return false;
     }
 
     private CameraComponent? FindViewportCamera(int targetId)

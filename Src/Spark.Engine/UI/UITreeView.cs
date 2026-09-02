@@ -38,6 +38,8 @@ public class UITreeViewItem : UIElement
 
     private bool _hovered;
     private Vector2 _lastPointerPosition;
+    private Vector2 _pressPosition;
+    private bool _isDragging;
 
     /// <summary>展开/折叠切换回调。</summary>
     public Action<UITreeViewItem>? Toggled { get; set; }
@@ -47,6 +49,9 @@ public class UITreeViewItem : UIElement
 
     /// <summary>带当前修饰键状态的点击回调。</summary>
     public Action<UITreeViewItem, KeyMask>? ClickedWithModifiers { get; set; }
+
+    /// <summary>拖拽结束回调；参数为源项、释放位置和修饰键。</summary>
+    public Action<UITreeViewItem, Vector2, KeyMask>? DropCompleted { get; set; }
 
     public UITreeViewItem()
     {
@@ -166,6 +171,25 @@ public class UITreeViewItem : UIElement
     protected internal override void OnMouseDrag(Vector2 position)
     {
         _lastPointerPosition = position;
+        if (Vector2.DistanceSquared(_pressPosition, position) >= 16f)
+            _isDragging = true;
+    }
+
+    protected internal override void OnMouseDown(MouseButton button)
+    {
+        if (button != MouseButton.Left)
+            return;
+        _pressPosition = _lastPointerPosition;
+        _isDragging = false;
+    }
+
+    protected internal override void OnMouseUp(MouseButton button, Vector2 position, KeyMask keysDown)
+    {
+        _lastPointerPosition = position;
+        if (button == MouseButton.Left &&
+            (_isDragging || Vector2.DistanceSquared(_pressPosition, position) >= 16f))
+            DropCompleted?.Invoke(this, position, keysDown);
+        _isDragging = false;
     }
 
     protected internal override void OnMouseClick()
@@ -238,6 +262,9 @@ public sealed class UITreeView : UIElement
     /// <summary>项点击/激活回调。</summary>
     public Action<UITreeViewItem>? ItemActivated { get; set; }
 
+    /// <summary>完成有效拖放时触发；目标为释放位置下的另一个可见树项。</summary>
+    public Action<UITreeViewItem, UITreeViewItem, Vector2>? ItemDropped { get; set; }
+
     /// <summary>背景色。</summary>
     public Vector4 BackgroundColor
     {
@@ -290,6 +317,7 @@ public sealed class UITreeView : UIElement
         item.Toggled = null;
         item.Clicked = null;
         item.ClickedWithModifiers = null;
+        item.DropCompleted = null;
         if (_selectedItems.Any(selected => ContainsItem(item, selected)))
             SelectItems(_selectedItems.Where(selected => !ContainsItem(item, selected)));
         RebuildFlatList();
@@ -404,6 +432,7 @@ public sealed class UITreeView : UIElement
         item.Toggled = null;
         item.Clicked = null;
         item.ClickedWithModifiers = null;
+        item.DropCompleted = null;
         foreach (var child in item.SubItems)
             ClearCallbacks(child);
     }
@@ -422,6 +451,7 @@ public sealed class UITreeView : UIElement
             item.Toggled = OnItemToggled;
             item.Clicked = null;
             item.ClickedWithModifiers = OnItemClicked;
+            item.DropCompleted = OnItemDropCompleted;
             _itemsPanel.AddChild(item);
         }
     }
@@ -431,6 +461,7 @@ public sealed class UITreeView : UIElement
         item.Toggled = OnItemToggled;
         item.Clicked = null;
         item.ClickedWithModifiers = OnItemClicked;
+        item.DropCompleted = OnItemDropCompleted;
         foreach (var child in item.SubItems)
             AssignCallbacksRecursive(child);
     }
@@ -590,5 +621,12 @@ public sealed class UITreeView : UIElement
             SelectRange(_selectionAnchor, item, additive: false);
         else
             SelectItem(item);
+    }
+
+    private void OnItemDropCompleted(UITreeViewItem source, Vector2 position, KeyMask _)
+    {
+        var target = _flatList.LastOrDefault(item => item.Bounds.Contains(position));
+        if (target != null && !ReferenceEquals(source, target))
+            ItemDropped?.Invoke(source, target, position);
     }
 }
