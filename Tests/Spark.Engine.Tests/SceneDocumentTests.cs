@@ -465,6 +465,35 @@ public sealed class SceneDocumentTests
         Assert.Equal(new Vector3(4f, 5f, 6f), component.RelativeLocation);
     }
 
+    [Fact]
+    public void TransformGizmoMovesSelectedComponentAndProducesSingleUndoCommand()
+    {
+        using var world = new World(new ResourceManager());
+        var cameraActor = new Actor();
+        var camera = new CameraComponent();
+        cameraActor.AddOwnedComponent(camera);
+        world.AddActor(cameraActor);
+        var actor = new Actor { Name = "Target" };
+        var component = new SceneComponent { RelativeLocation = new Vector3(0f, 0f, -4f) };
+        actor.AddOwnedComponent(component);
+        world.AddActor(actor);
+        world.Update(0.016f);
+
+        var gizmo = new TransformGizmoController();
+        Assert.True(gizmo.BeginDrag(component, camera, new Vector2(58f, 50f), new Vector2(100f, 100f), GizmoOperation.Move, GizmoSpace.World));
+        Assert.True(gizmo.UpdateDrag(new Vector2(68f, 50f)));
+        var command = gizmo.EndDrag();
+
+        Assert.NotNull(command);
+        Assert.True(component.RelativeLocation.X > 0.4f);
+        var history = new EditorCommandHistory();
+        history.Execute(command!);
+        Assert.True(history.Undo());
+        Assert.Equal(new Vector3(0f, 0f, -4f), component.RelativeLocation);
+        Assert.True(history.Redo());
+        Assert.True(component.RelativeLocation.X > 0.4f);
+    }
+
     private static StaticMesh CreateTestMesh(Vector3 center, float size)
     {
         var vertices = new[]

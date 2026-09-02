@@ -24,6 +24,8 @@ public sealed class EditorUi
     private readonly EditorDeleteConfirmationPanel _deleteConfirmation;
     private readonly EditorContext _context;
     private readonly IEditorSceneService? _sceneService;
+    private readonly TransformGizmoController _gizmo = new();
+    private GizmoOperation _gizmoOperation = GizmoOperation.Move;
 
     private object? _selectedTarget;
 
@@ -51,9 +53,9 @@ public sealed class EditorUi
 
         _toolbar = new EditorToolbarPanel(
             select: () => SetStatus("Select tool active."),
-            move: () => SetStatus("Move tool active."),
-            rotate: () => SetStatus("Rotate tool active."),
-            scale: () => SetStatus("Scale tool active."),
+            move: () => SetGizmoOperation(GizmoOperation.Move),
+            rotate: () => SetGizmoOperation(GizmoOperation.Rotate),
+            scale: () => SetGizmoOperation(GizmoOperation.Scale),
             addActor: AddActor,
             duplicate: DuplicateSelection,
             rename: RenameSelection,
@@ -91,6 +93,8 @@ public sealed class EditorUi
 
     /// <summary>当前编辑器 Play 状态，供宿主同步窗口标题或工具栏。</summary>
     public EditorPlayState PlayState => _context.PlayState;
+    public GizmoOperation ActiveGizmoOperation => _gizmoOperation;
+    public bool IsGizmoDragging => _gizmo.IsDragging;
 
     /// <summary>注册 RuntimeWorld 创建后的宿主行为恢复逻辑。</summary>
     public void SetRuntimeWorldInitializer(Action<World> initializer)
@@ -346,6 +350,28 @@ public sealed class EditorUi
         return true;
     }
 
+    public bool BeginGizmoDrag(Vector2 point, Vector2 viewportSize, CameraComponent camera,
+        GizmoSpace space = GizmoSpace.World)
+    {
+        if (_context.PlayState != EditorPlayState.Edit || _context.Selection.Selected is not SceneComponent component)
+            return false;
+        return _gizmo.BeginDrag(component, camera, point, viewportSize, _gizmoOperation, space);
+    }
+
+    public bool UpdateGizmoDrag(Vector2 point) => _gizmo.UpdateDrag(point);
+
+    public bool EndGizmoDrag()
+    {
+        var command = _gizmo.EndDrag();
+        if (command == null)
+            return false;
+        _context.Execute(command);
+        SetStatus("Gizmo transform changed.");
+        return true;
+    }
+
+    public void CancelGizmoDrag() => _gizmo.CancelDrag();
+
     private void HandleViewportClick(UIRenderView control, Vector2 point)
     {
         var targetId = control.RenderViewId;
@@ -358,6 +384,12 @@ public sealed class EditorUi
 
         var localPoint = point - new Vector2(control.Bounds.X, control.Bounds.Y);
         PickViewport(localPoint, new Vector2(control.Bounds.Width, control.Bounds.Height), camera);
+    }
+
+    private void SetGizmoOperation(GizmoOperation operation)
+    {
+        _gizmoOperation = operation;
+        SetStatus($"{operation} tool active.");
     }
 
     /// <summary>每帧调用：层级树按签名重建；状态栏 Actor/组件计数与检查器实时更新。</summary>
