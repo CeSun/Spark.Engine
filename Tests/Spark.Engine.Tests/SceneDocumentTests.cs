@@ -167,6 +167,30 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void EditorContextPlayResolvesInMemoryStaticMeshAssets()
+    {
+        using var editorWorld = new World(new ResourceManager());
+        var mesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY)],
+            [0]);
+        var material = new Material();
+        var actor = new Actor { Name = "MeshActor" };
+        actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh, Material = material });
+        editorWorld.AddActor(actor);
+        editorWorld.Update(0.016f);
+        using var context = new EditorContext(editorWorld);
+
+        Assert.True(context.Play());
+        context.RuntimeWorld!.Update(0.016f);
+        var runtimeMesh = Assert.Single(context.RuntimeWorld.Actors).GetComponent<StaticMeshComponent>();
+        Assert.Same(mesh, runtimeMesh!.Mesh);
+        Assert.Same(material, runtimeMesh.Material);
+        context.Stop();
+        mesh.Dispose();
+        material.Dispose();
+    }
+
+    [Fact]
     public void BinaryReaderRejectsUnsupportedVersion()
     {
         var path = GetTempPath();

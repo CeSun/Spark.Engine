@@ -1,6 +1,8 @@
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Editor;
+using Spark.Engine.Render;
+using Spark.Engine.Render.Common;
 using Spark.Engine.Resources;
 using Spark.Engine.Worlds;
 using Xunit;
@@ -105,6 +107,30 @@ public sealed class WorldLifecycleTests
         Assert.Throws<ObjectDisposedException>(() => runtime.Update(0.016f));
     }
 
+    [Fact]
+    public void RuntimeCameraTargetFollowsEditorTargetReplacement()
+    {
+        using var world = new World(new ResourceManager());
+        var firstTarget = new TestRenderTarget(1);
+        var secondTarget = new TestRenderTarget(2);
+        var editorCamera = new CameraComponent { RenderTarget = firstTarget };
+        var actor = new Actor();
+        actor.AddOwnedComponent(editorCamera);
+        world.AddActor(actor);
+        world.Update(0.016f);
+
+        using var editor = new EditorContext(world);
+        Assert.True(editor.Play());
+        var runtimeCamera = new List<CameraComponent>();
+        editor.RuntimeWorld!.CollectCameraComponents(runtimeCamera);
+        Assert.Same(firstTarget, runtimeCamera[0].RenderTarget);
+
+        editorCamera.RenderTarget = secondTarget;
+        editor.SyncRuntimeCameraTargets();
+
+        Assert.Same(secondTarget, runtimeCamera[0].RenderTarget);
+    }
+
     private sealed class TrackingActor : Actor
     {
         public int BeginCount { get; private set; }
@@ -121,5 +147,14 @@ public sealed class WorldLifecycleTests
             EndCount++;
             base.EndPlay();
         }
+    }
+
+    private sealed class TestRenderTarget(int id) : RenderTarget(id)
+    {
+        public override uint Width => 1;
+        public override uint Height => 1;
+        public override Silk.NET.WebGPU.TextureFormat Format => Silk.NET.WebGPU.TextureFormat.Rgba8Unorm;
+        public override RenderTargetSession BeginRenderSession() => default;
+        public override void Dispose() { }
     }
 }

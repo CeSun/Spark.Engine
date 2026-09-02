@@ -1,6 +1,7 @@
 using System.Numerics;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
+using Spark.Engine.Resources;
 using Spark.Engine.Worlds;
 
 namespace Spark.Engine.Editor;
@@ -59,7 +60,7 @@ public sealed class SceneDocument
     /// 从文档创建全新的运行时 World。该过程只恢复 Actor/Component 类型、GUID、层级和变换，
     /// 不复用编辑器对象；资产实例化和自定义 Actor 工厂由后续扩展接入。
     /// </summary>
-    public World InstantiateWorld(Spark.Engine.Resources.ResourceManager resourceManager)
+    public World InstantiateWorld(ResourceManager resourceManager, Func<Guid, SceneResource?>? assetResolver = null)
     {
         ArgumentNullException.ThrowIfNull(resourceManager);
         var world = new World(resourceManager);
@@ -82,6 +83,21 @@ public sealed class SceneDocument
                         throw new InvalidDataException($"Component type '{componentRecord.ComponentType}' has no public parameterless constructor.");
 
                     component.ComponentGuid = componentRecord.ComponentGuid;
+                    if (component is StaticMeshComponent staticMesh)
+                    {
+                        if (componentRecord.MeshAssetGuid is { } meshGuid && assetResolver != null)
+                        {
+                            if (assetResolver(meshGuid) is not StaticMesh mesh)
+                                throw new InvalidDataException($"Mesh asset '{meshGuid}' could not be resolved.");
+                            staticMesh.Mesh = mesh;
+                        }
+                        if (componentRecord.MaterialAssetGuid is { } materialGuid && assetResolver != null)
+                        {
+                            if (assetResolver(materialGuid) is not Material material)
+                                throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved.");
+                            staticMesh.Material = material;
+                        }
+                    }
                     actor.AddOwnedComponent(component);
                     if (component is SceneComponent scene)
                     {

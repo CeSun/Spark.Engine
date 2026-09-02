@@ -296,6 +296,17 @@ public sealed class EditorUi
     public void SetPictureInPicture(UIRenderView control)
     {
         ArgumentNullException.ThrowIfNull(control);
+        var resizeRequested = control.RenderViewResizeRequested;
+        if (resizeRequested != null)
+        {
+            control.RenderViewResizeRequested = (oldId, width, height) =>
+            {
+                var newId = resizeRequested(oldId, width, height);
+                if (newId > 0)
+                    _context.SyncRuntimeCameraTargets();
+                return newId;
+            };
+        }
         // The render view is the work area, so it must consume the remaining
         // viewport space instead of retaining the old demo thumbnail size.
         control.FixedSize = new UISize(0f, 0f);
@@ -305,6 +316,8 @@ public sealed class EditorUi
     /// <summary>每帧调用：层级树按签名重建；状态栏 Actor/组件计数与检查器实时更新。</summary>
     public void Refresh()
     {
+        // 覆盖没有经过 SetPictureInPicture 的宿主 resize 回调，确保下一帧仍指向最新目标。
+        _context.SyncRuntimeCameraTargets();
         _hierarchy.Refresh();
         _hierarchy.SelectTarget(_context.Selection.Selected);
 

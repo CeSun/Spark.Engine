@@ -1,5 +1,6 @@
 using System.Reflection;
 using Spark.Engine.Components;
+using Spark.Engine.Resources;
 using Spark.Engine.Worlds;
 
 namespace Spark.Engine.Editor;
@@ -82,7 +83,10 @@ public sealed class EditorContext : IDisposable
             return false;
 
         var document = SceneDocument.Capture(World);
-        var runtime = document.InstantiateWorld(World.Scene.ResourceManager);
+        var assets = CaptureAssets();
+        var runtime = document.InstantiateWorld(
+            World.Scene.ResourceManager,
+            guid => assets.TryGetValue(guid, out var asset) ? asset : null);
         try
         {
             BindCameraTargets(runtime);
@@ -124,6 +128,13 @@ public sealed class EditorContext : IDisposable
 
     public void Dispose() => Stop();
 
+    /// <summary>同步编辑相机的 RenderTarget 到运行时相机，用于 UIRenderView resize 等目标替换场景。</summary>
+    public void SyncRuntimeCameraTargets()
+    {
+        if (RuntimeWorld != null)
+            BindCameraTargets(RuntimeWorld);
+    }
+
     private void BindCameraTargets(World runtime)
     {
         var editorCameras = new List<CameraComponent>();
@@ -136,6 +147,31 @@ public sealed class EditorContext : IDisposable
         {
             if (index < editorCameras.Count)
                 runtimeCameras[index].RenderTarget = editorCameras[index].RenderTarget;
+        }
+    }
+
+    private Dictionary<Guid, SceneResource> CaptureAssets()
+    {
+        var assets = new Dictionary<Guid, SceneResource>();
+        foreach (var actor in World.Actors)
+        {
+            foreach (var component in actor.Components)
+            {
+                if (component is not StaticMeshComponent staticMesh)
+                    continue;
+                AddAsset(staticMesh.Mesh);
+                AddAsset(staticMesh.Material);
+            }
+        }
+        return assets;
+
+        void AddAsset(SceneResource? asset)
+        {
+            if (asset == null)
+                return;
+            if (assets.TryGetValue(asset.AssetGuid, out var existing) && !ReferenceEquals(existing, asset))
+                throw new InvalidOperationException($"AssetGuid '{asset.AssetGuid}' is assigned to multiple resources.");
+            assets[asset.AssetGuid] = asset;
         }
     }
 
