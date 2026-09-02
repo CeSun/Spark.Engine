@@ -11,6 +11,12 @@ public enum EngineAssetType : byte
     Texture2D = 3,
 }
 
+public sealed record AssetFileData(
+    EngineAssetType AssetType,
+    Guid AssetGuid,
+    IReadOnlyList<Guid> Dependencies,
+    byte[] Payload);
+
 /// <summary>引擎 `.asset` 文件的首版编解码；格式为固定头加类型专属 Payload。</summary>
 public static class AssetFileCodec
 {
@@ -19,28 +25,8 @@ public static class AssetFileCodec
 
     public static void Save(SceneResource resource, string path, IEnumerable<Guid>? dependencies = null)
     {
-        ArgumentNullException.ThrowIfNull(resource);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        if (resource.AssetGuid == Guid.Empty)
-            throw new InvalidDataException("Asset files require a non-empty AssetGuid.");
-
-        var type = resource switch
-        {
-            StaticMesh => EngineAssetType.StaticMesh,
-            Material => EngineAssetType.Material,
-            Texture2D => EngineAssetType.Texture2D,
-            _ => throw new NotSupportedException($"Asset type '{resource.GetType().FullName}' is not supported.")
-        };
-        var payload = EncodePayload(resource, type);
-        var dependencySet = new HashSet<Guid>(dependencies ?? Array.Empty<Guid>());
-        if (resource is Material material)
-        {
-            AddTexture(material.BaseColorTexture);
-            AddTexture(material.NormalTexture);
-            AddTexture(material.EmissiveTexture);
-            AddTexture(material.MetallicRoughnessTexture);
-            AddTexture(material.MaskTexture);
-        }
+        var data = Encode(resource, dependencies);
 
         var fullPath = Path.GetFullPath(path);
         var directory = Path.GetDirectoryName(fullPath);
@@ -54,15 +40,14 @@ public static class AssetFileCodec
             {
                 writer.Write(Magic);
                 writer.Write(CurrentFormatVersion);
-                writer.Write((byte)type);
+                writer.Write((byte)data.AssetType);
                 writer.Write((byte)0); // flags reserved
-                writer.Write(resource.AssetGuid.ToByteArray());
-                var orderedDependencies = dependencySet.Where(guid => guid != Guid.Empty).OrderBy(guid => guid).ToArray();
-                writer.Write(orderedDependencies.Length);
-                foreach (var dependency in orderedDependencies)
+                writer.Write(data.AssetGuid.ToByteArray());
+                writer.Write(data.Dependencies.Count);
+                foreach (var dependency in data.Dependencies)
                     writer.Write(dependency.ToByteArray());
-                writer.Write((long)payload.Length);
-                writer.Write(payload);
+                writer.Write((long)data.Payload.Length);
+                writer.Write(data.Payload);
             }
             File.Move(tempPath, fullPath, overwrite: true);
         }
@@ -71,6 +56,29 @@ public static class AssetFileCodec
             if (File.Exists(tempPath))
                 File.Delete(tempPath);
         }
+
+    }
+
+    public static AssetFileData Encode(SceneResource resource, IEnumerable<Guid>? dependencies = null)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        if (resource.AssetGuid == Guid.Empty)
+            throw new InvalidDataException("Asset files require a non-empty AssetGuid.");
+        var type = GetAssetType(resource);
+        var dependencySet = new HashSet<Guid>(dependencies ?? Array.Empty<Guid>());
+        if (resource is Material material)
+        {
+            AddTexture(material.BaseColorTexture);
+            AddTexture(material.NormalTexture);
+            AddTexture(material.EmissiveTexture);
+            AddTexture(material.MetallicRoughnessTexture);
+            AddTexture(material.MaskTexture);
+        }
+        var orderedDependencies = dependencySet
+            .Where(guid => guid != Guid.Empty)
+            .OrderBy(guid => guid)
+            .ToArray();
+        return new AssetFileData(type, resource.AssetGuid, orderedDependencies, EncodePayload(resource, type));
 
         void AddTexture(Texture2D? texture)
         {
@@ -119,6 +127,29 @@ public static class AssetFileCodec
             _ => throw new InvalidDataException($"Unsupported asset type {(byte)type}.")
         };
     }
+
+    public static SceneResource Decode(AssetFileData data, IAssetRegistry? registry = null)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(data.Payload);
+        using var stream = new MemoryStream(data.Payload, writable: false);
+        using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: false);
+        return data.AssetType switch
+        {
+            EngineAssetType.StaticMesh => DecodeStaticMesh(reader, data.AssetGuid),
+            EngineAssetType.Material => DecodeMaterial(reader, data.AssetGuid, registry),
+            EngineAssetType.Texture2D => DecodeTexture2D(reader, data.AssetGuid),
+            _ => throw new InvalidDataException($"Unsupported asset type {(byte)data.AssetType}.")
+        };
+    }
+
+    private static EngineAssetType GetAssetType(SceneResource resource) => resource switch
+    {
+        StaticMesh => EngineAssetType.StaticMesh,
+        Material => EngineAssetType.Material,
+        Texture2D => EngineAssetType.Texture2D,
+        _ => throw new NotSupportedException($"Asset type '{resource.GetType().FullName}' is not supported.")
+    };
 
     private static byte[] EncodePayload(SceneResource resource, EngineAssetType type)
     {

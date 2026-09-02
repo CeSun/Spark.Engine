@@ -58,6 +58,8 @@ public sealed class SceneDocument
 
     public static SceneDocument Load(string path) => SceneDocumentBinary.Read(path);
 
+    public static SceneDocument Deserialize(ReadOnlyMemory<byte> data) => SceneDocumentBinary.Read(data);
+
     /// <summary>兼容旧的委托解析入口。</summary>
     public World InstantiateWorld(ResourceManager resourceManager, Func<Guid, SceneResource?> assetResolver)
     {
@@ -262,6 +264,17 @@ internal static class SceneDocumentBinary
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return Read(stream);
+    }
+
+    public static SceneDocument Read(ReadOnlyMemory<byte> data)
+    {
+        using var stream = new MemoryStream(data.ToArray(), writable: false);
+        return Read(stream);
+    }
+
+    private static SceneDocument Read(Stream stream)
+    {
         using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: false);
 
         var magic = reader.ReadBytes(Magic.Length);

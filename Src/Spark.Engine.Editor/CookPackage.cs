@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Cryptography;
 
 namespace Spark.Engine.Editor;
 
@@ -43,10 +44,12 @@ public sealed class WindowsCookBackend : ICookBackend
     {
         ArgumentNullException.ThrowIfNull(assets);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        var normalizedAssets = NormalizeAssets(assets);
         var package = new CookPackage
         {
+            PackageGuid = CreatePackageGuid(normalizedAssets),
             TargetPlatform = TargetPlatform,
-            Assets = NormalizeAssets(assets),
+            Assets = normalizedAssets,
         };
         Write(package, outputPath);
     }
@@ -88,6 +91,12 @@ public sealed class WindowsCookBackend : ICookBackend
                 Dependencies = dependencies,
                 Payload = reader.ReadBytes((int)payloadLength),
             });
+        }
+        foreach (var asset in assets)
+        {
+            if (asset.Dependencies.Count != asset.Dependencies.Distinct().Count() ||
+                asset.Dependencies.Any(guid => guid == Guid.Empty || guid == asset.AssetGuid || !seen.Contains(guid)))
+                throw new InvalidDataException($"Cooked asset '{asset.AssetGuid}' has an invalid dependency manifest.");
         }
         if (stream.Position != stream.Length) throw new InvalidDataException("Unexpected trailing data in cooked package.");
         return new CookPackage { PackageGuid = packageGuid, TargetPlatform = platform, Assets = assets };
@@ -140,7 +149,45 @@ public sealed class WindowsCookBackend : ICookBackend
             ArgumentNullException.ThrowIfNull(asset.Payload);
             ArgumentNullException.ThrowIfNull(asset.Dependencies);
         }
-        return assets.OrderBy(asset => asset.AssetGuid).ToArray();
+        var normalized = new List<CookedAsset>(assets.Length);
+        foreach (var asset in assets)
+        {
+            var dependencies = asset.Dependencies.Distinct().OrderBy(guid => guid).ToArray();
+            if (dependencies.Any(guid => guid == Guid.Empty || guid == asset.AssetGuid))
+                throw new InvalidDataException($"Cooked asset '{asset.AssetGuid}' has an invalid dependency.");
+            var missing = dependencies.FirstOrDefault(guid => !seen.Contains(guid));
+            if (missing != Guid.Empty)
+                throw new InvalidDataException(
+                    $"Cooked asset '{asset.AssetGuid}' references missing dependency '{missing}'.");
+            normalized.Add(new CookedAsset
+            {
+                AssetGuid = asset.AssetGuid,
+                AssetType = asset.AssetType,
+                Dependencies = dependencies,
+                Payload = asset.Payload,
+            });
+        }
+        return normalized.OrderBy(asset => asset.AssetGuid).ToArray();
+    }
+
+    private static Guid CreatePackageGuid(IReadOnlyList<CookedAsset> assets)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
+        {
+            writer.Write(assets.Count);
+            foreach (var asset in assets)
+            {
+                writer.Write(asset.AssetGuid.ToByteArray());
+                writer.Write(asset.AssetType);
+                writer.Write(asset.Dependencies.Count);
+                foreach (var dependency in asset.Dependencies.OrderBy(guid => guid))
+                    writer.Write(dependency.ToByteArray());
+                writer.Write(asset.Payload.Length);
+                writer.Write(asset.Payload);
+            }
+        }
+        return new Guid(SHA256.HashData(stream.GetBuffer().AsSpan(0, checked((int)stream.Length)))[..16]);
     }
 
     private static int ReadCount(BinaryReader reader, string kind)

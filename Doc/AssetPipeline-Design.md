@@ -120,7 +120,9 @@ Material 当前仍是可变资源，因此 Play 时按 AssetGuid 为每个 Runti
 旧场景版本会明确拒绝，当前不做自动迁移。
 RuntimeWorld 与 EditorWorld 使用不同的全局 ProxyId，避免渲染实例状态串用。编辑器 Play 使用同一个
 `ResourceManager` 共享不可变 Mesh/Texture 资产，避免同一资源被两个管理器重复接管；可变 Material 使用 World 持有的运行时副本。
-GLB、材质/纹理导入、平台纹理产物以及 ResourceManager 从 `.pak` 的运行时加载仍待实现。
+`SceneCookService` 已能从场景资产引用构建传递依赖闭包并生成完整 Windows `.pak`；`CookedPackageRuntimeLoader`
+从包内 Registry 解码 StaticMesh/Material/Texture2D，实例化 RuntimeWorld，并把资源生命周期交给 World。
+GLB、材质/纹理导入和平台纹理产物仍待实现。
 
 - SkeletalMesh、Skeleton、Animation Clip。
 - 材质实例和 PBR 参数完整导入。

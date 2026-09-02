@@ -399,7 +399,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 ### P3 —— 引擎完善
 
-9. **资产管线完善**：`.gltf` StaticMesh 导入和 Windows Cook 包写入已完成；Asset Registry、GLB/材质纹理导入、运行时 `.pak` 加载待补，后续再做异步/增量 Cook
+9. **资产管线完善**：`.gltf` StaticMesh 编辑器导入、Asset Registry、Scene 依赖 Cook 和运行时 `.pak` 加载已完成；GLB/材质纹理导入待补，后续再做异步/增量 Cook
 10. **`ViewportRect` 分屏 / 编辑器多视图**：一个 surface 渲染多个子视口
 11. **PresentMode 可配置**：VSync 开关由 `EngineOptions` 暴露
 12. **surface lost 完整恢复**：当前跳帧+重配，需更完整策略

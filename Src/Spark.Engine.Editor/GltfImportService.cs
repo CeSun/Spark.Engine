@@ -70,7 +70,10 @@ public sealed class GltfImportService
             {
                 AssetFileCodec.Save(asset.Resource, asset.AssetPath);
                 context.AssetRegistry.Register(
-                    asset.Resource, sourcePath: import.SourcePath, contentHash: sourceHash);
+                    asset.Resource,
+                    sourcePath: import.SourcePath,
+                    cookedPath: asset.AssetPath,
+                    contentHash: sourceHash);
                 registeredMeshes.Add(asset.Resource);
             }
 
