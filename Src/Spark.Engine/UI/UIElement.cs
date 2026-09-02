@@ -164,6 +164,7 @@ public abstract class UIElement
         if (!Visible)
             return;
 
+        using var suspension = OverlayIgnoresParentClip ? ui.SuspendClip(targetId) : null;
         if (ClipToBounds)
             ui.PushClip(targetId, Bounds);
 
@@ -179,6 +180,31 @@ public abstract class UIElement
                 ui.PopClip(targetId);
         }
     }
+
+    /// <summary>
+    /// 命中 Overlay 区域。该遍历忽略祖先 ClipToBounds，使弹出菜单可以覆盖父容器边界；
+    /// 普通控件不会参与此路径，仅由拥有 Overlay 命中区域的控件返回自身。
+    /// </summary>
+    internal UIElement? HitTestOverlay(Vector2 point)
+    {
+        if (!Visible)
+            return null;
+
+        for (int i = _children.Count - 1; i >= 0; i--)
+        {
+            var hit = _children[i].HitTestOverlay(point);
+            if (hit != null)
+                return hit;
+        }
+
+        return HasOverlayHitArea && ContainsPoint(point) ? this : null;
+    }
+
+    /// <summary>控件是否拥有需要脱离祖先裁剪参与命中的弹出区域。</summary>
+    protected internal virtual bool HasOverlayHitArea => false;
+
+    /// <summary>Overlay 是否应脱离祖先 ClipToBounds（下拉菜单/弹出菜单等）。</summary>
+    protected internal virtual bool OverlayIgnoresParentClip => false;
 
     protected virtual void OnPaint(UIManager ui, int targetId)
     {

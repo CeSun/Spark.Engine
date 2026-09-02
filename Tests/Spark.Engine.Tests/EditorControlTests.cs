@@ -682,6 +682,51 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void ComboBox_DropDownEscapesParentClip_AndWinsHitTest()
+    {
+        var combo = new UIComboBox { FixedSize = new UISize(160f, 26f) };
+        combo.AddItem("First");
+        combo.AddItem("Second");
+        var content = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        content.AddChild(combo);
+        content.AddChild(new UIPanel { FixedSize = new UISize(160f, 80f), Color = Vector4.One });
+        var scroll = new UIScrollBox
+        {
+            Content = content,
+            FixedSize = new UISize(160f, 40f),
+            ClipToBounds = true,
+        };
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 120f), Root = scroll };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        var down = default(MouseButtonMask);
+        down.Set(MouseButton.Left, true);
+        canvas.Update(new InputState(new Vector2(10f, 10f), Vector2.Zero, 0f,
+            down, down, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(new Vector2(10f, 10f), Vector2.Zero, 0f,
+            default, default, down, default, default, default, string.Empty), renderer);
+        canvas.Update(default, renderer);
+
+        var ui = new UIManager();
+        canvas.Paint(ui);
+        var primitives = ui.Primitives.Span.ToArray();
+        var dropdown = primitives.Last(p => p.Rect.Y > 25f && p.Rect.Z >= 150f && p.Color.Z > 0.1f);
+        Assert.Equal(0f, dropdown.ScissorRect.Z, precision: 3);
+
+        // The second row sits underneath the popup. Clicking its second item
+        // must still be routed to the open ComboBox.
+        var itemPoint = new Vector2(10f, 26f + 26f + 4f);
+        canvas.Update(new InputState(itemPoint, Vector2.Zero, 0f,
+            default, default, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(itemPoint, Vector2.Zero, 0f,
+            down, down, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(itemPoint, Vector2.Zero, 0f,
+            default, default, down, default, default, default, string.Empty), renderer);
+        Assert.Equal("Second", combo.SelectedText);
+    }
+
+    [Fact]
     public void GridPanel_AutoRow_WithFixedSize_MeasuresContent()
     {
         // 回归：FixedSize 高度 > 0 时 OnMeasure 曾提前返回，跳过 Auto 轨尺寸收集，

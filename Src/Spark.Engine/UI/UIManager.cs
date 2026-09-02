@@ -91,6 +91,37 @@ public sealed class UIManager
             stack.Pop();
     }
 
+    /// <summary>暂时挂起指定目标的裁剪栈，供需要越出祖先边界的弹出层绘制。</summary>
+    internal IDisposable SuspendClip(int targetId)
+    {
+        if (!_clipStacks.TryGetValue(targetId, out var stack) || stack.Count == 0)
+            return NoopClipSuspension.Instance;
+
+        var saved = stack.ToArray();
+        stack.Clear();
+        return new ClipSuspension(stack, saved);
+    }
+
+    private sealed class ClipSuspension(Stack<UIRect> stack, UIRect[] saved) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
+            for (int i = saved.Length - 1; i >= 0; i--)
+                stack.Push(saved[i]);
+        }
+    }
+
+    private sealed class NoopClipSuspension : IDisposable
+    {
+        public static NoopClipSuspension Instance { get; } = new();
+        public void Dispose() { }
+    }
+
     /// <summary>
     /// 指定 targetId 当前有效裁剪区（栈为空时表示无裁剪）。
     /// 裁剪区可能为「空交集」（宽/高为负）：调用方应视为「完全裁剪，跳过绘制」，

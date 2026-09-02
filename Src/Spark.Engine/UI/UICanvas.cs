@@ -182,6 +182,12 @@ public sealed class UICanvas
             if (hit != null)
                 return hit;
         }
+
+        // Root 内的弹出控件（如 ComboBox）优先于普通控件命中，且忽略祖先 ClipToBounds。
+        var rootOverlayHit = Root!.HitTestOverlay(point);
+        if (rootOverlayHit != null)
+            return rootOverlayHit;
+
         return Root!.HitTest(point);
     }
 

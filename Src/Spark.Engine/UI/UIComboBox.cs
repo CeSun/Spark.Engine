@@ -192,6 +192,10 @@ public sealed class UIComboBox : UIElement
         return false;
     }
 
+    protected internal override bool HasOverlayHitArea => _isOpen;
+
+    protected internal override bool OverlayIgnoresParentClip => _isOpen;
+
     protected internal override void OnMouseEnter()
     {
         _hovered = true;
