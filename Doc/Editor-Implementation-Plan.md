@@ -61,7 +61,7 @@ EditorApplication
 1. ✅ `SceneDocument`、二进制 `.scene` 格式和版本号。
 2. ✅ `BinaryEditorSceneService.Save/Load`；Reload 先构建并验证新的 EditorWorld，成功后通过 `WorldContext` 原子切换，失败不修改当前场景。
 3. ✅ v5 保存 Actor 类型和 `[SceneProperty]` 类型化组件属性块；`[SceneTransient]` 排除仅运行时 Actor，旧版本明确拒绝且暂不迁移。
-4. 脏状态、最近文件（`EditorRecentFiles` MRU 已完成，`EditorUi.RecentScenePaths` 已提供宿主菜单接入）；`EditorUi.RequestClose` 已提供脏场景确认边界，原生窗口关闭事件接入仍待平台层补充。
+4. 脏状态、最近文件（`EditorRecentFiles` MRU 已完成，`EditorUi.RecentScenePaths` 已提供宿主菜单接入）；`EditorUi.RequestClose` 已接入支持取消关闭的 Desktop 原生窗口事件。
 5. 自动保存和崩溃恢复文件。
 6. 加载错误面板和不可恢复资源引用提示。
 

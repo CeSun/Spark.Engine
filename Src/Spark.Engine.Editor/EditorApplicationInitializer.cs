@@ -1,4 +1,5 @@
 using Spark.Engine.Worlds;
+using Spark.Engine.Platforms;
 
 namespace Spark.Engine.Editor;
 
@@ -24,6 +25,25 @@ internal sealed class EditorApplicationInitializer(EditorRegistration registrati
         var canvas = application.UIManager.GetOrCreateCanvas(viewport.Id);
         canvas.Root = editorUi.Root;
         canvas.GlobalKeyDown = (key, keysDown, focused) => editorUi.HandleGlobalKey(key, keysDown, focused);
+
+        if (application.WindowManager.MainWindow is ICloseRequestWindow closeRequestWindow)
+        {
+            var allowNextClose = false;
+            closeRequestWindow.CloseRequested = () =>
+            {
+                if (allowNextClose)
+                {
+                    allowNextClose = false;
+                    return true;
+                }
+
+                return editorUi.RequestClose(() =>
+                {
+                    allowNextClose = true;
+                    application.WindowManager.MainWindow.Close();
+                });
+            };
+        }
         application.Ticks.Register(_ => editorUi.Refresh());
 
         registration.Configure?.Invoke(application, editorUi);

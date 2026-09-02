@@ -8,7 +8,7 @@ using SNW = Silk.NET.Windowing;
 
 namespace Spark.Engine.Desktop;
 
-public class DesktopWindow : IWindow
+public class DesktopWindow : IWindow, ICloseRequestWindow
 {
     private readonly SNW.IWindow _window;
 
@@ -20,6 +20,8 @@ public class DesktopWindow : IWindow
 
     private SilkInput.IInputContext? _inputContext;
     private WindowsImeContext? _imeContext;
+
+    public Func<bool>? CloseRequested { get; set; }
 
     public RenderSurface? Surface => _surface;
 
@@ -47,6 +49,7 @@ public class DesktopWindow : IWindow
     {
         _window = window;
         _webGPUContext = webGPUContext;
+        _window.Closing += HandleClosing;
     }
 
     public void PollEvents()
@@ -96,6 +99,19 @@ public class DesktopWindow : IWindow
     public void DisposeNative()
     {
         _window.Dispose();
+    }
+
+    private void HandleClosing()
+    {
+        var request = CloseRequested;
+        if (request == null)
+            return;
+
+        bool allow;
+        try { allow = request(); }
+        catch { allow = false; }
+        if (!allow)
+            _window.IsClosing = false;
     }
 
     /// <summary>建立输入上下文并订阅鼠标/键盘事件，映射到引擎枚举后写入 <see cref="_input"/>。</summary>

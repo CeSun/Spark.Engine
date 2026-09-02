@@ -37,3 +37,10 @@ public interface IWindow
 
     void Close();
 }
+
+/// <summary>可取消原生关闭请求的窗口扩展；平台不支持时可不实现。</summary>
+public interface ICloseRequestWindow
+{
+    /// <summary>返回 true 允许本次关闭，返回 false 取消并保持窗口打开。</summary>
+    Func<bool>? CloseRequested { get; set; }
+}
