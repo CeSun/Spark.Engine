@@ -396,6 +396,63 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void AssetRegistryScanContinuesAfterMalformedAssetAndRecordsDiagnostic()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "spark-assets-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var mesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY)], [0]);
+        try
+        {
+            AssetFileCodec.Save(mesh, Path.Combine(directory, "valid.asset"));
+            File.WriteAllBytes(Path.Combine(directory, "broken.asset"), "invalid"u8.ToArray());
+            var registry = new AssetRegistry();
+
+            Assert.Equal(1, registry.ScanDirectory(directory));
+            var diagnostic = Assert.Single(registry.Diagnostics);
+            Assert.Equal(AssetDiagnosticStage.Metadata, diagnostic.Stage);
+            Assert.EndsWith("broken.asset", diagnostic.Path, StringComparison.OrdinalIgnoreCase);
+            var loaded = Assert.IsType<StaticMesh>(registry.Resolve(mesh.AssetGuid));
+            loaded.Dispose();
+        }
+        finally
+        {
+            mesh.Dispose();
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void AssetRegistryRecordsLazyLoadFailureOnAssetRecord()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "spark-assets-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "mesh.asset");
+        var mesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY)], [0]);
+        try
+        {
+            AssetFileCodec.Save(mesh, path);
+            var registry = new AssetRegistry();
+            Assert.Equal(1, registry.ScanDirectory(directory));
+            File.WriteAllBytes(path, "invalid"u8.ToArray());
+
+            Assert.ThrowsAny<Exception>(() => registry.Resolve(mesh.AssetGuid));
+            var record = Assert.Single(registry.Records);
+            Assert.Equal(AssetImportStatus.Failed, record.ImportStatus);
+            Assert.False(string.IsNullOrWhiteSpace(record.LastError));
+            Assert.Equal(AssetDiagnosticStage.Load, Assert.Single(registry.Diagnostics).Stage);
+            registry.ClearDiagnostics();
+            Assert.Empty(registry.Diagnostics);
+        }
+        finally
+        {
+            mesh.Dispose();
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void RuntimeActorFactoryRunsRegisteredBehaviorAfterAssetResolution()
     {
         using var editorWorld = new World(new ResourceManager());

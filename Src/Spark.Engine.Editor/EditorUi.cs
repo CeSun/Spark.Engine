@@ -22,6 +22,7 @@ public sealed class EditorUi
     private readonly EditorStatusBarPanel _statusBar;
     private readonly EditorToolbarPanel _toolbar;
     private readonly EditorDeleteConfirmationPanel _deleteConfirmation;
+    private readonly EditorAssetErrorsPanel _assetErrors;
     private readonly EditorContext _context;
     private readonly IEditorSceneService? _sceneService;
     private readonly TransformGizmoController _gizmo = new();
@@ -50,6 +51,7 @@ public sealed class EditorUi
             reload: ReloadScene,
             undo: Undo,
             redo: Redo,
+            showAssetErrors: ShowAssetErrors,
             resetLayout: () => SetStatus("Layout reset requested."),
             backToHub));
 
@@ -83,6 +85,9 @@ public sealed class EditorUi
 
         _deleteConfirmation = new EditorDeleteConfirmationPanel(ConfirmDeleteSelection);
         root.AddChild(_deleteConfirmation);
+
+        _assetErrors = new EditorAssetErrorsPanel(_context.AssetRegistry);
+        root.AddChild(_assetErrors);
 
         // 状态栏
         _statusBar = new EditorStatusBarPanel();
@@ -196,6 +201,7 @@ public sealed class EditorUi
     }
 
     private void SetStatus(string message) => _statusBar.SetStatus(message);
+    private void ShowAssetErrors() => _assetErrors.Show();
     private void Undo() => SetStatus(_context.Undo() ? "Undo completed." : "Nothing to undo.");
     private void Redo() => SetStatus(_context.Redo() ? "Redo completed." : "Nothing to redo.");
 
@@ -497,6 +503,8 @@ public sealed class EditorUi
 
         _statusBar.SetStatus($"Actors: {actors}  Components: {components}");
         _statusBar.SetSelection(_selectedTarget == null ? "Nothing selected" : $"Selected: {_selectedTarget.GetType().Name}");
+        var assetErrorCount = (_context.AssetRegistry as IAssetRegistryDiagnostics)?.Diagnostics.Count ?? 0;
+        _statusBar.SetMode(assetErrorCount == 0 ? "Assets: OK" : $"Asset errors: {assetErrorCount}");
 
         // 选中对象被移除时清空检查器
         if (_selectedTarget is Actor removedActor && !_world.Actors.Contains(removedActor))

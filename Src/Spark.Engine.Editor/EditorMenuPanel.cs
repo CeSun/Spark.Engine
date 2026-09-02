@@ -12,6 +12,7 @@ internal sealed class EditorMenuPanel : UIElement
         Action reload,
         Action undo,
         Action redo,
+        Action showAssetErrors,
         Action resetLayout,
         Action? backToHub = null)
     {
@@ -30,6 +31,10 @@ internal sealed class EditorMenuPanel : UIElement
         {
             menu.AddItem(new UIMenuItem("Undo", undo) { Shortcut = "Ctrl+Z" });
             menu.AddItem(new UIMenuItem("Redo", redo) { Shortcut = "Ctrl+Y" });
+        });
+        _menuBar.AddMenu("Assets", menu =>
+        {
+            menu.AddItem(new UIMenuItem("Asset Errors", showAssetErrors));
         });
         _menuBar.AddMenu("Window", menu =>
         {

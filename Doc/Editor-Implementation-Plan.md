@@ -122,7 +122,7 @@ EditorApplication
 
 ## 6. 当前执行顺序
 
-1. ⏳ Asset Registry 的磁盘错误面板和导入产物登记
+1. ⏳ Asset Registry 的磁盘错误面板（诊断记录、坏文件继续扫描和编辑器入口已落地）和导入产物登记
 2. Runtime Actor Factory 的自定义 Actor 类型和行为数据持久化
 3. ✅ 场景加载时通过 AssetGuid 恢复 StaticMesh/基础 Material
 4. ✅ Viewport 拾取、Gizmo 轴绘制/命中/输入路由；⏳ 网格吸附与多选变换
