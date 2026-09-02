@@ -18,7 +18,7 @@ public sealed class SceneDocument
     {
         ArgumentNullException.ThrowIfNull(world);
         var document = new SceneDocument();
-        foreach (var actor in world.Actors.OrderBy(a => a.ActorGuid))
+        foreach (var actor in world.EnumerateActors(includePendingActors: true).OrderBy(a => a.ActorGuid))
         {
             var actorDocument = new SceneActorDocument
             {

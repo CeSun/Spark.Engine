@@ -11,6 +11,39 @@ namespace Spark.Engine.Tests;
 public sealed class SceneDocumentTests
 {
     [Fact]
+    public void CaptureUsesAcceptedStructureWithoutWaitingForWorldUpdate()
+    {
+        using var world = new World(new ResourceManager());
+        var existing = new Actor { Name = "Existing" };
+        existing.AddOwnedComponent(new SceneComponent());
+        world.AddActor(existing);
+        world.Update(0.016f, tickActors: false);
+        var added = new Actor { Name = "Added" };
+        added.AddOwnedComponent(new SceneComponent());
+
+        world.AddActor(added);
+        world.RemoveActor(existing);
+        var document = SceneDocument.Capture(world);
+
+        Assert.Equal(added.ActorGuid, Assert.Single(document.Actors).ActorGuid);
+    }
+
+    [Fact]
+    public void PlayUsesAcceptedStructureWithoutWaitingForWorldUpdate()
+    {
+        using var world = new World(new ResourceManager());
+        var actor = new Actor { Name = "Pending" };
+        actor.AddOwnedComponent(new SceneComponent());
+        world.AddActor(actor);
+        using var context = new EditorContext(world);
+
+        Assert.True(context.Play());
+        context.RuntimeWorld!.Update(0.016f);
+
+        Assert.Equal(actor.ActorGuid, Assert.Single(context.RuntimeWorld.Actors).ActorGuid);
+    }
+
+    [Fact]
     public void CaptureAndBinaryRoundTripPreserveHierarchyData()
     {
         using var world = new World(new ResourceManager());

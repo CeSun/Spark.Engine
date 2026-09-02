@@ -17,12 +17,19 @@ public class World : IDisposable
     /// <summary>当前已进入 World 注册阶段的 Actor；编辑器预览中可能尚未 BeginPlay。</summary>
     public IReadOnlyList<Actor> Actors => _actors;
 
-    /// <summary>枚举 Actor；RuntimeWorld 初始化时可选择包含尚未注册的 pending Actor。</summary>
+    /// <summary>
+    /// 枚举 Actor。包含 pending 状态时返回已接受的逻辑结构：包含待添加 Actor，排除待移除 Actor。
+    /// 该视图供编辑器保存和 Play 快照使用，不要求先推进一帧生命周期。
+    /// </summary>
     public IEnumerable<Actor> EnumerateActors(bool includePendingActors = false)
     {
         ThrowIfDisposed();
         foreach (var actor in _actors)
+        {
+            if (includePendingActors && _pendingRemoveActors.Contains(actor))
+                continue;
             yield return actor;
+        }
         if (includePendingActors)
         {
             foreach (var actor in _pendingAddActors)
@@ -51,6 +58,10 @@ public class World : IDisposable
     {
         ThrowIfDisposed();
         if (actor == null) throw new ArgumentNullException(nameof(actor));
+        if (actor.World != null && !ReferenceEquals(actor.World, this))
+            throw new InvalidOperationException("An Actor cannot belong to multiple Worlds.");
+        if (_pendingRemoveActors.Remove(actor))
+            return;
         if (_actors.Contains(actor) || _pendingAddActors.Contains(actor))
             return;
 

@@ -13,6 +13,33 @@ namespace Spark.Engine.Tests;
 public sealed class WorldLifecycleTests
 {
     [Fact]
+    public void AddingActorCancelsPendingRemoval()
+    {
+        using var world = new World(new ResourceManager());
+        var actor = new Actor();
+        world.AddActor(actor);
+        world.Update(0.016f, tickActors: false);
+
+        world.RemoveActor(actor);
+        world.AddActor(actor);
+        world.Update(0.016f, tickActors: false);
+
+        Assert.Same(actor, Assert.Single(world.Actors));
+    }
+
+    [Fact]
+    public void ActorCannotBeAddedToAnotherWorld()
+    {
+        using var first = new World(new ResourceManager());
+        using var second = new World(new ResourceManager());
+        var actor = new Actor();
+        first.AddActor(actor);
+
+        Assert.Throws<InvalidOperationException>(() => second.AddActor(actor));
+        Assert.Same(first, actor.World);
+    }
+
+    [Fact]
     public void SwitchingWorldEndsAndDetachesPreviousActors()
     {
         var context = new WorldContext();

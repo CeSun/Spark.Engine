@@ -163,7 +163,7 @@ public sealed class EditorContext : IDisposable
 
     private void RegisterWorldAssets()
     {
-        foreach (var actor in World.Actors)
+        foreach (var actor in World.EnumerateActors(includePendingActors: true))
         {
             foreach (var component in actor.Components)
             {
