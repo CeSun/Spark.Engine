@@ -23,7 +23,7 @@ public sealed class AssetRecord
     internal Func<SceneResource?>? Loader { get; set; }
 }
 
-/// <summary>编辑器和 RuntimeWorld 共享的 AssetGuid 解析边界。</summary>
+/// <summary>编辑器和 RuntimeWorld 共用的 AssetGuid 解析边界；解析结果是否共享由资源实例化策略决定。</summary>
 public interface IAssetRegistry
 {
     IReadOnlyCollection<AssetRecord> Records { get; }

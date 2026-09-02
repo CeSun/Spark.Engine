@@ -13,6 +13,9 @@ public abstract class SceneResource : ISceneResource, IDisposable
     private Action<int>? _releaseNotifier;
     private bool _releaseNotified;
 
+    /// <summary>CPU 资源是否已释放；用于所有权诊断和生命周期测试。</summary>
+    public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
+
     /// <summary>全局唯一资源 ID（跨网格/纹理等所有资源类型共享同一计数器，避免 ID 冲突）。</summary>
     public int ResourceId { get; } = Interlocked.Increment(ref _nextResourceId);
 

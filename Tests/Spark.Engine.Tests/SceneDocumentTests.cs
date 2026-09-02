@@ -167,7 +167,7 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
-    public void EditorContextPlayResolvesInMemoryStaticMeshAssets()
+    public void EditorContextPlaySharesMeshAndIsolatesMaterial()
     {
         using var editorWorld = new World(new ResourceManager());
         var mesh = new StaticMesh(
@@ -184,8 +184,15 @@ public sealed class SceneDocumentTests
         context.RuntimeWorld!.Update(0.016f);
         var runtimeMesh = Assert.Single(context.RuntimeWorld.Actors).GetComponent<StaticMeshComponent>();
         Assert.Same(mesh, runtimeMesh!.Mesh);
-        Assert.Same(material, runtimeMesh.Material);
+        Assert.NotSame(material, runtimeMesh.Material);
+        Assert.Equal(material.AssetGuid, runtimeMesh.Material!.AssetGuid);
+        Assert.NotEqual(material.ResourceId, runtimeMesh.Material.ResourceId);
+        runtimeMesh.Material.BaseColor = new Vector4(0.25f, 0.5f, 0.75f, 1f);
+        Assert.Equal(Vector4.One, material.BaseColor);
+        var runtimeMaterial = runtimeMesh.Material;
         context.Stop();
+        Assert.True(runtimeMaterial.IsDisposed);
+        Assert.False(material.IsDisposed);
         mesh.Dispose();
         material.Dispose();
     }
@@ -226,7 +233,8 @@ public sealed class SceneDocumentTests
             .OfType<SkeletalMeshComponent>()
             .Single();
         Assert.Same(skeletalMesh, runtimeSkeletal.Mesh);
-        Assert.Same(material, runtimeSkeletal.Material);
+        Assert.NotSame(material, runtimeSkeletal.Material);
+        Assert.Equal(material.BaseColor, runtimeSkeletal.Material!.BaseColor);
 
         var runtimeLight = editor.RuntimeWorld.Actors
             .SelectMany(actor => actor.Components)
@@ -242,6 +250,69 @@ public sealed class SceneDocumentTests
         editor.Stop();
         skeletalMesh.Dispose();
         material.Dispose();
+    }
+
+    [Fact]
+    public void RuntimeWorldSharesOneMaterialCopyWithoutSharingEditorMaterial()
+    {
+        using var editorWorld = new World(new ResourceManager());
+        var mesh = new StaticMesh(
+            [new StaticMeshVertex(Vector3.Zero, Vector3.One, Vector2.Zero, Vector3.UnitY)],
+            [0]);
+        var material = new Material { Roughness = 0.8f };
+        for (var index = 0; index < 2; index++)
+        {
+            var actor = new Actor { Name = $"Mesh {index}" };
+            actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh, Material = material });
+            editorWorld.AddActor(actor);
+        }
+        editorWorld.Update(0.016f, tickActors: false);
+        using var context = new EditorContext(editorWorld);
+
+        Assert.True(context.Play());
+        context.RuntimeWorld!.Update(0.016f);
+        var runtimeMaterials = context.RuntimeWorld.Actors
+            .SelectMany(actor => actor.Components)
+            .OfType<StaticMeshComponent>()
+            .Select(component => component.Material)
+            .ToArray();
+
+        Assert.Equal(2, runtimeMaterials.Length);
+        Assert.Same(runtimeMaterials[0], runtimeMaterials[1]);
+        Assert.NotSame(material, runtimeMaterials[0]);
+        Assert.Equal(material.Roughness, runtimeMaterials[0]!.Roughness);
+        context.Stop();
+        mesh.Dispose();
+        material.Dispose();
+    }
+
+    [Fact]
+    public void MaterialInstanceRuntimeCopyFlattensEffectiveParametersAndSharesTextures()
+    {
+        var texture = new Texture2D(1, 1, [255, 255, 255, 255]);
+        var parent = new Material
+        {
+            ShadingModel = ShadingModel.Lit,
+            Roughness = 0.7f,
+            NormalTexture = texture,
+        };
+        var instance = new MaterialInstance { Parent = parent };
+        instance.SetVector(MaterialParam.BaseColor, new Vector4(0.2f, 0.4f, 0.6f, 1f));
+        instance.SetScalar(MaterialParam.Roughness, 0.25f);
+
+        var copy = instance.CreateRuntimeCopy();
+
+        Assert.IsType<Material>(copy);
+        Assert.Equal(instance.AssetGuid, copy.AssetGuid);
+        Assert.NotEqual(instance.ResourceId, copy.ResourceId);
+        Assert.Equal(instance.GetShaderKey(), copy.GetShaderKey());
+        Assert.Equal(instance.GetParamsUniform().BaseColor, copy.GetParamsUniform().BaseColor);
+        Assert.Equal(instance.GetParamsUniform().MetallicRoughness, copy.GetParamsUniform().MetallicRoughness);
+        Assert.Same(texture, copy.NormalTexture);
+        copy.Dispose();
+        instance.Dispose();
+        parent.Dispose();
+        texture.Dispose();
     }
 
     [Fact]

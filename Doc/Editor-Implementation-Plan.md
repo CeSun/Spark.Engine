@@ -12,7 +12,7 @@
 
 当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览只执行组件注册和渲染代理刷新，不进入 BeginPlay/Update/EndPlay gameplay 生命周期，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换，
 `EditorContext` 已接入 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；主循环已支持
-EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产和光照状态可恢复。`AssetRegistry` 已统一 AssetGuid 解析，
+EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产和光照状态可恢复；Mesh/Texture 共享，Material 使用 RuntimeWorld 独立副本。`AssetRegistry` 已统一 AssetGuid 解析，
 `RuntimeActorFactory` 已提供自定义组件和 Runtime 行为注册入口；旧的 `RuntimeWorldInitializer` 仅作为兼容接口保留。
 场景层级、Socket 和挂载规则按 [SceneHierarchy-Design.md](./SceneHierarchy-Design.md) 实施，资产格式和 Cook 按
 [AssetPipeline-Design.md](./AssetPipeline-Design.md) 实施。编辑器侧已落地无 GPU 依赖的 glTF 2.0 StaticMesh 导入器，

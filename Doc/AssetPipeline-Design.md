@@ -103,7 +103,9 @@ Editor Importer / Cooker
     -> RenderThread GPU resources
 ```
 
-不可变资产可以被 EditorWorld 和 RuntimeWorld 共享；Actor、Component、SceneProxy 和运行时状态不能共享。
+不可变 Mesh/Texture 资产可以被 EditorWorld 和 RuntimeWorld 共享；Actor、Component、SceneProxy 和运行时状态不能共享。
+Material 当前仍是可变资源，因此 Play 时按 AssetGuid 为每个 RuntimeWorld 创建一份瞬态副本：保留 AssetGuid、分配独立 ResourceId，
+同一 RuntimeWorld 内复用该副本，并由 World 在 Stop/Dispose 时释放。MaterialInstance 会展平为等价的有效参数，纹理引用继续共享。
 
 ## 8. 后续扩展
 
@@ -113,7 +115,7 @@ Editor Importer / Cooker
 `WindowsCookBackend`（版本化 `PAK0` 包、AssetGuid/依赖索引、确定性排序、原子写入）。`.scene` 格式当前为
 版本 3，StaticMesh/SkeletalMesh/Material 组件会保存 AssetGuid 引用，LightComponent 状态会随组件保存；
 RuntimeWorld 与 EditorWorld 使用不同的全局 ProxyId，避免渲染实例状态串用。编辑器 Play 使用同一个
-`ResourceManager` 共享不可变资产，避免同一资源被两个管理器重复接管。
+`ResourceManager` 共享不可变 Mesh/Texture 资产，避免同一资源被两个管理器重复接管；可变 Material 使用 World 持有的运行时副本。
 GLB、材质/纹理导入、完整纹理依赖加载以及 ResourceManager 从 `.pak` 的运行时加载仍待实现。
 
 - SkeletalMesh、Skeleton、Animation Clip。

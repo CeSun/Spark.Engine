@@ -137,6 +137,34 @@ public class Material : SceneResource
         MaterialParam.MaskTexture => MaskTexture,
         _ => null,
     };
+
+    /// <summary>
+    /// 创建与当前有效着色状态等价的瞬态副本。副本拥有独立 ResourceId 和可变参数，
+    /// 但继续共享只读纹理资产；用于 RuntimeWorld 隔离编辑器材质状态。
+    /// </summary>
+    public virtual Material CreateRuntimeCopy()
+    {
+        var key = GetShaderKey();
+        var parameters = GetParamsUniform();
+        return new Material
+        {
+            AssetGuid = this.AssetGuid,
+            ShadingModel = key.ShadingModel,
+            BlendMode = key.BlendMode,
+            CullMode = key.CullMode,
+            BaseColor = parameters.BaseColor,
+            Metallic = parameters.MetallicRoughness.X,
+            Roughness = parameters.MetallicRoughness.Y,
+            EmissiveColor = new Vector4(parameters.Emissive.X, parameters.Emissive.Y, parameters.Emissive.Z, 0f),
+            EmissiveStrength = parameters.Emissive.W,
+            NormalStrength = parameters.NormalStrength.X,
+            BaseColorTexture = GetEffectiveTexture(MaterialParam.BaseColorTexture),
+            NormalTexture = GetEffectiveTexture(MaterialParam.NormalTexture),
+            EmissiveTexture = GetEffectiveTexture(MaterialParam.EmissiveTexture),
+            MetallicRoughnessTexture = GetEffectiveTexture(MaterialParam.MetallicRoughnessTexture),
+            MaskTexture = GetEffectiveTexture(MaterialParam.MaskTexture),
+        };
+    }
 }
 
 /// <summary>

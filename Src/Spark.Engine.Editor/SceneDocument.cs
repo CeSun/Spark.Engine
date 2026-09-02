@@ -83,6 +83,7 @@ public sealed class SceneDocument
         var components = new Dictionary<Guid, SceneComponent>();
         var actorRecords = Actors.OrderBy(a => a.ActorGuid).ToArray();
         var actors = new Dictionary<Guid, Actor>();
+        var runtimeMaterials = new Dictionary<Guid, Material>();
 
         try
         {
@@ -105,9 +106,7 @@ public sealed class SceneDocument
                         }
                         if (componentRecord.MaterialAssetGuid is { } materialGuid)
                         {
-                            if (assetRegistry == null || assetRegistry.Resolve(materialGuid) is not Material material)
-                                throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved as Material.");
-                            staticMesh.Material = material;
+                            staticMesh.Material = ResolveRuntimeMaterial(materialGuid);
                         }
                     }
                     else if (component is SkeletalMeshComponent skeletalMesh)
@@ -120,9 +119,7 @@ public sealed class SceneDocument
                         }
                         if (componentRecord.MaterialAssetGuid is { } materialGuid)
                         {
-                            if (assetRegistry == null || assetRegistry.Resolve(materialGuid) is not Material material)
-                                throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved as Material.");
-                            skeletalMesh.Material = material;
+                            skeletalMesh.Material = ResolveRuntimeMaterial(materialGuid);
                         }
                     }
                     if (component is LightComponent light)
@@ -169,6 +166,17 @@ public sealed class SceneDocument
         {
             world.Dispose();
             throw;
+        }
+
+        Material ResolveRuntimeMaterial(Guid materialGuid)
+        {
+            if (runtimeMaterials.TryGetValue(materialGuid, out var existing))
+                return existing;
+            if (assetRegistry == null || assetRegistry.Resolve(materialGuid) is not Material source)
+                throw new InvalidDataException($"Material asset '{materialGuid}' could not be resolved as Material.");
+            var runtimeCopy = world.OwnResource(source.CreateRuntimeCopy());
+            runtimeMaterials.Add(materialGuid, runtimeCopy);
+            return runtimeCopy;
         }
     }
 }

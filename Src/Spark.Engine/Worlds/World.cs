@@ -11,12 +11,13 @@ public class World : IDisposable
     private List<Actor> _actors = [];
     private List<Actor> _pendingAddActors = [];
     private List<Actor> _pendingRemoveActors = [];
+    private readonly HashSet<SceneResource> _ownedResources = [];
     private int _disposed;
 
-    /// <summary>当前已进入世界的 Actor（BeginPlay 已调用）。</summary>
+    /// <summary>当前已进入 World 注册阶段的 Actor；编辑器预览中可能尚未 BeginPlay。</summary>
     public IReadOnlyList<Actor> Actors => _actors;
 
-    /// <summary>枚举 Actor；编辑器初始化 RuntimeWorld 时可选择包含尚未 BeginPlay 的 pending Actor。</summary>
+    /// <summary>枚举 Actor；RuntimeWorld 初始化时可选择包含尚未注册的 pending Actor。</summary>
     public IEnumerable<Actor> EnumerateActors(bool includePendingActors = false)
     {
         ThrowIfDisposed();
@@ -35,6 +36,15 @@ public class World : IDisposable
     public World(ResourceManager resourceManager)
     {
         Scene = new Scene(resourceManager);
+    }
+
+    /// <summary>登记由当前 World 创建并独占的瞬态资源；World Dispose 时统一释放。</summary>
+    public T OwnResource<T>(T resource) where T : SceneResource
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(resource);
+        _ownedResources.Add(resource);
+        return resource;
     }
 
     public void AddActor(Actor actor)
@@ -230,6 +240,13 @@ public class World : IDisposable
         {
             firstException ??= ex;
         }
+
+        foreach (var resource in _ownedResources)
+        {
+            try { resource.Dispose(); }
+            catch (Exception ex) { firstException ??= ex; }
+        }
+        _ownedResources.Clear();
 
         if (firstException != null)
             ExceptionDispatchInfo.Capture(firstException).Throw();
