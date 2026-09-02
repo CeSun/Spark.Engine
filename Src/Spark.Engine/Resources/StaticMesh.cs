@@ -26,24 +26,29 @@ public readonly struct StaticMeshVertex
 /// </summary>
 public sealed class StaticMesh : SceneResource
 {
+    private readonly StaticMeshVertex[] _vertices;
+    private readonly uint[] _indices;
+
     /// <summary>网格 ID（即全局 ResourceId 的别名）。</summary>
     public int MeshId => ResourceId;
 
-    public StaticMeshVertex[] Vertices { get; }
+    public ReadOnlyMemory<StaticMeshVertex> Vertices => _vertices;
 
-    public uint[] Indices { get; }
+    public ReadOnlyMemory<uint> Indices => _indices;
 
     /// <summary>本地空间包围球，供实例代理变换到世界空间做视锥剔除。</summary>
     public BoundingSphere Bounds { get; }
 
     public StaticMesh(StaticMeshVertex[] vertices, uint[] indices)
     {
-        Vertices = vertices ?? throw new ArgumentNullException(nameof(vertices));
-        Indices = indices ?? throw new ArgumentNullException(nameof(indices));
+        ArgumentNullException.ThrowIfNull(vertices);
+        ArgumentNullException.ThrowIfNull(indices);
+        _vertices = vertices.ToArray();
+        _indices = indices.ToArray();
 
-        var positions = new Vector3[Vertices.Length];
-        for (int i = 0; i < Vertices.Length; i++)
-            positions[i] = Vertices[i].Position;
+        var positions = new Vector3[_vertices.Length];
+        for (int i = 0; i < _vertices.Length; i++)
+            positions[i] = _vertices[i].Position;
 
         Bounds = BoundingSphere.CreateFromPoints(positions);
     }

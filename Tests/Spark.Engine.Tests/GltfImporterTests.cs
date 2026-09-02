@@ -58,7 +58,7 @@ public sealed class GltfImporterTests
             var mesh = result.Nodes[1].Mesh;
             Assert.NotNull(mesh);
             Assert.Equal(3, mesh!.Vertices.Length);
-            Assert.Equal<uint[]>([0, 1, 2], mesh.Indices);
+            Assert.Equal<uint[]>([0, 1, 2], mesh.Indices.ToArray());
 
             using var world = new World(new ResourceManager());
             var actors = new GltfStaticMeshImporter().CreateActors(result, world);

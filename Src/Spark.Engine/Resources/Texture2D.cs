@@ -3,6 +3,8 @@ namespace Spark.Engine.Resources;
 /// <summary>2D 纹理资产：RGBA8 像素数据，实现 ISceneResource 走统一上传通道。</summary>
 public sealed class Texture2D : SceneResource
 {
+    private readonly byte[] _pixelData;
+
     /// <summary>纹理 ID（即全局 ResourceId 的别名）。</summary>
     public int TextureId => ResourceId;
 
@@ -11,7 +13,7 @@ public sealed class Texture2D : SceneResource
     public uint Height { get; }
 
     /// <summary>RGBA8 像素数据，长度 = Width * Height * 4。</summary>
-    public byte[] PixelData { get; }
+    public ReadOnlyMemory<byte> PixelData => _pixelData;
 
     public Texture2D(uint width, uint height, byte[] rgba8)
     {
@@ -22,6 +24,6 @@ public sealed class Texture2D : SceneResource
 
         Width = width;
         Height = height;
-        PixelData = rgba8;
+        _pixelData = rgba8.ToArray();
     }
 }

@@ -104,6 +104,8 @@ Editor Importer / Cooker
 ```
 
 不可变 Mesh/Texture 资产可以被 EditorWorld 和 RuntimeWorld 共享；Actor、Component、SceneProxy 和运行时状态不能共享。
+Mesh 的顶点、索引、逆绑定姿势以及 Texture 的像素数据会在构造时复制，公共 API 仅暴露 `ReadOnlyMemory<T>`；
+因此调用方既不能通过构造参数保留的数组，也不能通过资源属性原地修改共享资产。
 Material 当前仍是可变资源，因此 Play 时按 AssetGuid 为每个 RuntimeWorld 创建一份瞬态副本：保留 AssetGuid、分配独立 ResourceId，
 同一 RuntimeWorld 内复用该副本，并由 World 在 Stop/Dispose 时释放。MaterialInstance 会展平为等价的有效参数，纹理引用继续共享。
 

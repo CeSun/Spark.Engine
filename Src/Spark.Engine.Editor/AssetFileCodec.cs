@@ -126,7 +126,7 @@ public static class AssetFileCodec
             {
                 var mesh = (StaticMesh)resource;
                 writer.Write(mesh.Vertices.Length);
-                foreach (var vertex in mesh.Vertices)
+                foreach (var vertex in mesh.Vertices.Span)
                 {
                     WriteVector3(writer, vertex.Position);
                     WriteVector3(writer, vertex.Color);
@@ -134,7 +134,7 @@ public static class AssetFileCodec
                     WriteVector3(writer, vertex.Normal);
                 }
                 writer.Write(mesh.Indices.Length);
-                foreach (var index in mesh.Indices)
+                foreach (var index in mesh.Indices.Span)
                     writer.Write(index);
             }
             else

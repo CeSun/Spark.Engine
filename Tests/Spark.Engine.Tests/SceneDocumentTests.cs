@@ -458,7 +458,7 @@ public sealed class SceneDocumentTests
             Assert.True(registry.TryResolve(mesh.AssetGuid, out var loadedMesh));
             Assert.IsType<StaticMesh>(loadedMesh);
             Assert.Equal(mesh.AssetGuid, loadedMesh!.AssetGuid);
-            Assert.Equal(mesh.Vertices[0].Position, ((StaticMesh)loadedMesh).Vertices[0].Position);
+            Assert.Equal(mesh.Vertices.Span[0].Position, ((StaticMesh)loadedMesh).Vertices.Span[0].Position);
             var loadedMaterial = Assert.IsType<Material>(registry.Resolve(material.AssetGuid));
             Assert.Equal(material.BaseColor, loadedMaterial.BaseColor);
             Assert.Equal(material.Roughness, loadedMaterial.Roughness);

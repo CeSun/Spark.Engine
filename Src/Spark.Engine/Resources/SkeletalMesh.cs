@@ -54,15 +54,19 @@ public readonly struct SkeletalMeshVertex
 /// </summary>
 public sealed class SkeletalMesh : SceneResource
 {
+    private readonly SkeletalMeshVertex[] _vertices;
+    private readonly uint[] _indices;
+    private readonly Matrix4x4[] _bindPoseInverse;
+
     /// <summary>网格 ID（即全局 ResourceId 的别名）。</summary>
     public int MeshId => ResourceId;
 
-    public SkeletalMeshVertex[] Vertices { get; }
+    public ReadOnlyMemory<SkeletalMeshVertex> Vertices => _vertices;
 
-    public uint[] Indices { get; }
+    public ReadOnlyMemory<uint> Indices => _indices;
 
     /// <summary>每骨骼逆绑定矩阵（rest pose 逆），长度即骨骼数。</summary>
-    public Matrix4x4[] BindPoseInverse { get; }
+    public ReadOnlyMemory<Matrix4x4> BindPoseInverse => _bindPoseInverse;
 
     public int BoneCount { get; }
 
@@ -71,14 +75,17 @@ public sealed class SkeletalMesh : SceneResource
 
     public SkeletalMesh(SkeletalMeshVertex[] vertices, uint[] indices, Matrix4x4[] bindPoseInverse)
     {
-        Vertices = vertices ?? throw new ArgumentNullException(nameof(vertices));
-        Indices = indices ?? throw new ArgumentNullException(nameof(indices));
-        BindPoseInverse = bindPoseInverse ?? throw new ArgumentNullException(nameof(bindPoseInverse));
-        BoneCount = bindPoseInverse.Length;
+        ArgumentNullException.ThrowIfNull(vertices);
+        ArgumentNullException.ThrowIfNull(indices);
+        ArgumentNullException.ThrowIfNull(bindPoseInverse);
+        _vertices = vertices.ToArray();
+        _indices = indices.ToArray();
+        _bindPoseInverse = bindPoseInverse.ToArray();
+        BoneCount = _bindPoseInverse.Length;
 
-        var positions = new Vector3[Vertices.Length];
-        for (int i = 0; i < Vertices.Length; i++)
-            positions[i] = Vertices[i].Position;
+        var positions = new Vector3[_vertices.Length];
+        for (int i = 0; i < _vertices.Length; i++)
+            positions[i] = _vertices[i].Position;
 
         Bounds = BoundingSphere.CreateFromPoints(positions);
     }

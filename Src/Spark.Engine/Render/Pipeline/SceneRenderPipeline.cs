@@ -240,7 +240,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
     }
 
     /// <summary>几何上传（按 MeshId 一次）：顶点/索引缓冲（T = 顶点格式，决定 stride）。</summary>
-    private MeshGPUResource CreateMeshGPUResource<T>(T[] vertices, uint[] indices) where T : unmanaged
+    private MeshGPUResource CreateMeshGPUResource<T>(ReadOnlyMemory<T> vertices, ReadOnlyMemory<uint> indices) where T : unmanaged
     {
         var api = _webGpu!.Api;
         var device = _webGpu.Device;
@@ -260,7 +260,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
         try
         {
             vertexBuffer = api.DeviceCreateBuffer(device, ref vertexDesc);
-            fixed (T* data = vertices)
+            fixed (T* data = vertices.Span)
             {
                 api.QueueWriteBuffer(queue, vertexBuffer, 0, data, (nuint)vertexSize);
             }
@@ -272,7 +272,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
                 MappedAtCreation = false,
             };
             indexBuffer = api.DeviceCreateBuffer(device, ref indexDesc);
-            fixed (uint* data = indices)
+            fixed (uint* data = indices.Span)
             {
                 api.QueueWriteBuffer(queue, indexBuffer, 0, data, (nuint)indexSize);
             }
@@ -295,7 +295,7 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
     }
 
     /// <summary>RGBA8 纹理上传一次。</summary>
-    protected TextureGPUResource CreateTextureGPUResource(uint width, uint height, byte[] rgba8)
+    protected TextureGPUResource CreateTextureGPUResource(uint width, uint height, ReadOnlyMemory<byte> rgba8)
     {
         var api = _webGpu!.Api;
         var device = _webGpu.Device;
@@ -321,17 +321,19 @@ public unsafe abstract class SceneRenderPipeline : IRenderPipeline
             // 需重排为对齐 stride（行尾补零，不被采样）。
             uint rowBytes = width * 4;
             uint alignedRowBytes = (rowBytes + 255u) & ~255u;
-            byte[] upload = rgba8;
+            ReadOnlyMemory<byte> upload = rgba8;
             if (alignedRowBytes != rowBytes)
             {
-                upload = new byte[alignedRowBytes * height];
+                var alignedUpload = new byte[alignedRowBytes * height];
                 for (uint y = 0; y < height; y++)
-                    Array.Copy(rgba8, (int)(y * rowBytes), upload, (int)(y * alignedRowBytes), (int)rowBytes);
+                    rgba8.Span.Slice((int)(y * rowBytes), (int)rowBytes)
+                        .CopyTo(alignedUpload.AsSpan((int)(y * alignedRowBytes), (int)rowBytes));
+                upload = alignedUpload;
             }
 
             var copyDest = new ImageCopyTexture { Texture = gpuTexture, MipLevel = 0, Origin = default, Aspect = TextureAspect.All };
             var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = alignedRowBytes, RowsPerImage = height };
-            fixed (byte* data = upload)
+            fixed (byte* data = upload.Span)
             {
                 api.QueueWriteTexture(queue, ref copyDest, data, (nuint)upload.Length, ref dataLayout, ref size);
             }

@@ -36,7 +36,7 @@ public partial class SkeletalMeshComponent : SceneComponent
                 for (int i = 0; i < n; i++)
                 {
                     var boneWorld = pose != null && i < pose.Length ? pose[i] : Matrix4x4.Identity;
-                    result[i] = boneWorld * Mesh.BindPoseInverse[i];
+                    result[i] = boneWorld * Mesh.BindPoseInverse.Span[i];
                 }
             }
             return result;
