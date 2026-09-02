@@ -10,7 +10,7 @@
 - UI 基础控件：树、列表、分栏、菜单、工具栏、滚动、属性网格
 - 初版 `EditorCommandHistory`：可执行、撤销、重做
 
-当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；Viewport 还不能拾取和变换对象，
+当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览会初始化渲染代理但冻结 gameplay Tick，Viewport 还不能拾取和变换对象，
 `EditorContext` 已接入 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；主循环已支持
 EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产和光照状态可恢复，宿主行为可通过初始化器注入。
 场景层级、Socket 和挂载规则按 [SceneHierarchy-Design.md](./SceneHierarchy-Design.md) 实施，资产格式和 Cook 按

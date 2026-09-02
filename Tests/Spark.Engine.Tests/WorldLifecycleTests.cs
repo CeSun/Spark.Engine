@@ -75,6 +75,21 @@ public sealed class WorldLifecycleTests
     }
 
     [Fact]
+    public void EditorPreviewInitializesProxiesWithoutTickingGameplayActors()
+    {
+        var world = new World(new ResourceManager());
+        var actor = new TrackingActor();
+        world.AddActor(actor);
+        world.Update(0.016f, tickActors: false);
+
+        Assert.Equal(1, actor.BeginCount);
+        Assert.Equal(0, actor.UpdateCount);
+        world.Update(0.016f, tickActors: false);
+        Assert.Equal(0, actor.UpdateCount);
+        world.Dispose();
+    }
+
+    [Fact]
     public void EditorPlayRegistersIndependentRuntimeWorldAndStopPreservesEditorWorld()
     {
         using var worldContext = new WorldContext();
@@ -147,6 +162,7 @@ public sealed class WorldLifecycleTests
     {
         public int BeginCount { get; private set; }
         public int EndCount { get; private set; }
+        public int UpdateCount { get; private set; }
 
         public override void BeginPlay()
         {
@@ -158,6 +174,12 @@ public sealed class WorldLifecycleTests
         {
             EndCount++;
             base.EndPlay();
+        }
+
+        public override void Update(float deltaTime)
+        {
+            UpdateCount++;
+            base.Update(deltaTime);
         }
     }
 

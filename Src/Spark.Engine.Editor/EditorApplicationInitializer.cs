@@ -12,6 +12,7 @@ internal sealed class EditorApplicationInitializer(EditorRegistration registrati
             world = new World(application.ResourceManager);
             application.WorldContext.CurrentWorld = world;
         }
+        application.WorldContext.TickCurrentWorld = false;
 
         var viewport = application.WindowManager.GetViewport(application.WindowManager.MainWindow)
             ?? throw new InvalidOperationException("The editor requires a viewport for the main window.");

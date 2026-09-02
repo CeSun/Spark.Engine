@@ -66,7 +66,12 @@ public class World : IDisposable
         _pendingRemoveActors.Add(actor);
     }
 
-    public void Update(float deltaTime)
+    public void Update(float deltaTime) => Update(deltaTime, tickActors: true);
+
+    /// <summary>
+    /// 推进 World 生命周期；编辑器预览可传入 <c>false</c>，让 Actor/Component 注册渲染代理但不执行 gameplay Tick。
+    /// </summary>
+    public void Update(float deltaTime, bool tickActors)
     {
         ThrowIfDisposed();
         // 待添加：对副本迭代 + 只移除已处理项；BeginPlay 重入 Add/Remove 不破坏集合（中3）
@@ -108,6 +113,9 @@ public class World : IDisposable
                 _pendingRemoveActors.Remove(actor);
             }
         }
+
+        if (!tickActors)
+            return;
 
         // 更新：副本迭代，回调重入增删不影响本帧集合（中3）
         foreach (var actor in _actors.ToArray())

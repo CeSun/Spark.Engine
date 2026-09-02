@@ -315,7 +315,8 @@ public class EngineApplication
     /// <summary>每逻辑帧更新（子类可覆写；base 负责更新当前世界，需调用 base）。</summary>
     protected virtual void OnUpdate(float deltaTime)
     {
-        WorldContext.ActiveWorld?.Update(deltaTime);
+        if (WorldContext.ActiveWorld is World activeWorld)
+            activeWorld.Update(deltaTime, ReferenceEquals(activeWorld, WorldContext.TickWorld));
         _ticks.Tick(deltaTime);
     }
 

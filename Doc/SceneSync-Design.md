@@ -33,6 +33,7 @@
 - **P9 稳定 ID + 生命周期 diff**：每个场景对象有全局单调 `ProxyId`；渲染侧用「快照 ID 集合 vs 本地
   状态字典」比对得出新增/存活/销毁。
 - **P10 剔除归渲染线程**：逻辑线程提交完整（未剔除）对象集 + bounds，渲染线程按相机剔除。
+- 编辑器预览调用 `World.Update(deltaTime, tickActors: false)`：完成 BeginPlay/代理注册但跳过 Actor/Component gameplay Update；RuntimeWorld 仍使用完整 Tick。
 - **P11 语义手写、样板生成**：component 是唯一权威（字段/默认值/Bounds 规则手写）；proxy/payload/
   快照登记点等传输样板由 SceneGen 源生成器产出。
 
