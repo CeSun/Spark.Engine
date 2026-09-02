@@ -109,7 +109,8 @@ Editor Importer / Cooker
 
 当前已落地：`GltfStaticMeshImporter`（`.gltf` JSON、内嵌/外部 buffer、StaticMesh、节点层级）和
 `WindowsCookBackend`（版本化 `PAK0` 包、AssetGuid/依赖索引、确定性排序、原子写入）。`.scene` 格式当前为
-版本 3，StaticMesh/SkeletalMesh/Material 组件会保存 AssetGuid 引用，LightComponent 状态会随组件保存。
+版本 3，StaticMesh/SkeletalMesh/Material 组件会保存 AssetGuid 引用，LightComponent 状态会随组件保存；
+RuntimeWorld 与 EditorWorld 使用不同的全局 ProxyId，避免渲染实例状态串用。
 GLB、材质/纹理导入以及 ResourceManager 从 `.pak` 的运行时加载仍待实现。
 
 - SkeletalMesh、Skeleton、Animation Clip。

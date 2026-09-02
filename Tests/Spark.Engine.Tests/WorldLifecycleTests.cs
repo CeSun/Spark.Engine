@@ -131,6 +131,18 @@ public sealed class WorldLifecycleTests
         Assert.Same(secondTarget, runtimeCamera[0].RenderTarget);
     }
 
+    [Fact]
+    public void SceneProxyIdsAreUniqueAcrossEditorAndRuntimeScenes()
+    {
+        using var firstScene = new Spark.Engine.Render.Scene(new ResourceManager());
+        using var secondScene = new Spark.Engine.Render.Scene(new ResourceManager());
+        var firstProxy = firstScene.Register(new TestProxy());
+        var secondProxy = secondScene.Register(new TestProxy());
+
+        Assert.NotEqual(0, firstProxy.ProxyId);
+        Assert.NotEqual(firstProxy.ProxyId, secondProxy.ProxyId);
+    }
+
     private sealed class TrackingActor : Actor
     {
         public int BeginCount { get; private set; }
@@ -156,5 +168,10 @@ public sealed class WorldLifecycleTests
         public override Silk.NET.WebGPU.TextureFormat Format => Silk.NET.WebGPU.TextureFormat.Rgba8Unorm;
         public override RenderTargetSession BeginRenderSession() => default;
         public override void Dispose() { }
+    }
+
+    private sealed class TestProxy : Spark.Engine.Render.SceneProxy
+    {
+        public override void Capture(Spark.Engine.Render.SceneSnapshot snapshot) { }
     }
 }

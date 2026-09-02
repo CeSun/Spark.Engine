@@ -4,12 +4,13 @@ namespace Spark.Engine.Render;
 
 /// <summary>
 /// 逻辑线程侧的渲染场景注册表（对应 UE 的 FScene）：持有所有需要进入渲染线程的
-/// <see cref="SceneProxy"/>，分配稳定 ProxyId，每帧把活跃集合序列化为 <see cref="SceneSnapshot"/>。
+/// <see cref="SceneProxy"/>，分配进程内全局单调 ProxyId，每帧把活跃集合序列化为 <see cref="SceneSnapshot"/>。
 /// 与 World 的 Actor 图解耦：任何要渲染/照明的对象在此注册，而非每帧遍历组件临时拼装。
 /// </summary>
 public sealed class Scene : IDisposable
 {
-    private int _nextProxyId;
+    // ProxyId 会作为渲染线程实例状态的 key；编辑 World 与 RuntimeWorld 并存时不能复用 ID。
+    private static int _nextGlobalProxyId;
     private readonly Dictionary<int, SceneProxy> _proxies = new();
     private int _disposed;
 
@@ -28,7 +29,7 @@ public sealed class Scene : IDisposable
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(proxy);
-        proxy.ProxyId = ++_nextProxyId;
+        proxy.ProxyId = Interlocked.Increment(ref _nextGlobalProxyId);
         _proxies.Add(proxy.ProxyId, proxy);
         return proxy;
     }

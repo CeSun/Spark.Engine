@@ -43,7 +43,7 @@
 │  World（Actor → Component）                            │
 │    │ 组件生命周期 BeginPlay/Update/EndPlay（生成）     │
 │    ▼                                                   │
-│  Scene（逻辑侧渲染场景注册表，稳定 ProxyId）           │
+│  Scene（逻辑侧渲染场景注册表，全局单调 ProxyId）        │
 │    └─ SceneProxy：StaticMeshSceneProxy / LightSceneProxy│
 │            │ Capture() 每帧序列化（生成器产出的代理）  │
 │            ▼                                           │
@@ -70,7 +70,7 @@
 ```csharp
 public sealed class Scene
 {
-    private int _nextProxyId;
+    private static int _nextGlobalProxyId;
     private readonly Dictionary<int, SceneProxy> _proxies = new();
 
     public ResourceManager? ResourceManager { get; set; }   // 资源自动上传 + GPU 延迟释放（由组合根接线）
