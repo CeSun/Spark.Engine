@@ -518,9 +518,14 @@ public sealed class EditorUi
     public bool BeginGizmoDrag(Vector2 point, Vector2 viewportSize, CameraComponent camera,
         GizmoSpace space = GizmoSpace.World)
     {
-        if (_context.PlayState != EditorPlayState.Edit || _context.Selection.Selected is not SceneComponent component)
+        var primary = _context.Selection.Selected == null
+            ? null
+            : GetSpatialComponent(_context.Selection.Selected);
+        if (_context.PlayState != EditorPlayState.Edit || primary == null)
             return false;
-        return _gizmo.BeginDrag(component, camera, point, viewportSize, _gizmoOperation, space);
+        var targets = GetTopLevelSelectedSpatialComponents();
+        return targets.Count != 0 &&
+               _gizmo.BeginDrag(primary, targets, camera, point, viewportSize, _gizmoOperation, space);
     }
 
     public bool UpdateGizmoDrag(Vector2 point) => _gizmo.UpdateDrag(point);
@@ -531,7 +536,7 @@ public sealed class EditorUi
         if (command == null)
             return false;
         _context.Execute(command);
-        SetStatus("Gizmo transform changed.");
+        SetStatus(command.Description + ".");
         return true;
     }
 
@@ -557,7 +562,8 @@ public sealed class EditorUi
     {
         if (_cameraController.IsNavigating)
             return;
-        if (_context.PlayState != EditorPlayState.Edit || _context.Selection.Selected is not SceneComponent component)
+        if (_context.PlayState != EditorPlayState.Edit || _context.Selection.Selected == null ||
+            GetSpatialComponent(_context.Selection.Selected) == null)
             return;
         var camera = FindViewportCamera(control.RenderViewId);
         if (camera == null)
@@ -616,6 +622,15 @@ public sealed class EditorUi
             .Cast<SceneComponent>()
             .Distinct()
             .ToArray();
+
+    private IReadOnlyList<SceneComponent> GetTopLevelSelectedSpatialComponents()
+    {
+        var candidates = GetSelectedSpatialComponents();
+        return candidates
+            .Where(candidate => !candidates.Any(other =>
+                !ReferenceEquals(other, candidate) && IsAncestor(other, candidate)))
+            .ToArray();
+    }
 
     private void HandleHierarchyDrop(object draggedTarget, object dropTarget, Vector2 position)
     {
@@ -678,7 +693,10 @@ public sealed class EditorUi
 
     private void PaintGizmoOverlay(UIManager ui, int targetId, UIRect bounds, int renderViewId)
     {
-        if (_context.PlayState != EditorPlayState.Edit || _context.Selection.Selected is not SceneComponent component)
+        var component = _context.Selection.Selected == null
+            ? null
+            : GetSpatialComponent(_context.Selection.Selected);
+        if (_context.PlayState != EditorPlayState.Edit || component == null)
             return;
         var camera = FindViewportCamera(renderViewId);
         if (camera == null || bounds.Width <= 0f || bounds.Height <= 0f)

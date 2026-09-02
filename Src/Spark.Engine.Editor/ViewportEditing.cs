@@ -132,6 +132,74 @@ public sealed class TransformChangeCommand : IEditorCommand
     }
 }
 
+public readonly record struct ComponentTransformSnapshot(
+    SceneComponent Target,
+    Vector3 Location,
+    Quaternion Rotation,
+    Vector3 Scale)
+{
+    public static ComponentTransformSnapshot Capture(SceneComponent target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        return new(target, target.RelativeLocation, target.RelativeRotation, target.RelativeScale);
+    }
+
+    public void Apply()
+    {
+        Target.RelativeLocation = Location;
+        Target.RelativeRotation = Rotation;
+        Target.RelativeScale = Scale;
+    }
+}
+
+/// <summary>把多个组件的一组局部 TRS 变化作为单个可撤销编辑器事务。</summary>
+public sealed class TransformChangeSetCommand : IEditorCommand
+{
+    private readonly IReadOnlyList<ComponentTransformSnapshot> _before;
+    private readonly IReadOnlyList<ComponentTransformSnapshot> _after;
+
+    public string Description => _after.Count == 1 ? "Change Transform" : $"Change {_after.Count} Transforms";
+
+    public TransformChangeSetCommand(
+        IEnumerable<ComponentTransformSnapshot> before,
+        IEnumerable<ComponentTransformSnapshot> after)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(after);
+        _before = before.ToArray();
+        _after = after.ToArray();
+        if (_before.Count == 0 || _before.Count != _after.Count)
+            throw new ArgumentException("Transform snapshots must contain matching non-empty component sets.");
+        for (var index = 0; index < _before.Count; index++)
+        {
+            if (!ReferenceEquals(_before[index].Target, _after[index].Target))
+                throw new ArgumentException("Transform snapshots must use the same component order.");
+        }
+    }
+
+    public void Execute() => Apply(_after, _before);
+
+    public void Undo() => Apply(_before, _after);
+
+    private static void Apply(
+        IReadOnlyList<ComponentTransformSnapshot> values,
+        IReadOnlyList<ComponentTransformSnapshot> rollback)
+    {
+        var completed = 0;
+        try
+        {
+            for (; completed < values.Count; completed++)
+                values[completed].Apply();
+        }
+        catch
+        {
+            for (var index = completed - 1; index >= 0; index--)
+                rollback[index].Apply();
+            throw;
+        }
+    }
+}
+
 public enum GizmoOperation : byte
 {
     Move,
@@ -228,20 +296,19 @@ public readonly record struct GizmoAxisSegment(GizmoAxis Axis, Vector2 Start, Ve
 /// </summary>
 public sealed class TransformGizmoController
 {
-    private SceneComponent? _target;
+    private SceneComponent? _primary;
+    private IReadOnlyList<GizmoTransformTarget> _targets = Array.Empty<GizmoTransformTarget>();
     private CameraComponent? _camera;
     private Vector2 _viewportSize;
     private Vector2 _startPointer;
     private Vector2 _startAxisScreen;
     private Vector2 _pivotScreen;
+    private Vector3 _pivotWorld;
     private Vector3 _axisWorld;
+    private Matrix4x4 _basisRotation = Matrix4x4.Identity;
     private GizmoOperation _operation;
     private GizmoSpace _space;
     private GizmoAxis _axis;
-    private Vector3 _oldLocation;
-    private Quaternion _oldRotation;
-    private Vector3 _oldScale;
-    private Matrix4x4 _oldWorldTransform;
     private bool _dragging;
 
     public TransformSnapSettings SnapSettings { get; } = new();
@@ -296,34 +363,55 @@ public sealed class TransformGizmoController
 
     public bool BeginDrag(SceneComponent target, CameraComponent camera, Vector2 pointer,
         Vector2 viewportSize, GizmoOperation operation, GizmoSpace space, float pixelTolerance = 10f)
+        => BeginDrag(target, new[] { target }, camera, pointer, viewportSize, operation, space, pixelTolerance);
+
+    public bool BeginDrag(SceneComponent primary, IEnumerable<SceneComponent> targets,
+        CameraComponent camera, Vector2 pointer, Vector2 viewportSize,
+        GizmoOperation operation, GizmoSpace space, float pixelTolerance = 10f)
     {
-        var hit = HitTest(target, camera, pointer, viewportSize, space, pixelTolerance);
+        ArgumentNullException.ThrowIfNull(primary);
+        ArgumentNullException.ThrowIfNull(targets);
+        ArgumentNullException.ThrowIfNull(camera);
+        var candidates = targets.Distinct().ToArray();
+        if (!candidates.Contains(primary))
+            throw new ArgumentException("The primary component must be included in the transform targets.", nameof(targets));
+        var topLevelTargets = candidates
+            .Where(candidate => !candidates.Any(other =>
+                !ReferenceEquals(other, candidate) && IsAncestor(other, candidate)))
+            .Select(component => new GizmoTransformTarget(
+                component,
+                ComponentTransformSnapshot.Capture(component),
+                component.WorldTransform))
+            .ToArray();
+        if (topLevelTargets.Length == 0)
+            return false;
+
+        var hit = HitTest(primary, camera, pointer, viewportSize, space, pixelTolerance);
         if (hit is not { } axisHit)
             return false;
 
-        _target = target;
+        _primary = primary;
+        _targets = topLevelTargets;
         _camera = camera;
         _viewportSize = viewportSize;
         _startPointer = pointer;
-        _pivotScreen = Project(target.WorldTransform.Translation, camera, viewportSize);
+        _pivotWorld = primary.WorldTransform.Translation;
+        _pivotScreen = Project(_pivotWorld, camera, viewportSize);
         _axis = axisHit.Axis;
-        _axisWorld = GetAxisWorld(target, _axis, space);
-        var cameraDistance = Vector3.Distance(camera.WorldTransform.Translation, target.WorldTransform.Translation);
-        var axisEnd = Project(target.WorldTransform.Translation + _axisWorld * MathF.Max(0.5f, cameraDistance * 0.18f), camera, viewportSize);
+        _axisWorld = GetAxisWorld(primary, _axis, space);
+        _basisRotation = GetBasisRotation(primary, space);
+        var cameraDistance = Vector3.Distance(camera.WorldTransform.Translation, primary.WorldTransform.Translation);
+        var axisEnd = Project(primary.WorldTransform.Translation + _axisWorld * MathF.Max(0.5f, cameraDistance * 0.18f), camera, viewportSize);
         _startAxisScreen = axisEnd - _pivotScreen;
         _operation = operation;
         _space = space;
-        _oldLocation = target.RelativeLocation;
-        _oldRotation = target.RelativeRotation;
-        _oldScale = target.RelativeScale;
-        _oldWorldTransform = target.WorldTransform;
         _dragging = true;
         return true;
     }
 
     public bool UpdateDrag(Vector2 pointer)
     {
-        if (!_dragging || _target == null || _camera == null)
+        if (!_dragging || _primary == null || _camera == null)
             return false;
 
         var axisPixels = _startAxisScreen.LengthSquared() > 0.0001f ? _startAxisScreen : Vector2.UnitX;
@@ -343,75 +431,86 @@ public sealed class TransformGizmoController
         return true;
     }
 
-    public TransformChangeCommand? EndDrag()
+    public TransformChangeSetCommand? EndDrag()
     {
-        if (!_dragging || _target == null)
+        if (!_dragging || _primary == null)
             return null;
-        var command = new TransformChangeCommand(_target, _oldLocation, _oldRotation, _oldScale,
-            _target.RelativeLocation, _target.RelativeRotation, _target.RelativeScale);
-        _dragging = false;
-        _target = null;
-        _camera = null;
+        var command = new TransformChangeSetCommand(
+            _targets.Select(target => target.Before),
+            _targets.Select(target => ComponentTransformSnapshot.Capture(target.Component)));
+        ResetDrag();
         return command;
     }
 
     public void CancelDrag()
     {
-        if (_target != null)
-        {
-            _target.RelativeLocation = _oldLocation;
-            _target.RelativeRotation = _oldRotation;
-            _target.RelativeScale = _oldScale;
-        }
-        _dragging = false;
-        _target = null;
-        _camera = null;
+        foreach (var target in _targets)
+            target.Before.Apply();
+        ResetDrag();
     }
 
     private void ApplyMove(float scalar)
     {
-        if (_target == null)
-            return;
-        if (_space == GizmoSpace.Local)
+        var delta = _axisWorld * SnapSettings.SnapTranslationDelta(scalar, _axis);
+        ApplyWorldTransforms(oldWorld =>
         {
-            var localAxis = AxisVector(_axis);
-            var snappedScalar = SnapSettings.SnapTranslationDelta(scalar, _axis);
-            _target.RelativeLocation = _oldLocation + localAxis * snappedScalar;
-            return;
-        }
-
-        var desiredWorld = _oldWorldTransform;
-        desiredWorld.Translation += _axisWorld * SnapSettings.SnapTranslationDelta(scalar, _axis);
-        ApplyWorldTransform(_target, desiredWorld);
+            oldWorld.Translation += delta;
+            return oldWorld;
+        });
     }
 
     private void ApplyRotate(Vector2 pointer)
     {
-        if (_target == null)
-            return;
         var start = _startPointer - _pivotScreen;
         var current = pointer - _pivotScreen;
         if (start.LengthSquared() < 0.0001f || current.LengthSquared() < 0.0001f)
             return;
         var angle = MathF.Atan2(start.X * current.Y - start.Y * current.X, Vector2.Dot(start, current));
         angle = SnapSettings.SnapRotationDelta(angle);
-        var rotation = Quaternion.CreateFromAxisAngle(_space == GizmoSpace.Local ? AxisVector(_axis) : _axisWorld, angle);
-        _target.RelativeRotation = Quaternion.Normalize(Quaternion.Concatenate(_oldRotation, rotation));
+        var rotation = Matrix4x4.CreateFromAxisAngle(_axisWorld, angle);
+        var pivot = _pivotWorld;
+        var delta = Matrix4x4.CreateTranslation(-pivot) * rotation * Matrix4x4.CreateTranslation(pivot);
+        ApplyWorldTransforms(oldWorld => oldWorld * delta);
     }
 
     private void ApplyScale(float scalar)
     {
-        if (_target == null)
-            return;
         var factor = MathF.Max(0.01f, 1f + SnapSettings.SnapScaleDelta(scalar, _axis));
-        var scale = _oldScale;
-        switch (_axis)
+        var axisScale = _axis switch
         {
-            case GizmoAxis.X: scale.X *= factor; break;
-            case GizmoAxis.Y: scale.Y *= factor; break;
-            case GizmoAxis.Z: scale.Z *= factor; break;
+            GizmoAxis.X => new Vector3(factor, 1f, 1f),
+            GizmoAxis.Y => new Vector3(1f, factor, 1f),
+            _ => new Vector3(1f, 1f, factor),
+        };
+        var pivot = _pivotWorld;
+        var basis = _basisRotation;
+        var inverseBasis = Matrix4x4.Transpose(basis);
+        var delta = Matrix4x4.CreateTranslation(-pivot) * inverseBasis *
+                    Matrix4x4.CreateScale(axisScale) * basis * Matrix4x4.CreateTranslation(pivot);
+        ApplyWorldTransforms(oldWorld => oldWorld * delta);
+    }
+
+    private static Matrix4x4 GetBasisRotation(SceneComponent primary, GizmoSpace space)
+    {
+        if (space == GizmoSpace.World)
+            return Matrix4x4.Identity;
+        Matrix4x4.Decompose(primary.WorldTransform, out _, out var rotation, out _);
+        return Matrix4x4.CreateFromQuaternion(rotation);
+    }
+
+    private void ApplyWorldTransforms(Func<Matrix4x4, Matrix4x4> transform)
+    {
+        try
+        {
+            foreach (var target in _targets)
+                ApplyWorldTransform(target.Component, transform(target.WorldTransform));
         }
-        _target.RelativeScale = scale;
+        catch
+        {
+            foreach (var target in _targets)
+                target.Before.Apply();
+            throw;
+        }
     }
 
     private static Vector3 GetAxisWorld(SceneComponent target, GizmoAxis axis, GizmoSpace space)
@@ -433,6 +532,26 @@ public sealed class TransformGizmoController
         var socket = target.AttachSocketName == null ? Matrix4x4.Identity : target.AttachParent.GetSocketTransform(target.AttachSocketName, TransformSpace.Local);
         if (Matrix4x4.Invert(parent, out var inverseParent) && Matrix4x4.Invert(socket, out var inverseSocket))
             target.RelativeTransform = desiredWorld * inverseParent * inverseSocket;
+        else
+            throw new InvalidOperationException("Cannot transform a component below a non-invertible parent or socket transform.");
+    }
+
+    private static bool IsAncestor(SceneComponent ancestor, SceneComponent component)
+    {
+        for (var parent = component.AttachParent; parent != null; parent = parent.AttachParent)
+        {
+            if (ReferenceEquals(parent, ancestor))
+                return true;
+        }
+        return false;
+    }
+
+    private void ResetDrag()
+    {
+        _dragging = false;
+        _primary = null;
+        _targets = Array.Empty<GizmoTransformTarget>();
+        _camera = null;
     }
 
     private static Vector2 Project(Vector3 worldPosition, CameraComponent camera, Vector2 viewportSize)
@@ -460,4 +579,9 @@ public sealed class TransformGizmoController
         GizmoAxis.Y => Vector3.UnitY,
         _ => Vector3.UnitZ,
     };
+
+    private readonly record struct GizmoTransformTarget(
+        SceneComponent Component,
+        ComponentTransformSnapshot Before,
+        Matrix4x4 WorldTransform);
 }

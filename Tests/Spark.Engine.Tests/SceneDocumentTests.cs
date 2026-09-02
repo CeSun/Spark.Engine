@@ -952,6 +952,102 @@ public sealed class SceneDocumentTests
         gizmo.CancelDrag();
     }
 
+    [Fact]
+    public void TransformGizmoMovesSelectionAsSingleUndoableCommand()
+    {
+        var camera = new CameraComponent();
+        var primary = new SceneComponent { RelativeLocation = new Vector3(0f, 0f, -4f) };
+        var secondary = new SceneComponent { RelativeLocation = new Vector3(2f, 1f, -4f) };
+        var gizmo = new TransformGizmoController();
+        var size = new Vector2(100f);
+        var xAxis = gizmo.GetAxisSegments(primary, camera, size).Single(segment => segment.Axis == GizmoAxis.X);
+
+        Assert.True(gizmo.BeginDrag(primary, new[] { primary, secondary }, camera,
+            xAxis.End, size, GizmoOperation.Move, GizmoSpace.World));
+        Assert.True(gizmo.UpdateDrag(xAxis.End + (xAxis.End - xAxis.Start)));
+        var command = gizmo.EndDrag();
+
+        Assert.NotNull(command);
+        Assert.Equal(new Vector3(1f, 0f, -4f), primary.RelativeLocation);
+        Assert.Equal(new Vector3(3f, 1f, -4f), secondary.RelativeLocation);
+        var history = new EditorCommandHistory();
+        history.Execute(command!);
+        Assert.Single(history.UndoStack);
+        Assert.True(history.Undo());
+        Assert.Equal(new Vector3(0f, 0f, -4f), primary.RelativeLocation);
+        Assert.Equal(new Vector3(2f, 1f, -4f), secondary.RelativeLocation);
+        Assert.True(history.Redo());
+        Assert.Equal(new Vector3(3f, 1f, -4f), secondary.RelativeLocation);
+    }
+
+    [Fact]
+    public void TransformGizmoRotatesSelectionAroundPrimaryPivot()
+    {
+        var camera = new CameraComponent();
+        var primary = new SceneComponent { RelativeLocation = new Vector3(0f, 0f, -4f) };
+        var secondary = new SceneComponent { RelativeLocation = new Vector3(0f, 1f, -4f) };
+        var gizmo = new TransformGizmoController();
+        var size = new Vector2(100f);
+        var xAxis = gizmo.GetAxisSegments(primary, camera, size).Single(segment => segment.Axis == GizmoAxis.X);
+        var axisLength = Vector2.Distance(xAxis.Start, xAxis.End);
+
+        Assert.True(gizmo.BeginDrag(primary, new[] { primary, secondary }, camera,
+            xAxis.End, size, GizmoOperation.Rotate, GizmoSpace.World));
+        Assert.True(gizmo.UpdateDrag(xAxis.Start + new Vector2(0f, axisLength)));
+
+        AssertVectorNear(new Vector3(0f, 0f, -4f), primary.WorldTransform.Translation);
+        AssertVectorNear(new Vector3(0f, 0f, -3f), secondary.WorldTransform.Translation);
+        gizmo.CancelDrag();
+        Assert.Equal(new Vector3(0f, 1f, -4f), secondary.RelativeLocation);
+    }
+
+    [Fact]
+    public void TransformGizmoScalesSelectionAroundPrimaryPivot()
+    {
+        var camera = new CameraComponent();
+        var primary = new SceneComponent { RelativeLocation = new Vector3(0f, 0f, -4f) };
+        var secondary = new SceneComponent { RelativeLocation = new Vector3(2f, 1f, -4f) };
+        var gizmo = new TransformGizmoController();
+        var size = new Vector2(100f);
+        var xAxis = gizmo.GetAxisSegments(primary, camera, size).Single(segment => segment.Axis == GizmoAxis.X);
+
+        Assert.True(gizmo.BeginDrag(primary, new[] { primary, secondary }, camera,
+            xAxis.End, size, GizmoOperation.Scale, GizmoSpace.World));
+        Assert.True(gizmo.UpdateDrag(xAxis.End + (xAxis.End - xAxis.Start)));
+
+        AssertVectorNear(new Vector3(4f, 1f, -4f), secondary.WorldTransform.Translation);
+        AssertVectorNear(new Vector3(2f, 1f, 1f), primary.RelativeScale);
+        gizmo.CancelDrag();
+    }
+
+    [Fact]
+    public void TransformGizmoDoesNotApplyGroupDeltaTwiceToSelectedDescendant()
+    {
+        var camera = new CameraComponent();
+        var parent = new SceneComponent { RelativeLocation = new Vector3(0f, 0f, -4f) };
+        var child = new SceneComponent { RelativeLocation = new Vector3(2f, 0f, 0f) };
+        child.SetupAttachment(parent);
+        var gizmo = new TransformGizmoController();
+        var size = new Vector2(100f);
+        var xAxis = gizmo.GetAxisSegments(child, camera, size).Single(segment => segment.Axis == GizmoAxis.X);
+
+        Assert.True(gizmo.BeginDrag(child, new[] { parent, child }, camera,
+            xAxis.End, size, GizmoOperation.Move, GizmoSpace.World));
+        Assert.True(gizmo.UpdateDrag(xAxis.End + (xAxis.End - xAxis.Start)));
+
+        Assert.Equal(new Vector3(2f, 0f, 0f), child.RelativeLocation);
+        AssertVectorNear(new Vector3(3f, 0f, -4f), child.WorldTransform.Translation);
+        var command = gizmo.EndDrag();
+        Assert.NotNull(command);
+        Assert.Equal("Change Transform", command!.Description);
+        command.Undo();
+        AssertVectorNear(new Vector3(2f, 0f, -4f), child.WorldTransform.Translation);
+    }
+
+    private static void AssertVectorNear(Vector3 expected, Vector3 actual, float tolerance = 0.001f)
+        => Assert.True(Vector3.Distance(expected, actual) <= tolerance,
+            $"Expected {expected}, actual {actual}.");
+
     private static StaticMesh CreateTestMesh(Vector3 center, float size)
     {
         var vertices = new[]
