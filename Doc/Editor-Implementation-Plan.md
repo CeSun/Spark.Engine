@@ -4,6 +4,8 @@
 
 后续功能的权威实施顺序、开发深度和完成门槛见
 [Editor-Roadmap.md「后续实施序列与开发深度」](./Editor-Roadmap.md#后续实施序列与开发深度)。
+World Outliner 的目标交互、数据边界与分阶段验收见
+[World-Outliner-Functional-Spec.md](./World-Outliner-Functional-Spec.md)。
 本文保留已经落地的架构与里程碑记录，不再为同一功能维护另一套优先级。
 
 编辑器的目标不是展示 World 数据，而是提供可持续使用的场景生产工具。当前已有：

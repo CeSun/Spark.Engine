@@ -13,6 +13,10 @@
 - 编辑器视口相机支持右键飞行、Middle 平移、Alt+Left 轨道、滚轮推拉、`F` 聚焦和 UE 风格 `Ctrl+0..9` 保存/`0..9` 恢复会话书签；相机不再创建 Actor，也不进入 EditorWorld/RuntimeWorld。Reload、Play/Stop 与 RenderTarget resize 均复用同一 Session。Actor 编辑器能力已与 `[SceneTransient]` 分离，运行时辅助 Actor 默认不出现在 Outliner，也不能被用户选择、编辑、删除或复制。
 - World Outliner 已支持名称/类型/组件搜索和 `Show Internal Actors`、`Show Components`、`Only Selected`；内部对象显式显示时使用只读弱化样式，并由通用树控件阻止选择和拖拽。
 
+World Outliner 后续以 [World-Outliner-Functional-Spec.md](./World-Outliner-Functional-Spec.md) 为功能基线：
+先纠正“Actor→Component”树为 UE 风格“Folder→Actor→挂载 Actor”语义，再实现 Folder、临时可见性、
+上下文菜单、行内重命名、搜索语法和列系统。`Show Components` 仅保留为默认关闭的开发者调试视图。
+
 ## 阶段 1：编辑闭环
 
 1. 引入 `IEditorCommand`、命令历史和事务边界，先覆盖属性修改、删除、复制、创建。
@@ -74,7 +78,7 @@ Actor 复制已从空对象占位实现升级为 SceneDocument 边界深复制�
 | ▶ E3 | 缩略图与资源编辑器深化 | L2 | E1 | Texture/Mesh/Material 预览、缓存和失效更新可长期使用 |
 | E4 | 后台导入任务系统 | L3 | E1 | 进度、取消、失败重试、冲突处理和原子输出不阻塞渲染线程 |
 | E5 | glTF/GLB 导入深化 | L2 | E4 | 导入设置、切线、材质和纹理形成完整静态模型资产组 |
-| E6 | 工作区与布局 | L2 | E2、E3 | 分栏/面板状态持久化，布局损坏可恢复默认值 |
+| E6 | 工作区与布局 | L2 | E2、E3 | Outliner O0～O2、分栏/面板状态持久化，布局损坏可恢复默认值 |
 | E7 | 调试与运行工具 | L2 | E6 | Console、日志、性能、RenderGraph/GPU 错误可定位问题 |
 | E8 | 稳定性与规模性能 | L3 | E1～E7 | 自动恢复、增量扫描、虚拟化和大场景基线达标 |
 | E9 | 编辑器扩展 API | L2 | E2～E8 的接口稳定 | 新资源类型或面板不再要求修改核心 `EditorUi` |
@@ -167,6 +171,7 @@ Skeleton、SkeletalMesh、Animation 和 Morph Target 作为独立里程碑，不
 - 分栏尺寸、面板显示状态、活动文档和标签顺序持久化到 `Saved`。
 - 支持基础停靠、关闭/重新打开面板和恢复默认布局；非法或旧版本布局安全回退。
 - 资源编辑器继续使用文档标签；`EditorViewportSession` 已支持多实例，多个 Viewport 的布局和输入焦点在单一布局稳定后再接入。
+- World Outliner 按独立功能规格完成 O0～O2，并将列、过滤、展开和滚动状态接入布局配置。
 
 首轮不做跨操作系统原生浮动窗口和复杂多显示器恢复。
 
