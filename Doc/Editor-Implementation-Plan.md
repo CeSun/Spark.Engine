@@ -16,7 +16,7 @@ EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产、光照状态�
 `RuntimeActorFactory` 已提供自定义组件和 Runtime 行为注册入口；旧的 `RuntimeWorldInitializer` 仅作为兼容接口保留。
 场景层级、Socket 和挂载规则按 [SceneHierarchy-Design.md](./SceneHierarchy-Design.md) 实施，资产格式和 Cook 按
 [AssetPipeline-Design.md](./AssetPipeline-Design.md) 实施。编辑器侧已落地无 GPU 依赖的 glTF 2.0 StaticMesh 导入器，
-支持内嵌/外部 buffer、TRS 节点层级和 TRIANGLES 原语；GLB、骨骼、动画和材质纹理导入仍在后续里程碑。
+基于 SharpGLTF 支持 `.gltf`/`.glb`、内嵌/外部 buffer、TRS 节点层级和 TRIANGLES 原语；骨骼、动画和材质纹理导入仍在后续里程碑。
 
 ## 2. 架构边界
 
@@ -96,7 +96,7 @@ EditorWorld 共享资产、RuntimeWorld 隔离可变材质；不支持的版本�
 
 交付任务：
 
-1. ✅ 资源浏览器首版：基于 `AssetRegistry.Records` 的 `EditorContentBrowserModel` 与底部 `EditorContentBrowserPanel`，支持多级目录树、右侧文件夹项、搜索、类型过滤、刷新、导入状态/GUID/路径详情；双击/回车 StaticMesh 会通过 `CreateActorsCommand` 添加 Actor。资源目录固定为项目 `Content`，启动时扫描其中的 `.asset` 元数据，快捷键为 `Ctrl+Shift+R`。无筛选时默认定位 `Textures`（存在时）并只显示当前目录直接资源，`All Assets` 显示 `Content` 根目录资源和直接子文件夹；启用搜索或类型筛选后递归匹配子目录。当前场景未保存资源通过 `Scene refs: On` 单独查看。新增 `EditorAssetImportService`/`EditorUi.ImportTexture`（PNG/JPG 等 ImageSharp 支持格式）和 `ImportModel`（glTF StaticMesh）入口，导入目标为当前 Content 目录；Windows 桌面可将源文件直接拖入窗口导入。缩略图、引用关系、Windows 文件选择器和拖入 Viewport 待补。
+1. ✅ 资源浏览器首版：基于 `AssetRegistry.Records` 的 `EditorContentBrowserModel` 与底部 `EditorContentBrowserPanel`，支持多级目录树、右侧文件夹项、搜索、类型过滤、刷新、导入状态/GUID/路径详情；双击/回车文件夹会进入目录，激活资源会在中间文档区打开对应的 StaticMesh、Material 或 Texture2D 编辑器标签。资源目录固定为项目 `Content`，启动时扫描其中的 `.asset` 元数据，快捷键为 `Ctrl+Shift+R`。无筛选时默认定位 `Textures`（存在时）并只显示当前目录直接资源，`All Assets` 显示 `Content` 根目录资源和直接子文件夹；启用搜索或类型筛选后递归匹配子目录。当前场景未保存资源通过 `Scene refs: On` 单独查看。新增 `EditorAssetImportService`/`EditorUi.ImportTexture`（PNG/JPG 等 ImageSharp 支持格式）和 `ImportModel`（glTF StaticMesh）入口，导入目标为当前 Content 目录且不会自动创建场景 Actor；Windows 桌面可将源文件直接拖入窗口导入。StaticMesh 可从内容浏览器拖入场景视口，按射线落点和网格吸附创建 Actor，并支持选择及 Undo/Redo。内容浏览器缩略图、引用关系和 Windows 文件选择器待补。
 2. 引用选择器、缩略图、导入任务队列。
 3. Inspector 自定义绘制器和面板注册 API。
 4. 菜单、工具栏、Gizmo 扩展点。

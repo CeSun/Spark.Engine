@@ -81,6 +81,7 @@ public sealed class UITabView : UIElement
             {
                 _selectedIndex = value;
                 RebuildContent();
+                RefreshLayoutFromCurrentBounds();
                 SelectedTabChanged?.Invoke(_selectedIndex >= 0 ? _tabs[_selectedIndex] : null);
             }
         }
@@ -112,9 +113,12 @@ public sealed class UITabView : UIElement
     /// <summary>添加标签页。</summary>
     public void AddTab(UITabItem tab)
     {
+        ArgumentNullException.ThrowIfNull(tab);
         _tabs.Add(tab);
         if (_selectedIndex < 0)
             SelectedIndex = 0;
+        else
+            RefreshLayoutFromCurrentBounds();
     }
 
     /// <summary>移除标签页。</summary>
@@ -123,10 +127,19 @@ public sealed class UITabView : UIElement
         if (index < 0 || index >= _tabs.Count)
             return;
 
+        var removedSelectedTab = index == _selectedIndex;
+        if (index < _selectedIndex)
+            _selectedIndex--;
         _tabs.RemoveAt(index);
         if (_selectedIndex >= _tabs.Count)
             _selectedIndex = _tabs.Count - 1;
         RebuildContent();
+        RefreshLayoutFromCurrentBounds();
+        _hoveredTab = -1;
+        _hoveredClose = -1;
+
+        if (removedSelectedTab)
+            SelectedTabChanged?.Invoke(SelectedTab);
     }
 
     /// <summary>关闭指定标签页。</summary>
@@ -160,6 +173,34 @@ public sealed class UITabView : UIElement
             if (content != null)
                 AddChild(content);
         }
+    }
+
+    private void RefreshLayoutFromCurrentBounds()
+    {
+        MeasureSelectedContent(new UISize(Bounds.Width, Bounds.Height));
+        OnArrange();
+    }
+
+    protected override UISize OnMeasure(UISize availableSize)
+    {
+        // TabView 本身通常是 fill，但当前页仍必须完成 Measure；否则它内部的
+        // Auto/Fixed 子项会保留零 DesiredSize，并在 Arrange 时被误当作 fill。
+        MeasureSelectedContent(availableSize);
+        return base.OnMeasure(availableSize);
+    }
+
+    private void MeasureSelectedContent(UISize availableSize)
+    {
+        if (SelectedTab?.Content is not { } content)
+            return;
+
+        var width = availableSize.Width;
+        var height = availableSize.Height;
+        if (!float.IsPositiveInfinity(width))
+            width = System.Math.Max(0f, width - Padding.Left - Padding.Right);
+        if (!float.IsPositiveInfinity(height))
+            height = System.Math.Max(0f, height - Padding.Top - Padding.Bottom - TabBarHeight);
+        content.Measure(new UISize(width, height));
     }
 
     protected override void OnArrange()
@@ -233,7 +274,9 @@ public sealed class UITabView : UIElement
 
         // 标签
         var textRenderer = GetTextRenderer();
-        for (int i = 0; i < _tabRects.Count; i++)
+        var paintedTabCount = System.Math.Min(_tabs.Count,
+            System.Math.Min(_tabRects.Count, _closeRects.Count));
+        for (int i = 0; i < paintedTabCount; i++)
         {
             var rect = _tabRects[i];
             Vector4 bg = i == _selectedIndex ? SelectedTabColor :
@@ -287,7 +330,9 @@ public sealed class UITabView : UIElement
         _hoveredTab = -1;
         _hoveredClose = -1;
 
-        for (int i = 0; i < _tabRects.Count; i++)
+        var hitTestTabCount = System.Math.Min(_tabs.Count,
+            System.Math.Min(_tabRects.Count, _closeRects.Count));
+        for (int i = 0; i < hitTestTabCount; i++)
         {
             if (_tabRects[i].Contains(position))
             {

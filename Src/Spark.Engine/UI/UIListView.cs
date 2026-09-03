@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using Spark.Engine.Input;
 
@@ -19,6 +20,14 @@ public class UIListItem : UIElement
     public float ItemHeight { get; set; } = 24f;
 
     private bool _hovered;
+    private Vector2 _lastPointerPosition;
+    private Vector2 _pressPosition;
+    private bool _isDragging;
+
+    /// <summary>由所属列表视图注入的点击回调。</summary>
+    internal Action<UIListItem>? Clicked { get; set; }
+    internal Action<UIListItem, Key>? KeyPressed { get; set; }
+    internal Action<UIListItem, Vector2, KeyMask>? DropCompleted { get; set; }
 
     public UIListItem()
     {
@@ -71,6 +80,39 @@ public class UIListItem : UIElement
     {
         _hovered = false;
     }
+
+    protected internal override void OnMouseMove(Vector2 position)
+    {
+        _lastPointerPosition = position;
+    }
+
+    protected internal override void OnMouseDrag(Vector2 position)
+    {
+        _lastPointerPosition = position;
+        if (Vector2.DistanceSquared(_pressPosition, position) >= 16f)
+            _isDragging = true;
+    }
+
+    protected internal override void OnMouseDown(MouseButton button)
+    {
+        if (button != MouseButton.Left)
+            return;
+        _pressPosition = _lastPointerPosition;
+        _isDragging = false;
+    }
+
+    protected internal override void OnMouseUp(MouseButton button, Vector2 position, KeyMask keysDown)
+    {
+        _lastPointerPosition = position;
+        if (button == MouseButton.Left &&
+            (_isDragging || Vector2.DistanceSquared(_pressPosition, position) >= 16f))
+            DropCompleted?.Invoke(this, position, keysDown);
+        _isDragging = false;
+    }
+
+    protected internal override void OnMouseClick() => Clicked?.Invoke(this);
+
+    protected internal override void OnKeyDown(Key key) => KeyPressed?.Invoke(this, key);
 }
 
 /// <summary>
@@ -84,12 +126,20 @@ public sealed class UIListView : UIElement
     private readonly UIScrollBox _scrollBox;
     private readonly UIStackPanel _itemsPanel;
     private readonly List<UIListItem> _items = new();
+    private UIListItem? _lastClickedItem;
+    private long _lastClickTimestamp;
 
     /// <summary>选中项变化回调。</summary>
     public Action<UIListItem?>? SelectionChanged { get; set; }
 
     /// <summary>项点击回调（双击或回车）。</summary>
     public Action<UIListItem>? ItemActivated { get; set; }
+
+    /// <summary>列表项拖拽结束回调；释放位置使用画布坐标，可用于跨控件拖放。</summary>
+    public Action<UIListItem, Vector2, KeyMask>? ItemDropCompleted { get; set; }
+
+    /// <summary>两次点击被识别为双击的最大间隔。</summary>
+    public TimeSpan DoubleClickInterval { get; set; } = TimeSpan.FromMilliseconds(500);
 
     /// <summary>背景色。</summary>
     public Vector4 BackgroundColor
@@ -139,7 +189,12 @@ public sealed class UIListView : UIElement
     /// <summary>添加一个列表项。</summary>
     public UIListItem AddItem(string text)
     {
-        var item = new UIListItem(text);
+        var item = new UIListItem(text)
+        {
+            Clicked = OnItemClicked,
+            KeyPressed = OnItemKeyPressed,
+            DropCompleted = OnItemDropCompleted,
+        };
         _items.Add(item);
         _itemsPanel.AddChild(item);
         return item;
@@ -150,7 +205,12 @@ public sealed class UIListView : UIElement
     {
         if (!_items.Remove(item))
             return false;
+        item.Clicked = null;
+        item.KeyPressed = null;
+        item.DropCompleted = null;
         _itemsPanel.RemoveChild(item);
+        if (ReferenceEquals(_lastClickedItem, item))
+            ResetClickTracking();
         if (SelectedItem == item)
             SelectItem(null);
         return true;
@@ -160,9 +220,51 @@ public sealed class UIListView : UIElement
     public void ClearItems()
     {
         SelectItem(null);
+        foreach (var item in _items)
+        {
+            item.Clicked = null;
+            item.KeyPressed = null;
+            item.DropCompleted = null;
+        }
         _items.Clear();
         _itemsPanel.ClearChildren();
+        ResetClickTracking();
     }
+
+    private void OnItemClicked(UIListItem item)
+    {
+        SelectItem(item);
+
+        var now = Stopwatch.GetTimestamp();
+        var elapsed = _lastClickTimestamp == 0
+            ? TimeSpan.MaxValue
+            : Stopwatch.GetElapsedTime(_lastClickTimestamp, now);
+        if (ReferenceEquals(item, _lastClickedItem) && elapsed <= DoubleClickInterval)
+        {
+            ResetClickTracking();
+            ItemActivated?.Invoke(item);
+            return;
+        }
+
+        _lastClickedItem = item;
+        _lastClickTimestamp = now;
+    }
+
+    private void ResetClickTracking()
+    {
+        _lastClickedItem = null;
+        _lastClickTimestamp = 0;
+    }
+
+    private void OnItemKeyPressed(UIListItem item, Key key)
+    {
+        if (SelectedItem == null)
+            SelectItem(item);
+        OnKeyDown(key);
+    }
+
+    private void OnItemDropCompleted(UIListItem item, Vector2 position, KeyMask keysDown)
+        => ItemDropCompleted?.Invoke(item, position, keysDown);
 
     /// <summary>选中指定项。</summary>
     public void SelectItem(UIListItem? item)

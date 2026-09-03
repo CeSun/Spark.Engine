@@ -1,9 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using Spark.Engine.Actors;
-using Spark.Engine.Components;
 using Spark.Engine.Resources;
-using Spark.Engine.Worlds;
 
 namespace Spark.Engine.Editor;
 
@@ -17,10 +14,9 @@ public sealed class GltfEditorImportResult
 {
     public string SourcePath { get; init; } = string.Empty;
     public IReadOnlyList<ImportedStaticMeshAsset> Assets { get; init; } = Array.Empty<ImportedStaticMeshAsset>();
-    public IReadOnlyList<Actor> Actors { get; init; } = Array.Empty<Actor>();
 }
 
-/// <summary>把 glTF StaticMesh 导入、内部资产落盘、Registry 登记和命令式场景实例创建串成编辑器流程。</summary>
+/// <summary>把 glTF StaticMesh 导入、内部资产落盘和 Registry 登记串成编辑器资源流程。</summary>
 public sealed class GltfImportService
 {
     private readonly GltfStaticMeshImporter _importer;
@@ -39,7 +35,7 @@ public sealed class GltfImportService
         ArgumentException.ThrowIfNullOrWhiteSpace(assetOutputDirectory);
         ArgumentNullException.ThrowIfNull(context);
         if (context.PlayState != EditorPlayState.Edit)
-            throw new InvalidOperationException("Stop Play before importing assets into the editor scene.");
+            throw new InvalidOperationException("Stop Play before importing model assets.");
 
         var import = _importer.Import(sourcePath);
         var importedAssets = new List<ImportedStaticMeshAsset>();
@@ -47,7 +43,6 @@ public sealed class GltfImportService
 
         try
         {
-            var actors = _importer.BuildActors(import);
             var outputDirectory = Path.GetFullPath(assetOutputDirectory);
             Directory.CreateDirectory(outputDirectory);
             var sourceHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(import.SourcePath)));
@@ -77,12 +72,10 @@ public sealed class GltfImportService
                 registeredMeshes.Add(asset.Resource);
             }
 
-            context.Execute(new ImportActorsCommand(context.World, actors));
             return new GltfEditorImportResult
             {
                 SourcePath = import.SourcePath,
                 Assets = importedAssets,
-                Actors = actors,
             };
         }
         catch
@@ -118,61 +111,4 @@ public sealed class GltfImportService
                 $"Import output '{assetPath}' belongs to asset '{existing.AssetGuid}', expected '{expectedGuid}'.");
     }
 
-    private sealed class ImportActorsCommand : IEditorCommand
-    {
-        private readonly World _world;
-        private readonly Actor[] _actors;
-        private readonly AttachmentState[] _attachments;
-
-        public string Description => "Import glTF Actors";
-
-        public ImportActorsCommand(World world, IReadOnlyList<Actor> actors)
-        {
-            _world = world;
-            _actors = actors.ToArray();
-            _attachments = _actors
-                .SelectMany(actor => actor.Components)
-                .OfType<SceneComponent>()
-                .Where(component => component.AttachParent != null)
-                .Select(component => new AttachmentState(
-                    component,
-                    component.AttachParent!,
-                    component.AttachSocketName,
-                    component.RelativeLocation,
-                    component.RelativeRotation,
-                    component.RelativeScale))
-                .ToArray();
-        }
-
-        public void Execute()
-        {
-            foreach (var actor in _actors)
-                _world.AddActor(actor);
-            foreach (var attachment in _attachments)
-                attachment.Restore();
-        }
-
-        public void Undo()
-        {
-            for (var index = _actors.Length - 1; index >= 0; index--)
-                _world.RemoveActor(_actors[index]);
-        }
-    }
-
-    private sealed record AttachmentState(
-        SceneComponent Child,
-        SceneComponent Parent,
-        string? SocketName,
-        System.Numerics.Vector3 RelativeLocation,
-        System.Numerics.Quaternion RelativeRotation,
-        System.Numerics.Vector3 RelativeScale)
-    {
-        public void Restore()
-        {
-            Child.AttachToComponent(Parent, AttachmentTransformRules.KeepRelativeTransform, SocketName);
-            Child.RelativeLocation = RelativeLocation;
-            Child.RelativeRotation = RelativeRotation;
-            Child.RelativeScale = RelativeScale;
-        }
-    }
 }

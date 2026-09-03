@@ -19,6 +19,7 @@ public sealed class EditorUi
     private readonly EditorHierarchyPanel _hierarchy;
     private readonly EditorInspectorPanel _inspector;
     private readonly EditorViewportPanel _viewport;
+    private readonly EditorAssetEditorHost _assetEditorHost;
     private readonly EditorStatusBarPanel _statusBar;
     private readonly EditorToolbarPanel _toolbar;
     private readonly EditorDeleteConfirmationPanel _deleteConfirmation;
@@ -89,7 +90,8 @@ public sealed class EditorUi
         content.AddChild(_hierarchy);
 
         _viewport = new EditorViewportPanel();
-        content.AddChild(_viewport);
+        _assetEditorHost = new EditorAssetEditorHost(_viewport);
+        content.AddChild(_assetEditorHost);
 
         _inspector = new EditorInspectorPanel(RequestPropertyEdit);
         content.AddChild(_inspector);
@@ -98,6 +100,7 @@ public sealed class EditorUi
 
         _contentBrowser = new EditorContentBrowserPanel(_context.AssetRegistry);
         _contentBrowser.AssetActivated += HandleAssetActivated;
+        _contentBrowser.AssetDropped += HandleAssetDropped;
         root.AddChild(_contentBrowser);
 
         _deleteConfirmation = new EditorDeleteConfirmationPanel(ConfirmDeleteSelection);
@@ -187,8 +190,49 @@ public sealed class EditorUi
     public IAssetRegistry AssetRegistry => _context.AssetRegistry;
     /// <summary>内容浏览器查询模型，供宿主扩展拖放、预览或自定义资源操作。</summary>
     public EditorContentBrowserModel ContentBrowser => _contentBrowser.Model;
+    /// <summary>当前已经打开的资源编辑器文档。</summary>
+    public IReadOnlyList<EditorAssetEditorDocument> OpenAssetEditors => _assetEditorHost.Documents;
+    /// <summary>当前激活的资源编辑器；场景视口激活时为 null。</summary>
+    public EditorAssetEditorDocument? ActiveAssetEditor => _assetEditorHost.ActiveDocument;
 
-    /// <summary>导入图片为项目 Content/Textures 下的引擎 Texture2D 资产。</summary>
+    /// <summary>解析指定资源并在中间文档区打开对应类型的资源编辑器。</summary>
+    public bool OpenAssetEditor(Guid assetGuid)
+    {
+        var record = _context.AssetRegistry.Records.FirstOrDefault(candidate => candidate.AssetGuid == assetGuid);
+        if (record == null)
+        {
+            SetStatus($"Asset '{assetGuid}' is not registered.");
+            return false;
+        }
+
+        try
+        {
+            if (!_context.AssetRegistry.TryResolve(assetGuid, out var resource) || resource == null)
+            {
+                SetStatus($"Asset '{assetGuid}' could not be loaded.");
+                return false;
+            }
+
+            var savePath = GetAssetSavePath(record);
+            Action? save = savePath == null ? null : () => SaveAsset(record, resource, savePath);
+            var document = _assetEditorHost.Open(record, resource, save);
+            SetStatus($"Opened {document.Kind} '{document.Title}'.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Asset open failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>关闭指定资源的编辑器标签页。</summary>
+    public bool CloseAssetEditor(Guid assetGuid) => _assetEditorHost.Close(assetGuid);
+
+    /// <summary>切回场景视口标签页。</summary>
+    public void ShowSceneEditor() => _assetEditorHost.ShowScene();
+
+    /// <summary>导入图片为内容浏览器当前目录下的引擎 Texture2D 资产。</summary>
     public AssetRecord ImportTexture(string sourcePath)
     {
         try
@@ -206,7 +250,7 @@ public sealed class EditorUi
         }
     }
 
-    /// <summary>导入 glTF StaticMesh 到项目 Content/Models，并通过编辑器命令创建场景 Actor。</summary>
+    /// <summary>导入 glTF/GLB StaticMesh 到内容浏览器当前目录，不修改当前场景。</summary>
     public GltfEditorImportResult ImportModel(string sourcePath)
     {
         try
@@ -224,7 +268,7 @@ public sealed class EditorUi
         }
     }
 
-    /// <summary>处理平台窗口拖入的源资源；导入后的文件统一落到项目 Content。</summary>
+    /// <summary>处理平台窗口拖入的源资源；导入后的文件落到内容浏览器当前目录。</summary>
     public void HandleFilesDropped(IReadOnlyList<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
@@ -251,6 +295,7 @@ public sealed class EditorUi
                         imported++;
                         break;
                     case ".gltf":
+                    case ".glb":
                         ImportModel(path);
                         imported++;
                         break;
@@ -396,23 +441,40 @@ public sealed class EditorUi
 
     private void HandleAssetActivated(AssetRecord record)
     {
+        OpenAssetEditor(record.AssetGuid);
+    }
+
+    private string? GetAssetSavePath(AssetRecord record)
+    {
+        if (!string.IsNullOrWhiteSpace(record.CookedPath))
+            return Path.GetFullPath(record.CookedPath);
+        if (!string.IsNullOrWhiteSpace(record.LoaderSourcePath))
+            return Path.GetFullPath(record.LoaderSourcePath);
+        if (Project == null || string.IsNullOrWhiteSpace(record.ContentPath))
+            return null;
+
+        var relativePath = record.ContentPath.Replace('/', Path.DirectorySeparatorChar);
+        if (Path.IsPathFullyQualified(relativePath) ||
+            relativePath.Split(Path.DirectorySeparatorChar).Any(segment => segment is "" or "." or ".."))
+            return null;
+        var path = Path.GetFullPath(Path.Combine(Project.ContentDirectory, relativePath));
+        var root = Path.GetFullPath(Project.ContentDirectory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        return path.StartsWith(root, StringComparison.OrdinalIgnoreCase) ? path : null;
+    }
+
+    private void SaveAsset(AssetRecord record, SceneResource resource, string path)
+    {
         try
         {
-            if (!_context.AssetRegistry.TryResolve(record.AssetGuid, out var resource) || resource is not StaticMesh mesh)
-            {
-                SetStatus($"Asset '{record.AssetGuid}' is not a StaticMesh.");
-                return;
-            }
-
-            var actor = new Actor { Name = Path.GetFileNameWithoutExtension(record.SourcePath ?? "StaticMesh") };
-            actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh });
-            _context.Execute(new CreateActorsCommand(_context.World, new[] { actor }));
-            _context.Selection.Selected = actor;
-            SetStatus($"Added StaticMesh '{actor.Name}'.");
+            AssetFileCodec.Save(resource, path);
+            record.MarkImported();
+            _contentBrowser.Refresh();
+            SetStatus($"Saved asset '{EditorContentBrowserModel.GetDisplayName(record)}'.");
         }
         catch (Exception ex)
         {
-            SetStatus($"Asset activation failed: {ex.Message}");
+            SetStatus($"Asset save failed: {ex.Message}");
         }
     }
 
@@ -690,6 +752,64 @@ public sealed class EditorUi
         return hit;
     }
 
+    /// <summary>把 StaticMesh 资产实例化到指定视口位置，并作为一次命令加入当前场景。</summary>
+    public Actor? PlaceAssetInViewport(
+        Guid assetGuid,
+        Vector2 point,
+        Vector2 viewportSize,
+        CameraComponent camera)
+    {
+        ArgumentNullException.ThrowIfNull(camera);
+        if (_context.PlayState != EditorPlayState.Edit)
+        {
+            SetStatus("Stop Play before placing assets in the scene.");
+            return null;
+        }
+        if (!ReferenceEquals(camera.Owner?.World, _context.World))
+        {
+            SetStatus("Viewport camera does not belong to the editor world.");
+            return null;
+        }
+
+        var record = _context.AssetRegistry.Records.FirstOrDefault(item => item.AssetGuid == assetGuid);
+        if (record == null)
+        {
+            SetStatus($"Asset '{assetGuid}' is not registered.");
+            return null;
+        }
+
+        try
+        {
+            if (!_context.AssetRegistry.TryResolve(assetGuid, out var resource) || resource is not StaticMesh mesh)
+            {
+                SetStatus("Only StaticMesh assets can be placed in the viewport.");
+                return null;
+            }
+
+            var location = ViewportPicker.FindPlacementPoint(
+                _context.World, camera, point, viewportSize);
+            location = _gizmo.SnapSettings.SnapTranslationPosition(location);
+            var baseName = Path.GetFileNameWithoutExtension(
+                record.ContentPath ?? record.SourcePath ?? "StaticMesh");
+            var actor = new Actor { Name = NextActorName(baseName) };
+            var component = new StaticMeshComponent
+            {
+                Mesh = mesh,
+                RelativeLocation = location,
+            };
+            actor.AddOwnedComponent(component);
+            _context.Execute(new CreateActorsCommand(_context.World, new[] { actor }));
+            _context.Selection.Selected = actor;
+            SetStatus($"Placed StaticMesh '{baseName}' in the scene.");
+            return actor;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Asset placement failed: {ex.Message}");
+            return null;
+        }
+    }
+
     /// <summary>提交一次可撤销的局部变换修改；Gizmo 拖拽应在释放时调用一次。</summary>
     public bool ApplyRelativeTransform(SceneComponent component, Vector3 location, Quaternion rotation, Vector3 scale)
     {
@@ -795,6 +915,23 @@ public sealed class EditorUi
 
         var localPoint = point - new Vector2(control.Bounds.X, control.Bounds.Y);
         PickViewport(localPoint, new Vector2(control.Bounds.Width, control.Bounds.Height), camera, modifiers);
+    }
+
+    private void HandleAssetDropped(AssetRecord record, Vector2 position)
+    {
+        var control = _renderViewControl;
+        if (control == null || _assetEditorHost.ActiveDocument != null || !control.Bounds.Contains(position))
+            return;
+        var camera = FindViewportCamera(control.RenderViewId);
+        if (camera == null)
+        {
+            SetStatus("No camera is bound to the scene viewport.");
+            return;
+        }
+
+        var localPoint = position - new Vector2(control.Bounds.X, control.Bounds.Y);
+        PlaceAssetInViewport(record.AssetGuid, localPoint,
+            new Vector2(control.Bounds.Width, control.Bounds.Height), camera);
     }
 
     private void HandleViewportPointerPressed(UIRenderView control, Vector2 point)

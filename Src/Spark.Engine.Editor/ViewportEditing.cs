@@ -37,6 +37,39 @@ public static class ViewportPicker
         return nearest;
     }
 
+    /// <summary>
+    /// 计算资源拖入视口时的世界落点：优先使用已有可渲染对象的包围球交点，
+    /// 其次落到 Y=0 地面，最后沿视线使用固定距离。
+    /// </summary>
+    public static Vector3 FindPlacementPoint(
+        World world,
+        CameraComponent camera,
+        Vector2 point,
+        Vector2 viewportSize,
+        float fallbackDistance = 10f)
+    {
+        ArgumentNullException.ThrowIfNull(world);
+        ArgumentNullException.ThrowIfNull(camera);
+        if (viewportSize.X <= 0f || viewportSize.Y <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(viewportSize), "Viewport size must be positive.");
+        if (!float.IsFinite(fallbackDistance) || fallbackDistance <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(fallbackDistance), "Fallback distance must be finite and positive.");
+
+        var ray = CreateRay(camera, point, viewportSize);
+        var hit = Pick(world, camera, point, viewportSize);
+        if (hit is { } existing)
+            return ray.Origin + ray.Direction * existing.Distance;
+
+        if (MathF.Abs(ray.Direction.Y) > 0.000001f)
+        {
+            var distance = -ray.Origin.Y / ray.Direction.Y;
+            if (distance >= 0f)
+                return ray.Origin + ray.Direction * distance;
+        }
+
+        return ray.Origin + ray.Direction * fallbackDistance;
+    }
+
     private static (Vector3 Origin, Vector3 Direction) CreateRay(CameraComponent camera, Vector2 point, Vector2 viewportSize)
     {
         var x = point.X / viewportSize.X * 2f - 1f;
@@ -261,6 +294,14 @@ public sealed class TransformSnapSettings
 
     public float SnapTranslationDelta(float delta, GizmoAxis axis)
         => Enabled ? Snap(delta, GetAxisIncrement(TranslationIncrement, axis)) : delta;
+
+    public Vector3 SnapTranslationPosition(Vector3 position)
+        => Enabled
+            ? new Vector3(
+                Snap(position.X, TranslationIncrement.X),
+                Snap(position.Y, TranslationIncrement.Y),
+                Snap(position.Z, TranslationIncrement.Z))
+            : position;
 
     public float SnapRotationDelta(float radians)
         => Enabled ? Snap(radians, RotationIncrementDegrees * (MathF.PI / 180f)) : radians;

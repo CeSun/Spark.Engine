@@ -1,3 +1,4 @@
+using System.Numerics;
 using Spark.Engine.UI;
 
 namespace Spark.Engine.Editor;
@@ -114,6 +115,11 @@ internal sealed class EditorContentBrowserPanel : UIElement
             else if (_assetItems.TryGetValue(item, out var entry))
                 AssetActivated?.Invoke(entry.Record);
         };
+        _assets.ItemDropCompleted = (item, position, _) =>
+        {
+            if (_assetItems.TryGetValue(item, out var entry))
+                AssetDropped?.Invoke(entry.Record, position);
+        };
         assetColumn.AddChild(_assets);
         _details = new UILabel { Text = "Select an asset to inspect it.", TextColor = theme.TextDimColor, Padding = UIEdgeInsets.HorizontalVertical(4f, 4f) };
         assetColumn.AddChild(_details);
@@ -124,8 +130,10 @@ internal sealed class EditorContentBrowserPanel : UIElement
         Rebuild();
     }
 
-    /// <summary>双击或回车激活资源；宿主可据此接入 StaticMesh 创建/拖放。</summary>
+    /// <summary>双击或回车激活资源；宿主据此打开对应的资源编辑器。</summary>
     public event Action<AssetRecord>? AssetActivated;
+    /// <summary>资源项在画布坐标处释放；文件夹项不会触发。</summary>
+    public event Action<AssetRecord, Vector2>? AssetDropped;
     public EditorContentBrowserModel Model => _model;
 
     private void ToggleSceneReferences()

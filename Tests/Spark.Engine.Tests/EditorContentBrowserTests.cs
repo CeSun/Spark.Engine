@@ -1,4 +1,5 @@
 using Spark.Engine.Editor;
+using Spark.Engine.Input;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Spark.Engine.Resources;
@@ -278,6 +279,93 @@ public sealed class EditorContentBrowserTests
     }
 
     [Fact]
+    public void EditorUiOpensTypedAssetEditorsWithoutCreatingActors()
+    {
+        using var world = new World(new ResourceManager());
+        using var mesh = new StaticMesh(
+            new[]
+            {
+                new StaticMeshVertex(default, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                new StaticMeshVertex(System.Numerics.Vector3.UnitX, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                new StaticMeshVertex(System.Numerics.Vector3.UnitY, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+            },
+            new uint[] { 0, 1, 2 })
+        {
+            AssetGuid = Guid.NewGuid(),
+        };
+        using var material = new Material { AssetGuid = Guid.NewGuid() };
+        using var texture = new Texture2D(1, 1, new byte[] { 255, 0, 0, 255 })
+        {
+            AssetGuid = Guid.NewGuid(),
+        };
+        var editor = new EditorUi(world);
+        editor.AssetRegistry.Register(mesh, sourcePath: "Models/Crate.asset");
+        editor.AssetRegistry.Register(material, sourcePath: "Materials/Crate.asset");
+        editor.AssetRegistry.Register(texture, sourcePath: "Textures/Crate.asset");
+
+        Assert.True(editor.OpenAssetEditor(mesh.AssetGuid));
+        Assert.Equal(EditorAssetEditorKind.StaticMesh, editor.ActiveAssetEditor?.Kind);
+        Assert.True(editor.OpenAssetEditor(material.AssetGuid));
+        Assert.Equal(EditorAssetEditorKind.Material, editor.ActiveAssetEditor?.Kind);
+        Assert.True(editor.OpenAssetEditor(texture.AssetGuid));
+        Assert.Equal(EditorAssetEditorKind.Texture2D, editor.ActiveAssetEditor?.Kind);
+        Assert.Equal(3, editor.OpenAssetEditors.Count);
+        Assert.Empty(world.Actors);
+
+        Assert.True(editor.OpenAssetEditor(mesh.AssetGuid));
+        Assert.Equal(EditorAssetEditorKind.StaticMesh, editor.ActiveAssetEditor?.Kind);
+        Assert.Equal(3, editor.OpenAssetEditors.Count);
+
+        Assert.True(editor.CloseAssetEditor(material.AssetGuid));
+        Assert.Equal(2, editor.OpenAssetEditors.Count);
+        editor.ShowSceneEditor();
+        Assert.Null(editor.ActiveAssetEditor);
+    }
+
+    [Fact]
+    public void EditorUiPlacesStaticMeshInViewportAndSupportsUndoRedo()
+    {
+        using var world = new World(new ResourceManager());
+        using var mesh = new StaticMesh(
+            new[]
+            {
+                new StaticMeshVertex(default, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                new StaticMeshVertex(System.Numerics.Vector3.UnitX, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                new StaticMeshVertex(System.Numerics.Vector3.UnitY, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+            },
+            new uint[] { 0, 1, 2 })
+        {
+            AssetGuid = Guid.NewGuid(),
+        };
+        var cameraActor = new Spark.Engine.Actors.Actor { Name = "Viewport Camera" };
+        var camera = new Spark.Engine.Components.CameraComponent();
+        cameraActor.AddOwnedComponent(camera);
+        world.AddActor(cameraActor);
+        world.Update(0f, tickActors: false);
+        var editor = new EditorUi(world);
+        editor.AssetRegistry.Register(mesh, sourcePath: "Models/Crate.asset", contentPath: "Models/Crate.asset");
+
+        var actor = editor.PlaceAssetInViewport(
+            mesh.AssetGuid, new System.Numerics.Vector2(50f), new System.Numerics.Vector2(100f), camera);
+
+        Assert.NotNull(actor);
+        Assert.Equal("Crate", actor!.Name);
+        Assert.Same(actor, editor.SelectedTarget);
+        Assert.True(editor.IsDirty);
+        Assert.Contains(actor, world.EnumerateActors(includePendingActors: true));
+        var component = Assert.IsType<Spark.Engine.Components.StaticMeshComponent>(actor.RootComponent);
+        Assert.Same(mesh, component.Mesh);
+        Assert.Equal(new System.Numerics.Vector3(0f, 0f, -10f), component.RelativeLocation);
+
+        var control = default(KeyMask);
+        control.Set(Key.LeftControl, true);
+        editor.HandleGlobalKey(Key.Z, control, focusedElement: null);
+        Assert.DoesNotContain(actor, world.EnumerateActors(includePendingActors: true));
+        editor.HandleGlobalKey(Key.Y, control, focusedElement: null);
+        Assert.Contains(actor, world.EnumerateActors(includePendingActors: true));
+    }
+
+    [Fact]
     public void EditorProjectCreatesStandardDirectoriesAndDescriptor()
     {
         var directory = Path.Combine(Path.GetTempPath(), "spark-project-" + Guid.NewGuid().ToString("N"));
@@ -347,6 +435,41 @@ public sealed class EditorContentBrowserTests
             Assert.True(File.Exists(record.CookedPath));
             var model = new EditorContentBrowserModel(registry);
             Assert.Equal(record.AssetGuid, Assert.Single(model.Entries).Record.AssetGuid);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EditorUiImportsTextureIntoCurrentContentDirectory()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "spark-current-texture-import-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var sourcePath = Path.Combine(directory, "source.png");
+            using (var image = new Image<Rgba32>(1, 1))
+            {
+                image[0, 0] = new Rgba32(255, 255, 255, 255);
+                image.SaveAsPng(sourcePath);
+            }
+
+            var project = EditorProject.Open(Path.Combine(directory, "Project"));
+            var targetDirectory = Path.Combine(project.ContentDirectory, "Environment", "Props");
+            Directory.CreateDirectory(targetDirectory);
+            using var world = new World(new ResourceManager());
+            var editor = new EditorUi(world, project: project);
+            editor.ContentBrowser.SelectedDirectory = "Environment/Props";
+
+            var record = editor.ImportTexture(sourcePath);
+
+            Assert.Equal(Path.Combine(targetDirectory, "source.asset"), record.CookedPath);
+            Assert.Equal("Environment/Props/source.asset", record.ContentPath);
+            Assert.True(File.Exists(record.CookedPath));
+            record.Resource?.Dispose();
         }
         finally
         {

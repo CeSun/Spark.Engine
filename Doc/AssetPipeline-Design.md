@@ -148,8 +148,8 @@ Material 当前仍是可变资源，因此 Play 时按 AssetGuid 为每个 Runti
 
 ## 8. 后续扩展
 
-当前已落地：`GltfStaticMeshImporter`（`.gltf` JSON、内嵌/外部 buffer、StaticMesh、节点层级）和
-`GltfImportService`（按“规范化源路径 + mesh index”生成稳定 AssetGuid、写入 `.asset`、登记 Registry、命令式创建 Actor）、
+当前已落地：基于 SharpGLTF 的 `GltfStaticMeshImporter`（`.gltf`/`.glb`、内嵌/外部 buffer、StaticMesh、节点层级）和
+`GltfImportService`（按“规范化源路径 + mesh index”生成稳定 AssetGuid、写入 `.asset`、登记 Registry，导入时不修改场景）、
 `.asset` 首版编解码（StaticMesh、Texture2D 和基础 Material，含材质纹理依赖）、`AssetRegistry`（AssetGuid、来源/依赖/状态、目录扫描和懒加载）、
 `RuntimeActorFactory`（自定义组件和运行时行为注册）和
 `WindowsCookBackend`（版本化 `PAK0` 包、AssetGuid/依赖索引、确定性排序、原子写入）。`.scene` 格式当前为
@@ -160,7 +160,7 @@ RuntimeWorld 与 EditorWorld 使用不同的全局 ProxyId，避免渲染实例�
 `ResourceManager` 共享不可变 Mesh/Texture 资产，避免同一资源被两个管理器重复接管；可变 Material 使用 World 持有的运行时副本。
 `SceneCookService` 已能从场景资产引用构建传递依赖闭包并生成完整 Windows `.pak`；`CookedPackageRuntimeLoader`
 从包内 Registry 解码 StaticMesh/Material/Texture2D，实例化 RuntimeWorld，并把资源生命周期交给 World。
-GLB、材质/纹理导入和平台纹理产物仍待实现。
+材质/纹理导入和平台纹理产物仍待实现。
 
 - SkeletalMesh、Skeleton、Animation Clip。
 - 材质实例和 PBR 参数完整导入。

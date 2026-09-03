@@ -93,6 +93,47 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void Image_PaintUploadsFullResolutionWithUniqueTextureId()
+    {
+        const uint width = 128;
+        const uint height = 96;
+        var rgba = new byte[checked((int)(width * height * 4))];
+        for (var index = 0; index < rgba.Length; index += 4)
+        {
+            rgba[index] = (byte)(index / 4 % 251);
+            rgba[index + 1] = 127;
+            rgba[index + 2] = 255;
+            rgba[index + 3] = 255;
+        }
+        using var image = new UIImage(width, height, rgba)
+        {
+            FixedSize = new UISize(0f, 0f),
+        };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(new UILabel { Text = "Texture preview" });
+        root.AddChild(image);
+        var canvas = new UICanvas(0) { Size = new Vector2(320f, 240f), Root = root };
+        canvas.Update(default, CreateTextRenderer());
+        var ui = new UIManager();
+
+        canvas.Paint(ui);
+
+        var uploads = new List<UITextureUpload>();
+        while (ui.TryDequeueTexture(out var upload))
+            uploads.Add(upload);
+        var imageUpload = Assert.Single(uploads, upload => upload.Width == width && upload.Height == height);
+        Assert.Equal(rgba, imageUpload.Rgba);
+        Assert.Equal(uploads.Count, uploads.Select(upload => upload.Id).Distinct().Count());
+        var imagePrimitive = Assert.Single(ui.Primitives.Span.ToArray(),
+            primitive => primitive.TextureId == imageUpload.Id);
+        Assert.True(imagePrimitive.Rect.Z > 0f);
+        Assert.True(imagePrimitive.Rect.W > 0f);
+
+        image.Dispose();
+        Assert.Equal(1, ui.PendingTextureReleaseCount);
+    }
+
+    [Fact]
     public void TextBox_ExplicitZeroWidth_FillsParentInsteadOfGrowingWithText()
     {
         var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
@@ -186,6 +227,41 @@ public class EditorControlTests
         Assert.True(list.RemoveItem(item));
         Assert.Null(list.SelectedItem);
         Assert.Single(list.Items);
+    }
+
+    [Fact]
+    public void ListView_MouseClickSelectsAndDoubleClickActivatesItem()
+    {
+        var list = new UIListView { FixedSize = new UISize(200f, 80f) };
+        var item = list.AddItem("Open me");
+        var activations = 0;
+        list.ItemActivated = activated =>
+        {
+            Assert.Same(item, activated);
+            activations++;
+        };
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 80f), Root = list };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        ClickListItem(canvas, renderer, new Vector2(60f, 12f));
+
+        Assert.Same(item, list.SelectedItem);
+        Assert.Equal(0, activations);
+
+        ClickListItem(canvas, renderer, new Vector2(60f, 12f));
+
+        Assert.Equal(1, activations);
+    }
+
+    private static void ClickListItem(UICanvas canvas, TextRenderer renderer, Vector2 point)
+    {
+        var left = default(MouseButtonMask);
+        left.Set(MouseButton.Left, true);
+        canvas.Update(new InputState(point, Vector2.Zero, 0f,
+            left, left, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(point, Vector2.Zero, 0f,
+            default, default, left, default, default, default, string.Empty), renderer);
     }
 
     // ———————————— UITreeView ————————————
@@ -320,6 +396,37 @@ public class EditorControlTests
         Assert.Same(target, droppedTarget);
     }
 
+    [Fact]
+    public void ListView_DraggingItemOutsideItsRow_RaisesDropCompletedWithCanvasPosition()
+    {
+        var list = new UIListView { FixedSize = new UISize(200f, 80f) };
+        var item = list.AddItem("StaticMesh");
+        UIListItem? droppedItem = null;
+        var droppedPosition = Vector2.Zero;
+        list.ItemDropCompleted = (source, position, _) =>
+        {
+            droppedItem = source;
+            droppedPosition = position;
+        };
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 80f), Root = list };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+        var buttons = default(MouseButtonMask);
+        buttons.Set(MouseButton.Left, true);
+        var sourcePoint = new Vector2(60f, 12f);
+        var dropPoint = new Vector2(150f, 60f);
+
+        canvas.Update(new InputState(sourcePoint, Vector2.Zero, 0f,
+            buttons, buttons, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(dropPoint, dropPoint - sourcePoint, 0f,
+            buttons, default, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(dropPoint, Vector2.Zero, 0f,
+            default, default, buttons, default, default, default, string.Empty), renderer);
+
+        Assert.Same(item, droppedItem);
+        Assert.Equal(dropPoint, droppedPosition);
+    }
+
     private static void ClickRow(UICanvas canvas, TextRenderer renderer, int row, Key modifier = Key.Unknown)
     {
         var point = new Vector2(60f, row * 24f + 12f);
@@ -360,6 +467,48 @@ public class EditorControlTests
         tab.CloseTab(0);
         Assert.Single(tab.Tabs);
         Assert.Equal("Two", tab.Tabs[0].Title);
+    }
+
+    [Fact]
+    public void TabView_CloseAfterLayout_CanPaintInSameFrame()
+    {
+        var tabs = new UITabView();
+        tabs.AddTab(new UITabItem("Scene", new UIPanel()));
+        tabs.AddTab(new UITabItem("Asset A", new UIPanel(), canClose: true));
+        tabs.AddTab(new UITabItem("Asset B", new UIPanel(), canClose: true));
+        tabs.Measure(new UISize(600f, 400f));
+        tabs.Arrange(new UIRect(0f, 0f, 600f, 400f));
+        tabs.SelectedIndex = 1;
+
+        tabs.CloseTab(1);
+
+        var ui = new UIManager();
+        tabs.Paint(ui, 0);
+        Assert.Equal(2, tabs.Tabs.Count);
+        Assert.Equal("Asset B", tabs.SelectedTab?.Title);
+        Assert.NotEmpty(ui.Primitives.Span.ToArray());
+    }
+
+    [Fact]
+    public void TabView_MeasuresSelectedContentBeforeArrange()
+    {
+        var content = new UIStackPanel
+        {
+            Orientation = UIOrientation.Vertical,
+            FixedSize = new UISize(0f, 0f),
+        };
+        var title = new UIPanel { FixedSize = new UISize(0f, 24f) };
+        var viewport = new UIPanel { FixedSize = new UISize(0f, 0f) };
+        content.AddChild(title);
+        content.AddChild(viewport);
+        var tabs = new UITabView { FixedSize = new UISize(0f, 0f) };
+        tabs.AddTab(new UITabItem("Scene", content));
+
+        tabs.Measure(new UISize(600f, 400f));
+        tabs.Arrange(new UIRect(0f, 0f, 600f, 400f));
+
+        Assert.Equal(24f, title.Bounds.Height);
+        Assert.Equal(346f, viewport.Bounds.Height);
     }
 
     // ———————————— UISplitPanel ————————————

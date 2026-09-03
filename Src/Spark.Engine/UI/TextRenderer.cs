@@ -24,7 +24,6 @@ public sealed class TextRenderer
     // 使纹理内的墨水像素落到 position 处（与文本逻辑原点一致）。详见 CreateTexture。
     private readonly Dictionary<int, Vector2> _textureOffsets = new();
     private readonly Dictionary<int, uint> _lastUsedFrame = new();
-    private int _nextTextureId = 1;
     private uint _frame;
 
     private const int MaxCachedTextures = 512;
@@ -230,7 +229,7 @@ public sealed class TextRenderer
         // 与「position 为行框左上角」的语义一致。
         var offset = new Vector2(left - 1f, top - 1f);
 
-        int id = _nextTextureId++;
+        int id = ui.AllocateTextureId();
         _textureSizes[id] = new Vector2(width, height);
         _textureOffsets[id] = offset;
         ui.EnqueueTexture(new UITextureUpload(id, (uint)width, (uint)height, rgba));

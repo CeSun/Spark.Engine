@@ -401,7 +401,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 ### P3 —— 引擎完善
 
-9. **资产管线完善**：`.gltf` StaticMesh 编辑器导入、Asset Registry、Scene 依赖 Cook 和运行时 `.pak` 加载已完成；GLB/材质纹理导入待补，后续再做异步/增量 Cook
+9. **资产管线完善**：`.gltf`/`.glb` StaticMesh 编辑器导入、Asset Registry、Scene 依赖 Cook 和运行时 `.pak` 加载已完成；材质纹理导入待补，后续再做异步/增量 Cook
 10. **`ViewportRect` 分屏 / 编辑器多视图**：一个 surface 渲染多个子视口
 11. **PresentMode 可配置**：VSync 开关由 `EngineOptions` 暴露
 12. **surface lost 完整恢复**：当前跳帧+重配，需更完整策略
@@ -498,19 +498,25 @@ builder.UseEditor(
 
 ```csharp
 editorUi.ImportTexture(sourceImagePath); // 当前 Content 目录下的 *.asset
-editorUi.ImportModel(sourceGltfPath);   // 当前 Content 目录下的 *.asset + 场景 Actor
+editorUi.ImportModel(sourceModelPath);  // .gltf/.glb -> 当前 Content 目录下的 *.asset
 ```
 
+模型导入只生成并登记 StaticMesh 资产，不会向当前场景自动添加 Actor，也不会污染场景撤销栈。
 导入不会自动创建 `Textures` 或 `Models` 子目录。Content Browser 选中哪个目录，资源就写入
 哪个目录；支持 `Environment/Props` 这样的多级目录，未选择子目录时写入 `Content/` 根目录。
 默认只显示当前文件夹的直接资源；启用搜索或类型筛选后，会在当前文件夹及其子文件夹中匹配。
 因此点击 `All Assets` 时，资源列表只显示 `Content/` 根目录文件，`Textures` 等子目录通过左侧目录树显示；
 启用筛选后才会递归显示子目录中的匹配资源。
 右侧列表同时显示当前目录的直接子文件夹；双击文件夹可进入该目录，目录层级与左侧树保持同步。
+双击资源（或选中后按回车）会在中间文档区打开对应的 StaticMesh、Material 或 Texture2D
+编辑器标签；同一资源只打开一个标签，再次激活时会切换到已有标签。Texture2D 编辑器按原始
+分辨率上传预览纹理，并保持宽高比适配可用区域。
+StaticMesh 可从内容浏览器拖入场景视口：编辑器优先使用已有物体交点，其次使用地面交点，
+最后沿视线放置；落点遵循当前平移网格吸附，创建后自动选中，并纳入场景 Undo/Redo。
 首次打开且没有任何筛选条件时，如果存在 `Textures` 目录，默认定位到该目录；用户手动选择
 其他目录后保持用户选择。
 
-当前图片导入使用 ImageSharp 支持的格式，模型导入首期支持 glTF StaticMesh；可直接将这些
+当前图片导入使用 ImageSharp 支持的格式，模型导入支持 `.gltf`/`.glb` StaticMesh；可直接将这些
 原始文件拖入编辑器窗口触发导入。原始格式
 不会被项目内容索引直接扫描，只有导入后生成的引擎 `.asset` 文件会出现在 Content Browser。
 Windows 原生

@@ -17,6 +17,7 @@ public sealed class UIManager
     private readonly Dictionary<int, UICanvas> _canvases = new();
     private readonly ConcurrentQueue<UITextureUpload> _pendingTextures = new();
     private readonly ConcurrentQueue<int> _pendingTextureReleases = new();
+    private int _nextTextureId;
     // 按 targetId 隔离的裁剪栈：多窗口/多 overlay pass 时不会互相污染 push/pop 状态。
     private readonly Dictionary<int, Stack<UIRect>> _clipStacks = new();
     private TextRenderer? _text;
@@ -177,6 +178,34 @@ public sealed class UIManager
 
     /// <summary>逻辑线程：排队一个 UI 纹理待渲染线程上传。</summary>
     public void EnqueueTexture(UITextureUpload upload) => _pendingTextures.Enqueue(upload);
+
+    /// <summary>分配进程内当前 UIManager 唯一的正纹理 ID。</summary>
+    internal int AllocateTextureId()
+    {
+        var id = Interlocked.Increment(ref _nextTextureId);
+        if (id <= 0)
+            throw new InvalidOperationException("UI texture ID space is exhausted.");
+        return id;
+    }
+
+    /// <summary>绘制一张已上传的 UI 纹理。</summary>
+    public void DrawTexture(int targetId, int textureId, Vector2 position, Vector2 size, Vector4 color)
+    {
+        if (textureId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(textureId));
+        var clip = CurrentClip(targetId);
+        _primitives.Add(new UIPrimitive
+        {
+            TargetId = targetId,
+            Rect = new Vector4(position.X, position.Y, size.X, size.Y),
+            UV = new Vector4(0f, 0f, 1f, 1f),
+            Color = color,
+            TextureId = textureId,
+            ScissorRect = clip.HasValue
+                ? new Vector4(clip.Value.X, clip.Value.Y, clip.Value.Width, clip.Value.Height)
+                : default,
+        });
+    }
 
     /// <summary>逻辑线程：排队释放已从文本缓存淘汰的纹理。</summary>
     internal void EnqueueTextureRelease(int textureId) => _pendingTextureReleases.Enqueue(textureId);
