@@ -18,7 +18,10 @@ public enum EditorOutlinerWorldSource
     EditorWorld,
 }
 
-public sealed record EditorOutlinerCustomFilter(string Name, string Query, List<string> ActorTypes);
+public sealed record EditorOutlinerCustomFilter(string Name, string Query, List<string> ActorTypes)
+{
+    public List<string> ExtensionFilterIds { get; init; } = [];
+}
 
 /// <summary>一个 Outliner 实例独占的查询、列、排序和导航状态。</summary>
 public sealed class EditorOutlinerViewState
@@ -37,6 +40,8 @@ public sealed class EditorOutlinerViewState
     public float SocketColumnWidth { get; set; } = 90f;
     public float IdColumnWidth { get; set; } = 88f;
     public EditorOutlinerColumn SortColumn { get; set; } = EditorOutlinerColumn.Label;
+    /// <summary>非内置列的排序 ID；为空时沿用旧版 SortColumn，兼容已有项目配置。</summary>
+    public string? ExtensionSortColumnId { get; set; }
     public bool SortAscending { get; set; } = true;
     public float ScrollOffsetX { get; set; }
     public float ScrollOffsetY { get; set; }
@@ -48,6 +53,89 @@ public sealed class EditorOutlinerViewState
     public float RuntimeScrollOffsetX { get; set; }
     public float RuntimeScrollOffsetY { get; set; }
     public List<EditorOutlinerCustomFilter> CustomFilters { get; set; } = [];
+    public Dictionary<string, bool> ExtensionColumnVisibility { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, float> ExtensionColumnWidths { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> EnabledExtensionFilters { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string SortColumnId
+    {
+        get => string.IsNullOrWhiteSpace(ExtensionSortColumnId)
+            ? SortColumn switch
+            {
+                EditorOutlinerColumn.Type => EditorOutlinerColumnIds.Type,
+                EditorOutlinerColumn.Socket => EditorOutlinerColumnIds.Socket,
+                EditorOutlinerColumn.Id => EditorOutlinerColumnIds.Id,
+                _ => EditorOutlinerColumnIds.Label,
+            }
+            : ExtensionSortColumnId;
+        set
+        {
+            var normalized = EditorOutlinerColumnDescriptor.ValidateId(value);
+            ExtensionSortColumnId = normalized switch
+            {
+                EditorOutlinerColumnIds.Label => SetBuiltInSort(EditorOutlinerColumn.Label),
+                EditorOutlinerColumnIds.Type => SetBuiltInSort(EditorOutlinerColumn.Type),
+                EditorOutlinerColumnIds.Socket => SetBuiltInSort(EditorOutlinerColumn.Socket),
+                EditorOutlinerColumnIds.Id => SetBuiltInSort(EditorOutlinerColumn.Id),
+                _ => normalized,
+            };
+        }
+    }
+
+    public bool IsColumnVisible(EditorOutlinerColumnDescriptor column)
+        => column.Id switch
+        {
+            EditorOutlinerColumnIds.Label => true,
+            EditorOutlinerColumnIds.Type => ShowTypeColumn,
+            EditorOutlinerColumnIds.Socket => ShowSocketColumn,
+            EditorOutlinerColumnIds.Id => ShowIdColumn,
+            _ => ExtensionColumnVisibility.TryGetValue(column.Id, out var visible)
+                ? visible : column.DefaultVisible,
+        };
+
+    public void SetColumnVisible(EditorOutlinerColumnDescriptor column, bool visible)
+    {
+        switch (column.Id)
+        {
+            case EditorOutlinerColumnIds.Type: ShowTypeColumn = visible; break;
+            case EditorOutlinerColumnIds.Socket: ShowSocketColumn = visible; break;
+            case EditorOutlinerColumnIds.Id: ShowIdColumn = visible; break;
+            case EditorOutlinerColumnIds.Label: break;
+            default: ExtensionColumnVisibility[column.Id] = visible; break;
+        }
+    }
+
+    public float GetColumnWidth(EditorOutlinerColumnDescriptor column)
+        => column.Id switch
+        {
+            EditorOutlinerColumnIds.Type => TypeColumnWidth,
+            EditorOutlinerColumnIds.Socket => SocketColumnWidth,
+            EditorOutlinerColumnIds.Id => IdColumnWidth,
+            _ => ExtensionColumnWidths.TryGetValue(column.Id, out var width)
+                ? width : column.DefaultWidth,
+        };
+
+    public void SetColumnWidth(EditorOutlinerColumnDescriptor column, float width)
+    {
+        width = System.Math.Clamp(width, 48f, 320f);
+        switch (column.Id)
+        {
+            case EditorOutlinerColumnIds.Type: TypeColumnWidth = width; break;
+            case EditorOutlinerColumnIds.Socket: SocketColumnWidth = width; break;
+            case EditorOutlinerColumnIds.Id: IdColumnWidth = width; break;
+            default: ExtensionColumnWidths[column.Id] = width; break;
+        }
+    }
+
+    private string? SetBuiltInSort(EditorOutlinerColumn column)
+    {
+        SortColumn = column;
+        return null;
+    }
 }
 
 public sealed class EditorOutlinerViewStateStore
@@ -117,16 +205,29 @@ public sealed class EditorOutlinerViewStateStore
         state.ActorExpansion ??= [];
         state.FolderExpansion ??= [];
         state.RuntimeActorExpansion ??= [];
+        state.ExtensionColumnVisibility = new Dictionary<string, bool>(
+            state.ExtensionColumnVisibility ?? [], StringComparer.OrdinalIgnoreCase);
+        state.ExtensionColumnWidths = new Dictionary<string, float>(
+            state.ExtensionColumnWidths ?? [], StringComparer.OrdinalIgnoreCase);
+        state.EnabledExtensionFilters = new HashSet<string>(
+            state.EnabledExtensionFilters ?? [], StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(state.ExtensionSortColumnId))
+            state.ExtensionSortColumnId = EditorOutlinerColumnDescriptor.ValidateId(state.ExtensionSortColumnId);
         state.CustomFilters = (state.CustomFilters ?? [])
             .Where(filter => filter != null)
             .Select(filter => new EditorOutlinerCustomFilter(
                 filter.Name ?? string.Empty,
                 filter.Query ?? string.Empty,
-                filter.ActorTypes ?? []))
+                filter.ActorTypes ?? [])
+            {
+                ExtensionFilterIds = filter.ExtensionFilterIds ?? [],
+            })
             .ToList();
         state.TypeColumnWidth = NormalizeWidth(state.TypeColumnWidth, 92f);
         state.SocketColumnWidth = NormalizeWidth(state.SocketColumnWidth, 90f);
         state.IdColumnWidth = NormalizeWidth(state.IdColumnWidth, 88f);
+        foreach (var columnId in state.ExtensionColumnWidths.Keys.ToArray())
+            state.ExtensionColumnWidths[columnId] = NormalizeWidth(state.ExtensionColumnWidths[columnId], 90f);
         state.ScrollOffsetX = System.Math.Max(0f, state.ScrollOffsetX);
         state.ScrollOffsetY = System.Math.Max(0f, state.ScrollOffsetY);
         state.RuntimeScrollOffsetX = System.Math.Max(0f, state.RuntimeScrollOffsetX);

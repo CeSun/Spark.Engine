@@ -1,6 +1,6 @@
 # Spark.Editor World Outliner 功能规格
 
-> 状态：O0、O1、O2、O3 已完成，O4 待实施
+> 状态：O0–O4 已完成；Level Instance 的加载语义随子场景系统后续实施
 >
 > 日期：2026-09-03
 >
@@ -64,6 +64,9 @@ Spark 在 E6 工作区阶段应提供 UE 风格默认布局；在停靠系统完
 | 拖放 | Actor→Actor/Folder/空白、Folder→Folder/空白、Asset→Folder | 挂载、组织和创建三类语义明确区分 | O1 已完成 |
 | Play | 默认展示 Active RuntimeWorld，可切 EditorWorld；PIE 行与只读状态明确 | 默认浏览 ActiveWorld，并标识运行时生成对象 | O3 已完成 |
 | 性能 | 整数版本空闲刷新、节点/搜索记录复用、批量建树和可视行虚拟化 | 增量模型、虚拟化、稳定滚动与选择 | O3 已完成 |
+| 多实例 | 标签页式最多四个实例，独立查询/列/展开/滚动/数据源 | 最多四个实例，共享 World 与选择 | O4 已完成 |
+| 扩展 | 稳定 ID 的节点提供器、列、过滤器和上下文动作注册表 | UI 不依赖插件具体 Actor 类型 | O4 已完成 |
+| 世界组织 | Scene v7 保存 Level/Data Layer/未加载 Actor descriptor | 不把组织元数据伪装为 Folder/Actor | O4 基础完成 |
 | 内部对象 | 可过滤显示，显示后只读 | 保留为 Spark 调试扩展，默认关闭 | 合理扩展 |
 
 ## 4. 目标界面
@@ -223,7 +226,8 @@ P2 最小语法：
 - `"Sky Light"`：完整短语匹配。
 - `type:Camera`、`folder:Lighting`、`id:<guid>`：字段查询。
 
-匹配源包含 Actor Label、Actor 类型、Folder 路径和所有已注册列，即使该列当前隐藏。Component 类型不再作为
+匹配源包含 Actor Label、Actor 类型、Folder 路径和所有已注册且可检索的列，即使该列当前隐藏。扩展列的稳定
+ID 同时成为字段名，例如 `owner.team:lighting`。Component 类型不再作为
 默认隐式搜索源；后续如需搜索 Component，应通过 `component:CameraComponent` 显式查询。
 
 过滤时显示所有匹配节点的必要祖先，但不改变持久展开状态。清空搜索恢复过滤前的展开、滚动和选择位置。
@@ -276,6 +280,17 @@ P2 最小语法：
 
 多个 Outliner 实例必须拥有独立 ViewState，不能共享搜索、列、展开或滚动状态；它们可以共享底层只读模型和
 EditorSelection。
+
+### 9.1 高级组织元数据
+
+- `SceneDocument` v7 新增 Editor Level、Data Layer、Actor 归属和未加载 Actor descriptor；v5/v6 继续可读。
+- `EditorLevelGuid == null` 表示隐式 `Persistent Level`，旧场景无需批量迁移。
+- Data Layer 是 Actor 的多对多编辑器标签，不参与 Transform，也不在当前阶段提供流送开关。
+- 未加载 Actor 只有稳定 ActorGuid、Label、Type、Level/Data Layer 元数据；Outliner 以 `UNLOADED` 只读行展示，
+  不创建 Actor 实例，不进入 RuntimeWorld，也不能执行变换或场景编辑命令。
+- Level 与 Data Layer 作为默认关闭的信息列接入通用列注册机制。
+- Level Instance 仍依赖子场景资产引用、加载生命周期和实例 Transform；这些语义在子场景系统落地前不提供
+  占位 Actor 或误导性的编辑命令。
 
 ## 10. 实现边界
 
@@ -352,11 +367,16 @@ UITreeView / UITableTree     虚拟化行、列、行内编辑、上下文菜单
 `StructureRevision`；Outliner 空闲帧只比较整数版本。树保留完整逻辑节点用于键盘导航，但 UI 树只挂载视口附近
 的行。Play 与 Edit 分别保存选择、Actor 展开和滚动状态，Stop 前清除运行时对象引用并恢复编辑选择。
 
-### O4：高级世界组织（后续）
+### ✅ O4：高级世界组织（已完成基础设施）
 
-- 多 Outliner 实例。
-- Level、Level Instance、Data Layer、未加载 Actor。
-- 可注册节点类型、列、过滤器和上下文菜单扩展点。
+1. ✅ 标签页式最多四个 Outliner 实例；每个实例使用 `primary` / `secondary-1..3` 独立持久化槽位。
+2. ✅ 可注册节点提供器、列、过滤器和上下文动作；扩展异常不破坏内置 Actor/Folder 树。
+3. ✅ SceneDocument v7 的 Level、Data Layer、Actor 归属和未加载 Actor descriptor 往返兼容。
+4. ✅ Level/Data Layer 可检索列与 `UNLOADED` 只读节点；RuntimeWorld 忽略全部纯编辑器组织元数据。
+5. ⏳ Level Instance 等待子场景系统提供资源引用、加载生命周期和 Transform 语义后实施。
+
+验收：四个实例的搜索与列状态互不覆盖；注册列可排序并在隐藏时参与搜索；Play 只读状态会禁用扩展修改动作；
+v5/v6 场景升级到 v7 后仍使用隐式 Persistent Level；未加载 descriptor 不实例化进 RuntimeWorld。
 
 ## 12. 首轮非目标
 
@@ -364,4 +384,4 @@ UITreeView / UITableTree     虚拟化行、列、行内编辑、上下文菜单
 - 不把 Details 的 Component 树复制到 Outliner。
 - 不把 Folder 实现为特殊 Actor。
 - 不把临时 Eye 状态写成运行时可见性属性。
-- 不在停靠框架完成前投入复杂浮动窗口和四 Outliner 实例。
+- 不在停靠框架完成前投入复杂浮动/停靠窗口；四实例先使用同一面板内的轻量标签页。

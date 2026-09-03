@@ -19,6 +19,20 @@ public sealed class EditorActorFolder
     }
 }
 
+/// <summary>编辑器 Level 元数据；Guid 为空的 Actor 隐式属于 Persistent Level。</summary>
+public sealed record EditorWorldLevel(Guid LevelGuid, string Name);
+
+/// <summary>编辑器 Data Layer 元数据；Actor 可以同时属于多个 Data Layer。</summary>
+public sealed record EditorWorldDataLayer(Guid DataLayerGuid, string Name);
+
+/// <summary>未加载 Actor 的轻量描述；它没有可编辑 Actor 实例，也不进入 RuntimeWorld。</summary>
+public sealed record EditorUnloadedActorDescriptor(
+    Guid ActorGuid,
+    string Label,
+    string ActorType,
+    Guid? LevelGuid,
+    IReadOnlyList<Guid> DataLayerGuids);
+
 public enum EditorVisibilityState
 {
     Visible,
@@ -37,6 +51,11 @@ public sealed class EditorWorldOutlinerData
     private readonly List<EditorActorFolder> _folders = [];
     private readonly Dictionary<Guid, Guid> _actorFolders = [];
     private readonly HashSet<Guid> _temporarilyHiddenActors = [];
+    private readonly List<EditorWorldLevel> _levels = [];
+    private readonly List<EditorWorldDataLayer> _dataLayers = [];
+    private readonly List<EditorUnloadedActorDescriptor> _unloadedActors = [];
+    private readonly Dictionary<Guid, Guid> _actorLevels = [];
+    private readonly Dictionary<Guid, HashSet<Guid>> _actorDataLayers = [];
 
     public static EditorWorldOutlinerData For(World world)
         => WorldData.GetValue(world ?? throw new ArgumentNullException(nameof(world)), key => new(key));
@@ -44,6 +63,9 @@ public sealed class EditorWorldOutlinerData
     private EditorWorldOutlinerData(World world) => _world = world;
 
     public IReadOnlyList<EditorActorFolder> Folders => _folders;
+    public IReadOnlyList<EditorWorldLevel> Levels => _levels;
+    public IReadOnlyList<EditorWorldDataLayer> DataLayers => _dataLayers;
+    public IReadOnlyList<EditorUnloadedActorDescriptor> UnloadedActors => _unloadedActors;
     public Guid? CurrentFolderGuid { get; private set; }
     public long Revision { get; private set; }
     public event Action? Changed;
@@ -55,6 +77,25 @@ public sealed class EditorWorldOutlinerData
         => _actorFolders.TryGetValue(actorGuid, out var folderGuid) && FindFolder(folderGuid) != null
             ? folderGuid
             : null;
+
+    public Guid? GetActorLevel(Guid actorGuid)
+        => _actorLevels.TryGetValue(actorGuid, out var levelGuid) &&
+           _levels.Any(level => level.LevelGuid == levelGuid) ? levelGuid : null;
+
+    public IReadOnlyList<Guid> GetActorDataLayers(Guid actorGuid)
+        => _actorDataLayers.TryGetValue(actorGuid, out var layers)
+            ? layers.OrderBy(value => value).ToArray()
+            : Array.Empty<Guid>();
+
+    public string GetActorLevelName(Guid actorGuid)
+        => GetActorLevel(actorGuid) is { } levelGuid
+            ? _levels.First(level => level.LevelGuid == levelGuid).Name
+            : "Persistent Level";
+
+    public string GetActorDataLayerNames(Guid actorGuid)
+        => string.Join(", ", GetActorDataLayers(actorGuid)
+            .Select(id => _dataLayers.FirstOrDefault(layer => layer.DataLayerGuid == id)?.Name)
+            .Where(name => name != null));
 
     public bool IsActorTemporarilyHidden(Guid actorGuid) => _temporarilyHiddenActors.Contains(actorGuid);
 
@@ -198,10 +239,19 @@ public sealed class EditorWorldOutlinerData
     }
 
     internal void RestorePersistentData(IEnumerable<EditorActorFolder> folders,
-        IEnumerable<(Guid ActorGuid, Guid? FolderGuid)> actorFolders)
+        IEnumerable<(Guid ActorGuid, Guid? FolderGuid)> actorFolders,
+        IEnumerable<EditorWorldLevel>? levels = null,
+        IEnumerable<EditorWorldDataLayer>? dataLayers = null,
+        IEnumerable<(Guid ActorGuid, Guid? LevelGuid, IReadOnlyList<Guid> DataLayerGuids)>? actorOrganization = null,
+        IEnumerable<EditorUnloadedActorDescriptor>? unloadedActors = null)
     {
         _folders.Clear();
         _actorFolders.Clear();
+        _levels.Clear();
+        _dataLayers.Clear();
+        _actorLevels.Clear();
+        _actorDataLayers.Clear();
+        _unloadedActors.Clear();
         foreach (var folder in folders)
         {
             if (folder.FolderGuid == Guid.Empty || string.IsNullOrWhiteSpace(folder.Name) ||
@@ -217,7 +267,62 @@ public sealed class EditorWorldOutlinerData
             if (folderGuid.HasValue)
                 _actorFolders[actorGuid] = folderGuid.Value;
         }
+        RestoreWorldOrganization(levels ?? [], dataLayers ?? [], actorOrganization ?? [], unloadedActors ?? []);
         NotifyChanged();
+    }
+
+    private void RestoreWorldOrganization(IEnumerable<EditorWorldLevel> levels,
+        IEnumerable<EditorWorldDataLayer> dataLayers,
+        IEnumerable<(Guid ActorGuid, Guid? LevelGuid, IReadOnlyList<Guid> DataLayerGuids)> actorOrganization,
+        IEnumerable<EditorUnloadedActorDescriptor> unloadedActors)
+    {
+        foreach (var level in levels)
+        {
+            if (level.LevelGuid == Guid.Empty || string.IsNullOrWhiteSpace(level.Name) ||
+                _levels.Any(existing => existing.LevelGuid == level.LevelGuid))
+                throw new InvalidDataException("Scene contains invalid or duplicate Level metadata.");
+            _levels.Add(level with { Name = level.Name.Trim() });
+        }
+        foreach (var layer in dataLayers)
+        {
+            if (layer.DataLayerGuid == Guid.Empty || string.IsNullOrWhiteSpace(layer.Name) ||
+                _dataLayers.Any(existing => existing.DataLayerGuid == layer.DataLayerGuid))
+                throw new InvalidDataException("Scene contains invalid or duplicate Data Layer metadata.");
+            _dataLayers.Add(layer with { Name = layer.Name.Trim() });
+        }
+        var levelIds = _levels.Select(level => level.LevelGuid).ToHashSet();
+        var layerIds = _dataLayers.Select(layer => layer.DataLayerGuid).ToHashSet();
+        foreach (var (actorGuid, levelGuid, actorLayers) in actorOrganization)
+        {
+            if (levelGuid.HasValue && !levelIds.Contains(levelGuid.Value))
+                throw new InvalidDataException($"Actor '{actorGuid}' references missing Level '{levelGuid}'.");
+            var normalizedLayers = actorLayers.Distinct().ToHashSet();
+            if (!normalizedLayers.IsSubsetOf(layerIds))
+                throw new InvalidDataException($"Actor '{actorGuid}' references a missing Data Layer.");
+            if (levelGuid.HasValue)
+                _actorLevels[actorGuid] = levelGuid.Value;
+            if (normalizedLayers.Count != 0)
+                _actorDataLayers[actorGuid] = normalizedLayers;
+        }
+        var loadedActorIds = _world.EnumerateActors(includePendingActors: true)
+            .Select(actor => actor.ActorGuid).ToHashSet();
+        foreach (var descriptor in unloadedActors)
+        {
+            if (descriptor.ActorGuid == Guid.Empty || loadedActorIds.Contains(descriptor.ActorGuid) ||
+                _unloadedActors.Any(existing => existing.ActorGuid == descriptor.ActorGuid) ||
+                string.IsNullOrWhiteSpace(descriptor.Label))
+                throw new InvalidDataException("Scene contains invalid or duplicate unloaded Actor metadata.");
+            if (descriptor.LevelGuid.HasValue && !levelIds.Contains(descriptor.LevelGuid.Value))
+                throw new InvalidDataException($"Unloaded Actor '{descriptor.ActorGuid}' references a missing Level.");
+            if (!descriptor.DataLayerGuids.All(layerIds.Contains))
+                throw new InvalidDataException($"Unloaded Actor '{descriptor.ActorGuid}' references a missing Data Layer.");
+            _unloadedActors.Add(descriptor with
+            {
+                Label = descriptor.Label.Trim(),
+                ActorType = descriptor.ActorType?.Trim() ?? string.Empty,
+                DataLayerGuids = descriptor.DataLayerGuids.Distinct().OrderBy(value => value).ToArray(),
+            });
+        }
     }
 
     internal void RestoreSessionStateFrom(EditorWorldOutlinerData source, IEnumerable<Actor> actors)

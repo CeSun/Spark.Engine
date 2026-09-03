@@ -9,11 +9,14 @@ namespace Spark.Engine.Editor;
 /// <summary>编辑器场景的稳定内存表示；它是保存和 RuntimeWorld 实例化的共同输入。</summary>
 public sealed class SceneDocument
 {
-    public const ushort CurrentFormatVersion = 6;
+    public const ushort CurrentFormatVersion = 7;
     public Guid SceneGuid { get; set; } = Guid.NewGuid();
     public ushort FormatVersion { get; init; } = CurrentFormatVersion;
     public List<SceneActorDocument> Actors { get; } = [];
     public List<SceneEditorFolderDocument> EditorFolders { get; } = [];
+    public List<SceneEditorLevelDocument> EditorLevels { get; } = [];
+    public List<SceneDataLayerDocument> DataLayers { get; } = [];
+    public List<SceneUnloadedActorDocument> UnloadedActors { get; } = [];
 
     public static SceneDocument Capture(World world)
     {
@@ -27,12 +30,38 @@ public sealed class SceneDocument
                 ParentFolderGuid = folder.ParentFolderGuid,
                 Name = folder.Name,
             });
+        foreach (var level in outliner.Levels.OrderBy(level => level.LevelGuid))
+            document.EditorLevels.Add(new SceneEditorLevelDocument
+            {
+                LevelGuid = level.LevelGuid,
+                Name = level.Name,
+            });
+        foreach (var layer in outliner.DataLayers.OrderBy(layer => layer.DataLayerGuid))
+            document.DataLayers.Add(new SceneDataLayerDocument
+            {
+                DataLayerGuid = layer.DataLayerGuid,
+                Name = layer.Name,
+            });
+        foreach (var unloaded in outliner.UnloadedActors.OrderBy(actor => actor.ActorGuid))
+        {
+            var record = new SceneUnloadedActorDocument
+            {
+                ActorGuid = unloaded.ActorGuid,
+                Label = unloaded.Label,
+                ActorType = unloaded.ActorType,
+                EditorLevelGuid = unloaded.LevelGuid,
+            };
+            record.EditorDataLayerGuids.AddRange(unloaded.DataLayerGuids);
+            document.UnloadedActors.Add(record);
+        }
         foreach (var actor in world.EnumerateActors(includePendingActors: true).OrderBy(a => a.ActorGuid))
         {
             if (Attribute.IsDefined(actor.GetType(), typeof(SceneTransientAttribute), inherit: true))
                 continue;
             var actorDocument = CaptureActor(actor);
             actorDocument.EditorFolderGuid = outliner.GetActorFolder(actor.ActorGuid);
+            actorDocument.EditorLevelGuid = outliner.GetActorLevel(actor.ActorGuid);
+            actorDocument.EditorDataLayerGuids.AddRange(outliner.GetActorDataLayers(actor.ActorGuid));
             document.Actors.Add(actorDocument);
         }
 
@@ -151,7 +180,14 @@ public sealed class SceneDocument
                 EditorWorldOutlinerData.For(world).RestorePersistentData(
                     EditorFolders.Select(folder => new EditorActorFolder(
                         folder.FolderGuid, folder.ParentFolderGuid, folder.Name)),
-                    Actors.Select(actor => (actor.ActorGuid, actor.EditorFolderGuid)));
+                    Actors.Select(actor => (actor.ActorGuid, actor.EditorFolderGuid)),
+                    EditorLevels.Select(level => new EditorWorldLevel(level.LevelGuid, level.Name)),
+                    DataLayers.Select(layer => new EditorWorldDataLayer(layer.DataLayerGuid, layer.Name)),
+                    Actors.Select(actor => (actor.ActorGuid, actor.EditorLevelGuid,
+                        (IReadOnlyList<Guid>)actor.EditorDataLayerGuids)),
+                    UnloadedActors.Select(actor => new EditorUnloadedActorDescriptor(
+                        actor.ActorGuid, actor.Label, actor.ActorType, actor.EditorLevelGuid,
+                        actor.EditorDataLayerGuids)));
             }
             if (isRuntimeWorld)
                 runtimeActorFactory.InitializeWorld(world, this);
@@ -201,7 +237,30 @@ public sealed class SceneActorDocument
     public string Name { get; init; } = string.Empty;
     public Guid? RootComponentGuid { get; init; }
     public Guid? EditorFolderGuid { get; set; }
+    public Guid? EditorLevelGuid { get; set; }
+    public List<Guid> EditorDataLayerGuids { get; } = [];
     public List<SceneComponentDocument> Components { get; } = [];
+}
+
+public sealed class SceneEditorLevelDocument
+{
+    public Guid LevelGuid { get; init; }
+    public string Name { get; init; } = string.Empty;
+}
+
+public sealed class SceneDataLayerDocument
+{
+    public Guid DataLayerGuid { get; init; }
+    public string Name { get; init; } = string.Empty;
+}
+
+public sealed class SceneUnloadedActorDocument
+{
+    public Guid ActorGuid { get; init; }
+    public string Label { get; init; } = string.Empty;
+    public string ActorType { get; init; } = string.Empty;
+    public Guid? EditorLevelGuid { get; init; }
+    public List<Guid> EditorDataLayerGuids { get; } = [];
 }
 
 public sealed class SceneEditorFolderDocument
@@ -256,6 +315,29 @@ internal static class SceneDocumentBinary
                     WriteNullableGuid(writer, folder.ParentFolderGuid);
                     WriteString(writer, folder.Name);
                 }
+                writer.Write(document.EditorLevels.Count);
+                foreach (var level in document.EditorLevels.OrderBy(level => level.LevelGuid))
+                {
+                    writer.Write(level.LevelGuid.ToByteArray());
+                    WriteString(writer, level.Name);
+                }
+                writer.Write(document.DataLayers.Count);
+                foreach (var layer in document.DataLayers.OrderBy(layer => layer.DataLayerGuid))
+                {
+                    writer.Write(layer.DataLayerGuid.ToByteArray());
+                    WriteString(writer, layer.Name);
+                }
+                writer.Write(document.UnloadedActors.Count);
+                foreach (var actor in document.UnloadedActors.OrderBy(actor => actor.ActorGuid))
+                {
+                    writer.Write(actor.ActorGuid.ToByteArray());
+                    WriteString(writer, actor.Label);
+                    WriteString(writer, actor.ActorType);
+                    WriteNullableGuid(writer, actor.EditorLevelGuid);
+                    writer.Write(actor.EditorDataLayerGuids.Count);
+                    foreach (var layerGuid in actor.EditorDataLayerGuids.OrderBy(value => value))
+                        writer.Write(layerGuid.ToByteArray());
+                }
                 writer.Write(document.Actors.Count);
 
                 foreach (var actor in document.Actors.OrderBy(a => a.ActorGuid))
@@ -265,6 +347,10 @@ internal static class SceneDocumentBinary
                     WriteString(writer, actor.Name);
                     WriteNullableGuid(writer, actor.RootComponentGuid);
                     WriteNullableGuid(writer, actor.EditorFolderGuid);
+                    WriteNullableGuid(writer, actor.EditorLevelGuid);
+                    writer.Write(actor.EditorDataLayerGuids.Count);
+                    foreach (var layerGuid in actor.EditorDataLayerGuids.OrderBy(value => value))
+                        writer.Write(layerGuid.ToByteArray());
                     writer.Write(actor.Components.Count);
                     foreach (var component in actor.Components.OrderBy(c => c.ComponentGuid))
                     {
@@ -323,8 +409,8 @@ internal static class SceneDocumentBinary
             throw new InvalidDataException("Invalid scene file magic.");
 
         var version = reader.ReadUInt16();
-        if (version is not 5 && version != SceneDocument.CurrentFormatVersion)
-            throw new InvalidDataException($"Unsupported scene format version {version}; supported versions are 5 and {SceneDocument.CurrentFormatVersion}.");
+        if (version is not 5 and not 6 && version != SceneDocument.CurrentFormatVersion)
+            throw new InvalidDataException($"Unsupported scene format version {version}; supported versions are 5, 6 and {SceneDocument.CurrentFormatVersion}.");
 
         if (reader.ReadByte() != 1)
             throw new InvalidDataException("The file is not a SceneDocument.");
@@ -348,6 +434,39 @@ internal static class SceneDocumentBinary
                 });
         }
 
+        if (version >= 7)
+        {
+            var levelCount = ReadCount(reader, "editor level");
+            for (var levelIndex = 0; levelIndex < levelCount; levelIndex++)
+                document.EditorLevels.Add(new SceneEditorLevelDocument
+                {
+                    LevelGuid = ReadGuid(reader),
+                    Name = ReadString(reader),
+                });
+            var layerCount = ReadCount(reader, "data layer");
+            for (var layerIndex = 0; layerIndex < layerCount; layerIndex++)
+                document.DataLayers.Add(new SceneDataLayerDocument
+                {
+                    DataLayerGuid = ReadGuid(reader),
+                    Name = ReadString(reader),
+                });
+            var unloadedActorCount = ReadCount(reader, "unloaded actor");
+            for (var actorIndex = 0; actorIndex < unloadedActorCount; actorIndex++)
+            {
+                var actor = new SceneUnloadedActorDocument
+                {
+                    ActorGuid = ReadGuid(reader),
+                    Label = ReadString(reader),
+                    ActorType = ReadString(reader),
+                    EditorLevelGuid = ReadNullableGuid(reader),
+                };
+                var actorLayerCount = ReadCount(reader, "unloaded actor data layer");
+                for (var layerIndex = 0; layerIndex < actorLayerCount; layerIndex++)
+                    actor.EditorDataLayerGuids.Add(ReadGuid(reader));
+                document.UnloadedActors.Add(actor);
+            }
+        }
+
         var actorCount = ReadCount(reader, "actor");
         for (var actorIndex = 0; actorIndex < actorCount; actorIndex++)
         {
@@ -358,7 +477,14 @@ internal static class SceneDocumentBinary
                 Name = ReadString(reader),
                 RootComponentGuid = ReadNullableGuid(reader),
                 EditorFolderGuid = version >= 6 ? ReadNullableGuid(reader) : null,
+                EditorLevelGuid = version >= 7 ? ReadNullableGuid(reader) : null,
             };
+            if (version >= 7)
+            {
+                var actorLayerCount = ReadCount(reader, "actor data layer");
+                for (var layerIndex = 0; layerIndex < actorLayerCount; layerIndex++)
+                    actor.EditorDataLayerGuids.Add(ReadGuid(reader));
+            }
             var componentCount = ReadCount(reader, "component");
             for (var componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {

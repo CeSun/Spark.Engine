@@ -9,11 +9,19 @@ public sealed record EditorOutlinerSearchRecord(
     string Folder,
     string Id,
     string Socket,
-    IReadOnlyList<string> Components);
+    IReadOnlyList<string> Components)
+{
+    /// <summary>已注册列提供的可检索字段；键使用列的稳定 ID。</summary>
+    public IReadOnlyDictionary<string, string> Fields { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>无字段查询时一并检索的扩展列值。</summary>
+    public IReadOnlyList<string> ExtensionValues { get; init; } = Array.Empty<string>();
+}
 
 /// <summary>
 /// UE 风格 Outliner 查询：空格分隔为 AND，- 排除，+ 完整词，双引号完整短语，
-/// 并支持 label/type/folder/id/socket/component 字段。
+/// 支持内置字段以及由稳定列 ID 提供的扩展字段。
 /// </summary>
 public sealed class EditorOutlinerQuery
 {
@@ -59,7 +67,10 @@ public sealed class EditorOutlinerQuery
             "id" => [record.Id],
             "socket" => [record.Socket],
             "component" => record.Components,
-            _ => [record.Label, record.Type, record.Folder, record.Id, record.Socket],
+            null => new[] { record.Label, record.Type, record.Folder, record.Id, record.Socket }
+                .Concat(record.ExtensionValues),
+            var field when record.Fields.TryGetValue(field, out var value) => [value],
+            _ => Array.Empty<string>(),
         };
         return values.Any(value => term.ExactWord
             ? ContainsWholeWord(value, term.Value)
@@ -97,7 +108,7 @@ public sealed class EditorOutlinerQuery
         if (separator > 0)
         {
             var candidate = value[..separator].ToLowerInvariant();
-            if (candidate is "label" or "type" or "folder" or "id" or "socket" or "component")
+            if (candidate.All(character => char.IsLetterOrDigit(character) || character is '.' or '-' or '_'))
             {
                 field = candidate;
                 value = value[(separator + 1)..];

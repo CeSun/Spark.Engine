@@ -18,7 +18,9 @@ namespace Spark.Engine.Editor;
 /// </summary>
 public sealed class EditorUi
 {
-    private readonly EditorHierarchyPanel _hierarchy;
+    private readonly EditorOutlinerHost _outlinerHost;
+    private readonly EditorOutlinerExtensionRegistry _outlinerExtensions = new();
+    private EditorHierarchyPanel _hierarchy => _outlinerHost.ActivePanel;
     private readonly EditorInspectorPanel _inspector;
     private readonly EditorViewportPanel _viewport;
     private readonly EditorAssetEditorHost _assetEditorHost;
@@ -101,24 +103,14 @@ public sealed class EditorUi
         root.AddChild(_toolbar);
 
         // UE 风格主工作区：层级 | 视口 | Details，所有区域均可拖动调整。
-        _hierarchy = new EditorHierarchyPanel(_context.World, _context.Outliner,
-            viewStateStore: project == null ? null : EditorOutlinerViewStateStore.ForProject(project.RootDirectory));
-        _hierarchy.ItemDropped += HandleHierarchyDrop;
-        _hierarchy.CreateFolderRequested = CreateOutlinerFolder;
-        _hierarchy.DeleteRequested = DeleteOutlinerTarget;
-        _hierarchy.VisibilityToggled = ToggleOutlinerVisibility;
-        _hierarchy.RenameSubmitted = CommitOutlinerRename;
-        _hierarchy.MakeCurrentFolderRequested = MakeCurrentOutlinerFolder;
-        _hierarchy.ClearCurrentFolderRequested = ClearCurrentOutlinerFolder;
-        _hierarchy.CreateSubfolderRequested = folder => CreateOutlinerFolder(folder.FolderGuid);
-        _hierarchy.SelectFolderActorsRequested = SelectOutlinerFolderActors;
-        _hierarchy.FocusActorRequested = actor => { _context.Selection.Selected = actor; FocusSelectionInViewport(); };
-        _hierarchy.DuplicateActorRequested = actor => { _context.Selection.Selected = actor; DuplicateSelection(); };
-        _hierarchy.DetachActorRequested = DetachOutlinerActor;
-        _hierarchy.MoveActorToCurrentFolderRequested = MoveActorToCurrentFolder;
-        _hierarchy.SelectActorChildrenRequested = SelectOutlinerActorChildren;
-        _hierarchy.ItemDroppedOnBackground = HandleHierarchyBackgroundDrop;
-        _hierarchy.WorldSourceChanged = _ => SwitchOutlinerWorld(captureCurrentSelection: true);
+        _outlinerHost = new EditorOutlinerHost(_context.World, _context.Outliner,
+            project?.RootDirectory, _outlinerExtensions, ConfigureOutlinerPanel);
+        _outlinerHost.ActivePanelChanged += (previous, _) =>
+        {
+            if (previous != null)
+                CaptureOutlinerSelection(previous);
+            SwitchOutlinerWorld(captureCurrentSelection: false);
+        };
 
         _viewport = new EditorViewportPanel();
         _assetEditorHost = new EditorAssetEditorHost(_viewport);
@@ -170,7 +162,7 @@ public sealed class EditorUi
             MinSecondSize = 640f,
             FixedSize = new UISize(0f, 0f),
         };
-        mainColumns.SetPanels(_hierarchy, viewportDetails);
+        mainColumns.SetPanels(_outlinerHost, viewportDetails);
 
         var workspace = new UISplitPanel
         {
@@ -211,12 +203,42 @@ public sealed class EditorUi
         root.AddChild(_statusBar);
 
         Root = root;
-        _hierarchy.SelectionSetChanged += (targets, primary) => SelectTargets(targets, primary);
         _context.Selection.Changed += _ => UpdateInspector();
         _context.DirtyChanged += _ => UpdateInspectorTitle();
         _context.WorldChanged += (_, _) => SwitchOutlinerWorld(captureCurrentSelection: false);
         _context.PlayStateChanged += _ => SwitchOutlinerWorld(
             captureCurrentSelection: !_skipOutlinerSelectionCapture);
+    }
+
+    private void ConfigureOutlinerPanel(EditorHierarchyPanel panel)
+    {
+        panel.ItemDropped += HandleHierarchyDrop;
+        panel.CreateFolderRequested = CreateOutlinerFolder;
+        panel.DeleteRequested = DeleteOutlinerTarget;
+        panel.VisibilityToggled = ToggleOutlinerVisibility;
+        panel.RenameSubmitted = CommitOutlinerRename;
+        panel.MakeCurrentFolderRequested = MakeCurrentOutlinerFolder;
+        panel.ClearCurrentFolderRequested = ClearCurrentOutlinerFolder;
+        panel.CreateSubfolderRequested = folder => CreateOutlinerFolder(folder.FolderGuid);
+        panel.SelectFolderActorsRequested = SelectOutlinerFolderActors;
+        panel.FocusActorRequested = actor => { _context.Selection.Selected = actor; FocusSelectionInViewport(); };
+        panel.DuplicateActorRequested = actor => { _context.Selection.Selected = actor; DuplicateSelection(); };
+        panel.DetachActorRequested = DetachOutlinerActor;
+        panel.MoveActorToCurrentFolderRequested = MoveActorToCurrentFolder;
+        panel.SelectActorChildrenRequested = SelectOutlinerActorChildren;
+        panel.ItemDroppedOnBackground = HandleHierarchyBackgroundDrop;
+        panel.WorldSourceChanged = _ =>
+        {
+            if (ReferenceEquals(panel, _hierarchy))
+                SwitchOutlinerWorld(captureCurrentSelection: true);
+            else
+                UpdateOutlinerWorld(panel);
+        };
+        panel.SelectionSetChanged += (targets, primary) =>
+        {
+            if (ReferenceEquals(panel, _hierarchy))
+                SelectTargets(targets, primary);
+        };
     }
 
     /// <summary>当前编辑器 Play 状态，供宿主同步窗口标题或工具栏。</summary>
@@ -286,6 +308,12 @@ public sealed class EditorUi
 
     /// <summary>编辑器使用的 AssetGuid 注册表，供导入器和宿主登记资源。</summary>
     public IAssetRegistry AssetRegistry => _context.AssetRegistry;
+    /// <summary>当前编辑器的 Outliner 扩展注册表；注册后所有实例会在下一次刷新同步更新。</summary>
+    public EditorOutlinerExtensionRegistry OutlinerExtensions => _outlinerExtensions;
+    public int OutlinerInstanceCount => _outlinerHost.Panels.Count;
+    public int ActiveOutlinerIndex => _outlinerHost.ActiveIndex;
+    public bool CreateOutlinerInstance() => _outlinerHost.CreateInstance();
+    public bool CloseActiveOutlinerInstance() => _outlinerHost.CloseActiveInstance();
     /// <summary>内容浏览器查询模型，供宿主扩展拖放、预览或自定义资源操作。</summary>
     public EditorContentBrowserModel ContentBrowser => _contentBrowser.Model;
     public string OutlinerSearchText
@@ -1838,7 +1866,7 @@ public sealed class EditorUi
         SetStatus("Select tool active.");
     }
 
-    /// <summary>每帧调用：层级树按签名重建；状态栏 Actor/组件计数与检查器实时更新。</summary>
+    /// <summary>每帧调用：Outliner 按结构版本按需刷新；状态栏 Actor/组件计数与检查器实时更新。</summary>
     public void Refresh()
     {
         _hierarchy.Refresh();
@@ -1930,13 +1958,7 @@ public sealed class EditorUi
         if (captureCurrentSelection)
             CaptureOutlinerSelection();
 
-        var runtime = _context.RuntimeWorld;
-        var showRuntime = _hierarchy.WorldSource == EditorOutlinerWorldSource.ActiveWorld && runtime != null;
-        var targetWorld = showRuntime ? runtime! : _context.World;
-        var readOnly = _context.PlayState == EditorPlayState.Play;
-        if (!ReferenceEquals(_hierarchy.DisplayedWorld, targetWorld) ||
-            _hierarchy.IsReadOnly != readOnly || _hierarchy.IsRuntimeView != showRuntime)
-            _hierarchy.SetWorld(targetWorld, isReadOnly: readOnly, isRuntimeView: showRuntime);
+        var (targetWorld, showRuntime) = UpdateOutlinerWorld(_hierarchy);
 
         var saved = showRuntime ? _runtimeOutlinerSelection : _editorOutlinerSelection;
         var savedPrimary = showRuntime ? _runtimeOutlinerPrimary : _editorOutlinerPrimary;
@@ -1952,17 +1974,32 @@ public sealed class EditorUi
         }
         _context.Selection.Set(valid, savedPrimary);
         _hierarchy.SelectTargets(valid, savedPrimary);
-        if (runtime == null)
+        if (_context.RuntimeWorld == null)
         {
             _runtimeOutlinerSelection = Array.Empty<object>();
             _runtimeOutlinerPrimary = null;
         }
     }
 
+    private (World World, bool IsRuntime) UpdateOutlinerWorld(EditorHierarchyPanel panel)
+    {
+        var runtime = _context.RuntimeWorld;
+        var showRuntime = panel.WorldSource == EditorOutlinerWorldSource.ActiveWorld && runtime != null;
+        var targetWorld = showRuntime ? runtime! : _context.World;
+        var readOnly = _context.PlayState == EditorPlayState.Play;
+        if (!ReferenceEquals(panel.DisplayedWorld, targetWorld) || panel.IsReadOnly != readOnly ||
+            panel.IsRuntimeView != showRuntime)
+            panel.SetWorld(targetWorld, isReadOnly: readOnly, isRuntimeView: showRuntime);
+        return (targetWorld, showRuntime);
+    }
+
     private void CaptureOutlinerSelection()
+        => CaptureOutlinerSelection(_hierarchy);
+
+    private void CaptureOutlinerSelection(EditorHierarchyPanel panel)
     {
         var items = _context.Selection.Items.ToArray();
-        if (ReferenceEquals(_hierarchy.DisplayedWorld, _context.RuntimeWorld))
+        if (ReferenceEquals(panel.DisplayedWorld, _context.RuntimeWorld))
         {
             _runtimeOutlinerSelection = items;
             _runtimeOutlinerPrimary = _context.Selection.Selected;

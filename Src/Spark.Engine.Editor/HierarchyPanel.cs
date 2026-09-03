@@ -15,15 +15,19 @@ public sealed class HierarchyPanel
     private World _world;
     private EditorWorldOutlinerData _outliner;
     private readonly EditorOutlinerViewState _viewState;
+    private readonly EditorOutlinerExtensionRegistry _extensions;
     private EditorOutlinerQuery _query;
     private readonly UITreeView _tree;
     private readonly Dictionary<object, WorldTreeItem> _itemCache = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<string, WorldTreeItem> _extensionItemCache = new(StringComparer.Ordinal);
     private readonly Dictionary<object, EditorOutlinerSearchRecord> _searchIndex = new(ReferenceEqualityComparer.Instance);
 
     private long _lastWorldRevision = -1;
     private long _lastOutlinerRevision = -1;
     private long _viewRevision;
     private long _lastViewRevision = -1;
+    private long _lastExtensionRevision = -1;
+    private long _lastProviderRevision = -1;
     private bool _suppressSelectionChanged;
     private bool _suppressViewStateChanged;
     private bool _displayingFilteredTree;
@@ -52,11 +56,12 @@ public sealed class HierarchyPanel
     public World World => _world;
 
     public HierarchyPanel(World world, EditorWorldOutlinerData? outliner = null,
-        EditorOutlinerViewState? viewState = null)
+        EditorOutlinerViewState? viewState = null, EditorOutlinerExtensionRegistry? extensions = null)
     {
         _world = world;
         _outliner = outliner ?? EditorWorldOutlinerData.For(world);
         _viewState = viewState ?? new EditorOutlinerViewState();
+        _extensions = extensions ?? new EditorOutlinerExtensionRegistry();
         _query = EditorOutlinerQuery.Parse(_viewState.SearchText);
         _tree = new UITreeView
         {
@@ -177,16 +182,27 @@ public sealed class HierarchyPanel
 
     public IReadOnlySet<string> ActorTypeFilters => _viewState.ActorTypes;
 
-    public EditorOutlinerColumn SortColumn => _viewState.SortColumn;
+    public string SortColumnId => _viewState.SortColumnId;
     public bool SortAscending => _viewState.SortAscending;
 
     public void SortBy(EditorOutlinerColumn column)
+        => SortBy(column switch
+        {
+            EditorOutlinerColumn.Type => EditorOutlinerColumnIds.Type,
+            EditorOutlinerColumn.Socket => EditorOutlinerColumnIds.Socket,
+            EditorOutlinerColumn.Id => EditorOutlinerColumnIds.Id,
+            _ => EditorOutlinerColumnIds.Label,
+        });
+
+    public void SortBy(string columnId)
     {
-        if (_viewState.SortColumn == column)
+        if (_extensions.FindColumn(columnId) == null)
+            return;
+        if (string.Equals(_viewState.SortColumnId, columnId, StringComparison.OrdinalIgnoreCase))
             _viewState.SortAscending = !_viewState.SortAscending;
         else
         {
-            _viewState.SortColumn = column;
+            _viewState.SortColumnId = columnId;
             _viewState.SortAscending = true;
         }
         InvalidateView();
@@ -207,6 +223,24 @@ public sealed class HierarchyPanel
         InvalidateFilter();
     }
 
+    public bool IsExtensionFilterEnabled(string filterId)
+        => _viewState.EnabledExtensionFilters.Contains(filterId);
+
+    public void ToggleExtensionFilter(string filterId)
+    {
+        if (!_viewState.EnabledExtensionFilters.Remove(filterId))
+            _viewState.EnabledExtensionFilters.Add(filterId);
+        InvalidateFilter();
+    }
+
+    public void ClearExtensionFilters()
+    {
+        if (_viewState.EnabledExtensionFilters.Count == 0)
+            return;
+        _viewState.EnabledExtensionFilters.Clear();
+        InvalidateFilter();
+    }
+
     public void SetWorld(World world, bool isReadOnly = false, bool isRuntimeView = false)
     {
         if (!ReferenceEquals(_world, world))
@@ -219,10 +253,13 @@ public sealed class HierarchyPanel
         _primaryTarget = null;
         _displayingFilteredTree = false;
         _itemCache.Clear();
+        _extensionItemCache.Clear();
         _searchIndex.Clear();
         _lastWorldRevision = -1;
         _lastOutlinerRevision = -1;
         _lastViewRevision = -1;
+        _lastExtensionRevision = -1;
+        _lastProviderRevision = -1;
         _suppressSelectionChanged = true;
         try { _tree.Clear(); }
         finally { _suppressSelectionChanged = false; }
@@ -236,7 +273,7 @@ public sealed class HierarchyPanel
 
     public IReadOnlyList<object> SelectedTargets => _selectedTargets;
 
-    /// <summary>每帧调用：只比较三个整数版本；无变化时不会扫描 World 或重建树。</summary>
+    /// <summary>每帧调用：只比较 World、View 与扩展版本；无变化时不会扫描 World 或重建树。</summary>
     public void Refresh()
     {
         if (!IsReadOnly && _viewState.CurrentFolderGuid != _outliner.CurrentFolderGuid)
@@ -244,17 +281,35 @@ public sealed class HierarchyPanel
             _viewState.CurrentFolderGuid = _outliner.CurrentFolderGuid;
             ViewStateChanged?.Invoke();
         }
+        var providerRevision = GetProviderRevision();
         if (_world.StructureRevision == _lastWorldRevision &&
             _outliner.Revision == _lastOutlinerRevision &&
-            _viewRevision == _lastViewRevision)
+            _viewRevision == _lastViewRevision &&
+            _extensions.Revision == _lastExtensionRevision &&
+            providerRevision == _lastProviderRevision)
             return;
 
-        if (_world.StructureRevision != _lastWorldRevision || _outliner.Revision != _lastOutlinerRevision)
+        if (_world.StructureRevision != _lastWorldRevision || _outliner.Revision != _lastOutlinerRevision ||
+            _extensions.Revision != _lastExtensionRevision)
             _searchIndex.Clear();
         _lastWorldRevision = _world.StructureRevision;
         _lastOutlinerRevision = _outliner.Revision;
         _lastViewRevision = _viewRevision;
+        _lastExtensionRevision = _extensions.Revision;
+        _lastProviderRevision = providerRevision;
         Rebuild();
+    }
+
+    private long GetProviderRevision()
+    {
+        var context = new EditorOutlinerNodeContext(_world, _outliner);
+        long revision = 17;
+        foreach (var provider in _extensions.NodeProviders)
+        {
+            try { revision = unchecked(revision * 31 + provider.GetRevision(context)); }
+            catch { revision = unchecked(revision * 31); }
+        }
+        return revision;
     }
 
     private void Rebuild()
@@ -262,7 +317,8 @@ public sealed class HierarchyPanel
         RebuildCount++;
         var selected = _selectedTargets;
         var primary = _primaryTarget;
-        var isContextFilter = !_query.IsEmpty || OnlySelected || HideTemporarilyHidden || _viewState.ActorTypes.Count != 0;
+        var isContextFilter = !_query.IsEmpty || OnlySelected || HideTemporarilyHidden ||
+            _viewState.ActorTypes.Count != 0 || _viewState.EnabledExtensionFilters.Count != 0;
         var scrollOffset = _displayingFilteredTree && !isContextFilter
             ? GetStoredScrollOffset()
             : _tree.ScrollOffset;
@@ -321,11 +377,38 @@ public sealed class HierarchyPanel
                     rootItems.Add(actorItem);
             }
 
+            var itemsById = new Dictionary<string, WorldTreeItem>(StringComparer.Ordinal);
+            foreach (var pair in folderItems)
+                itemsById[EditorOutlinerNodeIds.Folder(pair.Key)] = pair.Value;
+            foreach (var pair in actorItems)
+                itemsById[EditorOutlinerNodeIds.Actor(pair.Key.ActorGuid)] = pair.Value;
+            var extensionNodes = GetExtensionNodes()
+                .Where(node => !itemsById.ContainsKey(node.StableId))
+                .ToArray();
+            var extensionNodesById = extensionNodes.ToDictionary(node => node.StableId, StringComparer.Ordinal);
+            foreach (var node in extensionNodes)
+            {
+                if (!itemsById.ContainsKey(node.StableId))
+                    itemsById.Add(node.StableId, CreateExtensionTreeItem(node));
+            }
+            foreach (var node in extensionNodes)
+            {
+                if (!itemsById.TryGetValue(node.StableId, out var item))
+                    continue;
+                if (node.ParentId != null && !HasExtensionParentCycle(node, extensionNodesById) &&
+                    itemsById.TryGetValue(node.ParentId, out var parent) &&
+                    !ReferenceEquals(parent, item))
+                    parent.AddSubItem(item);
+                else
+                    rootItems.Add(item);
+            }
+
             foreach (var item in rootItems)
                 SortChildren(item);
             rootItems.Sort(CompareItems);
             _tree.SetRoots(rootItems);
             PruneItemCache();
+            PruneExtensionItemCache(extensionNodes.Select(node => node.StableId));
 
             if (isContextFilter)
             {
@@ -345,6 +428,64 @@ public sealed class HierarchyPanel
         }
     }
 
+    private IReadOnlyList<EditorOutlinerNodeDescriptor> GetExtensionNodes()
+    {
+        var result = new List<EditorOutlinerNodeDescriptor>();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var context = new EditorOutlinerNodeContext(_world, _outliner);
+        foreach (var provider in _extensions.NodeProviders)
+        {
+            IEnumerable<EditorOutlinerNodeDescriptor> nodes;
+            try { nodes = provider.GetNodes(context) ?? []; }
+            catch { continue; }
+            try
+            {
+                foreach (var node in nodes)
+                {
+                    if (node != null && ids.Add(node.StableId))
+                        result.Add(node);
+                }
+            }
+            catch
+            {
+                // 一个扩展失败时仍保留内置 Actor/Folder 树。
+            }
+        }
+        if (_query.IsEmpty && !OnlySelected && _viewState.EnabledExtensionFilters.Count == 0)
+            return result;
+        var nodesById = result.ToDictionary(node => node.StableId, StringComparer.Ordinal);
+        var visibleIds = result
+            .Where(node => (!OnlySelected || _selectedTargets.Any(target => ReferenceEquals(target, node.Target))) &&
+                (_query.IsEmpty || _query.Matches(GetSearchRecord(node.Target))) &&
+                MatchesExtensionFilters(node.Target))
+            .Select(node => node.StableId)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var id in visibleIds.ToArray())
+        {
+            for (var parentId = nodesById[id].ParentId;
+                 parentId != null && nodesById.TryGetValue(parentId, out var parent);
+                 parentId = parent.ParentId)
+            {
+                if (!visibleIds.Add(parentId))
+                    break;
+            }
+        }
+        return result.Where(node => visibleIds.Contains(node.StableId)).ToArray();
+    }
+
+    private static bool HasExtensionParentCycle(EditorOutlinerNodeDescriptor node,
+        IReadOnlyDictionary<string, EditorOutlinerNodeDescriptor> nodes)
+    {
+        var visited = new HashSet<string>(StringComparer.Ordinal) { node.StableId };
+        for (var parentId = node.ParentId; parentId != null && nodes.TryGetValue(parentId, out var parent);
+             parentId = parent.ParentId)
+        {
+            if (!visited.Add(parentId))
+                return true;
+        }
+        return false;
+    }
+
     private IReadOnlyList<Actor> GetVisibleActors()
     {
         var candidates = _world.EnumerateActors(includePendingActors: true)
@@ -358,6 +499,7 @@ public sealed class HierarchyPanel
                 .Select(folder => folder.FolderGuid).ToHashSet();
         var directlyVisible = candidates
             .Where(actor => _viewState.ActorTypes.Count == 0 || _viewState.ActorTypes.Contains(GetActorTypeLabel(actor)))
+            .Where(MatchesExtensionFilters)
             .Where(actor => !OnlySelected || IsActorSelected(actor))
             .Where(actor => MatchesSearch(actor) || IsInFolderSubtree(actor, matchingFolderGuids))
             .ToHashSet();
@@ -376,7 +518,8 @@ public sealed class HierarchyPanel
 
     private IReadOnlyList<EditorActorFolder> GetVisibleFolders(IReadOnlyList<Actor> visibleActors)
     {
-        if (_query.IsEmpty && !OnlySelected && !HideTemporarilyHidden && _viewState.ActorTypes.Count == 0)
+        if (_query.IsEmpty && !OnlySelected && !HideTemporarilyHidden && _viewState.ActorTypes.Count == 0 &&
+            _viewState.EnabledExtensionFilters.Count == 0)
             return _outliner.Folders.ToArray();
 
         var visibleFolderGuids = new HashSet<Guid>();
@@ -431,6 +574,25 @@ public sealed class HierarchyPanel
 
     private bool MatchesFolder(EditorActorFolder folder) => _query.Matches(GetSearchRecord(folder));
 
+    private bool MatchesExtensionFilters(object target)
+    {
+        foreach (var filter in _extensions.Filters)
+        {
+            if (!_viewState.EnabledExtensionFilters.Contains(filter.Id))
+                continue;
+            try
+            {
+                if (!filter.Predicate(target))
+                    return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private EditorOutlinerSearchRecord GetSearchRecord(object target)
     {
         if (_searchIndex.TryGetValue(target, out var record))
@@ -449,9 +611,23 @@ public sealed class HierarchyPanel
             EditorActorFolder folder => new EditorOutlinerSearchRecord(
                 folder.Name, "Folder", GetFolderPath(folder), folder.FolderGuid.ToString(),
                 string.Empty, Array.Empty<string>()),
+            EditorUnloadedActorDescriptor actor => new EditorOutlinerSearchRecord(
+                actor.Label, actor.ActorType, string.Empty, actor.ActorGuid.ToString(),
+                string.Empty, Array.Empty<string>()),
             _ => new EditorOutlinerSearchRecord(string.Empty, string.Empty, string.Empty,
                 string.Empty, string.Empty, Array.Empty<string>()),
         };
+        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var extensionValues = new List<string>();
+        foreach (var column in _extensions.Columns.Where(column => column.Searchable))
+        {
+            var value = GetColumnText(target, column);
+            fields[column.Id] = value;
+            if (column.Id is not EditorOutlinerColumnIds.Label and not EditorOutlinerColumnIds.Type and
+                not EditorOutlinerColumnIds.Socket and not EditorOutlinerColumnIds.Id && value.Length != 0)
+                extensionValues.Add(value);
+        }
+        record = record with { Fields = fields, ExtensionValues = extensionValues };
         _searchIndex[target] = record;
         return record;
     }
@@ -492,6 +668,7 @@ public sealed class HierarchyPanel
             Actor actor => actor.ActorGuid.ToString("N"),
             ActorComponent component => component.ComponentGuid.ToString("N"),
             EditorActorFolder folder => folder.FolderGuid.ToString("N"),
+            EditorUnloadedActorDescriptor actor => actor.ActorGuid.ToString("N"),
             _ => target.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
 
@@ -525,16 +702,43 @@ public sealed class HierarchyPanel
         return item;
     }
 
+    private WorldTreeItem CreateExtensionTreeItem(EditorOutlinerNodeDescriptor node)
+    {
+        if (!_extensionItemCache.TryGetValue(node.StableId, out var item))
+        {
+            item = new WorldTreeItem(node.Target, node.Label);
+            _extensionItemCache.Add(node.StableId, item);
+            ItemCreationCount++;
+        }
+        item.ResetLogicalHierarchy();
+        item.Text = node.Label;
+        item.IsSelectable = node.IsSelectable;
+        item.IsDraggable = false;
+        item.IsDropTarget = false;
+        item.Focusable = node.IsSelectable;
+        item.TextColor = UITheme.Default.TextDimColor;
+        item.IconColor = new Vector4(0.45f, 0.48f, 0.52f, 1f);
+        item.BadgeText = node.Target is EditorUnloadedActorDescriptor ? "UNLOADED" : string.Empty;
+        item.ShowVisibilityToggle = false;
+        item.ReserveVisibilityColumn = true;
+        item.SecondaryCells = CreateSecondaryCells(node.Target);
+        return item;
+    }
+
     private IReadOnlyList<UITreeViewCell> CreateSecondaryCells(object target)
     {
-        var cells = new List<UITreeViewCell>(3);
-        if (_viewState.ShowTypeColumn)
-            cells.Add(new UITreeViewCell(GetColumnText(target, EditorOutlinerColumn.Type), _viewState.TypeColumnWidth));
-        if (_viewState.ShowSocketColumn)
-            cells.Add(new UITreeViewCell(GetColumnText(target, EditorOutlinerColumn.Socket), _viewState.SocketColumnWidth));
-        if (_viewState.ShowIdColumn)
-            cells.Add(new UITreeViewCell(GetColumnText(target, EditorOutlinerColumn.Id), _viewState.IdColumnWidth));
+        var columns = _extensions.Columns
+            .Where(column => column.Id != EditorOutlinerColumnIds.Label && _viewState.IsColumnVisible(column));
+        var cells = new List<UITreeViewCell>();
+        foreach (var column in columns)
+            cells.Add(new UITreeViewCell(GetColumnText(target, column), _viewState.GetColumnWidth(column)));
         return cells;
+    }
+
+    private static string GetColumnText(object target, EditorOutlinerColumnDescriptor column)
+    {
+        try { return column.GetText(target) ?? string.Empty; }
+        catch { return string.Empty; }
     }
 
     private string GetColumnText(object target, EditorOutlinerColumn column)
@@ -582,9 +786,7 @@ public sealed class HierarchyPanel
         var category = GetSortCategory(left.Target).CompareTo(GetSortCategory(right.Target));
         if (category != 0)
             return category;
-        var comparison = StringComparer.OrdinalIgnoreCase.Compare(
-            GetColumnText(left.Target, _viewState.SortColumn),
-            GetColumnText(right.Target, _viewState.SortColumn));
+        var comparison = CompareColumnValues(left.Target, right.Target, _viewState.SortColumnId);
         if (!_viewState.SortAscending)
             comparison = -comparison;
         return comparison != 0
@@ -592,8 +794,30 @@ public sealed class HierarchyPanel
             : StringComparer.Ordinal.Compare(GetStableSelectionId(left.Target), GetStableSelectionId(right.Target));
     }
 
+    private int CompareColumnValues(object left, object right, string columnId)
+    {
+        var column = _extensions.FindColumn(columnId) ?? _extensions.FindColumn(EditorOutlinerColumnIds.Label)!;
+        try
+        {
+            var leftKey = column.GetSortKey(left);
+            var rightKey = column.GetSortKey(right);
+            if (leftKey == null) return rightKey == null ? 0 : -1;
+            if (rightKey == null) return 1;
+            if (leftKey.GetType() == rightKey.GetType())
+                return leftKey.CompareTo(rightKey);
+            return StringComparer.OrdinalIgnoreCase.Compare(
+                Convert.ToString(leftKey, System.Globalization.CultureInfo.InvariantCulture),
+                Convert.ToString(rightKey, System.Globalization.CultureInfo.InvariantCulture));
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     private static int GetSortCategory(object target)
-        => target is EditorActorFolder ? 0 : target is Actor ? 1 : 2;
+        => target is EditorActorFolder ? 0 : target is Actor ? 1 :
+            target is EditorUnloadedActorDescriptor ? 2 : 3;
 
     private void PruneItemCache()
     {
@@ -608,6 +832,13 @@ public sealed class HierarchyPanel
             valid.Add(folder);
         foreach (var target in _itemCache.Keys.Where(target => !valid.Contains(target)).ToArray())
             _itemCache.Remove(target);
+    }
+
+    private void PruneExtensionItemCache(IEnumerable<string> validIds)
+    {
+        var valid = validIds.ToHashSet(StringComparer.Ordinal);
+        foreach (var id in _extensionItemCache.Keys.Where(id => !valid.Contains(id)).ToArray())
+            _extensionItemCache.Remove(id);
     }
 
     private Vector4 GetFolderIconColor(EditorActorFolder folder)

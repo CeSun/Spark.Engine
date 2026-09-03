@@ -10,6 +10,7 @@ internal sealed class EditorHierarchyPanel : UIElement
     private readonly HierarchyPanel _hierarchy;
     private EditorWorldOutlinerData _outliner;
     private readonly EditorOutlinerViewState _viewState;
+    private readonly EditorOutlinerExtensionRegistry _extensions;
     private readonly EditorOutlinerViewStateStore? _viewStateStore;
     private readonly UIStackPanel _panel;
     private readonly UILabel _title;
@@ -24,12 +25,14 @@ internal sealed class EditorHierarchyPanel : UIElement
     private object? _contextTarget;
 
     public EditorHierarchyPanel(Spark.Engine.Worlds.World world, EditorWorldOutlinerData? outliner = null,
-        EditorOutlinerViewState? viewState = null, EditorOutlinerViewStateStore? viewStateStore = null)
+        EditorOutlinerViewState? viewState = null, EditorOutlinerViewStateStore? viewStateStore = null,
+        EditorOutlinerExtensionRegistry? extensions = null)
     {
         _outliner = outliner ?? EditorWorldOutlinerData.For(world);
+        _extensions = extensions ?? new EditorOutlinerExtensionRegistry();
         _viewStateStore = viewStateStore;
         _viewState = viewState ?? viewStateStore?.Load() ?? new EditorOutlinerViewState();
-        _hierarchy = new HierarchyPanel(world, _outliner, _viewState);
+        _hierarchy = new HierarchyPanel(world, _outliner, _viewState, _extensions);
         _panel = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
@@ -94,7 +97,7 @@ internal sealed class EditorHierarchyPanel : UIElement
             },
         };
         _panel.AddChild(_search);
-        _columnHeader = new EditorOutlinerColumnHeader(_viewState,
+        _columnHeader = new EditorOutlinerColumnHeader(_viewState, _extensions,
             column =>
             {
                 _hierarchy.SortBy(column);
@@ -226,6 +229,8 @@ internal sealed class EditorHierarchyPanel : UIElement
     public Action<Spark.Engine.Actors.Actor>? SelectActorChildrenRequested { get; set; }
     public Action<object, System.Numerics.Vector2>? ItemDroppedOnBackground { get; set; }
     public Action<EditorOutlinerWorldSource>? WorldSourceChanged { get; set; }
+    public Action? CreateOutlinerRequested { get; set; }
+    public Action? CloseOutlinerRequested { get; set; }
     public object? ActiveTarget => _hierarchy.SelectedTarget;
     public Spark.Engine.Worlds.World DisplayedWorld => _hierarchy.World;
     public bool IsReadOnly => _hierarchy.IsReadOnly;
@@ -282,15 +287,27 @@ internal sealed class EditorHierarchyPanel : UIElement
         _viewOptions.AddItem(new UIMenuItem($"{(WorldSource == EditorOutlinerWorldSource.EditorWorld ? "[x]" : "[ ]")} Editor World",
             () => WorldSource = EditorOutlinerWorldSource.EditorWorld));
         _viewOptions.AddSeparator();
+        _viewOptions.AddItem(new UIMenuItem("New Outliner", () => CreateOutlinerRequested?.Invoke())
+        {
+            IsEnabled = CreateOutlinerRequested != null,
+        });
+        if (CloseOutlinerRequested != null)
+            _viewOptions.AddItem(new UIMenuItem("Close This Outliner", () => CloseOutlinerRequested?.Invoke()));
+        _viewOptions.AddSeparator();
         AddToggleOption("Show Components (Developer)", ShowComponents,
             value => ShowComponents = value);
         _viewOptions.AddSeparator();
-        AddToggleOption("Type Column", _viewState.ShowTypeColumn,
-            value => { _viewState.ShowTypeColumn = value; _hierarchy.InvalidateView(); _hierarchy.Refresh(); SaveViewState(); });
-        AddToggleOption("Socket Column", _viewState.ShowSocketColumn,
-            value => { _viewState.ShowSocketColumn = value; _hierarchy.InvalidateView(); _hierarchy.Refresh(); SaveViewState(); });
-        AddToggleOption("ID Column", _viewState.ShowIdColumn,
-            value => { _viewState.ShowIdColumn = value; _hierarchy.InvalidateView(); _hierarchy.Refresh(); SaveViewState(); });
+        foreach (var column in _extensions.Columns.Where(column => column.Id != EditorOutlinerColumnIds.Label))
+        {
+            var captured = column;
+            AddToggleOption($"{captured.DisplayName} Column", _viewState.IsColumnVisible(captured), value =>
+            {
+                _viewState.SetColumnVisible(captured, value);
+                _hierarchy.InvalidateView();
+                _hierarchy.Refresh();
+                SaveViewState();
+            });
+        }
         _viewOptions.AddSeparator();
         AddToggleOption("Always Frame Selection", AlwaysFrameSelection,
             value => AlwaysFrameSelection = value);
@@ -308,6 +325,17 @@ internal sealed class EditorHierarchyPanel : UIElement
         AddFilterToggle("Only Selected", OnlySelected, value => OnlySelected = value);
         AddFilterToggle("Hide Temporarily Hidden", HideTemporarilyHidden, value => HideTemporarilyHidden = value);
         AddFilterToggle("Show Internal Actors", ShowInternalActors, value => ShowInternalActors = value);
+        foreach (var filter in _extensions.Filters)
+        {
+            var captured = filter;
+            AddFilterToggle(captured.DisplayName, _hierarchy.IsExtensionFilterEnabled(captured.Id), _ =>
+            {
+                _hierarchy.ToggleExtensionFilter(captured.Id);
+                _hierarchy.Refresh();
+                SaveViewState();
+                UpdateFilterButton();
+            });
+        }
         _filterMenu.AddSeparator();
         _filterMenu.AddItem(new UIMenuItem("Clear Filters", ClearFilters)
         {
@@ -335,7 +363,8 @@ internal sealed class EditorHierarchyPanel : UIElement
         _filterMenu.AddSeparator();
         _filterMenu.AddItem(new UIMenuItem("Save Current Filter", SaveCurrentFilter)
         {
-            IsEnabled = SearchText.Length != 0 || _hierarchy.ActorTypeFilters.Count != 0,
+            IsEnabled = SearchText.Length != 0 || _hierarchy.ActorTypeFilters.Count != 0 ||
+                _viewState.EnabledExtensionFilters.Count != 0,
         });
         foreach (var filter in _viewState.CustomFilters)
         {
@@ -357,7 +386,10 @@ internal sealed class EditorHierarchyPanel : UIElement
         var index = _viewState.CustomFilters.Count + 1;
         var name = SearchText.Length == 0 ? $"Actor Types {index}" : SearchText;
         _viewState.CustomFilters.Add(new EditorOutlinerCustomFilter(
-            name, SearchText, _hierarchy.ActorTypeFilters.OrderBy(value => value).ToList()));
+            name, SearchText, _hierarchy.ActorTypeFilters.OrderBy(value => value).ToList())
+        {
+            ExtensionFilterIds = _viewState.EnabledExtensionFilters.OrderBy(value => value).ToList(),
+        });
         SaveViewState();
     }
 
@@ -366,6 +398,9 @@ internal sealed class EditorHierarchyPanel : UIElement
         _viewState.ActorTypes.Clear();
         foreach (var actorType in filter.ActorTypes)
             _viewState.ActorTypes.Add(actorType);
+        _viewState.EnabledExtensionFilters.Clear();
+        foreach (var filterId in filter.ExtensionFilterIds)
+            _viewState.EnabledExtensionFilters.Add(filterId);
         SearchText = filter.Query;
         _hierarchy.InvalidateView();
         _hierarchy.Refresh();
@@ -379,6 +414,7 @@ internal sealed class EditorHierarchyPanel : UIElement
         HideTemporarilyHidden = false;
         ShowInternalActors = false;
         _hierarchy.ClearActorTypeFilters();
+        _hierarchy.ClearExtensionFilters();
         _hierarchy.Refresh();
         SaveViewState();
         UpdateFilterButton();
@@ -392,7 +428,8 @@ internal sealed class EditorHierarchyPanel : UIElement
 
     private int GetActiveFilterCount()
         => (OnlySelected ? 1 : 0) + (HideTemporarilyHidden ? 1 : 0) +
-           (ShowInternalActors ? 1 : 0) + _hierarchy.ActorTypeFilters.Count;
+           (ShowInternalActors ? 1 : 0) + _hierarchy.ActorTypeFilters.Count +
+           _viewState.EnabledExtensionFilters.Count;
 
     private void UpdateFilterButton()
     {
@@ -438,6 +475,7 @@ internal sealed class EditorHierarchyPanel : UIElement
         }
         if (!IsReadOnly)
             _contextMenu.AddItem(new UIMenuItem("Clear Current Folder", () => ClearCurrentFolderRequested?.Invoke()));
+        AddExtensionContextActions(target);
         _contextMenu.AddSeparator();
         _contextMenu.AddItem(new UIMenuItem("Rename", () =>
         {
@@ -453,6 +491,29 @@ internal sealed class EditorHierarchyPanel : UIElement
         _contextMenu.Show(position);
     }
 
+    private void AddExtensionContextActions(object? target)
+    {
+        if (_extensions.ContextActions.Count == 0)
+            return;
+        _contextMenu.AddSeparator();
+        var context = new EditorOutlinerContext(target, _hierarchy.SelectedTargets, DisplayedWorld, IsReadOnly);
+        foreach (var action in _extensions.ContextActions)
+        {
+            var captured = action;
+            var enabled = !(IsReadOnly && captured.MutatesWorld);
+            try { enabled &= captured.CanExecute(context); }
+            catch { enabled = false; }
+            _contextMenu.AddItem(new UIMenuItem(captured.Label, () =>
+            {
+                try { captured.Execute(context); }
+                catch { /* 扩展动作不能中断编辑器输入循环。 */ }
+            })
+            {
+                IsEnabled = enabled,
+            });
+        }
+    }
+
     private void ShowBackgroundContextMenu(System.Numerics.Vector2 position)
     {
         _contextTarget = null;
@@ -464,6 +525,7 @@ internal sealed class EditorHierarchyPanel : UIElement
             _contextMenu.AddItem(new UIMenuItem("New Folder", () => CreateFolderRequested?.Invoke()));
             _contextMenu.AddItem(new UIMenuItem("Clear Current Folder", () => ClearCurrentFolderRequested?.Invoke()));
         }
+        AddExtensionContextActions(null);
         _contextMenu.Canvas = FindCanvas();
         _contextMenu.Show(position);
     }
@@ -473,19 +535,22 @@ internal sealed class EditorHierarchyPanel : UIElement
 internal sealed class EditorOutlinerColumnHeader : UIElement
 {
     private readonly EditorOutlinerViewState _state;
-    private readonly Action<EditorOutlinerColumn> _sort;
+    private readonly EditorOutlinerExtensionRegistry _extensions;
+    private readonly Action<string> _sort;
     private readonly Action _columnsChanged;
     private readonly Action<Vector2> _contextRequested;
     private Vector2 _pointer;
-    private EditorOutlinerColumn? _dragColumn;
+    private EditorOutlinerColumnDescriptor? _dragColumn;
     private float _dragStartX;
     private float _dragStartWidth;
     private bool _dragged;
 
     public EditorOutlinerColumnHeader(EditorOutlinerViewState state,
-        Action<EditorOutlinerColumn> sort, Action columnsChanged, Action<Vector2> contextRequested)
+        EditorOutlinerExtensionRegistry extensions, Action<string> sort,
+        Action columnsChanged, Action<Vector2> contextRequested)
     {
         _state = state;
+        _extensions = extensions;
         _sort = sort;
         _columnsChanged = columnsChanged;
         _contextRequested = contextRequested;
@@ -506,7 +571,7 @@ internal sealed class EditorOutlinerColumnHeader : UIElement
         var columns = GetVisibleColumns();
         var secondaryWidth = columns.Sum(column => column.Width);
         var labelRight = Bounds.Right - secondaryWidth;
-        DrawHeaderText(ui, targetId, EditorOutlinerColumn.Label, "Label", Bounds.X + 28f,
+        DrawHeaderText(ui, targetId, EditorOutlinerColumnIds.Label, "Label", Bounds.X + 28f,
             System.Math.Max(0f, labelRight - Bounds.X - 32f));
         ui.DrawRect(targetId, new Vector2(Bounds.X + 24f, Bounds.Y), new Vector2(1f, Bounds.Height),
             new Vector4(0.28f, 0.3f, 0.33f, 0.8f));
@@ -516,17 +581,19 @@ internal sealed class EditorOutlinerColumnHeader : UIElement
         {
             ui.DrawRect(targetId, new Vector2(x, Bounds.Y), new Vector2(1f, Bounds.Height),
                 new Vector4(0.28f, 0.3f, 0.33f, 0.8f));
-            DrawHeaderText(ui, targetId, column.Column, column.Title, x + 5f, column.Width - 9f);
+            DrawHeaderText(ui, targetId, column.Descriptor.Id, column.Descriptor.DisplayName,
+                x + 5f, column.Width - 9f);
             x += column.Width;
         }
     }
 
-    private void DrawHeaderText(UIManager ui, int targetId, EditorOutlinerColumn column,
+    private void DrawHeaderText(UIManager ui, int targetId, string columnId,
         string title, float x, float width)
     {
         if (width <= 0f)
             return;
-        var suffix = _state.SortColumn == column ? (_state.SortAscending ? " ^" : " v") : string.Empty;
+        var suffix = string.Equals(_state.SortColumnId, columnId, StringComparison.OrdinalIgnoreCase)
+            ? (_state.SortAscending ? " ^" : " v") : string.Empty;
         var text = ui.Text.Truncate(title + suffix, width);
         var y = Bounds.Y + (Bounds.Height - ui.Text.LineHeight) * 0.5f;
         ui.Text.DrawText(ui, targetId, text, new Vector2(x, y), UITheme.Default.TextDimColor);
@@ -543,7 +610,7 @@ internal sealed class EditorOutlinerColumnHeader : UIElement
         if (_dragColumn is { } column)
         {
             _dragStartX = _pointer.X;
-            _dragStartWidth = GetWidth(column);
+            _dragStartWidth = _state.GetColumnWidth(column);
         }
     }
 
@@ -554,7 +621,8 @@ internal sealed class EditorOutlinerColumnHeader : UIElement
             return;
         if (System.Math.Abs(position.X - _dragStartX) >= 1f)
             _dragged = true;
-        SetWidth(column, System.Math.Clamp(_dragStartWidth - (position.X - _dragStartX), 48f, 320f));
+        _state.SetColumnWidth(column,
+            System.Math.Clamp(_dragStartWidth - (position.X - _dragStartX), 48f, 320f));
         _columnsChanged();
     }
 
@@ -575,67 +643,42 @@ internal sealed class EditorOutlinerColumnHeader : UIElement
             return;
         }
         if (GetColumnAt(_pointer) is { } column)
-            _sort(column);
+            _sort(column.Id);
     }
 
-    private EditorOutlinerColumn? GetColumnAt(Vector2 point)
+    private EditorOutlinerColumnDescriptor? GetColumnAt(Vector2 point)
     {
         if (point.X < Bounds.X + 24f)
             return null;
         var columns = GetVisibleColumns();
         var x = Bounds.Right - columns.Sum(column => column.Width);
         if (point.X < x)
-            return EditorOutlinerColumn.Label;
+            return _extensions.FindColumn(EditorOutlinerColumnIds.Label);
         foreach (var column in columns)
         {
             if (point.X < x + column.Width)
-                return column.Column;
+                return column.Descriptor;
             x += column.Width;
         }
         return null;
     }
 
-    private EditorOutlinerColumn? FindDivider(Vector2 point)
+    private EditorOutlinerColumnDescriptor? FindDivider(Vector2 point)
     {
         var columns = GetVisibleColumns();
         var x = Bounds.Right - columns.Sum(column => column.Width);
         foreach (var column in columns)
         {
             if (System.Math.Abs(point.X - x) <= 4f)
-                return column.Column;
+                return column.Descriptor;
             x += column.Width;
         }
         return null;
     }
 
-    private IReadOnlyList<(EditorOutlinerColumn Column, string Title, float Width)> GetVisibleColumns()
-    {
-        var result = new List<(EditorOutlinerColumn, string, float)>(3);
-        if (_state.ShowTypeColumn)
-            result.Add((EditorOutlinerColumn.Type, "Type", _state.TypeColumnWidth));
-        if (_state.ShowSocketColumn)
-            result.Add((EditorOutlinerColumn.Socket, "Socket", _state.SocketColumnWidth));
-        if (_state.ShowIdColumn)
-            result.Add((EditorOutlinerColumn.Id, "ID", _state.IdColumnWidth));
-        return result;
-    }
-
-    private float GetWidth(EditorOutlinerColumn column)
-        => column switch
-        {
-            EditorOutlinerColumn.Type => _state.TypeColumnWidth,
-            EditorOutlinerColumn.Socket => _state.SocketColumnWidth,
-            EditorOutlinerColumn.Id => _state.IdColumnWidth,
-            _ => 0f,
-        };
-
-    private void SetWidth(EditorOutlinerColumn column, float width)
-    {
-        switch (column)
-        {
-            case EditorOutlinerColumn.Type: _state.TypeColumnWidth = width; break;
-            case EditorOutlinerColumn.Socket: _state.SocketColumnWidth = width; break;
-            case EditorOutlinerColumn.Id: _state.IdColumnWidth = width; break;
-        }
-    }
+    private IReadOnlyList<(EditorOutlinerColumnDescriptor Descriptor, float Width)> GetVisibleColumns()
+        => _extensions.Columns
+            .Where(column => column.Id != EditorOutlinerColumnIds.Label && _state.IsColumnVisible(column))
+            .Select(column => (column, _state.GetColumnWidth(column)))
+            .ToArray();
 }
