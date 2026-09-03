@@ -10,7 +10,7 @@ public sealed class UIDragHandle : UIElement
     public Vector4 TextColor { get; set; } = Vector4.One;
     public Vector4 BackgroundColor { get; set; }
     public float DragThreshold { get; set; } = 8f;
-    public Action? DragStarted { get; set; }
+    public Action<Vector2>? DragStarted { get; set; }
 
     private bool _dragging;
     private bool _dragTriggered;
@@ -62,7 +62,7 @@ public sealed class UIDragHandle : UIElement
             Vector2.DistanceSquared(position, _dragStart) < DragThreshold * DragThreshold)
             return;
         _dragTriggered = true;
-        DragStarted?.Invoke();
+        DragStarted?.Invoke(position);
     }
 
     protected internal override void OnMouseUp(MouseButton button)

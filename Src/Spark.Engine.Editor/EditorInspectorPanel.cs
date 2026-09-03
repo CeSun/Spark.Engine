@@ -27,7 +27,7 @@ internal sealed class EditorInspectorPanel : UIElement
     private readonly Action<IReadOnlyList<EditorResourcePropertySlot>, SceneResource?> _resourceEditRequested;
     private readonly Action<Guid> _locateAsset;
     private readonly Action<Guid> _openAsset;
-    private readonly Action? _detachRequested;
+    private readonly Action<System.Numerics.Vector2>? _detachRequested;
     private readonly List<EditorResourcePropertyField> _resourceFields = [];
     private IReadOnlyList<object> _targets = Array.Empty<object>();
 
@@ -37,7 +37,7 @@ internal sealed class EditorInspectorPanel : UIElement
         Action<IReadOnlyList<EditorResourcePropertySlot>, SceneResource?> resourceEditRequested,
         Action<Guid> locateAsset,
         Action<Guid> openAsset,
-        Action? detachRequested = null)
+        Action<System.Numerics.Vector2>? detachRequested = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _resourceEditRequested = resourceEditRequested ?? throw new ArgumentNullException(nameof(resourceEditRequested));
@@ -59,7 +59,7 @@ internal sealed class EditorInspectorPanel : UIElement
         {
             Text = "Nothing selected",
             TextColor = theme.TextColor,
-            DragStarted = () => _detachRequested?.Invoke(),
+            DragStarted = position => _detachRequested?.Invoke(position),
         };
         _panel.AddChild(_title);
 

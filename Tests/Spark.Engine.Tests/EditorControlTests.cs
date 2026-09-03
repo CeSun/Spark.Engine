@@ -861,7 +861,8 @@ public class EditorControlTests
     {
         var handle = new UIDragHandle { Text = "Details" };
         var started = 0;
-        handle.DragStarted = () => started++;
+        var dragPosition = Vector2.Zero;
+        handle.DragStarted = position => { started++; dragPosition = position; };
         var canvas = new UICanvas(0)
         {
             Size = new Vector2(240f, 40f),
@@ -881,6 +882,7 @@ public class EditorControlTests
         canvas.Update(new InputState(new Vector2(40f, 12f), new Vector2(16f, 0f), 0f,
             left, default, default, default, default, default, string.Empty), CreateTextRenderer());
         Assert.Equal(1, started);
+        Assert.Equal(new Vector2(40f, 12f), dragPosition);
 
         canvas.Update(new InputState(new Vector2(40f, 12f), Vector2.Zero, 0f,
             default, default, left, default, default, default, string.Empty), CreateTextRenderer());

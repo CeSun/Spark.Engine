@@ -8,7 +8,7 @@ using SNW = Silk.NET.Windowing;
 
 namespace Spark.Engine.Desktop;
 
-public class DesktopWindow : IWindow, ICloseRequestWindow, IFileDropWindow
+public class DesktopWindow : IWindow, IPositionedWindow, ICloseRequestWindow, IFileDropWindow
 {
     private readonly SNW.IWindow _window;
 
@@ -29,6 +29,12 @@ public class DesktopWindow : IWindow, ICloseRequestWindow, IFileDropWindow
     public WindowInput Input => _input;
 
     public Vector2 Size { get => (Vector2)_window.Size; set => _window.Size = new Silk.NET.Maths.Vector2D<int>((int)value.X, (int)value.Y); }
+
+    public Vector2 Position
+    {
+        get => (Vector2)_window.Position;
+        set => _window.Position = new Silk.NET.Maths.Vector2D<int>((int)value.X, (int)value.Y);
+    }
 
     public Vector2 FramebufferSize
     {

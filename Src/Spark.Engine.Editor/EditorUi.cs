@@ -1878,7 +1878,7 @@ public sealed class EditorUi
         SetStatus("Select tool active.");
     }
 
-    private void DetachInspectorPanel()
+    private void DetachInspectorPanel(Vector2 pointerPosition)
     {
         if (_detachedInspectorWindow != null)
             return;
@@ -1893,6 +1893,14 @@ public sealed class EditorUi
             _viewportDetails.SetPanels(_assetEditorHost, null);
             var title = $"{_selectedTarget?.GetType().Name ?? "Details"} - Details";
             var window = _windowManager.CreateWindow(title, 420, 720);
+            if (window is IPositionedWindow floating)
+            {
+                var screenPosition = pointerPosition;
+                if (_windowManager.MainWindow is IPositionedWindow main)
+                    screenPosition += main.Position;
+                // 让鼠标落在浮动窗口标题附近，而不是被窗口左上角遮住。
+                floating.Position = screenPosition - new Vector2(32f, 14f);
+            }
             var viewport = _windowManager.GetViewport(window)
                 ?? throw new InvalidOperationException("Floating panel window has no viewport.");
             var canvas = _uiManager.GetOrCreateCanvas(viewport.Id);

@@ -38,6 +38,13 @@ public interface IWindow
     void Close();
 }
 
+/// <summary>可选的窗口屏幕坐标能力，用于浮动面板定位和跨窗口拖放。</summary>
+public interface IPositionedWindow
+{
+    /// <summary>窗口左上角屏幕坐标（逻辑像素）。</summary>
+    Vector2 Position { get; set; }
+}
+
 /// <summary>可取消原生关闭请求的窗口扩展；平台不支持时可不实现。</summary>
 public interface ICloseRequestWindow
 {
