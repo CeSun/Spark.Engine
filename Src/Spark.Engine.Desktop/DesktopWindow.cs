@@ -8,7 +8,7 @@ using SNW = Silk.NET.Windowing;
 
 namespace Spark.Engine.Desktop;
 
-public class DesktopWindow : IWindow, ICloseRequestWindow
+public class DesktopWindow : IWindow, ICloseRequestWindow, IFileDropWindow
 {
     private readonly SNW.IWindow _window;
 
@@ -22,6 +22,7 @@ public class DesktopWindow : IWindow, ICloseRequestWindow
     private WindowsImeContext? _imeContext;
 
     public Func<bool>? CloseRequested { get; set; }
+    public event Action<IReadOnlyList<string>>? FilesDropped;
 
     public RenderSurface? Surface => _surface;
 
@@ -50,6 +51,7 @@ public class DesktopWindow : IWindow, ICloseRequestWindow
         _window = window;
         _webGPUContext = webGPUContext;
         _window.Closing += HandleClosing;
+        _window.FileDrop += HandleFileDrop;
     }
 
     public void PollEvents()
@@ -98,6 +100,7 @@ public class DesktopWindow : IWindow, ICloseRequestWindow
 
     public void DisposeNative()
     {
+        _window.FileDrop -= HandleFileDrop;
         _window.Dispose();
     }
 
@@ -177,4 +180,7 @@ public class DesktopWindow : IWindow, ICloseRequestWindow
         if (mapped != Key.Unknown)
             _input.KeysDown.Set(mapped, down);
     }
+
+    private void HandleFileDrop(string[] paths)
+        => FilesDropped?.Invoke(paths);
 }

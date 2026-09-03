@@ -186,7 +186,7 @@ public static class CookedPackageRuntimeLoader
 
         public void Register(SceneResource resource, string? sourcePath = null, string? cookedPath = null,
             IEnumerable<Guid>? dependencies = null, string? contentHash = null,
-            AssetImportStatus importStatus = AssetImportStatus.Imported)
+            AssetImportStatus importStatus = AssetImportStatus.Imported, string? contentPath = null)
             => throw new NotSupportedException("A cooked package registry is read-only.");
 
         public void RegisterMetadata(AssetRecord record)

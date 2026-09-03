@@ -13,6 +13,7 @@ internal sealed class EditorMenuPanel : UIElement
         Action undo,
         Action redo,
         Action showAssetErrors,
+        Action refreshAssets,
         Action resetLayout,
         Action? backToHub = null)
     {
@@ -34,6 +35,7 @@ internal sealed class EditorMenuPanel : UIElement
         });
         _menuBar.AddMenu("Assets", menu =>
         {
+            menu.AddItem(new UIMenuItem("Refresh Content", refreshAssets) { Shortcut = "Ctrl+Shift+R" });
             menu.AddItem(new UIMenuItem("Asset Errors", showAssetErrors));
         });
         _menuBar.AddMenu("Window", menu =>

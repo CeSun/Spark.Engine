@@ -318,7 +318,8 @@ public sealed class EditorContext : IDisposable
         }
     }
 
-    private void RegisterWorldAssets()
+    /// <summary>登记当前 EditorWorld 引用的资产，供内容浏览器和导入/保存流程刷新索引。</summary>
+    public void RegisterWorldAssets()
     {
         foreach (var actor in World.EnumerateActors(includePendingActors: true))
         {

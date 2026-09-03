@@ -96,7 +96,7 @@ EditorWorld 共享资产、RuntimeWorld 隔离可变材质；不支持的版本�
 
 交付任务：
 
-1. 资源浏览器、索引、搜索和过滤（`SceneResource.AssetGuid` 已作为持久化身份基础）。
+1. ✅ 资源浏览器首版：基于 `AssetRegistry.Records` 的 `EditorContentBrowserModel` 与底部 `EditorContentBrowserPanel`，支持多级目录树、右侧文件夹项、搜索、类型过滤、刷新、导入状态/GUID/路径详情；双击/回车 StaticMesh 会通过 `CreateActorsCommand` 添加 Actor。资源目录固定为项目 `Content`，启动时扫描其中的 `.asset` 元数据，快捷键为 `Ctrl+Shift+R`。无筛选时默认定位 `Textures`（存在时）并只显示当前目录直接资源，`All Assets` 显示 `Content` 根目录资源和直接子文件夹；启用搜索或类型筛选后递归匹配子目录。当前场景未保存资源通过 `Scene refs: On` 单独查看。新增 `EditorAssetImportService`/`EditorUi.ImportTexture`（PNG/JPG 等 ImageSharp 支持格式）和 `ImportModel`（glTF StaticMesh）入口，导入目标为当前 Content 目录；Windows 桌面可将源文件直接拖入窗口导入。缩略图、引用关系、Windows 文件选择器和拖入 Viewport 待补。
 2. 引用选择器、缩略图、导入任务队列。
 3. Inspector 自定义绘制器和面板注册 API。
 4. 菜单、工具栏、Gizmo 扩展点。

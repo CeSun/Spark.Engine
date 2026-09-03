@@ -10,7 +10,7 @@ var builder = EngineBuilder.Create(args);
 builder.InitializeWebGPU();
 builder.UseDesktop();
 builder.UseBlinnPhong();
-builder.UseEditor(DemoApp.ConfigureEditor);
+builder.UseEditor(DemoApp.ConfigureEditor, projectDirectory: "Demo");
 
 var game = builder.Build();
 

@@ -478,6 +478,44 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 
 ## 构建与运行
 
+### Spark 项目目录
+
+`Demo/` 目录下的 `Demo.project` 是 Demo 项目标记。编辑器启动时将工作目录设置为该项目根，
+并使用以下目录：`Content/` 持久资产、`Config/` 项目配置、`Saved/` 编辑器运行数据、
+`Intermediate/` 导入/构建缓存、`Build/` Cook 输出。可通过
+`UseEditor(..., projectDirectory: ...)` 指定其他项目根。项目路径不要硬编码为本机绝对目录；
+项目目录按当前启动目录直接解析，不会向父目录推断；建议显式指定相对路径：
+
+```csharp
+builder.UseEditor(
+    configure: DemoApp.ConfigureEditor,
+    projectDirectory: "Demo");
+```
+
+项目根目录必须明确且唯一，目录内只能有一个 `*.project` 文件；不满足时编辑器会直接报错。
+
+资源导入 API：
+
+```csharp
+editorUi.ImportTexture(sourceImagePath); // 当前 Content 目录下的 *.asset
+editorUi.ImportModel(sourceGltfPath);   // 当前 Content 目录下的 *.asset + 场景 Actor
+```
+
+导入不会自动创建 `Textures` 或 `Models` 子目录。Content Browser 选中哪个目录，资源就写入
+哪个目录；支持 `Environment/Props` 这样的多级目录，未选择子目录时写入 `Content/` 根目录。
+默认只显示当前文件夹的直接资源；启用搜索或类型筛选后，会在当前文件夹及其子文件夹中匹配。
+因此点击 `All Assets` 时，资源列表只显示 `Content/` 根目录文件，`Textures` 等子目录通过左侧目录树显示；
+启用筛选后才会递归显示子目录中的匹配资源。
+右侧列表同时显示当前目录的直接子文件夹；双击文件夹可进入该目录，目录层级与左侧树保持同步。
+首次打开且没有任何筛选条件时，如果存在 `Textures` 目录，默认定位到该目录；用户手动选择
+其他目录后保持用户选择。
+
+当前图片导入使用 ImageSharp 支持的格式，模型导入首期支持 glTF StaticMesh；可直接将这些
+原始文件拖入编辑器窗口触发导入。原始格式
+不会被项目内容索引直接扫描，只有导入后生成的引擎 `.asset` 文件会出现在 Content Browser。
+Windows 原生
+文件选择器和更多模型格式作为后续编辑器 UI 工作流接入。
+
 ```bash
 # 构建
 dotnet build Spark.Engine.slnx

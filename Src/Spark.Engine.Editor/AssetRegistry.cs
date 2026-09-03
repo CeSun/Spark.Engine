@@ -25,13 +25,18 @@ public sealed class AssetRecord
 
     public Guid AssetGuid { get; init; }
     public string AssetType { get; init; } = string.Empty;
-    public string? SourcePath { get; internal set; }
+    /// <summary>源资产路径；扫描器会写入相对路径，宿主也可在登记元数据时提供它。</summary>
+    public string? SourcePath { get; set; }
+    /// <summary>项目 Content 下的虚拟路径，例如 <c>Textures/UI.asset</c>；用于内容浏览器和 Cook manifest。</summary>
+    public string? ContentPath { get; set; }
     public string? CookedPath { get; init; }
     public IReadOnlyList<Guid> Dependencies { get; init; } = Array.Empty<Guid>();
     public string? ContentHash { get; init; }
     public AssetImportStatus ImportStatus { get => _importStatus; init => _importStatus = value; }
     public string? LastError { get; internal set; }
     public SceneResource? Resource { get; internal set; }
+    /// <summary>是否有可恢复的磁盘身份；没有路径的记录仅代表当前会话中的场景引用。</summary>
+    public bool IsPersistent => !string.IsNullOrWhiteSpace(SourcePath) || !string.IsNullOrWhiteSpace(CookedPath);
     internal Func<SceneResource?>? Loader { get; set; }
     internal string? LoaderSourcePath { get; set; }
 
@@ -59,7 +64,7 @@ public interface IAssetRegistry
 
     void Register(SceneResource resource, string? sourcePath = null, string? cookedPath = null,
         IEnumerable<Guid>? dependencies = null, string? contentHash = null,
-        AssetImportStatus importStatus = AssetImportStatus.Imported);
+        AssetImportStatus importStatus = AssetImportStatus.Imported, string? contentPath = null);
 
     void RegisterMetadata(AssetRecord record);
 }
@@ -158,7 +163,7 @@ public sealed class AssetRegistry : IAssetRegistry, IAssetRegistryDiagnostics
 
     public void Register(SceneResource resource, string? sourcePath = null, string? cookedPath = null,
         IEnumerable<Guid>? dependencies = null, string? contentHash = null,
-        AssetImportStatus importStatus = AssetImportStatus.Imported)
+        AssetImportStatus importStatus = AssetImportStatus.Imported, string? contentPath = null)
     {
         ArgumentNullException.ThrowIfNull(resource);
         if (resource.AssetGuid == Guid.Empty)
@@ -169,6 +174,7 @@ public sealed class AssetRegistry : IAssetRegistry, IAssetRegistryDiagnostics
             AssetGuid = resource.AssetGuid,
             AssetType = resource.GetType().AssemblyQualifiedName ?? resource.GetType().FullName ?? resource.GetType().Name,
             SourcePath = sourcePath,
+            ContentPath = contentPath,
             CookedPath = cookedPath,
             Dependencies = (dependencies ?? Array.Empty<Guid>()).Distinct().OrderBy(guid => guid).ToArray(),
             ContentHash = contentHash,
@@ -224,6 +230,7 @@ public sealed class AssetRegistry : IAssetRegistry, IAssetRegistryDiagnostics
             {
                 var metadata = AssetFileCodec.ReadMetadata(path);
                 metadata.SourcePath = Path.GetRelativePath(fullDirectory, path);
+                metadata.ContentPath = metadata.SourcePath.Replace('\\', '/');
                 metadata.LoaderSourcePath = path;
                 metadata.Loader = () => AssetFileCodec.Load(path, this);
                 RegisterMetadata(metadata);
@@ -289,7 +296,7 @@ internal sealed class DelegateAssetRegistry(Func<Guid, SceneResource?> resolver)
 
     public void Register(SceneResource resource, string? sourcePath = null, string? cookedPath = null,
         IEnumerable<Guid>? dependencies = null, string? contentHash = null,
-        AssetImportStatus importStatus = AssetImportStatus.Imported)
+        AssetImportStatus importStatus = AssetImportStatus.Imported, string? contentPath = null)
         => throw new NotSupportedException("A delegate asset registry is read-only.");
 
     public void RegisterMetadata(AssetRecord record)

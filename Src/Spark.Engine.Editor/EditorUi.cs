@@ -3,6 +3,7 @@ using System.Reflection;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Input;
+using Spark.Engine.Resources;
 using Spark.Engine.UI;
 using Spark.Engine.Worlds;
 
@@ -23,9 +24,12 @@ public sealed class EditorUi
     private readonly EditorDeleteConfirmationPanel _deleteConfirmation;
     private readonly EditorCloseConfirmationPanel _closeConfirmation;
     private readonly EditorAssetErrorsPanel _assetErrors;
+    private readonly EditorContentBrowserPanel _contentBrowser;
     private readonly UIMenuPanel _attachMenu = new() { MinWidth = 220f, MaxWidth = 420f };
     private readonly EditorContext _context;
     private readonly IEditorSceneService? _sceneService;
+    private readonly EditorAssetImportService _assetImportService = new();
+    public EditorProject? Project { get; }
     private readonly TransformGizmoController _gizmo = new();
     private readonly EditorCameraController _cameraController = new();
     private GizmoOperation _gizmoOperation = GizmoOperation.Move;
@@ -38,11 +42,15 @@ public sealed class EditorUi
     /// <summary>编辑器根元素（挂到主窗口画布 Root）。</summary>
     public UIElement Root { get; }
 
-    public EditorUi(World world, Action? backToHub = null, IEditorSceneService? sceneService = null, WorldContext? worldContext = null)
+    public EditorUi(World world, Action? backToHub = null, IEditorSceneService? sceneService = null,
+        WorldContext? worldContext = null, EditorProject? project = null)
     {
         ArgumentNullException.ThrowIfNull(world);
         _sceneService = sceneService;
+        Project = project;
         _context = new EditorContext(world, worldContext);
+        // 让内容浏览器在编辑器首次打开时即可显示当前场景引用的资产。
+        _context.RegisterWorldAssets();
         var root = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
@@ -55,6 +63,7 @@ public sealed class EditorUi
             undo: Undo,
             redo: Redo,
             showAssetErrors: ShowAssetErrors,
+            refreshAssets: RefreshContent,
             resetLayout: () => SetStatus("Layout reset requested."),
             backToHub));
 
@@ -86,6 +95,10 @@ public sealed class EditorUi
         content.AddChild(_inspector);
 
         root.AddChild(content);
+
+        _contentBrowser = new EditorContentBrowserPanel(_context.AssetRegistry);
+        _contentBrowser.AssetActivated += HandleAssetActivated;
+        root.AddChild(_contentBrowser);
 
         _deleteConfirmation = new EditorDeleteConfirmationPanel(ConfirmDeleteSelection);
         root.AddChild(_deleteConfirmation);
@@ -172,6 +185,131 @@ public sealed class EditorUi
 
     /// <summary>编辑器使用的 AssetGuid 注册表，供导入器和宿主登记资源。</summary>
     public IAssetRegistry AssetRegistry => _context.AssetRegistry;
+    /// <summary>内容浏览器查询模型，供宿主扩展拖放、预览或自定义资源操作。</summary>
+    public EditorContentBrowserModel ContentBrowser => _contentBrowser.Model;
+
+    /// <summary>导入图片为项目 Content/Textures 下的引擎 Texture2D 资产。</summary>
+    public AssetRecord ImportTexture(string sourcePath)
+    {
+        try
+        {
+            var record = _assetImportService.ImportTexture(sourcePath, RequireProject(), AssetRegistry,
+                GetCurrentContentDirectory());
+            _contentBrowser.Refresh();
+            SetStatus($"Imported texture '{record.SourcePath}'.");
+            return record;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Texture import failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>导入 glTF StaticMesh 到项目 Content/Models，并通过编辑器命令创建场景 Actor。</summary>
+    public GltfEditorImportResult ImportModel(string sourcePath)
+    {
+        try
+        {
+            var result = _assetImportService.ImportGltf(sourcePath, RequireProject(), _context,
+                GetCurrentContentDirectory());
+            _contentBrowser.Refresh();
+            SetStatus($"Imported model '{result.SourcePath}' ({result.Assets.Count} mesh asset(s)).");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Model import failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>处理平台窗口拖入的源资源；导入后的文件统一落到项目 Content。</summary>
+    public void HandleFilesDropped(IReadOnlyList<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        if (paths.Count == 0)
+            return;
+        if (_context.PlayState != EditorPlayState.Edit)
+        {
+            SetStatus("Stop Play before importing dropped files.");
+            return;
+        }
+
+        var imported = 0;
+        var skipped = 0;
+        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                switch (Path.GetExtension(path).ToLowerInvariant())
+                {
+                    case ".png":
+                    case ".jpg":
+                    case ".jpeg":
+                        ImportTexture(path);
+                        imported++;
+                        break;
+                    case ".gltf":
+                        ImportModel(path);
+                        imported++;
+                        break;
+                    default:
+                        skipped++;
+                        break;
+                }
+            }
+            catch
+            {
+                skipped++;
+            }
+        }
+
+        SetStatus(imported == 0
+            ? "No supported resource files were imported."
+            : skipped == 0
+                ? $"Imported {imported} resource file(s)."
+                : $"Imported {imported} resource file(s); skipped {skipped}.");
+    }
+
+    private EditorProject RequireProject()
+        => Project ?? throw new InvalidOperationException("Editor project root is not configured.");
+
+    private string GetCurrentContentDirectory()
+    {
+        var project = RequireProject();
+        var relativeDirectory = _contentBrowser.Model.SelectedDirectory;
+        if (string.IsNullOrWhiteSpace(relativeDirectory))
+            return project.ContentDirectory;
+        if (Path.IsPathFullyQualified(relativeDirectory) ||
+            relativeDirectory.Split('/', '\\').Any(segment => segment is "" or "." or ".."))
+            throw new InvalidDataException("The selected content directory is invalid.");
+
+        var directory = Path.GetFullPath(Path.Combine(project.ContentDirectory,
+            relativeDirectory.Replace('/', Path.DirectorySeparatorChar)));
+        var contentRoot = Path.GetFullPath(project.ContentDirectory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!directory.StartsWith(contentRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("The selected content directory is outside the project Content root.");
+        return directory;
+    }
+
+    /// <summary>扫描指定目录中的引擎 `.asset` 文件并刷新内容浏览器。</summary>
+    public int ScanAssetDirectory(string directory)
+    {
+        try
+        {
+            var count = (_context.AssetRegistry as AssetRegistry)?.ScanDirectory(directory) ?? 0;
+            _contentBrowser.Refresh();
+            SetStatus($"Content refreshed: {count} asset file(s).");
+            return count;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Content refresh failed: {ex.Message}");
+            return 0;
+        }
+    }
 
     /// <summary>切换编辑器 Play/Stop，并保持运行时 World 与编辑 World 生命周期隔离。</summary>
     public void TogglePlay()
@@ -230,6 +368,9 @@ public sealed class EditorUi
             case Key.S when ctrl:
                 SaveScene();
                 break;
+            case Key.R when ctrl && shift:
+                RefreshContent();
+                break;
             case Key.R when ctrl:
                 ReloadScene();
                 break;
@@ -246,6 +387,34 @@ public sealed class EditorUi
     }
 
     private void SetStatus(string message) => _statusBar.SetStatus(message);
+
+    private void RefreshContent()
+    {
+        _contentBrowser.Refresh();
+        SetStatus($"Content refreshed: {_contentBrowser.Model.Entries.Count} visible asset(s).");
+    }
+
+    private void HandleAssetActivated(AssetRecord record)
+    {
+        try
+        {
+            if (!_context.AssetRegistry.TryResolve(record.AssetGuid, out var resource) || resource is not StaticMesh mesh)
+            {
+                SetStatus($"Asset '{record.AssetGuid}' is not a StaticMesh.");
+                return;
+            }
+
+            var actor = new Actor { Name = Path.GetFileNameWithoutExtension(record.SourcePath ?? "StaticMesh") };
+            actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh });
+            _context.Execute(new CreateActorsCommand(_context.World, new[] { actor }));
+            _context.Selection.Selected = actor;
+            SetStatus($"Added StaticMesh '{actor.Name}'.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Asset activation failed: {ex.Message}");
+        }
+    }
 
     private void HandleCameraBookmark(int slot, bool save)
     {
@@ -798,6 +967,7 @@ public sealed class EditorUi
         // 覆盖没有经过 SetPictureInPicture 的宿主 resize 回调，确保下一帧仍指向最新目标。
         _context.SyncRuntimeCameraTargets();
         _hierarchy.Refresh();
+        _contentBrowser.Refresh();
         RemoveInvalidSelection();
         _hierarchy.SelectTargets(_context.Selection.Items, _context.Selection.Selected);
 

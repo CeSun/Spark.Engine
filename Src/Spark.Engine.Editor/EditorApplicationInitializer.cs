@@ -18,10 +18,20 @@ internal sealed class EditorApplicationInitializer(EditorRegistration registrati
         var viewport = application.WindowManager.GetViewport(application.WindowManager.MainWindow)
             ?? throw new InvalidOperationException("The editor requires a viewport for the main window.");
 
+        var project = registration.ProjectDirectory == null
+            ? EditorProject.TryFind()
+            : EditorProject.Open(registration.ProjectDirectory);
+        if (project != null)
+            project.EnsureDescriptor();
         var editorUi = new EditorUi(
             world,
             sceneService: registration.SceneService,
-            worldContext: application.WorldContext);
+            worldContext: application.WorldContext,
+            project: project);
+        if (project != null && Directory.Exists(project.ContentDirectory))
+            editorUi.ScanAssetDirectory(project.ContentDirectory);
+        if (application.WindowManager.MainWindow is IFileDropWindow fileDropWindow)
+            fileDropWindow.FilesDropped += editorUi.HandleFilesDropped;
         var canvas = application.UIManager.GetOrCreateCanvas(viewport.Id);
         canvas.Root = editorUi.Root;
         canvas.GlobalKeyDown = (key, keysDown, focused) => editorUi.HandleGlobalKey(key, keysDown, focused);
@@ -55,4 +65,5 @@ internal sealed class EditorRegistration
     public Action<EngineApplication, EditorUi>? Configure { get; set; }
 
     public IEditorSceneService? SceneService { get; set; }
+    public string? ProjectDirectory { get; set; }
 }

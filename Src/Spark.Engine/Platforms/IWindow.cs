@@ -44,3 +44,10 @@ public interface ICloseRequestWindow
     /// <summary>返回 true 允许本次关闭，返回 false 取消并保持窗口打开。</summary>
     Func<bool>? CloseRequested { get; set; }
 }
+
+/// <summary>可选的原生文件拖放能力；不支持的平台可以不实现。</summary>
+public interface IFileDropWindow
+{
+    /// <summary>用户将一个或多个文件拖入窗口后触发，路径由平台层解析为完整文件路径。</summary>
+    event Action<IReadOnlyList<string>>? FilesDropped;
+}

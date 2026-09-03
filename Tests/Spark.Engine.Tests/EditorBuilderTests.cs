@@ -22,5 +22,11 @@ public sealed class EditorBuilderTests
         Assert.Single(builder.Services, descriptor =>
             descriptor.ServiceType == typeof(IGraphOverlay) &&
             descriptor.ImplementationType == typeof(UIRenderer));
+
+        var options = builder.Services
+            .Select(descriptor => descriptor.ImplementationInstance)
+            .OfType<EngineOptions>()
+            .Single();
+        Assert.Equal(EditorProject.TryFind()?.RootDirectory, options.WorkingDirectory);
     }
 }

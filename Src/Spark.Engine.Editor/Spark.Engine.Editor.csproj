@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Spark.Engine\Spark.Engine.csproj" />
+    <PackageReference Include="SixLabors.ImageSharp" />
   </ItemGroup>
 
 </Project>

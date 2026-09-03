@@ -16,6 +16,44 @@
 源文件不要求人类可读，优先采用版本化二进制。二进制格式仍需保留 Magic、FormatVersion、AssetType 和依赖信息。
 当前不做自动迁移；遇到不支持的版本应明确报错，而不是按旧布局猜测解析。
 
+## 1.1 项目目录结构
+
+项目根由 `<ProjectName>.project` 标记（当前示例为 `Demo/Demo.project`）。编辑器启动时把进程工作目录切换到该根目录，
+因此相对路径、日志、导入输出和 Cook 输出都以项目为基准；宿主也可以通过
+`UseEditor(..., projectDirectory: ...)` 显式指定根目录。代码和项目配置中不硬编码本机
+绝对目录；项目目录按启动目录直接解析，不向父目录推断；显式配置时使用 `.` 或
+`../MyProject` 这类相对于进程启动目录的路径。一个项目根目录必须且只能包含一个
+`*.project` 文件。
+
+```text
+<RepositoryRoot>/
+├── Demo/               # Demo 项目根目录
+│   ├── Demo.project    # 项目描述和目录约定
+│   ├── Content/        # 持久化 .asset、导入后的模型/贴图
+│   │   ├── Models/
+│   │   ├── Textures/
+│   │   └── Materials/
+│   ├── Config/         # 编辑器/项目配置
+│   ├── Saved/          # 最近文件、自动恢复、日志等运行期编辑器数据
+│   ├── Intermediate/   # 导入中间文件、缓存和临时构建数据
+│   ├── Build/          # Cook 后的 .pak 与平台产物
+│   ├── Demo/           # Demo C# 项目源码
+│   └── Demo.Desktop/   # Demo 桌面启动项目
+├── Src/                # Spark.Engine 引擎源码
+├── Tests/              # 引擎测试
+└── Doc/                # 设计和实现文档
+```
+
+`Content Browser` 只索引 `Content` 下的引擎专有资源；首版目录扫描器只注册 `.asset`，
+`.scene` 由场景服务管理。它不会扫描或注册 glTF、PNG/JPG 等原始资源格式。原始文件只作为
+导入输入，可以放在项目外部或 `Source` 目录；导入器负责生成引擎自己的 `.asset` 文件，
+运行时也只依赖 Cook 后的内部资产。
+
+资源导入使用 Content Browser 当前选中的目录作为目标，不按资源类型强制创建
+`Textures` 或 `Models` 子目录；当前目录可以是任意多级相对路径。
+Content Browser 首次打开且搜索为空、类型为 `All Assets` 时，若存在 `Textures` 目录则默认选中它；
+用户手动切换目录后保持手动选择。
+
 ### 1.1 首版编码选择
 
 首版采用引擎自定义的分块二进制编码，不新增第三方序列化依赖。每个文件由固定头和长度前缀块组成：

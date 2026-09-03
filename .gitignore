@@ -364,3 +364,8 @@ FodyWeavers.xsd
 
 # WPS Comate (AI assistant) local state
 .wpscomate/
+
+# Spark project generated editor/cook data
+Saved/
+Intermediate/
+Build/

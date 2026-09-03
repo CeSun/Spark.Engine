@@ -142,6 +142,8 @@ public class EngineApplication
 
         try
         {
+            if (!string.IsNullOrWhiteSpace(_engineOptions.WorkingDirectory))
+                Directory.SetCurrentDirectory(Path.GetFullPath(_engineOptions.WorkingDirectory));
             _stopwatch.Start();
             _engineSynchronizationContext.Initialize();
 
