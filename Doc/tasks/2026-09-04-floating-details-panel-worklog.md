@@ -17,12 +17,16 @@
 - `UISplitPanel.SetPanels` 支持第二面板为空，单面板时隐藏分割条并填满可用空间。
 - Outliner 和 Content Browser 标题栏也接入相同拖拽句柄，可分别抽离为独立窗口；关闭后恢复到原停靠区域。
 - 浮动窗口位置由主窗口屏幕坐标与拖拽鼠标坐标计算，鼠标保持在新窗口标题附近。
+- Outliner 改为真正的 Tab 宿主：只拖动具体标签超过 8px 才抽离对应层级面板，多 Tab 时其余标签保持在主窗口；
+  面板标题不再提供第二个拖出手势，避免与 UE 的 Tab 操作习惯冲突。
+- Viewport/资源编辑器 Tab 接入同一套 8px 拖动抽离逻辑，Scene 与资源文档可分别浮动；最后一个 Tab 抽离时
+  主布局由 `UISplitPanel` 自动切换为单面板，关闭浮动窗口后原 Tab 自动恢复。
 
 ## 已知边界
 
-- 当前已接入 Details、World Outliner 和 Content Browser；任意面板停靠、跨窗口拖动预览和布局持久化仍将在 E6 工作区阶段继续实现。
+- 当前已接入 Details、World Outliner、Viewport 文档 Tab 和 Content Browser；任意面板停靠、跨窗口拖动预览和布局持久化仍将在 E6 工作区阶段继续实现。
 
 ## 验证
 
-- `dotnet test Tests/Spark.Engine.Tests/Spark.Engine.Tests.csproj --no-restore /p:UseSharedCompilation=false`：`288/288` 通过。
-- `dotnet build Demo/Demo.Desktop/Demo.Desktop.csproj --no-restore /p:UseSharedCompilation=false /p:OutDir="$env:TEMP/SparkEngine-DemoDesktop-Verify-20260904e/"`：0 警告、0 错误。
+- `dotnet test Tests/Spark.Engine.Tests/Spark.Engine.Tests.csproj --no-restore /p:UseSharedCompilation=false`：`289/289` 通过。
+- `dotnet build Demo/Demo.Desktop/Demo.Desktop.csproj --no-restore /p:UseSharedCompilation=false /p:OutDir="$env:TEMP/SparkEngine-DemoDesktop-Verify-20260904k/"`：0 警告、0 错误。

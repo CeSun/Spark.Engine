@@ -71,6 +71,9 @@ public sealed class UITabView : UIElement
     /// <summary>内容区域背景色。</summary>
     public Vector4 ContentBackgroundColor { get; set; } = new(0.12f, 0.14f, 0.18f, 1f);
 
+    /// <summary>标签拖出触发阈值（像素）。</summary>
+    public float TabDragThreshold { get; set; } = 8f;
+
     /// <summary>选中索引（-1 表示无选中）。</summary>
     public int SelectedIndex
     {
@@ -99,11 +102,18 @@ public sealed class UITabView : UIElement
     /// <summary>标签页关闭回调。</summary>
     public Action<UITabItem>? TabClosed { get; set; }
 
+    /// <summary>标签拖动超过阈值后的回调；宿主可将对应标签抽离为浮动窗口。</summary>
+    public Action<UITabItem, Vector2>? TabDragStarted { get; set; }
+
     // 内部布局计算
     private readonly List<UIRect> _tabRects = new();
     private readonly List<UIRect> _closeRects = new();
     private int _hoveredTab = -1;
     private int _hoveredClose = -1;
+    private int _pressedTab = -1;
+    private bool _tabDragTriggered;
+    private Vector2 _pointerPosition;
+    private Vector2 _pressPosition;
 
     public UITabView()
     {
@@ -325,6 +335,23 @@ public sealed class UITabView : UIElement
         }
     }
 
+    protected internal override void OnMouseMove(Vector2 position)
+    {
+        _pointerPosition = position;
+        _hoveredTab = HitTab(position);
+        _hoveredClose = _hoveredTab >= 0 && _hoveredTab < _closeRects.Count && _tabs[_hoveredTab].CanClose &&
+            _closeRects[_hoveredTab].Contains(position) ? _hoveredTab : -1;
+    }
+
+    protected internal override void OnMouseDown(MouseButton button)
+    {
+        if (button != MouseButton.Left)
+            return;
+        _pressedTab = _hoveredClose >= 0 ? -1 : HitTab(_pointerPosition);
+        _pressPosition = _pointerPosition;
+        _tabDragTriggered = false;
+    }
+
     protected internal override void OnMouseDrag(Vector2 position)
     {
         _hoveredTab = -1;
@@ -342,12 +369,39 @@ public sealed class UITabView : UIElement
                 break;
             }
         }
+
+        var threshold = MathF.Max(0f, TabDragThreshold);
+        if (!_tabDragTriggered && _pressedTab >= 0 && _pressedTab < _tabs.Count &&
+            Vector2.DistanceSquared(position, _pressPosition) >= threshold * threshold)
+        {
+            _tabDragTriggered = true;
+            TabDragStarted?.Invoke(_tabs[_pressedTab], position);
+        }
+    }
+
+    protected internal override void OnMouseUp(MouseButton button)
+    {
+        if (button == MouseButton.Left)
+        {
+            _pressedTab = -1;
+            _tabDragTriggered = false;
+        }
     }
 
     protected internal override void OnMouseLeave()
     {
         _hoveredTab = -1;
         _hoveredClose = -1;
+    }
+
+    private int HitTab(Vector2 position)
+    {
+        for (var index = 0; index < _tabRects.Count && index < _tabs.Count; index++)
+        {
+            if (_tabRects[index].Contains(position))
+                return index;
+        }
+        return -1;
     }
 }
 

@@ -29,7 +29,7 @@ internal sealed class EditorAssetEditorHost : UIElement
     private readonly Dictionary<UITabItem, Guid> _assetTabs = new();
     private readonly EditorAssetThumbnailCache _thumbnailCache = new();
 
-    public EditorAssetEditorHost(UIElement sceneEditor)
+    public EditorAssetEditorHost(UIElement sceneEditor, Action<UITabItem, Vector2>? tabDetachRequested = null)
     {
         ArgumentNullException.ThrowIfNull(sceneEditor);
         _tabs.AddTab(new UITabItem("Scene", sceneEditor));
@@ -41,6 +41,7 @@ internal sealed class EditorAssetEditorHost : UIElement
             if (tab.Content is IDisposable disposable)
                 disposable.Dispose();
         };
+        _tabs.TabDragStarted = (tab, position) => tabDetachRequested?.Invoke(tab, position);
         AddChild(_tabs);
     }
 
@@ -53,6 +54,8 @@ internal sealed class EditorAssetEditorHost : UIElement
         => _tabs.SelectedTab is { } tab && _assetTabs.TryGetValue(tab, out var assetGuid)
             ? _sessions[assetGuid].Document
             : null;
+
+    public int TabCount => _tabs.Tabs.Count;
 
     public EditorAssetEditorDocument Open(AssetRecord record, SceneResource resource, Action? save)
     {
@@ -86,6 +89,24 @@ internal sealed class EditorAssetEditorHost : UIElement
     }
 
     public void ShowScene() => _tabs.SelectedIndex = 0;
+
+    public bool DetachTab(UITabItem tab)
+    {
+        var index = IndexOf(tab);
+        if (index < 0)
+            return false;
+        _tabs.RemoveTab(index);
+        return true;
+    }
+
+    public bool RestoreTab(UITabItem tab)
+    {
+        if (_tabs.Tabs.Any(existing => ReferenceEquals(existing, tab)))
+            return false;
+        _tabs.AddTab(tab);
+        _tabs.SelectedIndex = IndexOf(tab);
+        return true;
+    }
 
     private int IndexOf(UITabItem tab)
     {

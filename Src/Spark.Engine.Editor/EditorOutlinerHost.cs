@@ -23,12 +23,12 @@ internal sealed class EditorOutlinerHost : UIElement
     private readonly string? _projectDirectory;
     private readonly EditorOutlinerExtensionRegistry _extensions;
     private readonly Action<EditorHierarchyPanel> _configure;
-    private readonly Action<Vector2>? _detachRequested;
+    private readonly Action<EditorHierarchyPanel, Vector2>? _detachRequested;
     private EditorHierarchyPanel? _previousActivePanel;
 
     public EditorOutlinerHost(World world, EditorWorldOutlinerData outliner, string? projectDirectory,
         EditorOutlinerExtensionRegistry extensions, Action<EditorHierarchyPanel> configure,
-        Action<Vector2>? detachRequested = null)
+        Action<EditorHierarchyPanel, Vector2>? detachRequested = null)
     {
         _initialWorld = world;
         _initialOutliner = outliner;
@@ -41,6 +41,11 @@ internal sealed class EditorOutlinerHost : UIElement
             var next = ActivePanel;
             ActivePanelChanged?.Invoke(_previousActivePanel, next);
             _previousActivePanel = next;
+        };
+        _tabs.TabDragStarted = (tab, position) =>
+        {
+            if (tab.Content is EditorHierarchyPanel panel)
+                _detachRequested?.Invoke(panel, position);
         };
         _tabs.TabClosed = tab =>
         {
@@ -72,8 +77,7 @@ internal sealed class EditorOutlinerHost : UIElement
             viewStateStore: _projectDirectory == null
                 ? null
                 : EditorOutlinerViewStateStore.ForProject(_projectDirectory, slot),
-            extensions: _extensions,
-            detachRequested: _detachRequested);
+            extensions: _extensions);
         _configure(panel);
         panel.CreateOutlinerRequested = () => CreateInstance();
         if (slotIndex != 0)
@@ -90,6 +94,31 @@ internal sealed class EditorOutlinerHost : UIElement
 
     public bool CloseActiveInstance()
         => ActiveIndex > 0 && CloseInstance(ActivePanel);
+
+    public bool DetachPanel(EditorHierarchyPanel panel)
+    {
+        ArgumentNullException.ThrowIfNull(panel);
+        var index = _panels.IndexOf(panel);
+        if (index < 0 || _tabs.Tabs.Count <= 1)
+            return false;
+        _tabs.RemoveTab(index);
+        return true;
+    }
+
+    public bool RestorePanel(EditorHierarchyPanel panel)
+    {
+        ArgumentNullException.ThrowIfNull(panel);
+        if (!_panels.Contains(panel) || _tabs.Tabs.Any(tab => ReferenceEquals(tab.Content, panel)))
+            return false;
+        var slot = _slots[panel];
+        var tab = new UITabItem($"Outliner {slot + 1}", panel, canClose: slot != 0)
+        {
+            Closing = () => slot != 0,
+        };
+        _tabs.AddTab(tab);
+        _tabs.SelectedIndex = _tabs.Tabs.Count - 1;
+        return true;
+    }
 
     private bool CloseInstance(EditorHierarchyPanel panel)
     {

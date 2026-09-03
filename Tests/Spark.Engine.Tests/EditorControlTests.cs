@@ -889,6 +889,32 @@ public class EditorControlTests
         Assert.Equal(1, started);
     }
 
+    [Fact]
+    public void TabView_DraggingTab_ReportsTheSpecificTab()
+    {
+        var tabs = new UITabView { FixedSize = new UISize(240f, 120f) };
+        var first = new UITabItem("First", new UIPanel());
+        var second = new UITabItem("Second", new UIPanel());
+        tabs.AddTab(first);
+        tabs.AddTab(second);
+        UITabItem? dragged = null;
+        var position = Vector2.Zero;
+        tabs.TabDragStarted = (tab, point) => { dragged = tab; position = point; };
+        var canvas = new UICanvas(0) { Size = new Vector2(240f, 120f), Root = tabs };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        var left = default(MouseButtonMask);
+        left.Set(MouseButton.Left, true);
+        canvas.Update(new InputState(new Vector2(30f, 12f), Vector2.Zero, 0f,
+            left, left, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(new Vector2(45f, 12f), new Vector2(15f, 0f), 0f,
+            left, default, default, default, default, default, string.Empty), renderer);
+
+        Assert.Same(first, dragged);
+        Assert.Equal(new Vector2(45f, 12f), position);
+    }
+
     private static TextRenderer CreateTextRenderer()
     {
         var family = SixLabors.Fonts.SystemFonts.TryGet("Arial", out var f) ? f : SixLabors.Fonts.SystemFonts.Families.First();
