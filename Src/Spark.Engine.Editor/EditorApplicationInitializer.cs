@@ -39,6 +39,7 @@ internal sealed class EditorApplicationInitializer(
         var canvas = application.UIManager.GetOrCreateCanvas(viewport.Id);
         canvas.Root = editorUi.Root;
         canvas.GlobalKeyDown = (key, keysDown, focused) => editorUi.HandleGlobalKey(key, keysDown, focused);
+        editorUi.AttachWindowHost(application.WindowManager, application.UIManager);
 
         if (application.WindowManager.MainWindow is ICloseRequestWindow closeRequestWindow)
         {

@@ -838,6 +838,37 @@ public class EditorControlTests
         Assert.False(menu.Visible);
     }
 
+    [Fact]
+    public void DragHandle_TriggersOnlyAfterLeavingClickThreshold()
+    {
+        var handle = new UIDragHandle { Text = "Details" };
+        var started = 0;
+        handle.DragStarted = () => started++;
+        var canvas = new UICanvas(0)
+        {
+            Size = new Vector2(240f, 40f),
+            Root = handle,
+        };
+        canvas.Update(default, CreateTextRenderer());
+
+        var left = default(MouseButtonMask);
+        left.Set(MouseButton.Left, true);
+        var point = new Vector2(20f, 12f);
+        canvas.Update(new InputState(point, Vector2.Zero, 0f,
+            left, left, default, default, default, default, string.Empty), CreateTextRenderer());
+        canvas.Update(new InputState(new Vector2(24f, 12f), new Vector2(4f, 0f), 0f,
+            left, default, default, default, default, default, string.Empty), CreateTextRenderer());
+        Assert.Equal(0, started);
+
+        canvas.Update(new InputState(new Vector2(40f, 12f), new Vector2(16f, 0f), 0f,
+            left, default, default, default, default, default, string.Empty), CreateTextRenderer());
+        Assert.Equal(1, started);
+
+        canvas.Update(new InputState(new Vector2(40f, 12f), Vector2.Zero, 0f,
+            default, default, left, default, default, default, string.Empty), CreateTextRenderer());
+        Assert.Equal(1, started);
+    }
+
     private static TextRenderer CreateTextRenderer()
     {
         var family = SixLabors.Fonts.SystemFonts.TryGet("Arial", out var f) ? f : SixLabors.Fonts.SystemFonts.Families.First();

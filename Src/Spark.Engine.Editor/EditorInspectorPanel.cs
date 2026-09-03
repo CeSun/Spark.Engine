@@ -16,7 +16,7 @@ public sealed record EditorInspectorResourceProperty(
 internal sealed class EditorInspectorPanel : UIElement
 {
     private readonly UIStackPanel _panel;
-    private readonly UILabel _title;
+    private readonly UIDragHandle _title;
     private readonly UIPropertyGrid _propertyGrid;
     private readonly UILabel _actorSection;
     private readonly UILabel _componentSection;
@@ -27,6 +27,7 @@ internal sealed class EditorInspectorPanel : UIElement
     private readonly Action<IReadOnlyList<EditorResourcePropertySlot>, SceneResource?> _resourceEditRequested;
     private readonly Action<Guid> _locateAsset;
     private readonly Action<Guid> _openAsset;
+    private readonly Action? _detachRequested;
     private readonly List<EditorResourcePropertyField> _resourceFields = [];
     private IReadOnlyList<object> _targets = Array.Empty<object>();
 
@@ -35,12 +36,14 @@ internal sealed class EditorInspectorPanel : UIElement
         IAssetRegistry registry,
         Action<IReadOnlyList<EditorResourcePropertySlot>, SceneResource?> resourceEditRequested,
         Action<Guid> locateAsset,
-        Action<Guid> openAsset)
+        Action<Guid> openAsset,
+        Action? detachRequested = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _resourceEditRequested = resourceEditRequested ?? throw new ArgumentNullException(nameof(resourceEditRequested));
         _locateAsset = locateAsset ?? throw new ArgumentNullException(nameof(locateAsset));
         _openAsset = openAsset ?? throw new ArgumentNullException(nameof(openAsset));
+        _detachRequested = detachRequested;
         var theme = UITheme.Default;
         _panel = new UIStackPanel
         {
@@ -52,7 +55,12 @@ internal sealed class EditorInspectorPanel : UIElement
         };
 
         _panel.AddChild(new UILabel { Text = "DETAILS", TextColor = theme.TextDimColor });
-        _title = new UILabel { Text = "Nothing selected", TextColor = theme.TextColor };
+        _title = new UIDragHandle
+        {
+            Text = "Nothing selected",
+            TextColor = theme.TextColor,
+            DragStarted = () => _detachRequested?.Invoke(),
+        };
         _panel.AddChild(_title);
 
         // UE Details 风格：Actor 自身信息与空间/根组件信息分开显示。

@@ -141,7 +141,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | 交互 | `UISpinner` | ⏳ | 数字步进（上下箭头） |
 | 交互 | `UIComboBox` | ✅ | 下拉选择 + 键盘导航 + Overlay |
 | 交互 | `UIScrollBar` | ⏳ | 独立滚动条 |
-| 容器 | `UIWindow` | ⏳ | 可拖动/停靠窗口（尚未实现） |
+| 容器 | `UIWindow` | 🔶 | 编辑器 Details 已可通过 `UIDragHandle` 抽离到独立原生窗口；通用停靠窗口仍待 E6 |
 | 容器 | `UIDialog` | ✅ | 模态对话框（Overlay 遮罩、默认/取消按钮、Escape/Enter） |
 | 容器 | `UITabView` | ✅ | 标签页 + 关闭按钮 + 内容切换 |
 | 容器 | `UITreeView` | ✅ | 层级树 + 展开/折叠 + 单选/键盘导航 |

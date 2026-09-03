@@ -3,6 +3,7 @@ using System.Reflection;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Input;
+using Spark.Engine.Platforms;
 using Spark.Engine.Resources;
 using Spark.Engine.Render;
 using Spark.Engine.Render.Common;
@@ -22,6 +23,10 @@ public sealed class EditorUi
     private readonly EditorOutlinerExtensionRegistry _outlinerExtensions = new();
     private EditorHierarchyPanel _hierarchy => _outlinerHost.ActivePanel;
     private readonly EditorInspectorPanel _inspector;
+    private UISplitPanel? _viewportDetails;
+    private IWindow? _detachedInspectorWindow;
+    private WindowManager? _windowManager;
+    private UIManager? _uiManager;
     private readonly EditorViewportPanel _viewport;
     private readonly EditorAssetEditorHost _assetEditorHost;
     private readonly EditorStatusBarPanel _statusBar;
@@ -57,6 +62,15 @@ public sealed class EditorUi
     public UIElement Root { get; }
 
     public IReadOnlyList<EditorViewportSession> ViewportSessions => _viewportSessions;
+
+    /// <summary>绑定应用级窗口服务，使面板可以创建独立的原生窗口。</summary>
+    public void AttachWindowHost(WindowManager windowManager, UIManager uiManager)
+    {
+        _windowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
+        _uiManager = uiManager ?? throw new ArgumentNullException(nameof(uiManager));
+    }
+
+    public bool IsInspectorDetached => _detachedInspectorWindow != null;
 
     public EditorUi(World world, Action? backToHub = null, IEditorSceneService? sceneService = null,
         WorldContext? worldContext = null, EditorProject? project = null,
@@ -119,7 +133,8 @@ public sealed class EditorUi
             _context.AssetRegistry,
             (slots, resource) => RequestResourcePropertyEdit(slots, resource),
             assetGuid => RevealAsset(assetGuid),
-            assetGuid => OpenAssetEditor(assetGuid));
+            assetGuid => OpenAssetEditor(assetGuid),
+            DetachInspectorPanel);
 
         _contentBrowser = new EditorContentBrowserPanel(_context.AssetRegistry, project?.ContentDirectory);
         _contentBrowser.AssetActivated += HandleAssetActivated;
@@ -141,7 +156,7 @@ public sealed class EditorUi
         _contentBrowser.AssetCopyRequested += (assetGuid, destination) =>
             TryContentAction(() => CopyContentAsset(assetGuid, destination));
 
-        var viewportDetails = new UISplitPanel
+        _viewportDetails = new UISplitPanel
         {
             Direction = UISplitDirection.Horizontal,
             SplitRatio = 0.68f,
@@ -150,7 +165,7 @@ public sealed class EditorUi
             MinSecondSize = 280f,
             FixedSize = new UISize(0f, 0f),
         };
-        viewportDetails.SetPanels(_assetEditorHost, _inspector);
+        _viewportDetails.SetPanels(_assetEditorHost, _inspector);
 
         var mainColumns = new UISplitPanel
         {
@@ -161,7 +176,7 @@ public sealed class EditorUi
             MinSecondSize = 640f,
             FixedSize = new UISize(0f, 0f),
         };
-        mainColumns.SetPanels(_outlinerHost, viewportDetails);
+        mainColumns.SetPanels(_outlinerHost, _viewportDetails);
 
         var workspace = new UISplitPanel
         {
@@ -1863,9 +1878,55 @@ public sealed class EditorUi
         SetStatus("Select tool active.");
     }
 
+    private void DetachInspectorPanel()
+    {
+        if (_detachedInspectorWindow != null)
+            return;
+        if (_windowManager == null || _uiManager == null || _viewportDetails == null)
+        {
+            SetStatus("Floating panels are unavailable in this host.");
+            return;
+        }
+
+        try
+        {
+            _viewportDetails.SetPanels(_assetEditorHost,
+                new UIPanel { Color = UITheme.Default.PanelBackground });
+            var title = $"{_selectedTarget?.GetType().Name ?? "Details"} - Details";
+            var window = _windowManager.CreateWindow(title, 420, 720);
+            var viewport = _windowManager.GetViewport(window)
+                ?? throw new InvalidOperationException("Floating panel window has no viewport.");
+            var canvas = _uiManager.GetOrCreateCanvas(viewport.Id);
+            canvas.Root = _inspector;
+            canvas.GlobalKeyDown = (key, keysDown, focused) => HandleGlobalKey(key, keysDown, focused);
+            _detachedInspectorWindow = window;
+            SetStatus("Details panel detached to a floating window.");
+        }
+        catch (Exception ex)
+        {
+            // 创建失败时恢复主布局，避免 Inspector 丢失。
+            _viewportDetails.SetPanels(_assetEditorHost, _inspector);
+            SetStatus($"Detach panel failed: {ex.Message}");
+        }
+    }
+
+    private void RestoreDetachedInspectorIfClosed()
+    {
+        var window = _detachedInspectorWindow;
+        if (window == null || !window.IsClosing)
+            return;
+
+        if (_uiManager != null && _windowManager?.GetViewport(window) is { } viewport)
+            _uiManager.GetOrCreateCanvas(viewport.Id).Root = null;
+        _viewportDetails?.SetPanels(_assetEditorHost, _inspector);
+        _detachedInspectorWindow = null;
+        SetStatus("Details panel docked back into the editor.");
+    }
+
     /// <summary>每帧调用：Outliner 按结构版本按需刷新；状态栏 Actor/组件计数与检查器实时更新。</summary>
     public void Refresh()
     {
+        RestoreDetachedInspectorIfClosed();
         _hierarchy.Refresh();
         _contentBrowser.Refresh();
         RemoveInvalidSelection();
