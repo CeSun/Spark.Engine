@@ -983,7 +983,8 @@ slider.Bind(nameof(UISlider.Value), viewModel, vm => vm.Volume, (vm, v) => vm.Vo
   元素内部自行定位（菜单按 `Position` 弹出于指定坐标，对话框居中）。
 - **绘制**：`UICanvas.Paint` 在 Root 之后绘制可见 Overlay（后注册的在上层）。
 - **命中**：`UICanvas.RouteInput` 的 `HitTestTop` 先测 Overlay（倒序），再测 Root——
-  对话框遮罩拦截底层点击（模态），菜单只有弹出矩形内可点。
+  对话框遮罩拦截底层点击（模态），菜单只有弹出矩形内可点；左键按下到菜单区域外时，
+  `UICanvas` 会先关闭菜单，再把本次点击重新路由给 Root。
 - **TextRenderer/Canvas 注入**：`UICanvas.Update` 对每个可见 Overlay 同样注入
   `LayoutTextRenderer` 与 `Canvas`，保证弹出层内文本可测量/绘制。
 

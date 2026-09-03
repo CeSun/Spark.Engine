@@ -311,7 +311,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
 - **树** `UITreeView`/`UITreeViewItem`：层级树——`SubItems` 逻辑子项与扁平化可视列表分离（TreeView 重挂不破坏树结构）、
   展开/折叠、单选、键盘导航（含左右键折叠/展开）、`ExpandAll`/`CollapseAll`
 - **菜单** `UIMenuBar`/`UIMenuBarItem`/`UIMenuPanel`/`UIMenuItem`：菜单栏 + 弹出菜单（Overlay 注册、
-  按 `Position` 定位、分隔线/快捷键显示、选中后自动关闭）
+  按 `Position` 定位、分隔线/快捷键显示、选中或点击弹出区域外自动关闭）
 - **对话框** `UIDialog`：模态遮罩（Overlay 铺满画布拦截鼠标）+ 居中面板 + 按钮（默认/取消）+ Escape/Enter
 - **标签页** `UITabView`/`UITabItem`：动态标签宽度 + 关闭按钮（`CanClose`）+ 内容切换
 - **下拉框** `UIComboBox`：点击展开/收起 + 键盘导航 + 选中回调 + Overlay 绘制层

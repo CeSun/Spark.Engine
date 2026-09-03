@@ -813,10 +813,45 @@ public class EditorControlTests
         Assert.True(items[1].Bounds.X > items[0].Bounds.X, "Second menu item must be to the right of the first");
     }
 
+    [Fact]
+    public void MenuPanel_ClosesWhenClickingOutsidePopup()
+    {
+        var menuBar = new UIMenuBar { FixedSize = new UISize(300f, 30f) };
+        menuBar.AddMenu("File", panel => panel.AddItem(new UIMenuItem("Open")));
+        var canvas = new UICanvas(0)
+        {
+            Size = new Vector2(300f, 200f),
+            Root = menuBar,
+        };
+        canvas.Update(default, CreateTextRenderer());
+
+        var menuBarItemCenter = new Vector2(
+            menuBar.Items[0].Bounds.X + menuBar.Items[0].Bounds.Width * 0.5f,
+            menuBar.Items[0].Bounds.Y + menuBar.Items[0].Bounds.Height * 0.5f);
+        Click(canvas, menuBarItemCenter, CreateTextRenderer());
+        var menu = Assert.Single(canvas.Overlays.OfType<UIMenuPanel>());
+        Assert.NotEmpty(menu.Items);
+
+        // 点击弹层外的 Root 空白区域应立即关闭菜单。
+        Click(canvas, new Vector2(280f, 180f), CreateTextRenderer());
+        Assert.DoesNotContain(menu, canvas.Overlays);
+        Assert.False(menu.Visible);
+    }
+
     private static TextRenderer CreateTextRenderer()
     {
         var family = SixLabors.Fonts.SystemFonts.TryGet("Arial", out var f) ? f : SixLabors.Fonts.SystemFonts.Families.First();
         return new TextRenderer(family.CreateFont(16f, SixLabors.Fonts.FontStyle.Regular));
+    }
+
+    private static void Click(UICanvas canvas, Vector2 point, TextRenderer renderer)
+    {
+        var left = default(MouseButtonMask);
+        left.Set(MouseButton.Left, true);
+        canvas.Update(new InputState(point, Vector2.Zero, 0f,
+            left, left, default, default, default, default, string.Empty), renderer);
+        canvas.Update(new InputState(point, Vector2.Zero, 0f,
+            default, default, left, default, default, default, string.Empty), renderer);
     }
 
     // ———————————— UIComboBox ————————————

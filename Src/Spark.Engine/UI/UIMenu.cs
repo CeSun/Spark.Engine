@@ -229,8 +229,20 @@ public sealed class UIMenuPanel : UIElement
         Visible = false;
 
         var canvas = Canvas ?? FindCanvas();
+        if (canvas?.FocusedElement is { } focused && IsDescendantOf(focused, this))
+            canvas.ClearFocus();
         canvas?.Overlays.Remove(this);
         Closed?.Invoke();
+    }
+
+    private static bool IsDescendantOf(UIElement element, UIElement ancestor)
+    {
+        for (var current = element; current != null; current = current.Parent)
+        {
+            if (ReferenceEquals(current, ancestor))
+                return true;
+        }
+        return false;
     }
 
     protected override UISize OnMeasure(UISize availableSize)

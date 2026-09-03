@@ -207,6 +207,11 @@ public sealed class UICanvas
 
         var point = input.MousePosition;
 
+        // 下拉菜单是临时弹层：左键点到菜单矩形外时，先关闭菜单再重新命中
+        // Root。这样同一帧仍可正常点击底下的按钮（例如切换到另一个菜单）。
+        if (input.IsButtonPressed(MouseButton.Left))
+            CloseMenusOutside(point);
+
         // hover（enter/leave）
         var hovered = HitTestTop(point);
         if (hovered != _hovered)
@@ -363,6 +368,15 @@ public sealed class UICanvas
                 return current;
         }
         return null;
+    }
+
+    private void CloseMenusOutside(Vector2 point)
+    {
+        foreach (var menu in Overlays.OfType<UIMenuPanel>().ToArray())
+        {
+            if (menu.HitTest(point) == null)
+                menu.Close();
+        }
     }
 
     /// <summary>深度优先收集所有可见且可获焦的元素。</summary>
