@@ -18,7 +18,19 @@ public class Actor
     internal bool HasBegunPlay => _hasBegunPlay;
 
     /// <summary>编辑器和调试工具使用的稳定显示名称。</summary>
-    public string Name { get; set; } = string.Empty;
+    private string _name = string.Empty;
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            var next = value ?? string.Empty;
+            if (string.Equals(_name, next, StringComparison.Ordinal))
+                return;
+            _name = next;
+            _world?.NotifyStructureChanged();
+        }
+    }
 
     /// <summary>场景持久化使用的稳定身份。</summary>
     public Guid ActorGuid { get; set; } = Guid.NewGuid();
@@ -69,6 +81,7 @@ public class Actor
                 ExceptionDispatchInfo.Capture(lifecycleException).Throw();
             }
         }
+        _world?.NotifyStructureChanged();
     }
 
     /// <summary>设置 Actor 的空间根组件。根组件必须属于当前 Actor。</summary>
@@ -83,6 +96,7 @@ public class Actor
 
         component.DetachFromComponent(DetachmentTransformRules.KeepWorldTransform);
         RootComponent = component;
+        _world?.NotifyStructureChanged();
     }
 
     public T? GetComponent<T>() where T : ActorComponent

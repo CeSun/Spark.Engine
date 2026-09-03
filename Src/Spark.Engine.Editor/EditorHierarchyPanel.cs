@@ -180,6 +180,19 @@ internal sealed class EditorHierarchyPanel : UIElement
         }
     }
 
+    public EditorOutlinerWorldSource WorldSource
+    {
+        get => _viewState.WorldSource;
+        set
+        {
+            if (_viewState.WorldSource == value)
+                return;
+            _viewState.WorldSource = value;
+            SaveViewState();
+            WorldSourceChanged?.Invoke(value);
+        }
+    }
+
     public Action<object?>? SelectionChanged
     {
         get => _hierarchy.SelectionChanged;
@@ -212,21 +225,31 @@ internal sealed class EditorHierarchyPanel : UIElement
     public Action<Spark.Engine.Actors.Actor>? MoveActorToCurrentFolderRequested { get; set; }
     public Action<Spark.Engine.Actors.Actor>? SelectActorChildrenRequested { get; set; }
     public Action<object, System.Numerics.Vector2>? ItemDroppedOnBackground { get; set; }
+    public Action<EditorOutlinerWorldSource>? WorldSourceChanged { get; set; }
     public object? ActiveTarget => _hierarchy.SelectedTarget;
+    public Spark.Engine.Worlds.World DisplayedWorld => _hierarchy.World;
+    public bool IsReadOnly => _hierarchy.IsReadOnly;
+    public bool IsRuntimeView => _hierarchy.IsRuntimeView;
 
     public void Refresh()
     {
-        _title.Text = _outliner.CurrentFolderGuid is { } current && _outliner.FindFolder(current) is { } folder
-            ? $"OUTLINER · {folder.Name}"
-            : "OUTLINER";
+        _title.Text = IsRuntimeView
+            ? "OUTLINER · PLAY (READ ONLY)"
+            : IsReadOnly
+                ? "OUTLINER · EDITOR WORLD (PLAY LOCKED)"
+            : _outliner.CurrentFolderGuid is { } current && _outliner.FindFolder(current) is { } folder
+                ? $"OUTLINER · {folder.Name}"
+                : "OUTLINER";
         _hierarchy.Refresh();
         UpdateFilterButton();
     }
 
-    public void SetWorld(Spark.Engine.Worlds.World world)
+    public void SetWorld(Spark.Engine.Worlds.World world, bool isReadOnly = false, bool isRuntimeView = false)
     {
         _outliner = EditorWorldOutlinerData.For(world);
-        _hierarchy.SetWorld(world);
+        _hierarchy.SetWorld(world, isReadOnly, isRuntimeView);
+        _addFolderButton.Visible = !isReadOnly;
+        Refresh();
     }
 
     public void SelectTarget(object? target) => _hierarchy.SelectTarget(target);
@@ -254,6 +277,11 @@ internal sealed class EditorHierarchyPanel : UIElement
     private void ShowViewOptionsAt(System.Numerics.Vector2 position)
     {
         _viewOptions.Clear();
+        _viewOptions.AddItem(new UIMenuItem($"{(WorldSource == EditorOutlinerWorldSource.ActiveWorld ? "[x]" : "[ ]")} Active World",
+            () => WorldSource = EditorOutlinerWorldSource.ActiveWorld));
+        _viewOptions.AddItem(new UIMenuItem($"{(WorldSource == EditorOutlinerWorldSource.EditorWorld ? "[x]" : "[ ]")} Editor World",
+            () => WorldSource = EditorOutlinerWorldSource.EditorWorld));
+        _viewOptions.AddSeparator();
         AddToggleOption("Show Components (Developer)", ShowComponents,
             value => ShowComponents = value);
         _viewOptions.AddSeparator();
@@ -384,7 +412,10 @@ internal sealed class EditorHierarchyPanel : UIElement
     {
         _contextTarget = target;
         _contextMenu.Clear();
-        _contextMenu.AddItem(new UIMenuItem("Create Folder", () => CreateFolderRequested?.Invoke()));
+        if (IsReadOnly)
+            _contextMenu.AddItem(new UIMenuItem("Play World is read-only", () => { }) { IsEnabled = false });
+        else
+            _contextMenu.AddItem(new UIMenuItem("Create Folder", () => CreateFolderRequested?.Invoke()));
         if (target is EditorActorFolder folder)
         {
             _contextMenu.AddItem(new UIMenuItem("New Subfolder", () => CreateSubfolderRequested?.Invoke(folder)));
@@ -394,26 +425,30 @@ internal sealed class EditorHierarchyPanel : UIElement
         else if (target is Spark.Engine.Actors.Actor actor)
         {
             _contextMenu.AddItem(new UIMenuItem("Focus Selected", () => FocusActorRequested?.Invoke(actor)) { Shortcut = "F" });
-            _contextMenu.AddItem(new UIMenuItem("Duplicate", () => DuplicateActorRequested?.Invoke(actor)) { Shortcut = "Ctrl+D" });
-            _contextMenu.AddItem(new UIMenuItem("Detach", () => DetachActorRequested?.Invoke(actor))
+            if (!IsReadOnly)
             {
-                IsEnabled = actor.RootComponent?.AttachParent != null,
-            });
-            _contextMenu.AddItem(new UIMenuItem("Move to Current Folder", () => MoveActorToCurrentFolderRequested?.Invoke(actor)));
-            _contextMenu.AddItem(new UIMenuItem("Select Children", () => SelectActorChildrenRequested?.Invoke(actor)));
+                _contextMenu.AddItem(new UIMenuItem("Duplicate", () => DuplicateActorRequested?.Invoke(actor)) { Shortcut = "Ctrl+D" });
+                _contextMenu.AddItem(new UIMenuItem("Detach", () => DetachActorRequested?.Invoke(actor))
+                {
+                    IsEnabled = actor.RootComponent?.AttachParent != null,
+                });
+                _contextMenu.AddItem(new UIMenuItem("Move to Current Folder", () => MoveActorToCurrentFolderRequested?.Invoke(actor)));
+                _contextMenu.AddItem(new UIMenuItem("Select Children", () => SelectActorChildrenRequested?.Invoke(actor)));
+            }
         }
-        _contextMenu.AddItem(new UIMenuItem("Clear Current Folder", () => ClearCurrentFolderRequested?.Invoke()));
+        if (!IsReadOnly)
+            _contextMenu.AddItem(new UIMenuItem("Clear Current Folder", () => ClearCurrentFolderRequested?.Invoke()));
         _contextMenu.AddSeparator();
         _contextMenu.AddItem(new UIMenuItem("Rename", () =>
         {
             if (_contextTarget != null)
                 BeginRename(_contextTarget);
-        }) { Shortcut = "F2", IsEnabled = target is Spark.Engine.Actors.Actor or EditorActorFolder });
+        }) { Shortcut = "F2", IsEnabled = !IsReadOnly && target is Spark.Engine.Actors.Actor or EditorActorFolder });
         _contextMenu.AddItem(new UIMenuItem("Delete", () =>
         {
             if (_contextTarget != null)
                 DeleteRequested?.Invoke(_contextTarget);
-        }) { Shortcut = "Delete", IsEnabled = target is Spark.Engine.Actors.Actor or EditorActorFolder });
+        }) { Shortcut = "Delete", IsEnabled = !IsReadOnly && target is Spark.Engine.Actors.Actor or EditorActorFolder });
         _contextMenu.Canvas = FindCanvas();
         _contextMenu.Show(position);
     }
@@ -422,8 +457,13 @@ internal sealed class EditorHierarchyPanel : UIElement
     {
         _contextTarget = null;
         _contextMenu.Clear();
-        _contextMenu.AddItem(new UIMenuItem("New Folder", () => CreateFolderRequested?.Invoke()));
-        _contextMenu.AddItem(new UIMenuItem("Clear Current Folder", () => ClearCurrentFolderRequested?.Invoke()));
+        if (IsReadOnly)
+            _contextMenu.AddItem(new UIMenuItem("Play World is read-only", () => { }) { IsEnabled = false });
+        else
+        {
+            _contextMenu.AddItem(new UIMenuItem("New Folder", () => CreateFolderRequested?.Invoke()));
+            _contextMenu.AddItem(new UIMenuItem("Clear Current Folder", () => ClearCurrentFolderRequested?.Invoke()));
+        }
         _contextMenu.Canvas = FindCanvas();
         _contextMenu.Show(position);
     }

@@ -43,6 +43,11 @@ public sealed class EditorUi
     private UIRenderView? _renderViewControl;
     private readonly CameraSnapshotSourceRegistry _cameraSnapshotSources;
     private readonly List<EditorViewportSession> _viewportSessions = [];
+    private IReadOnlyList<object> _editorOutlinerSelection = Array.Empty<object>();
+    private object? _editorOutlinerPrimary;
+    private IReadOnlyList<object> _runtimeOutlinerSelection = Array.Empty<object>();
+    private object? _runtimeOutlinerPrimary;
+    private bool _skipOutlinerSelectionCapture;
 
     private object? _selectedTarget;
 
@@ -113,6 +118,7 @@ public sealed class EditorUi
         _hierarchy.MoveActorToCurrentFolderRequested = MoveActorToCurrentFolder;
         _hierarchy.SelectActorChildrenRequested = SelectOutlinerActorChildren;
         _hierarchy.ItemDroppedOnBackground = HandleHierarchyBackgroundDrop;
+        _hierarchy.WorldSourceChanged = _ => SwitchOutlinerWorld(captureCurrentSelection: true);
 
         _viewport = new EditorViewportPanel();
         _assetEditorHost = new EditorAssetEditorHost(_viewport);
@@ -208,7 +214,9 @@ public sealed class EditorUi
         _hierarchy.SelectionSetChanged += (targets, primary) => SelectTargets(targets, primary);
         _context.Selection.Changed += _ => UpdateInspector();
         _context.DirtyChanged += _ => UpdateInspectorTitle();
-        _context.WorldChanged += (_, next) => _hierarchy.SetWorld(next);
+        _context.WorldChanged += (_, _) => SwitchOutlinerWorld(captureCurrentSelection: false);
+        _context.PlayStateChanged += _ => SwitchOutlinerWorld(
+            captureCurrentSelection: !_skipOutlinerSelectionCapture);
     }
 
     /// <summary>当前编辑器 Play 状态，供宿主同步窗口标题或工具栏。</summary>
@@ -300,6 +308,13 @@ public sealed class EditorUi
         get => _hierarchy.OnlySelected;
         set => _hierarchy.OnlySelected = value;
     }
+    public EditorOutlinerWorldSource OutlinerWorldSource
+    {
+        get => _hierarchy.WorldSource;
+        set => _hierarchy.WorldSource = value;
+    }
+    public World OutlinerWorld => _hierarchy.DisplayedWorld;
+    public bool IsOutlinerReadOnly => _hierarchy.IsReadOnly;
     /// <summary>项目 Content 的集中式写操作服务；未配置项目时为 null。</summary>
     public EditorAssetOperationService? AssetOperations => _assetOperations;
     /// <summary>当前已经打开的资源编辑器文档。</summary>
@@ -716,7 +731,11 @@ public sealed class EditorUi
             _cameraController.Cancel();
             if (_context.PlayState == EditorPlayState.Play)
             {
+                CaptureOutlinerSelection();
+                _context.Selection.Set(Array.Empty<object>());
+                _skipOutlinerSelectionCapture = true;
                 _context.Stop();
+                _skipOutlinerSelectionCapture = false;
                 SetStatus("Play stopped.");
             }
             else
@@ -727,6 +746,7 @@ public sealed class EditorUi
         }
         catch (Exception ex)
         {
+            _skipOutlinerSelectionCapture = false;
             SetStatus($"Play failed: {ex.Message}");
         }
     }
@@ -1218,19 +1238,21 @@ public sealed class EditorUi
 
     private void ToggleOutlinerVisibility(object target)
     {
+        var world = _hierarchy.DisplayedWorld;
+        var outliner = EditorWorldOutlinerData.For(world);
         if (target is Actor actor)
         {
-            var hidden = !_context.Outliner.IsActorTemporarilyHidden(actor.ActorGuid);
-            _context.Outliner.SetActorTemporarilyHidden(actor.ActorGuid, hidden);
+            var hidden = !outliner.IsActorTemporarilyHidden(actor.ActorGuid);
+            outliner.SetActorTemporarilyHidden(actor.ActorGuid, hidden);
             SetStatus(hidden ? $"Temporarily hid '{actor.Name}'." : $"Showed '{actor.Name}'.");
         }
         else if (target is EditorActorFolder folder)
         {
-            var state = _context.Outliner.GetFolderVisibility(folder.FolderGuid,
-                _context.World.EnumerateActors(includePendingActors: true));
+            var state = outliner.GetFolderVisibility(folder.FolderGuid,
+                world.EnumerateActors(includePendingActors: true));
             var hide = state != EditorVisibilityState.Hidden;
-            _context.Outliner.SetFolderTemporarilyHidden(folder.FolderGuid,
-                _context.World.EnumerateActors(includePendingActors: true), hide);
+            outliner.SetFolderTemporarilyHidden(folder.FolderGuid,
+                world.EnumerateActors(includePendingActors: true), hide);
             SetStatus(hide ? $"Temporarily hid Folder '{folder.Name}'." : $"Showed Folder '{folder.Name}'.");
         }
         _hierarchy.Refresh();
@@ -1826,7 +1848,7 @@ public sealed class EditorUi
             _hierarchy.SelectTargets(_context.Selection.Items, _context.Selection.Selected);
 
         int actors = 0, components = 0;
-        foreach (var actor in _context.World.Actors.Where(EditorActorPolicy.IncludeInLevelStats))
+        foreach (var actor in _hierarchy.DisplayedWorld.Actors.Where(EditorActorPolicy.IncludeInLevelStats))
         {
             actors++;
             components += actor.Components.Count();
@@ -1835,7 +1857,9 @@ public sealed class EditorUi
         _statusBar.SetStatus($"Actors: {actors}  Components: {components}");
         _statusBar.SetSelection(GetSelectionStatus());
         var assetErrorCount = (_context.AssetRegistry as IAssetRegistryDiagnostics)?.Diagnostics.Count ?? 0;
-        _statusBar.SetMode(assetErrorCount == 0 ? "Assets: OK" : $"Asset errors: {assetErrorCount}");
+        _statusBar.SetMode(_hierarchy.IsReadOnly
+            ? "PLAY · READ ONLY"
+            : assetErrorCount == 0 ? "Assets: OK" : $"Asset errors: {assetErrorCount}");
 
         _inspector.Refresh();
     }
@@ -1857,6 +1881,8 @@ public sealed class EditorUi
             null => "Nothing selected",
             _ => _selectedTarget.GetType().Name,
         };
+        if (_hierarchy.IsReadOnly)
+            title += " · Read Only";
         _inspector.SetTitle(_context.IsDirty ? $"{title} *" : title);
     }
 
@@ -1874,7 +1900,7 @@ public sealed class EditorUi
     private void RemoveInvalidSelection()
     {
         var valid = _context.Selection.Items
-            .Where(IsInEditorWorld)
+            .Where(target => IsInWorld(target, _hierarchy.DisplayedWorld))
             .Where(EditorActorPolicy.CanSelect)
             .ToArray();
         var primary = _context.Selection.Selected;
@@ -1884,13 +1910,85 @@ public sealed class EditorUi
     }
 
     private bool IsInEditorWorld(object target)
+        => IsInWorld(target, _context.World);
+
+    private static bool IsInWorld(object target, World world)
         => target switch
         {
-            Actor actor => _context.World.EnumerateActors(includePendingActors: true)
+            Actor actor => world.EnumerateActors(includePendingActors: true)
                 .Any(candidate => ReferenceEquals(candidate, actor)),
             SceneComponent component => component.Owner is { } owner &&
-                _context.World.EnumerateActors(includePendingActors: true)
+                world.EnumerateActors(includePendingActors: true)
                     .Any(candidate => ReferenceEquals(candidate, owner)),
             _ => false,
         };
+
+    private void SwitchOutlinerWorld(bool captureCurrentSelection)
+    {
+        var previousSelection = _context.Selection.Items.ToArray();
+        var previousPrimary = _context.Selection.Selected;
+        if (captureCurrentSelection)
+            CaptureOutlinerSelection();
+
+        var runtime = _context.RuntimeWorld;
+        var showRuntime = _hierarchy.WorldSource == EditorOutlinerWorldSource.ActiveWorld && runtime != null;
+        var targetWorld = showRuntime ? runtime! : _context.World;
+        var readOnly = _context.PlayState == EditorPlayState.Play;
+        if (!ReferenceEquals(_hierarchy.DisplayedWorld, targetWorld) ||
+            _hierarchy.IsReadOnly != readOnly || _hierarchy.IsRuntimeView != showRuntime)
+            _hierarchy.SetWorld(targetWorld, isReadOnly: readOnly, isRuntimeView: showRuntime);
+
+        var saved = showRuntime ? _runtimeOutlinerSelection : _editorOutlinerSelection;
+        var savedPrimary = showRuntime ? _runtimeOutlinerPrimary : _editorOutlinerPrimary;
+        var valid = saved.Where(target => IsInWorld(target, targetWorld)).ToArray();
+        if (valid.Length == 0 && previousSelection.Length != 0)
+        {
+            (valid, savedPrimary) = MapSelectionToWorld(previousSelection, previousPrimary, targetWorld);
+            if (showRuntime)
+            {
+                _runtimeOutlinerSelection = valid;
+                _runtimeOutlinerPrimary = savedPrimary;
+            }
+        }
+        _context.Selection.Set(valid, savedPrimary);
+        _hierarchy.SelectTargets(valid, savedPrimary);
+        if (runtime == null)
+        {
+            _runtimeOutlinerSelection = Array.Empty<object>();
+            _runtimeOutlinerPrimary = null;
+        }
+    }
+
+    private void CaptureOutlinerSelection()
+    {
+        var items = _context.Selection.Items.ToArray();
+        if (ReferenceEquals(_hierarchy.DisplayedWorld, _context.RuntimeWorld))
+        {
+            _runtimeOutlinerSelection = items;
+            _runtimeOutlinerPrimary = _context.Selection.Selected;
+        }
+        else
+        {
+            _editorOutlinerSelection = items;
+            _editorOutlinerPrimary = _context.Selection.Selected;
+        }
+    }
+
+    private static (object[] Items, object? Primary) MapSelectionToWorld(
+        IReadOnlyList<object> source, object? primary, World destination)
+    {
+        var actors = destination.EnumerateActors(includePendingActors: true).ToArray();
+        var actorsByGuid = actors.ToDictionary(actor => actor.ActorGuid);
+        var componentsByGuid = actors.SelectMany(actor => actor.Components)
+            .ToDictionary(component => component.ComponentGuid);
+        object? Map(object target) => target switch
+        {
+            Actor actor when actorsByGuid.TryGetValue(actor.ActorGuid, out var match) => match,
+            ActorComponent component when componentsByGuid.TryGetValue(component.ComponentGuid, out var match) => match,
+            _ => null,
+        };
+        var mapped = source.Select(Map).Where(item => item != null).Cast<object>().Distinct().ToArray();
+        var mappedPrimary = primary == null ? null : Map(primary);
+        return (mapped, mappedPrimary != null && mapped.Contains(mappedPrimary) ? mappedPrimary : mapped.LastOrDefault());
+    }
 }

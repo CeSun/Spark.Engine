@@ -436,4 +436,19 @@ public sealed class UIScrollBox : UIElement
             System.Math.Clamp(ScrollOffset.X + dx, 0f, maxScrollX),
             System.Math.Clamp(ScrollOffset.Y + dy, 0f, maxScrollY));
     }
+
+    /// <summary>将内容坐标中的垂直区间滚入视口；适用于尚未实例化 UIElement 的虚拟列表项。</summary>
+    public void ScrollVerticalRangeIntoView(float top, float bottom)
+    {
+        var viewportHeight = ContentRect.Height;
+        if (viewportHeight <= 0f)
+            return;
+        var next = ScrollOffset.Y;
+        if (top < next)
+            next = top;
+        else if (bottom > next + viewportHeight)
+            next = bottom - viewportHeight;
+        var maxScroll = System.Math.Max(0f, _contentSize.Height - viewportHeight);
+        ScrollOffset = new Vector2(ScrollOffset.X, System.Math.Clamp(next, 0f, maxScroll));
+    }
 }

@@ -148,12 +148,14 @@ public class SceneComponent : ActorComponent, ISceneSocketProvider
         if (rules.RotationRule == AttachmentRule.SnapToTarget) _relativeRotation = Quaternion.Identity;
         if (rules.ScaleRule == AttachmentRule.SnapToTarget) _relativeScale = Vector3.One;
         MarkTransformDirty();
+        NotifyAttachmentChanged(parent);
         return true;
     }
 
     public void DetachFromComponent(DetachmentTransformRules rules)
     {
         if (_attachParent == null) return;
+        var previousParent = _attachParent;
         var world = WorldTransform;
         _attachParent._attachChildren.Remove(this);
         _attachParent = null;
@@ -165,6 +167,7 @@ public class SceneComponent : ActorComponent, ISceneSocketProvider
             _relativeLocation = location;
         }
         MarkTransformDirty();
+        NotifyAttachmentChanged(previousParent);
     }
 
     public bool DoesSocketExist(string socketName) => !string.IsNullOrWhiteSpace(socketName) && _sockets.ContainsKey(socketName);
@@ -212,5 +215,12 @@ public class SceneComponent : ActorComponent, ISceneSocketProvider
     {
         _transformDirty = true;
         foreach (var child in _attachChildren) child.MarkTransformDirty();
+    }
+
+    private void NotifyAttachmentChanged(SceneComponent? other)
+    {
+        Owner?.World?.NotifyStructureChanged();
+        if (other?.Owner?.World is { } otherWorld && !ReferenceEquals(otherWorld, Owner?.World))
+            otherWorld.NotifyStructureChanged();
     }
 }

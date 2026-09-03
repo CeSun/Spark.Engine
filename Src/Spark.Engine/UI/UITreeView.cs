@@ -57,6 +57,8 @@ public class UITreeViewItem : UIElement
 
     /// <summary>可选的行首类型标记色；用于没有纹理图标时保持节点类型的视觉区分。</summary>
     public Vector4? IconColor { get; set; }
+    public string BadgeText { get; set; } = string.Empty;
+    public Vector4 BadgeColor { get; set; } = new(0.16f, 0.46f, 0.28f, 1f);
 
     /// <summary>是否绘制并响应 UE 风格的临时可见性 Eye 列。</summary>
     public bool ShowVisibilityToggle { get; set; }
@@ -113,6 +115,15 @@ public class UITreeViewItem : UIElement
         SubItems.Add(child);
     }
 
+    /// <summary>供增量树模型复用行对象时清除旧逻辑父子关系。</summary>
+    public void ResetLogicalHierarchy()
+    {
+        LogicalParent = null;
+        foreach (var child in SubItems)
+            child.LogicalParent = null;
+        SubItems.Clear();
+    }
+
     protected override UISize OnMeasure(UISize availableSize)
     {
         if (FixedSize is { } fs && fs.Width > 0f && fs.Height > 0f)
@@ -159,6 +170,21 @@ public class UITreeViewItem : UIElement
             float iconY = contentRect.Y + (contentRect.Height - iconSize) * 0.5f;
             ui.DrawRect(targetId, new Vector2(textX, iconY), new Vector2(iconSize, iconSize), iconColor);
             textX += iconSize + 5f;
+        }
+        if (!string.IsNullOrEmpty(BadgeText))
+        {
+            const float badgeWidth = 25f;
+            const float badgeHeight = 14f;
+            var badgeY = contentRect.Y + (contentRect.Height - badgeHeight) * 0.5f;
+            ui.DrawRect(targetId, new Vector2(textX, badgeY), new Vector2(badgeWidth, badgeHeight), BadgeColor);
+            var renderer = GetTextRenderer();
+            if (renderer != null)
+            {
+                var badge = renderer.Truncate(BadgeText, badgeWidth - 4f);
+                renderer.DrawText(ui, targetId, badge, new Vector2(textX + 2f,
+                    contentRect.Y + (contentRect.Height - renderer.LineHeight) * 0.5f), Vector4.One);
+            }
+            textX += badgeWidth + 4f;
         }
         if (_inlineEditor == null && !string.IsNullOrEmpty(Text))
         {
@@ -304,6 +330,8 @@ public class UITreeViewItem : UIElement
             x += 14f;
         if (IconColor.HasValue)
             x += 14f;
+        if (!string.IsNullOrEmpty(BadgeText))
+            x += 29f;
         return x;
     }
 
@@ -420,7 +448,7 @@ public class UITreeViewItem : UIElement
 public sealed class UITreeView : UIElement
 {
     private readonly UIScrollBox _scrollBox;
-    private readonly UIStackPanel _itemsPanel;
+    private readonly UITreeItemsPanel _itemsPanel;
     private readonly List<UITreeViewItem> _roots = new();
 
     private readonly List<UITreeViewItem> _flatList = new(); // 展开后的扁平列表
@@ -469,9 +497,11 @@ public sealed class UITreeView : UIElement
     public UITreeViewItem? SelectedItem { get; private set; }
 
     public IReadOnlyList<UITreeViewItem> SelectedItems => _selectedItemsView;
+    public int VisibleItemCount => _flatList.Count;
+    public int RealizedItemCount => _itemsPanel.Children.Count;
 
     public UITreeViewItem? GetItemAt(Vector2 position)
-        => _flatList.LastOrDefault(item => item.Bounds.Contains(position));
+        => _itemsPanel.Children.OfType<UITreeViewItem>().LastOrDefault(item => item.Bounds.Contains(position));
 
     /// <summary>当前树内容的滚动偏移；重建逻辑可用它保持用户视图位置。</summary>
     public Vector2 ScrollOffset
@@ -485,10 +515,8 @@ public sealed class UITreeView : UIElement
         ClipToBounds = true;
         _selectedItemsView = _selectedItems.AsReadOnly();
 
-        _itemsPanel = new UIStackPanel
+        _itemsPanel = new UITreeItemsPanel
         {
-            Orientation = UIOrientation.Vertical,
-            Spacing = 0f,
             ContextRequested = position => BackgroundContextRequested?.Invoke(position),
         };
 
@@ -509,6 +537,23 @@ public sealed class UITreeView : UIElement
         item.IndentLevel = 0;
         AssignCallbacksRecursive(item);
         _roots.Add(item);
+        RebuildFlatList();
+    }
+
+    /// <summary>批量替换根节点，只执行一次扁平化与虚拟行窗口重建。</summary>
+    public void SetRoots(IEnumerable<UITreeViewItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        SelectItem(null);
+        foreach (var root in _roots)
+            ClearCallbacks(root);
+        _roots.Clear();
+        foreach (var item in items)
+        {
+            item.IndentLevel = 0;
+            AssignCallbacksRecursive(item);
+            _roots.Add(item);
+        }
         RebuildFlatList();
     }
 
@@ -571,7 +616,12 @@ public sealed class UITreeView : UIElement
 
         SelectedItem = nextPrimary;
         if (SelectedItem != null && AutoScrollSelection)
-            _scrollBox.ScrollIntoView(SelectedItem);
+        {
+            var index = _flatList.IndexOf(SelectedItem);
+            if (index >= 0)
+                _scrollBox.ScrollVerticalRangeIntoView(index * UITreeItemsPanel.RowHeight,
+                    (index + 1) * UITreeItemsPanel.RowHeight);
+        }
 
         SelectionChanged?.Invoke(SelectedItem);
         SelectionSetChanged?.Invoke(_selectedItemsView);
@@ -667,8 +717,8 @@ public sealed class UITreeView : UIElement
             item.KeyPressed = OnItemKeyPressed;
             item.ContextRequested = OnItemContextRequested;
             item.VisibilityClicked = OnItemVisibilityClicked;
-            _itemsPanel.AddChild(item);
         }
+        _itemsPanel.SetItems(_flatList);
     }
 
     private void AssignCallbacksRecursive(UITreeViewItem item)
@@ -707,6 +757,7 @@ public sealed class UITreeView : UIElement
 
     protected override void OnArrange()
     {
+        _itemsPanel.SetViewport(_scrollBox.ScrollOffset.Y, ContentRect.Height);
         _scrollBox.Arrange(ContentRect);
     }
 
@@ -884,4 +935,82 @@ public sealed class UITreeView : UIElement
 
     private void OnItemVisibilityClicked(UITreeViewItem item)
         => ItemVisibilityClicked?.Invoke(item);
+}
+
+/// <summary>只把视口附近的树行挂入可视树；逻辑扁平列表仍完整保留用于导航与选择。</summary>
+internal sealed class UITreeItemsPanel : UIElement
+{
+    public const float RowHeight = 24f;
+    private const int OverscanRows = 2;
+    private IReadOnlyList<UITreeViewItem> _items = Array.Empty<UITreeViewItem>();
+    private float _viewportOffset;
+    private float _viewportHeight = 600f;
+    private int _realizedFirst = -1;
+    private int _realizedLast = -1;
+
+    public Action<Vector2>? ContextRequested { get; set; }
+
+    public void SetItems(IReadOnlyList<UITreeViewItem> items)
+    {
+        _items = items;
+        _realizedFirst = -1;
+        _realizedLast = -1;
+        RealizeWindow();
+    }
+
+    public void SetViewport(float offset, float height)
+    {
+        _viewportOffset = System.Math.Max(0f, offset);
+        if (height > 0f)
+            _viewportHeight = height;
+        RealizeWindow();
+    }
+
+    protected override UISize OnMeasure(UISize availableSize)
+    {
+        RealizeWindow();
+        foreach (var child in Children)
+            child.Measure(new UISize(availableSize.Width, RowHeight));
+        return new UISize(float.IsPositiveInfinity(availableSize.Width) ? 0f : availableSize.Width,
+            _items.Count * RowHeight);
+    }
+
+    protected override void OnArrange()
+    {
+        RealizeWindow();
+        for (var index = 0; index < Children.Count; index++)
+        {
+            var itemIndex = _realizedFirst + index;
+            Children[index].Arrange(new UIRect(Bounds.X, Bounds.Y + itemIndex * RowHeight,
+                Bounds.Width, RowHeight));
+        }
+    }
+
+    protected internal override void OnMouseUp(MouseButton button, Vector2 position, KeyMask keysDown)
+    {
+        if (button == MouseButton.Right)
+            ContextRequested?.Invoke(position);
+    }
+
+    private void RealizeWindow()
+    {
+        var first = _items.Count == 0 ? 0 : System.Math.Clamp(
+            (int)System.Math.Floor(_viewportOffset / RowHeight) - OverscanRows, 0, _items.Count - 1);
+        var last = _items.Count == 0 ? -1 : System.Math.Clamp(
+            (int)System.Math.Ceiling((_viewportOffset + _viewportHeight) / RowHeight) + OverscanRows,
+            first, _items.Count - 1);
+        if (first == _realizedFirst && last == _realizedLast)
+            return;
+
+        ClearChildren();
+        _realizedFirst = first;
+        _realizedLast = last;
+        for (var index = first; index <= last; index++)
+        {
+            var item = _items[index];
+            item.LayoutTextRenderer = LayoutTextRenderer;
+            item.Canvas = Canvas;
+            AddChild(item);
+        }
+    }
 }

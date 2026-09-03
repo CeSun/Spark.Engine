@@ -16,6 +16,10 @@ public class World : IDisposable
     private readonly HashSet<SceneResource> _ownedResources = [];
     private int _disposed;
 
+    /// <summary>Actor、组件、名称或跨 Actor 挂载结构变化时递增，供编辑器视图 O(1) 检测。</summary>
+    public long StructureRevision { get; private set; }
+    public event Action? StructureChanged;
+
     /// <summary>当前已进入 World 注册阶段的 Actor；编辑器预览中可能尚未 BeginPlay。</summary>
     public IReadOnlyList<Actor> Actors => _actors;
 
@@ -73,6 +77,7 @@ public class World : IDisposable
 
         actor.SetWorld(this);
         _pendingAddActors.Add(actor);
+        NotifyStructureChanged();
     }
 
     public void RemoveActor(Actor actor)
@@ -85,6 +90,7 @@ public class World : IDisposable
         {
             DetachExternalAttachments(actor);
             actor.SetWorld(null);
+            NotifyStructureChanged();
             return;
         }
 
@@ -93,6 +99,7 @@ public class World : IDisposable
 
         _detachedAttachments[actor] = DetachExternalAttachments(actor);
         _pendingRemoveActors.Add(actor);
+        NotifyStructureChanged();
     }
 
     public void Update(float deltaTime) => Update(deltaTime, tickActors: true);
@@ -281,6 +288,14 @@ public class World : IDisposable
     {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(World));
+    }
+
+    internal void NotifyStructureChanged()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+            return;
+        StructureRevision++;
+        StructureChanged?.Invoke();
     }
 
     private static void DeactivateActor(Actor actor)

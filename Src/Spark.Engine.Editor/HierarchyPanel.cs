@@ -8,7 +8,7 @@ namespace Spark.Engine.Editor;
 
 /// <summary>
 /// UE 风格场景大纲：默认显示 Actor 及跨 Actor 的空间挂载层级；Component 仅作为可选开发者视图。
-/// 结构变化（Actor/Component 增删）时签名比对后重建，并按稳定 Guid 保留展开和选择状态。
+/// 结构变化通过 World/Outliner 版本 O(1) 检测，并按稳定 Guid 保留展开和选择状态。
 /// </summary>
 public sealed class HierarchyPanel
 {
@@ -17,8 +17,13 @@ public sealed class HierarchyPanel
     private readonly EditorOutlinerViewState _viewState;
     private EditorOutlinerQuery _query;
     private readonly UITreeView _tree;
+    private readonly Dictionary<object, WorldTreeItem> _itemCache = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<object, EditorOutlinerSearchRecord> _searchIndex = new(ReferenceEqualityComparer.Instance);
 
-    private string _lastSignature = string.Empty;
+    private long _lastWorldRevision = -1;
+    private long _lastOutlinerRevision = -1;
+    private long _viewRevision;
+    private long _lastViewRevision = -1;
     private bool _suppressSelectionChanged;
     private bool _suppressViewStateChanged;
     private bool _displayingFilteredTree;
@@ -40,6 +45,11 @@ public sealed class HierarchyPanel
     public Action<System.Numerics.Vector2>? BackgroundContextRequested { get; set; }
     public Action<object, System.Numerics.Vector2>? ItemDroppedOnBackground { get; set; }
     public Action? ViewStateChanged { get; set; }
+    public bool IsReadOnly { get; private set; }
+    public bool IsRuntimeView { get; private set; }
+    public int RebuildCount { get; private set; }
+    public int ItemCreationCount { get; private set; }
+    public World World => _world;
 
     public HierarchyPanel(World world, EditorWorldOutlinerData? outliner = null,
         EditorOutlinerViewState? viewState = null)
@@ -55,8 +65,8 @@ public sealed class HierarchyPanel
             AutoScrollSelection = _viewState.AlwaysFrameSelection,
         };
         _tree.FixedSize = new UISize(0f, 0f); // ≤0 = 拉伸填满（否则高度只有一行 ItemHeight）
-        _tree.ScrollOffset = new Vector2(_viewState.ScrollOffsetX, _viewState.ScrollOffsetY);
-        if (_viewState.CurrentFolderGuid is { } currentFolder && _outliner.FindFolder(currentFolder) != null)
+        _tree.ScrollOffset = GetStoredScrollOffset();
+        if (!IsReadOnly && _viewState.CurrentFolderGuid is { } currentFolder && _outliner.FindFolder(currentFolder) != null)
             _outliner.SetCurrentFolder(currentFolder);
         else
             _viewState.CurrentFolderGuid = _outliner.CurrentFolderGuid;
@@ -90,7 +100,7 @@ public sealed class HierarchyPanel
         {
             if (key == Spark.Engine.Input.Key.F2 && item is WorldTreeItem worldItem)
                 BeginRename(worldItem.Target);
-            else if (key == Spark.Engine.Input.Key.Delete && item is WorldTreeItem deleteItem)
+            else if (!IsReadOnly && key == Spark.Engine.Input.Key.Delete && item is WorldTreeItem deleteItem)
                 DeleteRequested?.Invoke(deleteItem.Target);
         };
     }
@@ -160,7 +170,7 @@ public sealed class HierarchyPanel
         set { _viewState.AlwaysFrameSelection = value; _tree.AutoScrollSelection = value; }
     }
 
-    public IReadOnlyList<string> AvailableActorTypes => _world.Actors
+    public IReadOnlyList<string> AvailableActorTypes => _world.EnumerateActors(includePendingActors: true)
         .Where(actor => ShowInternalActors || EditorActorPolicy.IsVisibleInOutliner(actor))
         .Select(GetActorTypeLabel).Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray();
@@ -197,17 +207,27 @@ public sealed class HierarchyPanel
         InvalidateFilter();
     }
 
-    public void SetWorld(World world)
+    public void SetWorld(World world, bool isReadOnly = false, bool isRuntimeView = false)
     {
+        if (!ReferenceEquals(_world, world))
+            CaptureViewState();
         _world = world ?? throw new ArgumentNullException(nameof(world));
         _outliner = EditorWorldOutlinerData.For(world);
+        IsReadOnly = isReadOnly;
+        IsRuntimeView = isRuntimeView;
         _selectedTargets = Array.Empty<object>();
         _primaryTarget = null;
         _displayingFilteredTree = false;
-        _lastSignature = string.Empty;
-        _tree.Clear();
-        _tree.ScrollOffset = new Vector2(_viewState.ScrollOffsetX, _viewState.ScrollOffsetY);
-        if (_viewState.CurrentFolderGuid is { } currentFolder && _outliner.FindFolder(currentFolder) != null)
+        _itemCache.Clear();
+        _searchIndex.Clear();
+        _lastWorldRevision = -1;
+        _lastOutlinerRevision = -1;
+        _lastViewRevision = -1;
+        _suppressSelectionChanged = true;
+        try { _tree.Clear(); }
+        finally { _suppressSelectionChanged = false; }
+        _tree.ScrollOffset = GetStoredScrollOffset();
+        if (!IsReadOnly && _viewState.CurrentFolderGuid is { } currentFolder && _outliner.FindFolder(currentFolder) != null)
             _outliner.SetCurrentFolder(currentFolder);
     }
 
@@ -216,81 +236,40 @@ public sealed class HierarchyPanel
 
     public IReadOnlyList<object> SelectedTargets => _selectedTargets;
 
-    /// <summary>每帧调用：结构签名变化时重建树（O(n) 快速比对，展开/选中态跨重建保留）。</summary>
+    /// <summary>每帧调用：只比较三个整数版本；无变化时不会扫描 World 或重建树。</summary>
     public void Refresh()
     {
-        if (_viewState.CurrentFolderGuid != _outliner.CurrentFolderGuid)
+        if (!IsReadOnly && _viewState.CurrentFolderGuid != _outliner.CurrentFolderGuid)
         {
             _viewState.CurrentFolderGuid = _outliner.CurrentFolderGuid;
             ViewStateChanged?.Invoke();
         }
-        var signature = BuildSignature();
-        if (signature == _lastSignature)
+        if (_world.StructureRevision == _lastWorldRevision &&
+            _outliner.Revision == _lastOutlinerRevision &&
+            _viewRevision == _lastViewRevision)
             return;
 
-        _lastSignature = signature;
+        if (_world.StructureRevision != _lastWorldRevision || _outliner.Revision != _lastOutlinerRevision)
+            _searchIndex.Clear();
+        _lastWorldRevision = _world.StructureRevision;
+        _lastOutlinerRevision = _outliner.Revision;
+        _lastViewRevision = _viewRevision;
         Rebuild();
-    }
-
-    private string BuildSignature()
-    {
-        // 内容无关的结构指纹：Actor 引用序列 + 每个 Actor 的组件引用序列
-        // （World.Update 后 Add/Remove 已生效；组件只增不减，引用序列足够判断结构变化）
-        var sb = new System.Text.StringBuilder();
-        sb.Append(SearchText).Append('|')
-            .Append(ShowInternalActors).Append('|')
-            .Append(ShowComponents).Append('|')
-            .Append(OnlySelected).Append('|')
-            .Append(HideTemporarilyHidden).Append('|')
-            .Append(string.Join(',', _viewState.ActorTypes.OrderBy(value => value))).Append('|')
-            .Append(_viewState.ShowTypeColumn).Append(':').Append(_viewState.TypeColumnWidth).Append('|')
-            .Append(_viewState.ShowSocketColumn).Append(':').Append(_viewState.SocketColumnWidth).Append('|')
-            .Append(_viewState.ShowIdColumn).Append(':').Append(_viewState.IdColumnWidth).Append('|')
-            .Append(_viewState.SortColumn).Append(':').Append(_viewState.SortAscending).Append('|');
-        sb.Append("outliner:").Append(_outliner.Revision).Append('|');
-        if (OnlySelected)
-        {
-            foreach (var target in _selectedTargets)
-                sb.Append(GetStableSelectionId(target)).Append(',');
-            sb.Append('|');
-        }
-        var visibleActors = GetVisibleActors();
-        var visibleSet = visibleActors.ToHashSet();
-        foreach (var actor in visibleActors)
-        {
-            sb.Append(actor.ActorGuid).Append(':').Append(actor.Name)
-                .Append('#').Append(actor.GetType().FullName)
-                .Append('/').Append(actor.RootComponent?.ComponentGuid)
-                .Append('/').Append(actor.RootComponent?.GetType().FullName)
-                .Append('>').Append(GetOutlinerParent(actor, visibleSet)?.ActorGuid)
-                .Append(';');
-            foreach (var component in VisibleComponents(actor))
-            {
-                sb.Append(component.ComponentGuid).Append(':').Append(component.GetType().Name);
-                if (component is SceneComponent scene)
-                {
-                    sb.Append('>').Append(scene.AttachParent?.ComponentGuid)
-                        .Append('@').Append(scene.AttachSocketName);
-                }
-                sb.Append(',');
-            }
-        }
-        return sb.ToString();
     }
 
     private void Rebuild()
     {
+        RebuildCount++;
         var selected = _selectedTargets;
         var primary = _primaryTarget;
         var isContextFilter = !_query.IsEmpty || OnlySelected || HideTemporarilyHidden || _viewState.ActorTypes.Count != 0;
         var scrollOffset = _displayingFilteredTree && !isContextFilter
-            ? new Vector2(_viewState.ScrollOffsetX, _viewState.ScrollOffsetY)
+            ? GetStoredScrollOffset()
             : _tree.ScrollOffset;
         if (!_displayingFilteredTree)
         {
             CaptureExpansionState(_tree.Roots);
-            _viewState.ScrollOffsetX = _tree.ScrollOffset.X;
-            _viewState.ScrollOffsetY = _tree.ScrollOffset.Y;
+            SetStoredScrollOffset(_tree.ScrollOffset);
         }
 
         _suppressSelectionChanged = true;
@@ -314,7 +293,7 @@ public sealed class HierarchyPanel
             {
                 var displayName = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
                 var actorItem = CreateTreeItem(actor, displayName);
-                actorItem.IsExpanded = !_viewState.ActorExpansion.TryGetValue(actor.ActorGuid, out var expanded) || expanded;
+                actorItem.IsExpanded = !GetActorExpansion().TryGetValue(actor.ActorGuid, out var expanded) || expanded;
                 foreach (var component in VisibleComponents(actor))
                     actorItem.AddSubItem(CreateTreeItem(component, GetComponentLabel(component)));
                 actorItems.Add(actor, actorItem);
@@ -345,8 +324,8 @@ public sealed class HierarchyPanel
             foreach (var item in rootItems)
                 SortChildren(item);
             rootItems.Sort(CompareItems);
-            foreach (var item in rootItems)
-                _tree.AddRoot(item);
+            _tree.SetRoots(rootItems);
+            PruneItemCache();
 
             if (isContextFilter)
             {
@@ -368,7 +347,7 @@ public sealed class HierarchyPanel
 
     private IReadOnlyList<Actor> GetVisibleActors()
     {
-        var candidates = _world.Actors
+        var candidates = _world.EnumerateActors(includePendingActors: true)
             .Where(actor => ShowInternalActors || EditorActorPolicy.IsVisibleInOutliner(actor))
             .Where(actor => !HideTemporarilyHidden || !_outliner.IsActorTemporarilyHidden(actor.ActorGuid))
             .ToArray();
@@ -443,26 +422,39 @@ public sealed class HierarchyPanel
         var components = actor.Components;
         if (_query.IsEmpty || MatchesActor(actor))
             return components;
-        return components.Where(component => _query.Matches(CreateSearchRecord(component)));
+        return components.Where(component => _query.Matches(GetSearchRecord(component)));
     }
 
     private bool MatchesSearch(Actor actor) => _query.IsEmpty || MatchesActor(actor);
 
-    private bool MatchesActor(Actor actor) => _query.Matches(CreateSearchRecord(actor));
+    private bool MatchesActor(Actor actor) => _query.Matches(GetSearchRecord(actor));
 
-    private bool MatchesFolder(EditorActorFolder folder) => _query.Matches(new EditorOutlinerSearchRecord(
-        folder.Name, "Folder", GetFolderPath(folder), folder.FolderGuid.ToString(), string.Empty, Array.Empty<string>()));
+    private bool MatchesFolder(EditorActorFolder folder) => _query.Matches(GetSearchRecord(folder));
 
-    private EditorOutlinerSearchRecord CreateSearchRecord(Actor actor)
-        => new(string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name,
+    private EditorOutlinerSearchRecord GetSearchRecord(object target)
+    {
+        if (_searchIndex.TryGetValue(target, out var record))
+            return record;
+        record = target switch
+        {
+            Actor actor => new EditorOutlinerSearchRecord(
+            string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name,
             GetActorTypeLabel(actor), GetActorFolderPath(actor), actor.ActorGuid.ToString(),
-            GetActorSocketLabel(actor), actor.Components.Select(component => component.GetType().Name).ToArray());
-
-    private EditorOutlinerSearchRecord CreateSearchRecord(ActorComponent component)
-        => new(component.GetType().Name, component.GetType().Name,
+            GetActorSocketLabel(actor), actor.Components.Select(component => component.GetType().Name).ToArray()),
+            ActorComponent component => new EditorOutlinerSearchRecord(
+            component.GetType().Name, component.GetType().Name,
             component.Owner == null ? string.Empty : GetActorFolderPath(component.Owner),
             component.ComponentGuid.ToString(), component is SceneComponent scene ? scene.AttachSocketName ?? string.Empty : string.Empty,
-            [component.GetType().Name]);
+            [component.GetType().Name]),
+            EditorActorFolder folder => new EditorOutlinerSearchRecord(
+                folder.Name, "Folder", GetFolderPath(folder), folder.FolderGuid.ToString(),
+                string.Empty, Array.Empty<string>()),
+            _ => new EditorOutlinerSearchRecord(string.Empty, string.Empty, string.Empty,
+                string.Empty, string.Empty, Array.Empty<string>()),
+        };
+        _searchIndex[target] = record;
+        return record;
+    }
 
     private string GetActorFolderPath(Actor actor)
         => _outliner.GetActorFolder(actor.ActorGuid) is { } folderGuid && _outliner.FindFolder(folderGuid) is { } folder
@@ -507,23 +499,30 @@ public sealed class HierarchyPanel
     {
         var isFolder = target is EditorActorFolder;
         var selectable = isFolder || EditorActorPolicy.CanSelect(target);
-        var editable = isFolder || EditorActorPolicy.CanEdit(target);
+        var editable = !IsReadOnly && (isFolder || EditorActorPolicy.CanEdit(target));
         var isActor = target is Actor;
         var isSpatialActor = target is Actor { RootComponent: not null };
-        return new WorldTreeItem(target, text)
+        if (!_itemCache.TryGetValue(target, out var item))
         {
-            IsSelectable = selectable,
-            IsDraggable = (isActor || isFolder) && editable,
-            IsDropTarget = (isSpatialActor || isFolder) && editable,
-            Focusable = selectable,
-            TextColor = selectable ? UITheme.Default.TextColor : UITheme.Default.TextDimColor,
-            IconColor = isActor ? GetActorIconColor((Actor)target, selectable)
-                : isFolder ? GetFolderIconColor((EditorActorFolder)target) : null,
-            ShowVisibilityToggle = isActor || isFolder,
-            ReserveVisibilityColumn = true,
-            VisibilityState = GetVisibilityState(target),
-            SecondaryCells = CreateSecondaryCells(target),
-        };
+            item = new WorldTreeItem(target, text);
+            _itemCache.Add(target, item);
+            ItemCreationCount++;
+        }
+        item.ResetLogicalHierarchy();
+        item.Text = text;
+        item.IsSelectable = selectable;
+        item.IsDraggable = (isActor || isFolder) && editable;
+        item.IsDropTarget = (isSpatialActor || isFolder) && editable;
+        item.Focusable = selectable;
+        item.TextColor = selectable ? UITheme.Default.TextColor : UITheme.Default.TextDimColor;
+        item.IconColor = isActor ? GetActorIconColor((Actor)target, selectable)
+            : isFolder ? GetFolderIconColor((EditorActorFolder)target) : null;
+        item.BadgeText = IsRuntimeView && isActor ? "PIE" : string.Empty;
+        item.ShowVisibilityToggle = isActor || isFolder;
+        item.ReserveVisibilityColumn = true;
+        item.VisibilityState = GetVisibilityState(target);
+        item.SecondaryCells = CreateSecondaryCells(target);
+        return item;
     }
 
     private IReadOnlyList<UITreeViewCell> CreateSecondaryCells(object target)
@@ -596,6 +595,21 @@ public sealed class HierarchyPanel
     private static int GetSortCategory(object target)
         => target is EditorActorFolder ? 0 : target is Actor ? 1 : 2;
 
+    private void PruneItemCache()
+    {
+        var valid = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        foreach (var actor in _world.EnumerateActors(includePendingActors: true))
+        {
+            valid.Add(actor);
+            foreach (var component in actor.Components)
+                valid.Add(component);
+        }
+        foreach (var folder in _outliner.Folders)
+            valid.Add(folder);
+        foreach (var target in _itemCache.Keys.Where(target => !valid.Contains(target)).ToArray())
+            _itemCache.Remove(target);
+    }
+
     private Vector4 GetFolderIconColor(EditorActorFolder folder)
         => _outliner.CurrentFolderGuid == folder.FolderGuid
             ? new Vector4(1f, 0.78f, 0.24f, 1f)
@@ -619,7 +633,7 @@ public sealed class HierarchyPanel
         };
     }
 
-    private void InvalidateFilter() => _lastSignature = string.Empty;
+    private void InvalidateFilter() => _viewRevision++;
 
     public void InvalidateView() => InvalidateFilter();
 
@@ -683,7 +697,7 @@ public sealed class HierarchyPanel
         foreach (var item in items)
         {
             if (item is WorldTreeItem { Target: Actor actor })
-                _viewState.ActorExpansion[actor.ActorGuid] = item.IsExpanded;
+                GetActorExpansion()[actor.ActorGuid] = item.IsExpanded;
             else if (item is WorldTreeItem { Target: EditorActorFolder folder })
                 _viewState.FolderExpansion[folder.FolderGuid] = item.IsExpanded;
             CaptureExpansionState(item.SubItems);
@@ -697,10 +711,31 @@ public sealed class HierarchyPanel
         if (!_displayingFilteredTree)
         {
             CaptureExpansionState(_tree.Roots);
-            _viewState.ScrollOffsetX = _tree.ScrollOffset.X;
-            _viewState.ScrollOffsetY = _tree.ScrollOffset.Y;
+            SetStoredScrollOffset(_tree.ScrollOffset);
         }
         ViewStateChanged?.Invoke();
+    }
+
+    private Dictionary<Guid, bool> GetActorExpansion()
+        => IsRuntimeView ? _viewState.RuntimeActorExpansion : _viewState.ActorExpansion;
+
+    private Vector2 GetStoredScrollOffset()
+        => IsRuntimeView
+            ? new Vector2(_viewState.RuntimeScrollOffsetX, _viewState.RuntimeScrollOffsetY)
+            : new Vector2(_viewState.ScrollOffsetX, _viewState.ScrollOffsetY);
+
+    private void SetStoredScrollOffset(Vector2 value)
+    {
+        if (IsRuntimeView)
+        {
+            _viewState.RuntimeScrollOffsetX = value.X;
+            _viewState.RuntimeScrollOffsetY = value.Y;
+        }
+        else
+        {
+            _viewState.ScrollOffsetX = value.X;
+            _viewState.ScrollOffsetY = value.Y;
+        }
     }
 
     public void SelectTarget(object? target)
@@ -764,7 +799,7 @@ public sealed class HierarchyPanel
 
     public bool BeginRename(object target)
     {
-        if (target is not Actor && target is not EditorActorFolder)
+        if (IsReadOnly || target is not Actor && target is not EditorActorFolder)
             return false;
         var item = FindItem(_tree.Roots, target);
         return item != null && item.BeginInlineEdit(value => RenameSubmitted?.Invoke(target, value) ?? true);

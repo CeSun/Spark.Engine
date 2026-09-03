@@ -12,6 +12,12 @@ public enum EditorOutlinerColumn
     Id,
 }
 
+public enum EditorOutlinerWorldSource
+{
+    ActiveWorld,
+    EditorWorld,
+}
+
 public sealed record EditorOutlinerCustomFilter(string Name, string Query, List<string> ActorTypes);
 
 /// <summary>一个 Outliner 实例独占的查询、列、排序和导航状态。</summary>
@@ -26,6 +32,7 @@ public sealed class EditorOutlinerViewState
     public bool ShowSocketColumn { get; set; }
     public bool ShowIdColumn { get; set; }
     public bool AlwaysFrameSelection { get; set; } = true;
+    public EditorOutlinerWorldSource WorldSource { get; set; } = EditorOutlinerWorldSource.ActiveWorld;
     public float TypeColumnWidth { get; set; } = 92f;
     public float SocketColumnWidth { get; set; } = 90f;
     public float IdColumnWidth { get; set; } = 88f;
@@ -37,6 +44,9 @@ public sealed class EditorOutlinerViewState
     public HashSet<string> ActorTypes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<Guid, bool> ActorExpansion { get; set; } = [];
     public Dictionary<Guid, bool> FolderExpansion { get; set; } = [];
+    public Dictionary<Guid, bool> RuntimeActorExpansion { get; set; } = [];
+    public float RuntimeScrollOffsetX { get; set; }
+    public float RuntimeScrollOffsetY { get; set; }
     public List<EditorOutlinerCustomFilter> CustomFilters { get; set; } = [];
 }
 
@@ -106,6 +116,7 @@ public sealed class EditorOutlinerViewStateStore
         state.ActorTypes = new HashSet<string>(state.ActorTypes ?? [], StringComparer.OrdinalIgnoreCase);
         state.ActorExpansion ??= [];
         state.FolderExpansion ??= [];
+        state.RuntimeActorExpansion ??= [];
         state.CustomFilters = (state.CustomFilters ?? [])
             .Where(filter => filter != null)
             .Select(filter => new EditorOutlinerCustomFilter(
@@ -118,6 +129,10 @@ public sealed class EditorOutlinerViewStateStore
         state.IdColumnWidth = NormalizeWidth(state.IdColumnWidth, 88f);
         state.ScrollOffsetX = System.Math.Max(0f, state.ScrollOffsetX);
         state.ScrollOffsetY = System.Math.Max(0f, state.ScrollOffsetY);
+        state.RuntimeScrollOffsetX = System.Math.Max(0f, state.RuntimeScrollOffsetX);
+        state.RuntimeScrollOffsetY = System.Math.Max(0f, state.RuntimeScrollOffsetY);
+        if (!Enum.IsDefined(state.WorldSource))
+            state.WorldSource = EditorOutlinerWorldSource.ActiveWorld;
         return state;
     }
 

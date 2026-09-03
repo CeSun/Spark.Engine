@@ -1,6 +1,6 @@
 # Spark.Editor World Outliner 功能规格
 
-> 状态：O0、O1、O2 已完成，O3 待实施
+> 状态：O0、O1、O2、O3 已完成，O4 待实施
 >
 > 日期：2026-09-03
 >
@@ -54,7 +54,7 @@ Spark 在 E6 工作区阶段应提供 UE 风格默认布局；在停靠系统完
 | 行标签 | Actor Label + 类型颜色标记 | 类型图标 + Actor Label；统计信息放可选列或 Tooltip | O0 占位完成 |
 | Folder | 稳定 FolderGuid、空/子 Folder、当前 Folder、保存/重载 | 支持空 Folder、子 Folder、移动和当前 Folder | O1 已完成 |
 | 可见性 | Eye 会话级临时隐藏，Folder 级联/混合，影响预览和拾取 | 会话级临时隐藏，Folder 支持级联和混合状态 | O1 已完成 |
-| 选择 | 单选、Ctrl/Shift 多选；Component 选择映射高亮 Owner Actor | 保留；增加可配置的自动定位 | O0 已完成基础 |
+| 选择 | 单选、Ctrl/Shift 多选；Component 映射 Owner；可配置自动定位；Play/Edit 独立恢复 | 保留；增加可配置的自动定位 | O3 已完成 |
 | 展开状态 | 按 ActorGuid 保留；搜索/Only Selected 临时展开必要祖先 | 按稳定节点 ID 保留，过滤只临时展开祖先 | O0 已完成 |
 | 搜索 | 多词 AND、排除、精确词/短语和字段查询；默认不隐式匹配 Component | 多词 AND、排除、精确匹配、字段查询 | O2 已完成 |
 | 过滤 | Filter 菜单、类型过滤、Only Selected、临时隐藏过滤和 Custom Filter | Filter 菜单、类型过滤、自定义过滤器 | O2 已完成 |
@@ -62,8 +62,8 @@ Spark 在 E6 工作区阶段应提供 UE 风格默认布局；在停靠系统完
 | 上下文菜单 | Actor、Folder、空白基础菜单；复用现有选择/复制/删除/聚焦命令 | 与视口共用 Actor 命令；Folder 有独立命令 | O1 已完成基础 |
 | 重命名 | `F2`/菜单进入真实 `UITextBox` 行内编辑 | 行内编辑，提交/取消和冲突校验 | O1 已完成 |
 | 拖放 | Actor→Actor/Folder/空白、Folder→Folder/空白、Asset→Folder | 挂载、组织和创建三类语义明确区分 | O1 已完成 |
-| Play | 始终展示 EditorWorld | 默认浏览 ActiveWorld，并标识运行时生成对象 | P3 缺失 |
-| 性能 | 每帧 O(n) 拼接签名，变化后全量重建 | 增量模型、虚拟化、稳定滚动与选择 | P3 技术债 |
+| Play | 默认展示 Active RuntimeWorld，可切 EditorWorld；PIE 行与只读状态明确 | 默认浏览 ActiveWorld，并标识运行时生成对象 | O3 已完成 |
+| 性能 | 整数版本空闲刷新、节点/搜索记录复用、批量建树和可视行虚拟化 | 增量模型、虚拟化、稳定滚动与选择 | O3 已完成 |
 | 内部对象 | 可过滤显示，显示后只读 | 保留为 Spark 调试扩展，默认关闭 | 合理扩展 |
 
 ## 4. 目标界面
@@ -260,7 +260,8 @@ P2 最小语法：
 - Edit：展示 EditorWorld，可执行编辑命令。
 - Play：默认切换到 Active RuntimeWorld，动态生成 Actor 可见；行使用 Play 标识。
 - RuntimeWorld 默认只读，避免调试浏览意外写回；Focus、选择、搜索、临时隐藏仍可用。
-- 后续增加 `Editor World / Play World` 数据源切换；每个数据源保存独立选择、展开和滚动状态。
+- View 菜单提供 `Active World / Editor World` 数据源切换；每个数据源保存独立选择、展开和滚动状态。
+- Play 期间切回 Editor World 只用于对照查看，场景编辑命令保持锁定，避免修改 Play 快照来源。
 - Stop 后恢复 EditorWorld 选择；不存在的运行时 Actor 引用必须立即释放。
 
 ## 9. 状态持久化
@@ -338,14 +339,18 @@ UITreeView / UITableTree     虚拟化行、列、行内编辑、上下文菜单
 实现说明：过滤树只临时展开命中节点的必要祖先；清除搜索或过滤后恢复过滤前的展开和滚动。
 排序仅作用于同一父节点的显示顺序，Folder 始终位于 Actor 之前，不修改 Folder 归属、Attachment 或场景脏状态。
 
-### O3：Play 与规模性能（P3）
+### ✅ O3：Play 与规模性能（P3，已完成）
 
-1. ActiveWorld/EditorWorld 数据源切换和运行时只读标识。
-2. 动态 Actor 增量加入/移除。
-3. 树行虚拟化、增量排序和搜索索引。
-4. 千级/万级 Actor 性能基线与输入延迟测试。
+1. ✅ ActiveWorld/EditorWorld 数据源切换、PIE 行标记和运行时只读标识。
+2. ✅ World 结构版本驱动动态 Actor 加入/移除，并复用未变化节点。
+3. ✅ 树行窗口虚拟化、批量根节点更新和按结构版本失效的搜索索引。
+4. ✅ 一万 Actor 构建、空闲刷新、滚动/选择与动态增删性能基线测试。
 
 验收：Play 中动态 Actor 可检索；Stop 无悬空选择；一万 Actor 下滚动和选择不触发整树重建。
+
+实现说明：World 在 Actor 接受加入/移除、名称、组件、RootComponent 和 Attachment 变化时递增
+`StructureRevision`；Outliner 空闲帧只比较整数版本。树保留完整逻辑节点用于键盘导航，但 UI 树只挂载视口附近
+的行。Play 与 Edit 分别保存选择、Actor 展开和滚动状态，Stop 前清除运行时对象引用并恢复编辑选择。
 
 ### O4：高级世界组织（后续）
 

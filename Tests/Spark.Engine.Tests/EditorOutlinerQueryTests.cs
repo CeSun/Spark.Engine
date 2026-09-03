@@ -142,8 +142,11 @@ public sealed class EditorOutlinerQueryTests
                 SortColumn = EditorOutlinerColumn.Type,
                 SortAscending = false,
                 ScrollOffsetY = 73f,
+                WorldSource = EditorOutlinerWorldSource.EditorWorld,
+                RuntimeScrollOffsetY = 41f,
             };
             state.ActorTypes.Add("Camera");
+            state.RuntimeActorExpansion[RecordId] = false;
             store.Save(state);
 
             var loaded = store.Load();
@@ -152,6 +155,9 @@ public sealed class EditorOutlinerQueryTests
             Assert.Equal(EditorOutlinerColumn.Type, loaded.SortColumn);
             Assert.False(loaded.SortAscending);
             Assert.Equal(73f, loaded.ScrollOffsetY);
+            Assert.Equal(EditorOutlinerWorldSource.EditorWorld, loaded.WorldSource);
+            Assert.Equal(41f, loaded.RuntimeScrollOffsetY);
+            Assert.False(loaded.RuntimeActorExpansion[RecordId]);
             Assert.Contains("camera", loaded.ActorTypes);
 
             File.WriteAllText(path, "{ invalid json");
