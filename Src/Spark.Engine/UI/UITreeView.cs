@@ -15,6 +15,15 @@ public class UITreeViewItem : UIElement
 
     public bool IsSelected { get; internal set; }
 
+    /// <summary>是否允许通过鼠标、键盘或编程接口进入选择集合。</summary>
+    public bool IsSelectable { get; set; } = true;
+
+    /// <summary>是否允许作为树拖拽源。</summary>
+    public bool IsDraggable { get; set; } = true;
+
+    /// <summary>是否允许作为树拖放目标。</summary>
+    public bool IsDropTarget { get; set; } = true;
+
     /// <summary>是否为叶子节点（无子项时箭头不可点击）。</summary>
     public bool IsLeaf => SubItems.Count == 0;
 
@@ -345,7 +354,7 @@ public sealed class UITreeView : UIElement
     public void SelectItems(IEnumerable<UITreeViewItem> items, UITreeViewItem? primary = null)
     {
         ArgumentNullException.ThrowIfNull(items);
-        var next = items.Where(IsTreeItem).Distinct().ToList();
+        var next = items.Where(item => item.IsSelectable && IsTreeItem(item)).Distinct().ToList();
         if (!AllowMultipleSelection && next.Count > 1)
             next = new List<UITreeViewItem> { primary != null && next.Contains(primary) ? primary : next[^1] };
 
@@ -409,6 +418,8 @@ public sealed class UITreeView : UIElement
 
     private void OnItemClicked(UITreeViewItem item, KeyMask keysDown)
     {
+        if (!item.IsSelectable)
+            return;
         bool ctrl = keysDown.IsDown(Key.LeftControl) || keysDown.IsDown(Key.RightControl);
         bool shift = keysDown.IsDown(Key.LeftShift) || keysDown.IsDown(Key.RightShift);
         if (!AllowMultipleSelection || (!ctrl && !shift))
@@ -514,14 +525,16 @@ public sealed class UITreeView : UIElement
         {
             case Key.Down:
             {
-                if (idx < _flatList.Count - 1)
-                    SelectFromKeyboard(_flatList[idx + 1], shift);
+                var next = FindSelectableIndex(idx + 1, 1);
+                if (next >= 0)
+                    SelectFromKeyboard(_flatList[next], shift);
                 break;
             }
             case Key.Up:
             {
-                if (idx > 0)
-                    SelectFromKeyboard(_flatList[idx - 1], shift);
+                var previous = FindSelectableIndex(idx - 1, -1);
+                if (previous >= 0)
+                    SelectFromKeyboard(_flatList[previous], shift);
                 break;
             }
             case Key.Left:
@@ -534,7 +547,8 @@ public sealed class UITreeView : UIElement
                     }
                     else if (SelectedItem.LogicalParent is { } parent)
                     {
-                        SelectItem(parent);
+                        if (parent.IsSelectable)
+                            SelectItem(parent);
                     }
                 }
                 break;
@@ -549,7 +563,7 @@ public sealed class UITreeView : UIElement
                     }
                     else if (SelectedItem.IsExpanded && SelectedItem.SubItems.Count > 0)
                     {
-                        var firstChild = SelectedItem.SubItems.FirstOrDefault();
+                        var firstChild = SelectedItem.SubItems.FirstOrDefault(item => item.IsSelectable);
                         if (firstChild != null)
                             SelectItem(firstChild);
                     }
@@ -568,14 +582,16 @@ public sealed class UITreeView : UIElement
             }
             case Key.Home:
             {
-                if (_flatList.Count > 0)
-                    SelectItem(_flatList[0]);
+                var first = FindSelectableIndex(0, 1);
+                if (first >= 0)
+                    SelectItem(_flatList[first]);
                 break;
             }
             case Key.End:
             {
-                if (_flatList.Count > 0)
-                    SelectItem(_flatList[^1]);
+                var last = FindSelectableIndex(_flatList.Count - 1, -1);
+                if (last >= 0)
+                    SelectItem(_flatList[last]);
                 break;
             }
         }
@@ -623,10 +639,22 @@ public sealed class UITreeView : UIElement
             SelectItem(item);
     }
 
+    private int FindSelectableIndex(int start, int direction)
+    {
+        for (var index = start; index >= 0 && index < _flatList.Count; index += direction)
+        {
+            if (_flatList[index].IsSelectable)
+                return index;
+        }
+        return -1;
+    }
+
     private void OnItemDropCompleted(UITreeViewItem source, Vector2 position, KeyMask _)
     {
+        if (!source.IsDraggable)
+            return;
         var target = _flatList.LastOrDefault(item => item.Bounds.Contains(position));
-        if (target != null && !ReferenceEquals(source, target))
+        if (target is { IsDropTarget: true } && !ReferenceEquals(source, target))
             ItemDropped?.Invoke(source, target, position);
     }
 }

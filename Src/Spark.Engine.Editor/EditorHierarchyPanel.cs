@@ -7,6 +7,9 @@ internal sealed class EditorHierarchyPanel : UIElement
 {
     private readonly HierarchyPanel _hierarchy;
     private readonly UIStackPanel _panel;
+    private readonly UITextBox _search;
+    private readonly UIButton _viewOptionsButton;
+    private readonly UIMenuPanel _viewOptions = new() { MinWidth = 190f, MaxWidth = 240f };
 
     public EditorHierarchyPanel(Spark.Engine.Worlds.World world)
     {
@@ -17,14 +20,87 @@ internal sealed class EditorHierarchyPanel : UIElement
             FixedSize = new UISize(0f, 0f),
             BackgroundColor = UITheme.Default.PanelBackground,
         };
-        _panel.AddChild(new UILabel
+        var header = new UIGridPanel
+        {
+            FixedSize = new UISize(0f, 26f),
+            Padding = UIEdgeInsets.HorizontalVertical(8f, 2f),
+            CellSpacing = 6f,
+        };
+        header.RowDefinitions.Add(UIGridDefinition.Star());
+        header.ColumnDefinitions.Add(UIGridDefinition.Star());
+        header.ColumnDefinitions.Add(UIGridDefinition.Auto());
+        var title = new UILabel
         {
             Text = "WORLD OUTLINER",
             TextColor = UITheme.Default.TextDimColor,
-            Padding = UIEdgeInsets.HorizontalVertical(8f, 6f),
-        });
+        };
+        _viewOptionsButton = new UIButton
+        {
+            Text = "View",
+            FixedSize = new UISize(54f, 22f),
+            Clicked = ShowViewOptions,
+        };
+        header.AddChild(title);
+        header.AddChild(_viewOptionsButton);
+        header.SetColumn(title, 0);
+        header.SetColumn(_viewOptionsButton, 1);
+        _panel.AddChild(header);
+
+        _search = new UITextBox
+        {
+            FixedSize = new UISize(0f, 26f),
+            Padding = UIEdgeInsets.HorizontalVertical(8f, 3f),
+            PlaceholderText = "Search actors and components...",
+            TextChanged = value =>
+            {
+                _hierarchy.SearchText = value;
+                _hierarchy.Refresh();
+            },
+        };
+        _panel.AddChild(_search);
         _panel.AddChild(_hierarchy.Element);
         AddChild(_panel);
+    }
+
+    public string SearchText
+    {
+        get => _hierarchy.SearchText;
+        set
+        {
+            _search.Text = value ?? string.Empty;
+            _hierarchy.SearchText = _search.Text;
+            _hierarchy.Refresh();
+        }
+    }
+
+    public bool ShowInternalActors
+    {
+        get => _hierarchy.ShowInternalActors;
+        set
+        {
+            _hierarchy.ShowInternalActors = value;
+            _hierarchy.Refresh();
+        }
+    }
+
+    public bool ShowComponents
+    {
+        get => _hierarchy.ShowComponents;
+        set
+        {
+            _hierarchy.ShowComponents = value;
+            _hierarchy.Refresh();
+        }
+    }
+
+    public bool OnlySelected
+    {
+        get => _hierarchy.OnlySelected;
+        set
+        {
+            _hierarchy.OnlySelected = value;
+            _hierarchy.Refresh();
+        }
     }
 
     public Action<object?>? SelectionChanged
@@ -61,4 +137,22 @@ internal sealed class EditorHierarchyPanel : UIElement
     }
 
     protected override void OnArrange() => _panel.Arrange(ContentRect);
+
+    private void ShowViewOptions()
+    {
+        _viewOptions.Clear();
+        AddToggleOption("Show Internal Actors", ShowInternalActors,
+            value => ShowInternalActors = value);
+        AddToggleOption("Show Components", ShowComponents,
+            value => ShowComponents = value);
+        AddToggleOption("Only Selected", OnlySelected,
+            value => OnlySelected = value);
+        _viewOptions.Canvas = FindCanvas();
+        var menuX = System.Math.Max(Bounds.X, _viewOptionsButton.Bounds.Right - _viewOptions.MinWidth);
+        _viewOptions.Show(new System.Numerics.Vector2(menuX, _viewOptionsButton.Bounds.Bottom));
+    }
+
+    private void AddToggleOption(string label, bool value, Action<bool> setValue)
+        => _viewOptions.AddItem(new UIMenuItem($"{(value ? "[x]" : "[ ]")} {label}",
+            () => setValue(!value)));
 }

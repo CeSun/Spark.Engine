@@ -14,7 +14,7 @@
 - UI 基础控件：树、列表、分栏、菜单、工具栏、滚动、属性网格
 - 初版 `EditorCommandHistory`：可执行、撤销、重做
 
-当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览只执行组件注册和渲染代理刷新，不进入 BeginPlay/Update/EndPlay gameplay 生命周期，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换；选择模型已支持主选对象加选择集合，层级树 Ctrl/Shift 多选、Viewport 修饰键多选、批量删除和主选枢轴组变换已贯通。`EditorActorPolicy` 已将 Actor 的编辑器呈现/操作能力与 `[SceneTransient]` 持久化语义分离，内部视口相机和宿主行为 Actor 默认不进入 World Outliner、选择、编辑命令及关卡统计。
+当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览只执行组件注册和渲染代理刷新，不进入 BeginPlay/Update/EndPlay gameplay 生命周期，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换；选择模型已支持主选对象加选择集合，层级树 Ctrl/Shift 多选、Viewport 修饰键多选、批量删除和主选枢轴组变换已贯通。`EditorActorPolicy` 已将 Actor 的编辑器呈现/操作能力与 `[SceneTransient]` 持久化语义分离，内部视口相机和宿主行为 Actor 默认不进入 World Outliner、选择、编辑命令及关卡统计。World Outliner 已支持按 Actor 名称/类型/组件类型搜索，以及 `Show Internal Actors`、`Show Components`、`Only Selected` 视图过滤；显式显示的内部对象仍保持只读和不可拖拽。
 `EditorContext` 已接入 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；主循环已支持
 EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产、光照状态和 Camera 视图参数可恢复，RenderTarget 按 ComponentGuid 精确绑定；Mesh/Texture 共享，Material 使用 RuntimeWorld 独立副本。`AssetRegistry` 已统一 AssetGuid 解析，
 `RuntimeActorFactory` 已提供自定义组件和 Runtime 行为注册入口；旧的 `RuntimeWorldInitializer` 仅作为兼容接口保留。
@@ -144,7 +144,7 @@ E2“Inspector 资源引用编辑”已经完成，当前进入 E3“缩略图�
 9. ▶ E3 缩略图与资源编辑器深化
 10. E4 后台导入任务系统
 11. E5 glTF/GLB 材质纹理与导入设置
-12. E6 工作区与布局持久化（含 Outliner 的内部对象过滤器）
+12. E6 工作区与布局持久化（Outliner 搜索和视图过滤已完成，过滤状态持久化待接入）
 13. E7 调试与运行工具
 14. E8 自动恢复、增量刷新、虚拟化和规模性能
 15. E9 编辑器扩展 API

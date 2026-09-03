@@ -347,6 +347,50 @@ public sealed class EditorCommandTests
     }
 
     [Fact]
+    public void HierarchyFiltersSearchComponentsInternalActorsAndCurrentSelection()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var wall = new Actor { Name = "Brick Wall" };
+        wall.AddOwnedComponent(new StaticMeshComponent());
+        var light = new Actor { Name = "Key Light" };
+        light.AddOwnedComponent(new SpotLightComponent());
+        var internalActor = new InternalEditorActor { Name = "Editor Helper" };
+        internalActor.AddOwnedComponent(new CameraComponent());
+        world.AddActor(wall);
+        world.AddActor(light);
+        world.AddActor(internalActor);
+        world.Update(0f, tickActors: false);
+        var hierarchy = new HierarchyPanel(world);
+
+        hierarchy.SearchText = "spotlight";
+        hierarchy.Refresh();
+        var tree = Assert.IsType<UITreeView>(hierarchy.Element);
+        Assert.StartsWith("Key Light", Assert.Single(tree.Roots).Text);
+        Assert.IsType<SpotLightComponent>(
+            Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(tree.Roots[0].SubItems)).Target);
+
+        hierarchy.SearchText = string.Empty;
+        hierarchy.ShowInternalActors = true;
+        hierarchy.Refresh();
+        Assert.Equal(3, tree.Roots.Count);
+        var internalItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(tree.Roots,
+            item => item.Text.StartsWith("Editor Helper", StringComparison.Ordinal)));
+        Assert.False(internalItem.IsSelectable);
+        Assert.False(internalItem.IsDraggable);
+        Assert.False(internalItem.IsDropTarget);
+        Assert.Equal(UITheme.Default.TextDimColor, internalItem.TextColor);
+
+        hierarchy.ShowComponents = false;
+        hierarchy.Refresh();
+        Assert.All(tree.Roots, root => Assert.Empty(root.SubItems));
+
+        hierarchy.SelectTargets(new object[] { wall }, wall);
+        hierarchy.OnlySelected = true;
+        hierarchy.Refresh();
+        Assert.StartsWith("Brick Wall", Assert.Single(tree.Roots).Text);
+    }
+
+    [Fact]
     public void ActorCloner_CopiesTypesPropertiesAssetsSocketsAndAttachmentsWithNewGuids()
     {
         using var world = new Spark.Engine.Worlds.World(new ResourceManager());

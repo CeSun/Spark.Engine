@@ -76,6 +76,43 @@ public sealed class EditorContentBrowserTests
     }
 
     [Fact]
+    public void WorldOutlinerViewMenuExposesFiltersAndCanRevealInternalActors()
+    {
+        using var world = new World(new ResourceManager());
+        var editorCamera = new EditorViewportCameraActor { Name = "Editor Camera" };
+        editorCamera.AddOwnedComponent(new Spark.Engine.Components.CameraComponent());
+        world.AddActor(editorCamera);
+        world.Update(0f, tickActors: false);
+        var editor = new EditorUi(world);
+        var canvas = new UICanvas(0)
+        {
+            Size = new System.Numerics.Vector2(1280f, 720f),
+            Root = editor.Root,
+        };
+        var ui = new UIManager();
+        editor.Refresh();
+        canvas.Update(default, ui.Text);
+
+        var view = Assert.Single(Descendants(editor.Root).OfType<UIButton>(),
+            button => button.Text == "View");
+        Click(canvas, Center(view.Bounds));
+
+        var menu = Assert.Single(canvas.Overlays.OfType<UIMenuPanel>());
+        Assert.Collection(menu.Items,
+            item => Assert.Equal("[ ] Show Internal Actors", item.Text),
+            item => Assert.Equal("[x] Show Components", item.Text),
+            item => Assert.Equal("[ ] Only Selected", item.Text));
+
+        Click(canvas, Center(menu.Items[0].Bounds));
+        Assert.True(editor.OutlinerShowInternalActors);
+        Assert.DoesNotContain(menu, canvas.Overlays);
+        editor.Refresh();
+        var hierarchy = Assert.Single(Descendants(editor.Root).OfType<UITreeView>(), tree =>
+            tree.Roots.Any(root => root.Text.StartsWith("Editor Camera", StringComparison.Ordinal)));
+        Assert.False(Assert.Single(hierarchy.Roots).IsSelectable);
+    }
+
+    [Fact]
     public void ModelBuildsDirectoriesTypesAndStableEntries()
     {
         var registry = new AssetRegistry();

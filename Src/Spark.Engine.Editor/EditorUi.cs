@@ -258,6 +258,26 @@ public sealed class EditorUi
     public IAssetRegistry AssetRegistry => _context.AssetRegistry;
     /// <summary>内容浏览器查询模型，供宿主扩展拖放、预览或自定义资源操作。</summary>
     public EditorContentBrowserModel ContentBrowser => _contentBrowser.Model;
+    public string OutlinerSearchText
+    {
+        get => _hierarchy.SearchText;
+        set => _hierarchy.SearchText = value;
+    }
+    public bool OutlinerShowInternalActors
+    {
+        get => _hierarchy.ShowInternalActors;
+        set => _hierarchy.ShowInternalActors = value;
+    }
+    public bool OutlinerShowComponents
+    {
+        get => _hierarchy.ShowComponents;
+        set => _hierarchy.ShowComponents = value;
+    }
+    public bool OutlinerOnlySelected
+    {
+        get => _hierarchy.OnlySelected;
+        set => _hierarchy.OnlySelected = value;
+    }
     /// <summary>项目 Content 的集中式写操作服务；未配置项目时为 null。</summary>
     public EditorAssetOperationService? AssetOperations => _assetOperations;
     /// <summary>当前已经打开的资源编辑器文档。</summary>

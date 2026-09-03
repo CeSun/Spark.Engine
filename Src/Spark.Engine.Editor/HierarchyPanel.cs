@@ -16,6 +16,12 @@ public sealed class HierarchyPanel
 
     private string _lastSignature = string.Empty;
     private bool _suppressSelectionChanged;
+    private IReadOnlyList<object> _selectedTargets = Array.Empty<object>();
+    private object? _primaryTarget;
+    private string _searchText = string.Empty;
+    private bool _showInternalActors;
+    private bool _showComponents = true;
+    private bool _onlySelected;
 
     /// <summary>选中项变化：参数为选中的 Actor/Component 或 null。</summary>
     public Action<object?>? SelectionChanged { get; set; }
@@ -41,6 +47,8 @@ public sealed class HierarchyPanel
                 return;
             var targets = items.OfType<WorldTreeItem>().Select(item => item.Target).ToArray();
             var primary = (_tree.SelectedItem as WorldTreeItem)?.Target;
+            _selectedTargets = targets;
+            _primaryTarget = primary;
             SelectionChanged?.Invoke(primary);
             SelectionSetChanged?.Invoke(targets, primary);
         };
@@ -51,18 +59,68 @@ public sealed class HierarchyPanel
     /// <summary>树控件本身（挂进编辑器布局）。</summary>
     public UIElement Element => _tree;
 
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            var next = value?.Trim() ?? string.Empty;
+            if (string.Equals(_searchText, next, StringComparison.Ordinal))
+                return;
+            _searchText = next;
+            InvalidateFilter();
+        }
+    }
+
+    public bool ShowInternalActors
+    {
+        get => _showInternalActors;
+        set
+        {
+            if (_showInternalActors == value)
+                return;
+            _showInternalActors = value;
+            InvalidateFilter();
+        }
+    }
+
+    public bool ShowComponents
+    {
+        get => _showComponents;
+        set
+        {
+            if (_showComponents == value)
+                return;
+            _showComponents = value;
+            InvalidateFilter();
+        }
+    }
+
+    public bool OnlySelected
+    {
+        get => _onlySelected;
+        set
+        {
+            if (_onlySelected == value)
+                return;
+            _onlySelected = value;
+            InvalidateFilter();
+        }
+    }
+
     public void SetWorld(World world)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
+        _selectedTargets = Array.Empty<object>();
+        _primaryTarget = null;
         _lastSignature = string.Empty;
         _tree.Clear();
     }
 
     /// <summary>当前选中的目标（Actor 或 Component；无选中为 null）。</summary>
-    public object? SelectedTarget => (_tree.SelectedItem as WorldTreeItem)?.Target;
+    public object? SelectedTarget => _primaryTarget;
 
-    public IReadOnlyList<object> SelectedTargets
-        => _tree.SelectedItems.OfType<WorldTreeItem>().Select(item => item.Target).ToArray();
+    public IReadOnlyList<object> SelectedTargets => _selectedTargets;
 
     /// <summary>每帧调用：结构签名变化时重建树（O(n) 快速比对，展开/选中态跨重建保留）。</summary>
     public void Refresh()
@@ -80,10 +138,20 @@ public sealed class HierarchyPanel
         // 内容无关的结构指纹：Actor 引用序列 + 每个 Actor 的组件引用序列
         // （World.Update 后 Add/Remove 已生效；组件只增不减，引用序列足够判断结构变化）
         var sb = new System.Text.StringBuilder();
+        sb.Append(_searchText).Append('|')
+            .Append(_showInternalActors).Append('|')
+            .Append(_showComponents).Append('|')
+            .Append(_onlySelected).Append('|');
+        if (_onlySelected)
+        {
+            foreach (var target in _selectedTargets)
+                sb.Append(GetStableSelectionId(target)).Append(',');
+            sb.Append('|');
+        }
         foreach (var actor in VisibleActors())
         {
             sb.Append(actor.ActorGuid).Append(':').Append(actor.Name).Append(';');
-            foreach (var component in actor.Components)
+            foreach (var component in VisibleComponents(actor))
             {
                 sb.Append(component.ComponentGuid).Append(':').Append(component.GetType().Name);
                 if (component is SceneComponent scene)
@@ -99,8 +167,8 @@ public sealed class HierarchyPanel
 
     private void Rebuild()
     {
-        var selected = SelectedTargets;
-        var primary = SelectedTarget;
+        var selected = _selectedTargets;
+        var primary = _primaryTarget;
 
         _suppressSelectionChanged = true;
         try
@@ -109,9 +177,9 @@ public sealed class HierarchyPanel
             foreach (var actor in VisibleActors())
             {
                 var displayName = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
-                var actorItem = new WorldTreeItem(actor, $"{displayName} [{actor.Components.Count()}]");
-                foreach (var component in actor.Components)
-                    actorItem.AddSubItem(new WorldTreeItem(component, GetComponentLabel(component)));
+                var actorItem = CreateTreeItem(actor, $"{displayName} [{actor.Components.Count()}]");
+                foreach (var component in VisibleComponents(actor))
+                    actorItem.AddSubItem(CreateTreeItem(component, GetComponentLabel(component)));
                 _tree.AddRoot(actorItem);
             }
 
@@ -126,7 +194,63 @@ public sealed class HierarchyPanel
     }
 
     private IEnumerable<Actor> VisibleActors()
-        => _world.Actors.Where(EditorActorPolicy.IsVisibleInOutliner);
+        => _world.Actors
+            .Where(actor => _showInternalActors || EditorActorPolicy.IsVisibleInOutliner(actor))
+            .Where(actor => !_onlySelected || IsActorSelected(actor))
+            .Where(MatchesSearch);
+
+    private IEnumerable<ActorComponent> VisibleComponents(Actor actor)
+    {
+        if (!_showComponents)
+            return Array.Empty<ActorComponent>();
+        var components = actor.Components;
+        if (_searchText.Length == 0 || MatchesActor(actor))
+            return components;
+        return components.Where(component => MatchesText(component.GetType().Name));
+    }
+
+    private bool MatchesSearch(Actor actor)
+        => _searchText.Length == 0 || MatchesActor(actor) ||
+           actor.Components.Any(component => MatchesText(component.GetType().Name));
+
+    private bool MatchesActor(Actor actor)
+        => MatchesText(actor.Name) || MatchesText(actor.GetType().Name);
+
+    private bool MatchesText(string? value)
+        => !string.IsNullOrWhiteSpace(value) &&
+           value.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+
+    private bool IsActorSelected(Actor actor)
+        => _selectedTargets.Any(target => target switch
+        {
+            Actor selectedActor => ReferenceEquals(selectedActor, actor),
+            ActorComponent component => ReferenceEquals(component.Owner, actor),
+            _ => false,
+        });
+
+    private static string GetStableSelectionId(object target)
+        => target switch
+        {
+            Actor actor => actor.ActorGuid.ToString("N"),
+            ActorComponent component => component.ComponentGuid.ToString("N"),
+            _ => target.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+
+    private static WorldTreeItem CreateTreeItem(object target, string text)
+    {
+        var selectable = EditorActorPolicy.CanSelect(target);
+        var editable = EditorActorPolicy.CanEdit(target);
+        return new WorldTreeItem(target, text)
+        {
+            IsSelectable = selectable,
+            IsDraggable = editable,
+            IsDropTarget = editable,
+            Focusable = selectable,
+            TextColor = selectable ? UITheme.Default.TextColor : UITheme.Default.TextDimColor,
+        };
+    }
+
+    private void InvalidateFilter() => _lastSignature = string.Empty;
 
     private static WorldTreeItem? FindItem(IReadOnlyList<UITreeViewItem> items, object target)
     {
@@ -167,13 +291,38 @@ public sealed class HierarchyPanel
     public void SelectTargets(IEnumerable<object> targets, object? primary = null)
     {
         ArgumentNullException.ThrowIfNull(targets);
-        var items = targets
+        var nextTargets = targets.Distinct().ToArray();
+        var nextPrimary = primary != null && nextTargets.Any(target => ReferenceEquals(target, primary))
+            ? primary
+            : nextTargets.LastOrDefault();
+        var selectionChanged = !ReferenceEquals(_primaryTarget, nextPrimary) ||
+            !SequenceEqualByReference(_selectedTargets, nextTargets);
+        _selectedTargets = nextTargets;
+        _primaryTarget = nextPrimary;
+        if (_onlySelected && selectionChanged && !_suppressSelectionChanged)
+        {
+            InvalidateFilter();
+            Refresh();
+        }
+        var items = _selectedTargets
             .Select(target => FindItem(_tree.Roots, target))
             .Where(item => item != null)
             .Cast<WorldTreeItem>()
             .ToArray();
-        var primaryItem = primary == null ? null : FindItem(_tree.Roots, primary);
+        var primaryItem = _primaryTarget == null ? null : FindItem(_tree.Roots, _primaryTarget);
         _tree.SelectItems(items, primaryItem);
+    }
+
+    private static bool SequenceEqualByReference(IReadOnlyList<object> left, IReadOnlyList<object> right)
+    {
+        if (left.Count != right.Count)
+            return false;
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (!ReferenceEquals(left[index], right[index]))
+                return false;
+        }
+        return true;
     }
 
     /// <summary>持有引擎对象引用的树项（选中回调向上抛 Target）。</summary>

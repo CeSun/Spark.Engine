@@ -432,6 +432,29 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void TreeView_NonSelectableItemsAreSkippedBySelection()
+    {
+        var tree = new UITreeView { FixedSize = new UISize(200f, 80f) };
+        var locked = new UITreeViewItem("Locked")
+        {
+            IsSelectable = false,
+            IsDraggable = false,
+            IsDropTarget = false,
+        };
+        var editable = new UITreeViewItem("Editable");
+        tree.AddRoot(locked);
+        tree.AddRoot(editable);
+
+        tree.SelectItem(locked);
+        Assert.Null(tree.SelectedItem);
+        Assert.Empty(tree.SelectedItems);
+
+        tree.SelectItems(new[] { locked, editable }, locked);
+        Assert.Same(editable, tree.SelectedItem);
+        Assert.Equal(new[] { editable }, tree.SelectedItems);
+    }
+
+    [Fact]
     public void TreeView_MultipleSelection_SupportsControlToggleAndShiftRange()
     {
         var tree = new UITreeView

@@ -11,6 +11,7 @@
 - 状态栏显示 Actor/Component 数量和当前选择，菜单命令给出明确反馈。
 - `SetPictureInPicture` 保留为渲染视图注入点，后续可替换为真正的主视口。
 - 编辑器视口相机支持右键飞行、Middle 平移、Alt+Left 轨道、滚轮推拉、`F` 聚焦和 UE 风格 `Ctrl+0..9` 保存/`0..9` 恢复会话书签；相机不进入场景资产，Reload/Play 使用独立副本。Actor 编辑器能力已与 `[SceneTransient]` 分离，内部相机和运行时辅助 Actor 默认不出现在 Outliner，也不能被用户选择、编辑、删除或复制。
+- World Outliner 已支持名称/类型/组件搜索和 `Show Internal Actors`、`Show Components`、`Only Selected`；内部对象显式显示时使用只读弱化样式，并由通用树控件阻止选择和拖拽。
 
 ## 阶段 1：编辑闭环
 
@@ -28,7 +29,7 @@ Actor 复制已从空对象占位实现升级为 SceneDocument 边界深复制�
 - 场景序列化版本、增量保存、自动恢复和最近文件列表（MRU 列表和 Desktop 脏场景关闭确认已完成，自动恢复仍待补）。
 - 资源浏览器、搜索/过滤、缩略图、引用关系和加载错误面板（E1 资源管理闭环和 E2 Inspector 资源引用编辑已落地：真实目录与空文件夹、目录/资产 CRUD、GUID 语义、引用保护、可恢复删除、失败回滚，以及资源选择/拖放/定位；缩略图待补）。
 - Inspector 分组、分类元数据、引用选择器、数组/嵌套对象编辑器。
-- 可停靠面板布局、布局持久化和多视口；World Outliner 后续增加搜索及 `Show Internal Actors` 只读过滤器。
+- 可停靠面板布局、布局持久化和多视口；World Outliner 过滤状态随布局持久化仍待接入。
 
 验收标准：中型场景（数千节点、数百资源）下树和 Inspector 仍可搜索、滚动和编辑，刷新不会破坏正在输入的值。
 
