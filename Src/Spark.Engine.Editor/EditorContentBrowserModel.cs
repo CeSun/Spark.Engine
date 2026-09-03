@@ -22,6 +22,7 @@ public sealed class EditorContentBrowserModel
     public const string SceneReferencesDirectory = "Scene References";
 
     private readonly IAssetRegistry _registry;
+    private readonly string? _contentDirectory;
     private IReadOnlyList<EditorContentBrowserEntry> _entries = Array.Empty<EditorContentBrowserEntry>();
     private IReadOnlyList<string> _directories = new[] { AllDirectories };
     private IReadOnlyList<string> _types = new[] { AllTypes };
@@ -30,9 +31,12 @@ public sealed class EditorContentBrowserModel
     private string _selectedDirectory = AllDirectories;
     private bool _directorySelectionExplicit;
 
-    public EditorContentBrowserModel(IAssetRegistry registry)
+    public EditorContentBrowserModel(IAssetRegistry registry, string? contentDirectory = null)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _contentDirectory = string.IsNullOrWhiteSpace(contentDirectory)
+            ? null
+            : Path.GetFullPath(contentDirectory);
         Refresh();
     }
 
@@ -52,6 +56,10 @@ public sealed class EditorContentBrowserModel
     public IReadOnlyList<EditorContentBrowserEntry> Entries => _entries;
     public IReadOnlyList<string> Directories => _directories;
     public IReadOnlyList<string> Types => _types;
+    public string? ContentDirectory => _contentDirectory;
+
+    public AssetRecord? FindAsset(Guid assetGuid)
+        => _registry.Records.FirstOrDefault(record => record.AssetGuid == assetGuid);
 
     /// <summary>当前目录的直接子目录，供右侧资源列表以文件夹项展示。</summary>
     public IReadOnlyList<string> ChildDirectories
@@ -79,12 +87,15 @@ public sealed class EditorContentBrowserModel
             .OrderBy(record => record.ContentPath ?? record.SourcePath ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ThenBy(record => record.AssetGuid)
             .ToArray();
+        var diskDirectories = EnumerateDiskDirectories();
         var sourceFingerprint = string.Join("\n", records.Select(record =>
-            $"{record.AssetGuid:N}|{record.AssetType}|{record.SourcePath}|{record.ContentPath}|{record.CookedPath}|{record.ImportStatus}|{record.LastError}"));
+            $"{record.AssetGuid:N}|{record.AssetType}|{record.SourcePath}|{record.ContentPath}|{record.CookedPath}|{record.ImportStatus}|{record.LastError}")) +
+            "\n--directories--\n" + string.Join("\n", diskDirectories);
 
         var directories = records
             .Select(record => GetDirectory(record.ContentPath ?? record.SourcePath))
             .Where(directory => directory.Length > 0)
+            .Concat(diskDirectories)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(directory => directory, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -201,4 +212,22 @@ public sealed class EditorContentBrowserModel
             ? includeSubdirectories || directory.Length == 0
             : string.Equals(directory, selected, StringComparison.OrdinalIgnoreCase) ||
               (includeSubdirectories && directory.StartsWith(selected + "/", StringComparison.OrdinalIgnoreCase));
+
+    private IReadOnlyList<string> EnumerateDiskDirectories()
+    {
+        if (_contentDirectory == null || !System.IO.Directory.Exists(_contentDirectory))
+            return Array.Empty<string>();
+
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = false,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+        return System.IO.Directory.EnumerateDirectories(_contentDirectory, "*", options)
+            .Select(path => Path.GetRelativePath(_contentDirectory, path).Replace('\\', '/').Trim('/'))
+            .Where(path => path.Length > 0)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
 }

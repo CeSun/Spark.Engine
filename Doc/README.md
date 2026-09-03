@@ -19,8 +19,8 @@ FScene / FSceneProxy / FSceneRenderer 模式。
 
 当前处于**早期原型阶段**：核心渲染管线已具备前向光照（Blinn-Phong + 法线贴图 + 阴影贴图）、
 声明式帧图（RenderGraph）、保留模式 UI 系统（控件树 + 输入 + overlay 渲染）、
-场景代理同步（SceneGen 源生成器）。编辑器已具备工作台骨架、命令历史和 `.scene` 持久化基础，下一阶段优先补齐
-UE 风格层级编辑、资产导入/Cook 和 Edit/Play 隔离。
+场景代理同步（SceneGen 源生成器）。编辑器已具备工作台、命令历史、`.scene` 持久化、Edit/Play 隔离、
+Content 资源管理闭环和 Inspector 资源引用编辑，当前按路线图进入缩略图与资源编辑器深化。
 
 ## 解决方案结构
 
@@ -508,11 +508,22 @@ editorUi.ImportModel(sourceModelPath);  // .gltf/.glb -> 当前 Content 目录�
 因此点击 `All Assets` 时，资源列表只显示 `Content/` 根目录文件，`Textures` 等子目录通过左侧目录树显示；
 启用筛选后才会递归显示子目录中的匹配资源。
 右侧列表同时显示当前目录的直接子文件夹；双击文件夹可进入该目录，目录层级与左侧树保持同步。
+目录树直接读取项目 `Content`，所以空文件夹也可浏览。名称框统一用于创建和重命名；输入名称后，
+`Create` 菜单可选择 `Folder` 或 `Material`，资源列表右键菜单提供相同的新建入口。新建 Material 会生成
+带独立 AssetGuid 的 `.asset` 并自动定位；创建失败不会留下临时文件或 Registry 脏记录。
+面板还支持重命名、复制、移动和可恢复删除；
+右键菜单与 `F2`、`Delete`、`Ctrl+D` 提供常用入口，资源或目录拖到文件夹可执行移动。
+移动/重命名保持 AssetGuid，复制生成新 AssetGuid；目录复制会同步改写组内依赖。删除前检查当前场景和资产的
+直接/传递引用，被引用内容不会删除，成功删除的文件进入 `Saved/Trash`。
 双击资源（或选中后按回车）会在中间文档区打开对应的 StaticMesh、Material 或 Texture2D
 编辑器标签；同一资源只打开一个标签，再次激活时会切换到已有标签。Texture2D 编辑器按原始
 分辨率上传预览纹理，并保持宽高比适配可用区域。
 StaticMesh 可从内容浏览器拖入场景视口：编辑器优先使用已有物体交点，其次使用地面交点，
 最后沿视线放置；落点遵循当前平移网格吸附，创建后自动选中，并纳入场景 Undo/Redo。
+Inspector 会为带 `[SceneProperty]` 的资源引用显示统一字段。点击字段可打开按类型过滤的 Asset Picker，
+也可把 Content Browser 中的资源直接拖到字段；`L`、`O`、`X` 分别用于定位资源、打开资源编辑器和清空引用。
+多选对象的共同资源属性支持批量赋值，不同值显示 `<Multiple Values>`，一次操作只产生一条 Undo/Redo 命令。
+类型不兼容、资源缺失或加载失败会就地显示错误，不会中断整个 Inspector。
 首次打开且没有任何筛选条件时，如果存在 `Textures` 目录，默认定位到该目录；用户手动选择
 其他目录后保持用户选择。
 
@@ -545,3 +556,5 @@ dotnet run --project Demo/Demo.Desktop
 - [UIRenderView-Design.md](./UIRenderView-Design.md) — 渲染视图控件设计
 - [SceneHierarchy-Design.md](./SceneHierarchy-Design.md) — UE 风格场景层级、Socket 与挂载规则
 - [AssetPipeline-Design.md](./AssetPipeline-Design.md) — 自定义资产格式、glTF 导入与 Cook
+- [Editor-Roadmap.md](./Editor-Roadmap.md) — 编辑器功能顺序、开发深度与完成门槛
+- [Editor-Implementation-Plan.md](./Editor-Implementation-Plan.md) — 编辑器已落地架构和里程碑记录

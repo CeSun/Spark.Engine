@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Reflection;
 using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Worlds;
@@ -65,6 +66,67 @@ public sealed class DelegateEditorCommand(string description, Action execute, Ac
     public string Description { get; } = description ?? throw new ArgumentNullException(nameof(description));
     public void Execute() => execute();
     public void Undo() => undo();
+}
+
+/// <summary>把同一属性对多个对象的赋值合并为一个原子撤销事务。</summary>
+public sealed class PropertyBatchChangeCommand : IEditorCommand
+{
+    private readonly IReadOnlyList<Entry> _entries;
+
+    public PropertyBatchChangeCommand(
+        string propertyName,
+        IEnumerable<(object Target, PropertyInfo Property, object? NewValue)> changes)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        ArgumentNullException.ThrowIfNull(changes);
+        _entries = changes.Select(change =>
+        {
+            ArgumentNullException.ThrowIfNull(change.Target);
+            ArgumentNullException.ThrowIfNull(change.Property);
+            if (!change.Property.CanRead || !change.Property.CanWrite)
+                throw new ArgumentException($"Property '{change.Property.Name}' is not editable.", nameof(changes));
+            if (change.NewValue != null && !change.Property.PropertyType.IsInstanceOfType(change.NewValue))
+                throw new ArgumentException(
+                    $"Value type '{change.NewValue.GetType().Name}' is not assignable to '{change.Property.PropertyType.Name}'.",
+                    nameof(changes));
+            return new Entry(change.Target, change.Property, change.Property.GetValue(change.Target), change.NewValue);
+        }).ToArray();
+        if (_entries.Count == 0)
+            throw new ArgumentException("At least one property change is required.", nameof(changes));
+        Description = _entries.Count == 1
+            ? $"Change {propertyName}"
+            : $"Change {propertyName} on {_entries.Count} objects";
+    }
+
+    public string Description { get; }
+
+    public void Execute() => Apply(useNewValue: true);
+
+    public void Undo() => Apply(useNewValue: false);
+
+    private void Apply(bool useNewValue)
+    {
+        var completed = 0;
+        try
+        {
+            for (; completed < _entries.Count; completed++)
+            {
+                var entry = _entries[completed];
+                entry.Property.SetValue(entry.Target, useNewValue ? entry.NewValue : entry.OldValue);
+            }
+        }
+        catch
+        {
+            for (var index = completed - 1; index >= 0; index--)
+            {
+                var entry = _entries[index];
+                entry.Property.SetValue(entry.Target, useNewValue ? entry.OldValue : entry.NewValue);
+            }
+            throw;
+        }
+    }
+
+    private sealed record Entry(object Target, PropertyInfo Property, object? OldValue, object? NewValue);
 }
 
 /// <summary>可撤销的 SceneComponent 挂载操作，保存挂载前的父节点、Socket 和相对变换。</summary>

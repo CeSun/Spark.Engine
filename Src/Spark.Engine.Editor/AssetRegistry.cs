@@ -29,9 +29,9 @@ public sealed class AssetRecord
     public string? SourcePath { get; set; }
     /// <summary>项目 Content 下的虚拟路径，例如 <c>Textures/UI.asset</c>；用于内容浏览器和 Cook manifest。</summary>
     public string? ContentPath { get; set; }
-    public string? CookedPath { get; init; }
+    public string? CookedPath { get; set; }
     public IReadOnlyList<Guid> Dependencies { get; init; } = Array.Empty<Guid>();
-    public string? ContentHash { get; init; }
+    public string? ContentHash { get; set; }
     public AssetImportStatus ImportStatus { get => _importStatus; init => _importStatus = value; }
     public string? LastError { get; internal set; }
     public SceneResource? Resource { get; internal set; }
@@ -222,26 +222,141 @@ public sealed class AssetRegistry : IAssetRegistry, IAssetRegistryDiagnostics
         if (!Directory.Exists(fullDirectory))
             throw new DirectoryNotFoundException(fullDirectory);
 
-        var option = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-        var count = 0;
-        foreach (var path in Directory.EnumerateFiles(fullDirectory, "*.asset", option).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = recursive,
+            IgnoreInaccessible = false,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+        var scanned = new Dictionary<Guid, AssetRecord>();
+        foreach (var path in Directory.EnumerateFiles(fullDirectory, "*.asset", options).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
             try
             {
                 var metadata = AssetFileCodec.ReadMetadata(path);
                 metadata.SourcePath = Path.GetRelativePath(fullDirectory, path);
                 metadata.ContentPath = metadata.SourcePath.Replace('\\', '/');
+                metadata.CookedPath = Path.GetFullPath(path);
                 metadata.LoaderSourcePath = path;
                 metadata.Loader = () => AssetFileCodec.Load(path, this);
-                RegisterMetadata(metadata);
-                count++;
+                if (!scanned.TryAdd(metadata.AssetGuid, metadata))
+                    throw new InvalidDataException(
+                        $"AssetGuid '{metadata.AssetGuid}' is also used by '{scanned[metadata.AssetGuid].CookedPath}'.");
             }
             catch (Exception ex)
             {
                 AddDiagnostic(path, AssetDiagnosticStage.Metadata, ex.Message);
             }
         }
-        return count;
+
+        ReplaceDirectorySnapshot(fullDirectory, scanned.Values, recursive);
+        return scanned.Count;
+    }
+
+    /// <summary>从索引移除资产身份；不释放可能仍由 World 或编辑器持有的资源对象。</summary>
+    public bool Remove(Guid assetGuid, out AssetRecord? record)
+    {
+        lock (_gate)
+        {
+            if (!_records.Remove(assetGuid, out var removed))
+            {
+                record = null;
+                return false;
+            }
+            record = removed;
+            return true;
+        }
+    }
+
+    internal void Relocate(Guid assetGuid, string fullPath, string contentPath)
+    {
+        var canonicalPath = Path.GetFullPath(fullPath);
+        lock (_gate)
+        {
+            if (!_records.TryGetValue(assetGuid, out var record))
+                throw new InvalidOperationException($"Asset '{assetGuid}' is not registered.");
+            var previousContentPath = record.ContentPath;
+            if (string.Equals(record.SourcePath, previousContentPath, StringComparison.OrdinalIgnoreCase))
+                record.SourcePath = contentPath;
+            record.ContentPath = contentPath;
+            record.CookedPath = canonicalPath;
+            record.LoaderSourcePath = canonicalPath;
+            record.Loader = () => AssetFileCodec.Load(canonicalPath, this);
+        }
+    }
+
+    internal AssetRecord RegisterAssetFile(string fullPath, string contentRoot)
+    {
+        var canonicalPath = Path.GetFullPath(fullPath);
+        var canonicalRoot = Path.GetFullPath(contentRoot);
+        var metadata = AssetFileCodec.ReadMetadata(canonicalPath);
+        metadata.SourcePath = Path.GetRelativePath(canonicalRoot, canonicalPath);
+        metadata.ContentPath = metadata.SourcePath.Replace('\\', '/');
+        metadata.CookedPath = canonicalPath;
+        metadata.LoaderSourcePath = canonicalPath;
+        metadata.Loader = () => AssetFileCodec.Load(canonicalPath, this);
+        RegisterMetadata(metadata);
+        return Records.Single(record => record.AssetGuid == metadata.AssetGuid);
+    }
+
+    private void ReplaceDirectorySnapshot(
+        string directory,
+        IEnumerable<AssetRecord> scannedRecords,
+        bool recursive)
+    {
+        var incoming = scannedRecords.ToDictionary(record => record.AssetGuid);
+        lock (_gate)
+        {
+            var stale = _records
+                .Where(pair => IsInScanScope(pair.Value.CookedPath ?? pair.Value.LoaderSourcePath, directory, recursive) &&
+                    !incoming.ContainsKey(pair.Key))
+                .Select(pair => pair.Key)
+                .ToArray();
+            foreach (var assetGuid in stale)
+                _records.Remove(assetGuid);
+
+            foreach (var pair in incoming)
+            {
+                var record = pair.Value;
+                if (_records.TryGetValue(pair.Key, out var current))
+                {
+                    record.Resource = current.Resource;
+                    record.ContentHash = current.ContentHash;
+                    if (!string.IsNullOrWhiteSpace(current.SourcePath) &&
+                        !string.Equals(current.SourcePath, current.ContentPath, StringComparison.OrdinalIgnoreCase))
+                        record.SourcePath = current.SourcePath;
+                    if (current.ImportStatus == AssetImportStatus.Imported)
+                        record.MarkImported();
+                    else if (current.ImportStatus == AssetImportStatus.Failed)
+                        record.MarkFailed(current.LastError ?? "Unknown error");
+                }
+                _records[pair.Key] = record;
+            }
+        }
+    }
+
+    private static bool IsWithinDirectory(string? path, string directory)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+        var fullPath = Path.GetFullPath(path);
+        var root = Path.GetFullPath(directory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        return fullPath.StartsWith(root, OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal);
+    }
+
+    private static bool IsInScanScope(string? path, string directory, bool recursive)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+        if (recursive)
+            return IsWithinDirectory(path, directory);
+        var parent = Path.GetDirectoryName(Path.GetFullPath(path));
+        return string.Equals(parent, Path.GetFullPath(directory), OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal);
     }
 
 

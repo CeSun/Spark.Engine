@@ -64,6 +64,9 @@ public sealed class UITextBox : UIElement
 
     public Action<string>? TextChanged { get; set; }
 
+    /// <summary>单行输入框按下 Enter 时提交当前文本。</summary>
+    public Action<string>? Submitted { get; set; }
+
     public string Text
     {
         get => _buffer.ToString();
@@ -294,6 +297,9 @@ public sealed class UITextBox : UIElement
 
         switch (key)
         {
+            case Key.Enter:
+                Submitted?.Invoke(Text);
+                break;
             case Key.Backspace:
                 if (!ReadOnly)
                 {

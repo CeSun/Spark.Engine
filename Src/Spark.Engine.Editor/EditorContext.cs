@@ -342,7 +342,23 @@ public sealed class EditorContext : IDisposable
         {
             if (asset == null)
                 return;
-            AssetRegistry.Register(asset);
+            var existing = AssetRegistry.Records.FirstOrDefault(record => record.AssetGuid == asset.AssetGuid);
+            if (existing == null)
+            {
+                AssetRegistry.Register(asset);
+                return;
+            }
+            if (ReferenceEquals(existing.Resource, asset))
+                return;
+
+            // 世界可能先于磁盘资源完成实例化。把实例附加回已有身份时保留扫描得到的
+            // Content 路径和传递依赖，避免一次 Inspector 赋值破坏定位与 Cook 闭包。
+            AssetRegistry.Register(asset,
+                sourcePath: existing.SourcePath,
+                cookedPath: existing.CookedPath,
+                dependencies: existing.Dependencies,
+                contentHash: existing.ContentHash,
+                contentPath: existing.ContentPath);
         }
     }
 

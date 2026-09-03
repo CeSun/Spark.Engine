@@ -25,8 +25,21 @@ public static class AssetFileCodec
 
     public static void Save(SceneResource resource, string path, IEnumerable<Guid>? dependencies = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
         var data = Encode(resource, dependencies);
+        Save(data, path);
+    }
+
+    /// <summary>保存已经编码的资产数据；用于不加载资源对象即可安全重写资产身份。</summary>
+    public static void Save(AssetFileData data, string path)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!Enum.IsDefined(data.AssetType))
+            throw new InvalidDataException($"Unsupported asset type {(byte)data.AssetType}.");
+        if (data.AssetGuid == Guid.Empty)
+            throw new InvalidDataException("Asset files require a non-empty AssetGuid.");
+        ArgumentNullException.ThrowIfNull(data.Dependencies);
+        ArgumentNullException.ThrowIfNull(data.Payload);
 
         var fullPath = Path.GetFullPath(path);
         var directory = Path.GetDirectoryName(fullPath);
@@ -56,7 +69,6 @@ public static class AssetFileCodec
             if (File.Exists(tempPath))
                 File.Delete(tempPath);
         }
-
     }
 
     public static AssetFileData Encode(SceneResource resource, IEnumerable<Guid>? dependencies = null)
@@ -105,6 +117,42 @@ public static class AssetFileCodec
         };
     }
 
+    /// <summary>读取完整的编码资产数据，但不解析类型专属 Payload。</summary>
+    public static AssetFileData ReadData(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: false);
+        var (type, assetGuid, dependencies, payloadLength) = ReadHeader(reader, stream);
+        if (payloadLength > int.MaxValue)
+            throw new InvalidDataException("Asset payload is too large.");
+        var payload = reader.ReadBytes((int)payloadLength);
+        if (payload.Length != (int)payloadLength || stream.Position != stream.Length)
+            throw new InvalidDataException("Unexpected trailing or truncated data in asset file.");
+        return new AssetFileData(type, assetGuid, dependencies, payload);
+    }
+
+    /// <summary>按 GUID 映射重写资产身份、依赖表以及已知 Payload 内的资源引用。</summary>
+    public static AssetFileData RemapAssetGuids(
+        AssetFileData data,
+        IReadOnlyDictionary<Guid, Guid> guidMap)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(guidMap);
+        var assetGuid = guidMap.TryGetValue(data.AssetGuid, out var mappedAssetGuid)
+            ? mappedAssetGuid
+            : data.AssetGuid;
+        var dependencies = data.Dependencies
+            .Select(guid => guidMap.TryGetValue(guid, out var mapped) ? mapped : guid)
+            .Distinct()
+            .OrderBy(guid => guid)
+            .ToArray();
+        var payload = data.AssetType == EngineAssetType.Material
+            ? RemapMaterialPayload(data.Payload, guidMap)
+            : data.Payload.ToArray();
+        return new AssetFileData(data.AssetType, assetGuid, dependencies, payload);
+    }
+
     public static SceneResource Load(string path, IAssetRegistry? registry = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -150,6 +198,36 @@ public static class AssetFileCodec
         Texture2D => EngineAssetType.Texture2D,
         _ => throw new NotSupportedException($"Asset type '{resource.GetType().FullName}' is not supported.")
     };
+
+    private static byte[] RemapMaterialPayload(
+        byte[] payload,
+        IReadOnlyDictionary<Guid, Guid> guidMap)
+    {
+        using var input = new MemoryStream(payload, writable: false);
+        using var reader = new BinaryReader(input, Encoding.UTF8, leaveOpen: false);
+        using var output = new MemoryStream(payload.Length);
+        using (var writer = new BinaryWriter(output, Encoding.UTF8, leaveOpen: true))
+        {
+            // 三个枚举字段 + 12 个 float 参数与当前 Material Payload 格式保持逐字节等价。
+            writer.Write(reader.ReadByte());
+            writer.Write(reader.ReadByte());
+            writer.Write(reader.ReadByte());
+            for (var index = 0; index < 12; index++)
+                writer.Write(reader.ReadSingle());
+            for (var slot = 0; slot < 5; slot++)
+            {
+                var hasGuid = reader.ReadBoolean();
+                writer.Write(hasGuid);
+                if (!hasGuid)
+                    continue;
+                var guid = new Guid(reader.ReadBytes(16));
+                writer.Write((guidMap.TryGetValue(guid, out var mapped) ? mapped : guid).ToByteArray());
+            }
+        }
+        if (input.Position != input.Length)
+            throw new InvalidDataException("Unexpected trailing data in Material payload.");
+        return output.ToArray();
+    }
 
     private static byte[] EncodePayload(SceneResource resource, EngineAssetType type)
     {

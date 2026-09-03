@@ -26,8 +26,9 @@ public class UIListItem : UIElement
 
     /// <summary>由所属列表视图注入的点击回调。</summary>
     internal Action<UIListItem>? Clicked { get; set; }
-    internal Action<UIListItem, Key>? KeyPressed { get; set; }
+    internal Action<UIListItem, Key, KeyMask>? KeyPressed { get; set; }
     internal Action<UIListItem, Vector2, KeyMask>? DropCompleted { get; set; }
+    internal Action<UIListItem, Vector2>? ContextRequested { get; set; }
 
     public UIListItem()
     {
@@ -107,12 +108,14 @@ public class UIListItem : UIElement
         if (button == MouseButton.Left &&
             (_isDragging || Vector2.DistanceSquared(_pressPosition, position) >= 16f))
             DropCompleted?.Invoke(this, position, keysDown);
+        else if (button == MouseButton.Right)
+            ContextRequested?.Invoke(this, position);
         _isDragging = false;
     }
 
     protected internal override void OnMouseClick() => Clicked?.Invoke(this);
 
-    protected internal override void OnKeyDown(Key key) => KeyPressed?.Invoke(this, key);
+    protected internal override void OnKeyDown(Key key, KeyMask keysDown) => KeyPressed?.Invoke(this, key, keysDown);
 }
 
 /// <summary>
@@ -137,6 +140,12 @@ public sealed class UIListView : UIElement
 
     /// <summary>列表项拖拽结束回调；释放位置使用画布坐标，可用于跨控件拖放。</summary>
     public Action<UIListItem, Vector2, KeyMask>? ItemDropCompleted { get; set; }
+
+    /// <summary>列表项收到键盘输入；列表完成导航后通知调用方处理 Delete/F2 等命令。</summary>
+    public Action<UIListItem?, Key, KeyMask>? ItemKeyPressed { get; set; }
+
+    /// <summary>资源列表项右键菜单请求。</summary>
+    public Action<UIListItem, Vector2>? ItemContextRequested { get; set; }
 
     /// <summary>两次点击被识别为双击的最大间隔。</summary>
     public TimeSpan DoubleClickInterval { get; set; } = TimeSpan.FromMilliseconds(500);
@@ -194,6 +203,7 @@ public sealed class UIListView : UIElement
             Clicked = OnItemClicked,
             KeyPressed = OnItemKeyPressed,
             DropCompleted = OnItemDropCompleted,
+            ContextRequested = OnItemContextRequested,
         };
         _items.Add(item);
         _itemsPanel.AddChild(item);
@@ -208,6 +218,7 @@ public sealed class UIListView : UIElement
         item.Clicked = null;
         item.KeyPressed = null;
         item.DropCompleted = null;
+        item.ContextRequested = null;
         _itemsPanel.RemoveChild(item);
         if (ReferenceEquals(_lastClickedItem, item))
             ResetClickTracking();
@@ -225,6 +236,7 @@ public sealed class UIListView : UIElement
             item.Clicked = null;
             item.KeyPressed = null;
             item.DropCompleted = null;
+            item.ContextRequested = null;
         }
         _items.Clear();
         _itemsPanel.ClearChildren();
@@ -256,15 +268,22 @@ public sealed class UIListView : UIElement
         _lastClickTimestamp = 0;
     }
 
-    private void OnItemKeyPressed(UIListItem item, Key key)
+    private void OnItemKeyPressed(UIListItem item, Key key, KeyMask keysDown)
     {
         if (SelectedItem == null)
             SelectItem(item);
         OnKeyDown(key);
+        ItemKeyPressed?.Invoke(SelectedItem, key, keysDown);
     }
 
     private void OnItemDropCompleted(UIListItem item, Vector2 position, KeyMask keysDown)
         => ItemDropCompleted?.Invoke(item, position, keysDown);
+
+    private void OnItemContextRequested(UIListItem item, Vector2 position)
+    {
+        SelectItem(item);
+        ItemContextRequested?.Invoke(item, position);
+    }
 
     /// <summary>选中指定项。</summary>
     public void SelectItem(UIListItem? item)

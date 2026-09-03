@@ -477,4 +477,191 @@ public sealed class EditorContentBrowserTests
                 Directory.Delete(directory, recursive: true);
         }
     }
+
+    [Fact]
+    public void EditorUiCompletesContentCrudWorkflowWithoutChangingSceneHistory()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "spark-content-crud-e2e-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var project = EditorProject.Open(directory);
+            using var mesh = new StaticMesh(
+                new[]
+                {
+                    new StaticMeshVertex(default, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                    new StaticMeshVertex(System.Numerics.Vector3.UnitX, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                    new StaticMeshVertex(System.Numerics.Vector3.UnitY, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                },
+                new uint[] { 0, 1, 2 });
+            AssetFileCodec.Save(mesh, Path.Combine(project.ContentDirectory, "Crate.asset"));
+            using var world = new World(new ResourceManager());
+            var editor = new EditorUi(world, project: project);
+            editor.ScanAssetDirectory(project.ContentDirectory);
+
+            Assert.Equal("Props", editor.CreateContentDirectory("", "Props"));
+            var renamed = editor.RenameContentAsset(mesh.AssetGuid, "ShippingCrate");
+            var moved = editor.MoveContentAsset(mesh.AssetGuid, "Props");
+            var copy = editor.CopyContentAsset(mesh.AssetGuid, "Props");
+
+            Assert.Equal(mesh.AssetGuid, renamed.AssetGuid);
+            Assert.Equal("Props/ShippingCrate.asset", moved.ContentPath);
+            Assert.NotEqual(mesh.AssetGuid, copy.AssetGuid);
+            Assert.False(editor.IsDirty);
+            Assert.Empty(world.Actors);
+
+            var deleted = editor.DeleteContentAsset(copy.AssetGuid);
+            Assert.True(File.Exists(deleted.RecoveryPath));
+            Assert.DoesNotContain(editor.AssetRegistry.Records, record => record.AssetGuid == copy.AssetGuid);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ContentBrowserCreateMenuCreatesMaterialThroughTheEditorService()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "spark-create-menu-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var project = EditorProject.Open(directory);
+            using var world = new World(new ResourceManager());
+            var editor = new EditorUi(world, project: project);
+            var canvas = new UICanvas(0)
+            {
+                Size = new System.Numerics.Vector2(1280f, 720f),
+                Root = editor.Root,
+            };
+            canvas.Update(default);
+            var contentPanel = Descendants(editor.Root)
+                .Single(element => element.GetType().Name == "EditorContentBrowserPanel");
+            var name = Descendants(contentPanel).OfType<UITextBox>()
+                .Single(textBox => textBox.PlaceholderText.StartsWith("Create / rename", StringComparison.Ordinal));
+            var create = Descendants(contentPanel).OfType<UIButton>()
+                .Single(button => button.Text == "Create");
+            Click(canvas, Center(create.Bounds));
+            var menu = Assert.IsType<UIMenuPanel>(Assert.Single(canvas.Overlays));
+            Assert.Contains(menu.Items, item => item.Text == "Folder");
+            var materialItem = Assert.Single(menu.Items, item => item.Text == "Material");
+            Click(canvas, Center(materialItem.Bounds));
+            Assert.Empty(editor.AssetRegistry.Records);
+            Assert.Same(name, canvas.FocusedElement);
+
+            name.Text = "M_FromUi";
+            Click(canvas, Center(create.Bounds));
+            menu = Assert.IsType<UIMenuPanel>(Assert.Single(canvas.Overlays));
+            materialItem = Assert.Single(menu.Items, item => item.Text == "Material");
+
+            Click(canvas, Center(materialItem.Bounds));
+
+            var path = Path.Combine(project.ContentDirectory, "M_FromUi.asset");
+            Assert.True(File.Exists(path));
+            var record = Assert.Single(editor.AssetRegistry.Records);
+            Assert.Equal("M_FromUi.asset", record.ContentPath);
+            Assert.Equal(EngineAssetType.Material.ToString(), AssetFileCodec.ReadMetadata(path).AssetType);
+            Assert.Equal(record.AssetGuid, Assert.Single(editor.ContentBrowser.Entries).Record.AssetGuid);
+            Assert.False(editor.IsDirty);
+            Assert.Empty(canvas.Overlays);
+
+            name.Text = "CreatedFolder";
+            Click(canvas, Center(create.Bounds));
+            menu = Assert.IsType<UIMenuPanel>(Assert.Single(canvas.Overlays));
+            Click(canvas, Center(Assert.Single(menu.Items, item => item.Text == "Folder").Bounds));
+            Assert.True(Directory.Exists(Path.Combine(project.ContentDirectory, "CreatedFolder")));
+            Assert.Equal("CreatedFolder", editor.ContentBrowser.SelectedDirectory);
+            Assert.False(editor.IsDirty);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void AssetCanBeDraggedFromResourceListToLeftFolderTree()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "spark-tree-asset-drop-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var project = EditorProject.Open(directory);
+            Directory.CreateDirectory(Path.Combine(project.ContentDirectory, "Target"));
+            using var mesh = new StaticMesh(
+                new[]
+                {
+                    new StaticMeshVertex(default, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                    new StaticMeshVertex(System.Numerics.Vector3.UnitX, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                    new StaticMeshVertex(System.Numerics.Vector3.UnitY, System.Numerics.Vector3.One, default, System.Numerics.Vector3.UnitZ),
+                },
+                new uint[] { 0, 1, 2 });
+            AssetFileCodec.Save(mesh, Path.Combine(project.ContentDirectory, "Crate.asset"));
+            using var world = new World(new ResourceManager());
+            var editor = new EditorUi(world, project: project);
+            editor.ScanAssetDirectory(project.ContentDirectory);
+            var canvas = new UICanvas(0) { Size = new System.Numerics.Vector2(1280f, 720f), Root = editor.Root };
+            canvas.Update(default);
+
+            var contentPanel = Descendants(editor.Root)
+                .Single(element => element.GetType().Name == "EditorContentBrowserPanel");
+            var list = Descendants(contentPanel).OfType<UIListView>().Single();
+            var tree = Descendants(contentPanel).OfType<UITreeView>().Single();
+            var sourceItem = list.Items.Single(item => item.Text.Contains("Crate.asset", StringComparison.Ordinal));
+            var targetItem = tree.Roots.SelectMany(FlattenTree)
+                .Single(item => item.Text == "Target");
+            var sourcePoint = Center(sourceItem.Bounds);
+            var targetPoint = Center(targetItem.Bounds);
+            var left = default(MouseButtonMask);
+            left.Set(MouseButton.Left, true);
+
+            canvas.Update(new InputState(sourcePoint, default, 0f,
+                left, left, default, default, default, default, string.Empty));
+            canvas.Update(new InputState(targetPoint, targetPoint - sourcePoint, 0f,
+                left, default, default, default, default, default, string.Empty));
+            canvas.Update(new InputState(targetPoint, default, 0f,
+                default, default, left, default, default, default, string.Empty));
+
+            Assert.False(File.Exists(Path.Combine(project.ContentDirectory, "Crate.asset")));
+            Assert.True(File.Exists(Path.Combine(project.ContentDirectory, "Target", "Crate.asset")));
+            Assert.Equal("Target/Crate.asset",
+                editor.AssetRegistry.Records.Single(record => record.AssetGuid == mesh.AssetGuid).ContentPath);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static IEnumerable<UIElement> Descendants(UIElement root)
+    {
+        foreach (var child in root.Children)
+        {
+            yield return child;
+            foreach (var descendant in Descendants(child))
+                yield return descendant;
+        }
+    }
+
+    private static IEnumerable<UITreeViewItem> FlattenTree(UITreeViewItem root)
+    {
+        yield return root;
+        foreach (var child in root.SubItems)
+        foreach (var descendant in FlattenTree(child))
+            yield return descendant;
+    }
+
+    private static System.Numerics.Vector2 Center(UIRect rect)
+        => new(rect.X + rect.Width * 0.5f, rect.Y + rect.Height * 0.5f);
+
+    private static void Click(UICanvas canvas, System.Numerics.Vector2 point)
+    {
+        var left = default(MouseButtonMask);
+        left.Set(MouseButton.Left, true);
+        canvas.Update(new InputState(point, default, 0f,
+            left, left, default, default, default, default, string.Empty));
+        canvas.Update(new InputState(point, default, 0f,
+            default, default, left, default, default, default, string.Empty));
+    }
 }

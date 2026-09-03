@@ -23,6 +23,7 @@ public sealed class EditorUi
     private readonly EditorStatusBarPanel _statusBar;
     private readonly EditorToolbarPanel _toolbar;
     private readonly EditorDeleteConfirmationPanel _deleteConfirmation;
+    private readonly EditorAssetDeleteConfirmationPanel _assetDeleteConfirmation;
     private readonly EditorCloseConfirmationPanel _closeConfirmation;
     private readonly EditorAssetErrorsPanel _assetErrors;
     private readonly EditorContentBrowserPanel _contentBrowser;
@@ -30,6 +31,7 @@ public sealed class EditorUi
     private readonly EditorContext _context;
     private readonly IEditorSceneService? _sceneService;
     private readonly EditorAssetImportService _assetImportService = new();
+    private readonly EditorAssetOperationService? _assetOperations;
     public EditorProject? Project { get; }
     private readonly TransformGizmoController _gizmo = new();
     private readonly EditorCameraController _cameraController = new();
@@ -50,6 +52,9 @@ public sealed class EditorUi
         _sceneService = sceneService;
         Project = project;
         _context = new EditorContext(world, worldContext);
+        _assetOperations = project != null && _context.AssetRegistry is AssetRegistry mutableRegistry
+            ? new EditorAssetOperationService(project, mutableRegistry)
+            : null;
         // 让内容浏览器在编辑器首次打开时即可显示当前场景引用的资产。
         _context.RegisterWorldAssets();
         var root = new UIStackPanel
@@ -93,18 +98,52 @@ public sealed class EditorUi
         _assetEditorHost = new EditorAssetEditorHost(_viewport);
         content.AddChild(_assetEditorHost);
 
-        _inspector = new EditorInspectorPanel(RequestPropertyEdit);
+        _inspector = new EditorInspectorPanel(
+            RequestPropertyEdit,
+            _context.AssetRegistry,
+            (slots, resource) => RequestResourcePropertyEdit(slots, resource),
+            assetGuid => RevealAsset(assetGuid),
+            assetGuid => OpenAssetEditor(assetGuid));
         content.AddChild(_inspector);
 
         root.AddChild(content);
 
-        _contentBrowser = new EditorContentBrowserPanel(_context.AssetRegistry);
+        _contentBrowser = new EditorContentBrowserPanel(_context.AssetRegistry, project?.ContentDirectory);
         _contentBrowser.AssetActivated += HandleAssetActivated;
         _contentBrowser.AssetDropped += HandleAssetDropped;
+        _contentBrowser.FolderCreateRequested += (parent, name) =>
+            TryContentAction(() => CreateContentDirectory(parent, name));
+        _contentBrowser.MaterialCreateRequested += (directory, name) =>
+            TryContentAction(() => CreateContentMaterial(directory, name));
+        _contentBrowser.FolderRenameRequested += (directory, name) =>
+            TryContentAction(() => RenameContentDirectory(directory, name));
+        _contentBrowser.FolderMoveRequested += (directory, destination) =>
+            TryContentAction(() => MoveContentDirectory(directory, destination));
+        _contentBrowser.FolderCopyRequested += (directory, destination) =>
+            TryContentAction(() => CopyContentDirectory(directory, destination));
+        _contentBrowser.AssetRenameRequested += (assetGuid, name) =>
+            TryContentAction(() => RenameContentAsset(assetGuid, name));
+        _contentBrowser.AssetMoveRequested += (assetGuid, destination) =>
+            TryContentAction(() => MoveContentAsset(assetGuid, destination));
+        _contentBrowser.AssetCopyRequested += (assetGuid, destination) =>
+            TryContentAction(() => CopyContentAsset(assetGuid, destination));
         root.AddChild(_contentBrowser);
 
         _deleteConfirmation = new EditorDeleteConfirmationPanel(ConfirmDeleteSelection);
         root.AddChild(_deleteConfirmation);
+
+        _assetDeleteConfirmation = new EditorAssetDeleteConfirmationPanel();
+        _contentBrowser.AssetDeleteRequested += assetGuid =>
+        {
+            var record = AssetRegistry.Records.FirstOrDefault(candidate => candidate.AssetGuid == assetGuid);
+            if (record != null)
+                _assetDeleteConfirmation.Request(EditorContentBrowserModel.GetDisplayName(record),
+                    () => TryContentAction(() => DeleteContentAsset(assetGuid)));
+        };
+        _contentBrowser.FolderDeleteRequested += directory =>
+            _assetDeleteConfirmation.Request(directory,
+                () => TryContentAction(() => DeleteContentDirectory(directory)));
+        root.AddChild(_assetDeleteConfirmation);
 
         _closeConfirmation = new EditorCloseConfirmationPanel(TrySaveScene);
         root.AddChild(_closeConfirmation);
@@ -127,6 +166,8 @@ public sealed class EditorUi
     public EditorPlayState PlayState => _context.PlayState;
     public object? SelectedTarget => _context.Selection.Selected;
     public IReadOnlyList<object> SelectedTargets => _context.Selection.Items;
+    public IReadOnlyList<EditorInspectorResourceProperty> InspectorResourceProperties
+        => _inspector.ResourceProperties;
     /// <summary>当前场景服务提供的最近场景路径；非 Binary 服务返回空列表。</summary>
     public IReadOnlyList<string> RecentScenePaths
         => (_sceneService as BinaryEditorSceneService)?.RecentFiles.Paths ?? Array.Empty<string>();
@@ -190,6 +231,8 @@ public sealed class EditorUi
     public IAssetRegistry AssetRegistry => _context.AssetRegistry;
     /// <summary>内容浏览器查询模型，供宿主扩展拖放、预览或自定义资源操作。</summary>
     public EditorContentBrowserModel ContentBrowser => _contentBrowser.Model;
+    /// <summary>项目 Content 的集中式写操作服务；未配置项目时为 null。</summary>
+    public EditorAssetOperationService? AssetOperations => _assetOperations;
     /// <summary>当前已经打开的资源编辑器文档。</summary>
     public IReadOnlyList<EditorAssetEditorDocument> OpenAssetEditors => _assetEditorHost.Documents;
     /// <summary>当前激活的资源编辑器；场景视口激活时为 null。</summary>
@@ -231,6 +274,200 @@ public sealed class EditorUi
 
     /// <summary>切回场景视口标签页。</summary>
     public void ShowSceneEditor() => _assetEditorHost.ShowScene();
+
+    public void SelectTargets(IEnumerable<object> targets, object? primary = null)
+    {
+        ArgumentNullException.ThrowIfNull(targets);
+        _context.Selection.Set(targets, primary);
+    }
+
+    public bool AssignAssetToSelection(string propertyName, Guid? assetGuid)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
+        SceneResource? resource = null;
+        try
+        {
+            if (assetGuid is { } guid)
+                resource = AssetRegistry.Resolve(guid);
+            var slots = _context.Selection.Items.Select(target =>
+                {
+                    var property = target.GetType().GetProperty(
+                        propertyName, BindingFlags.Public | BindingFlags.Instance);
+                    return property != null && property.CanRead && property.CanWrite &&
+                           typeof(SceneResource).IsAssignableFrom(property.PropertyType) &&
+                           property.GetCustomAttribute<ScenePropertyAttribute>() != null
+                        ? new EditorResourcePropertySlot(target, property)
+                        : null;
+                })
+                .Where(slot => slot != null)
+                .Cast<EditorResourcePropertySlot>()
+                .ToArray();
+            if (slots.Length != _context.Selection.Count || slots.Length == 0)
+            {
+                SetStatus($"Resource property '{propertyName}' is not common to the current selection.");
+                return false;
+            }
+            if (resource != null && slots.Any(slot => !slot.Property.PropertyType.IsInstanceOfType(resource)))
+            {
+                SetStatus($"Asset '{assetGuid}' is incompatible with {propertyName}.");
+                return false;
+            }
+            return RequestResourcePropertyEdit(slots, resource);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Resource assignment failed: {ex.GetBaseException().Message}");
+            return false;
+        }
+    }
+
+    public bool RevealAsset(Guid assetGuid)
+    {
+        if (!_contentBrowser.RevealAsset(assetGuid))
+        {
+            SetStatus($"Asset '{assetGuid}' is not registered.");
+            return false;
+        }
+        SetStatus($"Located asset '{assetGuid}'.");
+        return true;
+    }
+
+    public string CreateContentDirectory(string? parentDirectory, string name)
+    {
+        try
+        {
+            var path = RequireAssetOperations().CreateDirectory(parentDirectory, name);
+            _contentBrowser.Model.SelectedDirectory = path;
+            _contentBrowser.Refresh();
+            SetStatus($"Created folder '{path}'.");
+            return path;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Create folder failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>在指定 Content 目录创建空白 Material，并在浏览器中定位新资产。</summary>
+    public AssetRecord CreateContentMaterial(string? directory, string name)
+    {
+        try
+        {
+            var record = RequireAssetOperations().CreateMaterial(directory, name);
+            _contentBrowser.RevealAsset(record.AssetGuid);
+            SetStatus($"Created Material '{EditorContentBrowserModel.GetDisplayName(record)}'.");
+            return record;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Create Material failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    public string RenameContentDirectory(string directory, string newName)
+    {
+        try
+        {
+            var path = RequireAssetOperations().RenameDirectory(directory, newName);
+            PreserveDirectoryAfterMove(directory, path);
+            _contentBrowser.Refresh();
+            SetStatus($"Renamed folder to '{path}'.");
+            return path;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Rename folder failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    public string MoveContentDirectory(string directory, string destinationDirectory)
+    {
+        try
+        {
+            var path = RequireAssetOperations().MoveDirectory(directory, destinationDirectory);
+            PreserveDirectoryAfterMove(directory, path);
+            _contentBrowser.Refresh();
+            SetStatus($"Moved folder to '{path}'.");
+            return path;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Move folder failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    public string CopyContentDirectory(string directory, string destinationDirectory, string? copyName = null)
+    {
+        try
+        {
+            var path = RequireAssetOperations().CopyDirectory(directory, destinationDirectory, copyName);
+            _contentBrowser.Refresh();
+            SetStatus($"Copied folder to '{path}'.");
+            return path;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Copy folder failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    public AssetRecord RenameContentAsset(Guid assetGuid, string newName)
+        => RunAssetOperation(
+            () => RequireAssetOperations().RenameAsset(assetGuid, newName),
+            "Renamed asset");
+
+    public AssetRecord MoveContentAsset(Guid assetGuid, string destinationDirectory)
+        => RunAssetOperation(
+            () => RequireAssetOperations().MoveAsset(assetGuid, destinationDirectory),
+            "Moved asset");
+
+    public AssetRecord CopyContentAsset(Guid assetGuid, string destinationDirectory, string? copyName = null)
+        => RunAssetOperation(
+            () => RequireAssetOperations().CopyAsset(assetGuid, destinationDirectory, copyName),
+            "Copied asset");
+
+    public EditorAssetDeleteResult DeleteContentAsset(Guid assetGuid)
+    {
+        try
+        {
+            var result = RequireAssetOperations().DeleteAsset(assetGuid, SceneDocument.Capture(_context.World));
+            _assetEditorHost.Close(assetGuid);
+            _contentBrowser.Refresh();
+            SetStatus($"Deleted asset to recovery storage: {result.RecoveryPath}");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Delete asset failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    public EditorAssetDeleteResult DeleteContentDirectory(string directory)
+    {
+        try
+        {
+            var result = RequireAssetOperations().DeleteDirectory(directory, SceneDocument.Capture(_context.World));
+            foreach (var assetGuid in result.RemovedAssetGuids)
+                _assetEditorHost.Close(assetGuid);
+            if (ContentBrowser.SelectedDirectory.Equals(directory, StringComparison.OrdinalIgnoreCase) ||
+                ContentBrowser.SelectedDirectory.StartsWith(directory + "/", StringComparison.OrdinalIgnoreCase))
+                ContentBrowser.SelectedDirectory = EditorContentBrowserModel.GetDirectory(directory);
+            _contentBrowser.Refresh();
+            SetStatus($"Deleted folder to recovery storage: {result.RecoveryPath}");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Delete folder failed: {ex.Message}");
+            throw;
+        }
+    }
 
     /// <summary>导入图片为内容浏览器当前目录下的引擎 Texture2D 资产。</summary>
     public AssetRecord ImportTexture(string sourcePath)
@@ -319,6 +556,45 @@ public sealed class EditorUi
 
     private EditorProject RequireProject()
         => Project ?? throw new InvalidOperationException("Editor project root is not configured.");
+
+    private EditorAssetOperationService RequireAssetOperations()
+        => _assetOperations ?? throw new InvalidOperationException(
+            "Editor asset operations require a configured project and mutable AssetRegistry.");
+
+    private AssetRecord RunAssetOperation(Func<AssetRecord> operation, string successVerb)
+    {
+        try
+        {
+            var record = operation();
+            _contentBrowser.Refresh();
+            SetStatus($"{successVerb} '{EditorContentBrowserModel.GetDisplayName(record)}'.");
+            return record;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Asset operation failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    private void PreserveDirectoryAfterMove(string oldDirectory, string newDirectory)
+    {
+        var selected = ContentBrowser.SelectedDirectory;
+        if (selected.Equals(oldDirectory, StringComparison.OrdinalIgnoreCase))
+            ContentBrowser.SelectedDirectory = newDirectory;
+        else if (selected.StartsWith(oldDirectory + "/", StringComparison.OrdinalIgnoreCase))
+            ContentBrowser.SelectedDirectory = newDirectory + selected[oldDirectory.Length..];
+    }
+
+    private static void TryContentAction(Action action)
+    {
+        try { action(); }
+        catch
+        {
+            // Public operation methods already publish a precise status message.
+            // UI callbacks stop the exception here so one invalid file operation cannot abort the editor tick.
+        }
+    }
 
     private string GetCurrentContentDirectory()
     {
@@ -435,6 +711,13 @@ public sealed class EditorUi
 
     private void RefreshContent()
     {
+        if (Project != null && _context.AssetRegistry is AssetRegistry registry)
+        {
+            var count = registry.ScanDirectory(Project.ContentDirectory);
+            _contentBrowser.Refresh();
+            SetStatus($"Content refreshed: {count} asset file(s).");
+            return;
+        }
         _contentBrowser.Refresh();
         SetStatus($"Content refreshed: {_contentBrowser.Model.Entries.Count} visible asset(s).");
     }
@@ -660,6 +943,43 @@ public sealed class EditorUi
         var used = _context.World.EnumerateActors(includePendingActors: true)
             .Select(actor => actor.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return NextActorName(prefix, used);
+    }
+
+    private bool RequestResourcePropertyEdit(
+        IReadOnlyList<EditorResourcePropertySlot> slots,
+        SceneResource? resource)
+    {
+        if (_context.PlayState != EditorPlayState.Edit)
+        {
+            SetStatus("Stop Play before editing resource properties.");
+            return false;
+        }
+        if (slots.Count == 0)
+            return false;
+        var propertyName = slots[0].Property.Name;
+        try
+        {
+            var changes = slots
+                .Where(slot => !SameAsset(slot.Property.GetValue(slot.Target) as SceneResource, resource))
+                .Select(slot => (slot.Target, slot.Property, NewValue: (object?)resource))
+                .ToArray();
+            if (changes.Length == 0)
+                return false;
+            _context.Execute(new PropertyBatchChangeCommand(propertyName, changes));
+            _context.RegisterWorldAssets();
+            _inspector.Refresh();
+            SetStatus(resource == null
+                ? $"Cleared {propertyName} on {changes.Length} object(s)."
+                : $"Assigned {EditorContentBrowserModel.GetDisplayName(
+                    AssetRegistry.Records.FirstOrDefault(record => record.AssetGuid == resource.AssetGuid)
+                    ?? new AssetRecord { AssetGuid = resource.AssetGuid })} to {changes.Length} object(s).");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Resource assignment failed: {ex.GetBaseException().Message}");
+            return false;
+        }
     }
 
     private static string NextActorName(string prefix, IReadOnlySet<string> used)
@@ -919,6 +1239,8 @@ public sealed class EditorUi
 
     private void HandleAssetDropped(AssetRecord record, Vector2 position)
     {
+        if (_inspector.TryAcceptAssetDrop(record, position))
+            return;
         var control = _renderViewControl;
         if (control == null || _assetEditorHost.ActiveDocument != null || !control.Bounds.Contains(position))
             return;
@@ -1126,7 +1448,7 @@ public sealed class EditorUi
     private void UpdateInspector()
     {
         _selectedTarget = _context.Selection.Selected;
-        _inspector.Target = _selectedTarget;
+        _inspector.SetTargets(_context.Selection.Items, _selectedTarget);
         _statusBar.SetSelection(GetSelectionStatus());
         UpdateInspectorTitle();
     }
@@ -1150,6 +1472,9 @@ public sealed class EditorUi
             1 => $"Selected: {_selectedTarget?.GetType().Name}",
             var count => $"Selected: {count} objects (primary: {_selectedTarget?.GetType().Name})",
         };
+
+    private static bool SameAsset(SceneResource? left, SceneResource? right)
+        => ReferenceEquals(left, right) || left != null && right != null && left.AssetGuid == right.AssetGuid;
 
     private void RemoveInvalidSelection()
     {

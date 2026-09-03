@@ -2,6 +2,10 @@
 
 ## 1. 目标与现状
 
+后续功能的权威实施顺序、开发深度和完成门槛见
+[Editor-Roadmap.md「后续实施序列与开发深度」](./Editor-Roadmap.md#后续实施序列与开发深度)。
+本文保留已经落地的架构与里程碑记录，不再为同一功能维护另一套优先级。
+
 编辑器的目标不是展示 World 数据，而是提供可持续使用的场景生产工具。当前已有：
 
 - 层级树：Actor -> Component 展示和选择
@@ -97,12 +101,17 @@ EditorWorld 共享资产、RuntimeWorld 隔离可变材质；不支持的版本�
 交付任务：
 
 1. ✅ 资源浏览器首版：基于 `AssetRegistry.Records` 的 `EditorContentBrowserModel` 与底部 `EditorContentBrowserPanel`，支持多级目录树、右侧文件夹项、搜索、类型过滤、刷新、导入状态/GUID/路径详情；双击/回车文件夹会进入目录，激活资源会在中间文档区打开对应的 StaticMesh、Material 或 Texture2D 编辑器标签。资源目录固定为项目 `Content`，启动时扫描其中的 `.asset` 元数据，快捷键为 `Ctrl+Shift+R`。无筛选时默认定位 `Textures`（存在时）并只显示当前目录直接资源，`All Assets` 显示 `Content` 根目录资源和直接子文件夹；启用搜索或类型筛选后递归匹配子目录。当前场景未保存资源通过 `Scene refs: On` 单独查看。新增 `EditorAssetImportService`/`EditorUi.ImportTexture`（PNG/JPG 等 ImageSharp 支持格式）和 `ImportModel`（glTF StaticMesh）入口，导入目标为当前 Content 目录且不会自动创建场景 Actor；Windows 桌面可将源文件直接拖入窗口导入。StaticMesh 可从内容浏览器拖入场景视口，按射线落点和网格吸附创建 Actor，并支持选择及 Undo/Redo。内容浏览器缩略图、引用关系和 Windows 文件选择器待补。
-2. 引用选择器、缩略图、导入任务队列。
-3. Inspector 自定义绘制器和面板注册 API。
-4. 菜单、工具栏、Gizmo 扩展点。
-5. 后台资源编译、进度、取消和失败重试。
+2. ✅ E1 资源管理闭环：真实 `Content` 目录（含空文件夹）、集中式 `EditorAssetOperationService`、目录/资产新建/重命名/移动/复制/可恢复删除、复制 GUID 与内部依赖重写、场景及资产传递引用保护、Registry 重扫清理和失败回滚；面板提供操作栏、右键菜单、快捷键与文件夹拖放。
+3. ✅ E2 Inspector 资源引用编辑：统一资源字段、类型过滤 Asset Picker、Content Browser 拖放、清空/定位/打开、字段级错误、多选批量赋值和单事务 Undo/Redo；SceneDocument、Play/Stop 与 Cook 闭包已贯通。
+4. ▶ E3 缩略图与资源编辑器深化：已先统一 `Create → Folder / Material` 创建入口，并将 Material 新建接入事务式资产服务；其它资源类型、缩略图缓存和预览交互继续实施。
+5. Inspector 自定义绘制器和面板注册 API。
+6. 菜单、工具栏、Gizmo 扩展点。
+7. 后台资源编译、进度、取消和失败重试。
 
 验收：新增资源类型无需修改核心 EditorUi；后台任务不阻塞 UI 和渲染线程。
+
+M5 的剩余工作拆分到路线图 E1～E5 与 E9；E1“Content Browser 资源管理闭环”和
+E2“Inspector 资源引用编辑”已经完成，当前进入 E3“缩略图与资源编辑器深化”。
 
 ## 4. 测试策略
 
@@ -129,5 +138,14 @@ EditorWorld 共享资产、RuntimeWorld 隔离可变材质；不支持的版本�
 3. ✅ Actor 深复制：具体类型、组件、类型化属性、内部/外部挂载、Socket 和资产引用，支持多选批量复制并生成新 GUID
 4. ✅ 编辑器相机：飞行/轨道/平移/推拉、F 聚焦、Reload/Play 瞬态相机隔离和会话视图书签
 5. ✅ 多选组变换：以主选对象为枢轴，排除已选祖先下的重复后代，并以单事务撤销/重做
+6. ✅ E1 Content Browser 资源管理闭环：真实目录、资源 CRUD、GUID 语义、引用保护和失败回滚
+7. ✅ E2 Inspector 资源引用编辑：选择器、拖放、清空、定位、批量 Undo/Redo 和持久化/Cook 闭环
+8. ▶ E3 缩略图与资源编辑器深化
+9. E4 后台导入任务系统
+10. E5 glTF/GLB 材质纹理与导入设置
+11. E6 工作区与布局持久化
+12. E7 调试与运行工具
+13. E8 自动恢复、增量刷新、虚拟化和规模性能
+14. E9 编辑器扩展 API
 
 每完成一个任务，必须同时提交逻辑测试和至少一个端到端验收场景，避免继续积累“看起来有控件、实际不能工作”的功能。
