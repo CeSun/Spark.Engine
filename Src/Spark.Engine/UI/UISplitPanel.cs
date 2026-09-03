@@ -60,10 +60,11 @@ public sealed class UISplitPanel : UIElement
     public UIElement? SecondPanel => Children.Count > 1 ? Children[1] : null;
 
     /// <summary>设置两个面板。</summary>
-    public void SetPanels(UIElement first, UIElement? second)
+    public void SetPanels(UIElement? first, UIElement? second)
     {
         ClearChildren();
-        AddChild(first);
+        if (first != null)
+            AddChild(first);
         if (second != null)
             AddChild(second);
     }

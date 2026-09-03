@@ -13,7 +13,7 @@ internal sealed class EditorHierarchyPanel : UIElement
     private readonly EditorOutlinerExtensionRegistry _extensions;
     private readonly EditorOutlinerViewStateStore? _viewStateStore;
     private readonly UIStackPanel _panel;
-    private readonly UILabel _title;
+    private readonly UIDragHandle _title;
     private readonly UITextBox _search;
     private readonly UIButton _viewOptionsButton;
     private readonly UIButton _filterButton;
@@ -26,7 +26,8 @@ internal sealed class EditorHierarchyPanel : UIElement
 
     public EditorHierarchyPanel(Spark.Engine.Worlds.World world, EditorWorldOutlinerData? outliner = null,
         EditorOutlinerViewState? viewState = null, EditorOutlinerViewStateStore? viewStateStore = null,
-        EditorOutlinerExtensionRegistry? extensions = null)
+        EditorOutlinerExtensionRegistry? extensions = null,
+        Action<Vector2>? detachRequested = null)
     {
         _outliner = outliner ?? EditorWorldOutlinerData.For(world);
         _extensions = extensions ?? new EditorOutlinerExtensionRegistry();
@@ -50,10 +51,12 @@ internal sealed class EditorHierarchyPanel : UIElement
         header.ColumnDefinitions.Add(UIGridDefinition.Auto());
         header.ColumnDefinitions.Add(UIGridDefinition.Auto());
         header.ColumnDefinitions.Add(UIGridDefinition.Auto());
-        _title = new UILabel
+        _title = new UIDragHandle
         {
             Text = "OUTLINER",
             TextColor = UITheme.Default.TextDimColor,
+            FixedSize = new UISize(0f, 22f),
+            DragStarted = position => detachRequested?.Invoke(position),
         };
         _viewOptionsButton = new UIButton
         {

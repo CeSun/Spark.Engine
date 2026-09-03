@@ -1,5 +1,6 @@
 using Spark.Engine.UI;
 using Spark.Engine.Worlds;
+using System.Numerics;
 
 namespace Spark.Engine.Editor;
 
@@ -22,16 +23,19 @@ internal sealed class EditorOutlinerHost : UIElement
     private readonly string? _projectDirectory;
     private readonly EditorOutlinerExtensionRegistry _extensions;
     private readonly Action<EditorHierarchyPanel> _configure;
+    private readonly Action<Vector2>? _detachRequested;
     private EditorHierarchyPanel? _previousActivePanel;
 
     public EditorOutlinerHost(World world, EditorWorldOutlinerData outliner, string? projectDirectory,
-        EditorOutlinerExtensionRegistry extensions, Action<EditorHierarchyPanel> configure)
+        EditorOutlinerExtensionRegistry extensions, Action<EditorHierarchyPanel> configure,
+        Action<Vector2>? detachRequested = null)
     {
         _initialWorld = world;
         _initialOutliner = outliner;
         _projectDirectory = projectDirectory;
         _extensions = extensions;
         _configure = configure;
+        _detachRequested = detachRequested;
         _tabs.SelectedTabChanged = _ =>
         {
             var next = ActivePanel;
@@ -68,7 +72,8 @@ internal sealed class EditorOutlinerHost : UIElement
             viewStateStore: _projectDirectory == null
                 ? null
                 : EditorOutlinerViewStateStore.ForProject(_projectDirectory, slot),
-            extensions: _extensions);
+            extensions: _extensions,
+            detachRequested: _detachRequested);
         _configure(panel);
         panel.CreateOutlinerRequested = () => CreateInstance();
         if (slotIndex != 0)

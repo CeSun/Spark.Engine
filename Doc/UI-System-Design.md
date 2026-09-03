@@ -988,6 +988,9 @@ slider.Bind(nameof(UISlider.Value), viewModel, vm => vm.Volume, (vm, v) => vm.Vo
 - **TextRenderer/Canvas 注入**：`UICanvas.Update` 对每个可见 Overlay 同样注入
   `LayoutTextRenderer` 与 `Canvas`，保证弹出层内文本可测量/绘制。
 
+编辑器的 Details、World Outliner 和 Content Browser 可通过标题栏 `UIDragHandle` 抽离到独立原生窗口；
+浮动窗口关闭后由编辑器恢复原停靠布局。通用任意面板停靠与布局持久化仍属于 E6。
+
 **滚轮事件**：`UIElement.OnMouseWheel(float delta)` 虚方法 + `UICanvas.RouteInput` 把滚轮
 沿 hovered 元素祖先链向上冒泡（`ScrollDelta` 来自 `InputState`，Windows 标准 ±120）。
 

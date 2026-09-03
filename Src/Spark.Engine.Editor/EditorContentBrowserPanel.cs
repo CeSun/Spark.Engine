@@ -27,7 +27,8 @@ internal sealed class EditorContentBrowserPanel : UIElement
     private bool _suppressFilterEvents;
     private bool _suppressFolderEvents;
 
-    public EditorContentBrowserPanel(IAssetRegistry registry, string? contentDirectory = null)
+    public EditorContentBrowserPanel(IAssetRegistry registry, string? contentDirectory = null,
+        Action<Vector2>? detachRequested = null)
     {
         _model = new EditorContentBrowserModel(registry, contentDirectory);
         var theme = UITheme.Default;
@@ -52,12 +53,13 @@ internal sealed class EditorContentBrowserPanel : UIElement
             FixedSize = new UISize(0f, 24f),
             Spacing = 6f,
         };
-        filters.AddChild(new UILabel
+        filters.AddChild(new UIDragHandle
         {
             Text = "CONTENT BROWSER",
             TextColor = theme.TextDimColor,
             FixedSize = new UISize(150f, 24f),
             Padding = UIEdgeInsets.HorizontalVertical(0f, 2f),
+            DragStarted = position => detachRequested?.Invoke(position),
         });
         _search = new UITextBox
         {

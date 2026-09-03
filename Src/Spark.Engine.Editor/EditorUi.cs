@@ -24,7 +24,11 @@ public sealed class EditorUi
     private EditorHierarchyPanel _hierarchy => _outlinerHost.ActivePanel;
     private readonly EditorInspectorPanel _inspector;
     private UISplitPanel? _viewportDetails;
+    private UISplitPanel? _mainColumns;
+    private UISplitPanel? _workspace;
     private IWindow? _detachedInspectorWindow;
+    private IWindow? _detachedOutlinerWindow;
+    private IWindow? _detachedContentBrowserWindow;
     private WindowManager? _windowManager;
     private UIManager? _uiManager;
     private readonly EditorViewportPanel _viewport;
@@ -117,7 +121,8 @@ public sealed class EditorUi
 
         // UE 风格主工作区：层级 | 视口 | Details，所有区域均可拖动调整。
         _outlinerHost = new EditorOutlinerHost(_context.World, _context.Outliner,
-            project?.RootDirectory, _outlinerExtensions, ConfigureOutlinerPanel);
+            project?.RootDirectory, _outlinerExtensions, ConfigureOutlinerPanel,
+            DetachOutlinerPanel);
         _outlinerHost.ActivePanelChanged += (previous, _) =>
         {
             if (previous != null)
@@ -136,7 +141,8 @@ public sealed class EditorUi
             assetGuid => OpenAssetEditor(assetGuid),
             DetachInspectorPanel);
 
-        _contentBrowser = new EditorContentBrowserPanel(_context.AssetRegistry, project?.ContentDirectory);
+        _contentBrowser = new EditorContentBrowserPanel(_context.AssetRegistry, project?.ContentDirectory,
+            DetachContentBrowserPanel);
         _contentBrowser.AssetActivated += HandleAssetActivated;
         _contentBrowser.AssetDropped += HandleAssetDropped;
         _contentBrowser.FolderCreateRequested += (parent, name) =>
@@ -167,7 +173,7 @@ public sealed class EditorUi
         };
         _viewportDetails.SetPanels(_assetEditorHost, _inspector);
 
-        var mainColumns = new UISplitPanel
+        _mainColumns = new UISplitPanel
         {
             Direction = UISplitDirection.Horizontal,
             SplitRatio = 0.22f,
@@ -176,9 +182,9 @@ public sealed class EditorUi
             MinSecondSize = 640f,
             FixedSize = new UISize(0f, 0f),
         };
-        mainColumns.SetPanels(_outlinerHost, _viewportDetails);
+        _mainColumns.SetPanels(_outlinerHost, _viewportDetails);
 
-        var workspace = new UISplitPanel
+        _workspace = new UISplitPanel
         {
             Direction = UISplitDirection.Vertical,
             SplitRatio = 0.68f,
@@ -187,8 +193,8 @@ public sealed class EditorUi
             MinSecondSize = 170f,
             FixedSize = new UISize(0f, 0f),
         };
-        workspace.SetPanels(mainColumns, _contentBrowser);
-        root.AddChild(workspace);
+        _workspace.SetPanels(_mainColumns, _contentBrowser);
+        root.AddChild(_workspace);
 
         _deleteConfirmation = new EditorDeleteConfirmationPanel(ConfirmDeleteSelection);
         root.AddChild(_deleteConfirmation);
@@ -1930,10 +1936,106 @@ public sealed class EditorUi
         SetStatus("Details panel docked back into the editor.");
     }
 
+    private void DetachOutlinerPanel(Vector2 pointerPosition)
+    {
+        if (_detachedOutlinerWindow != null)
+            return;
+        if (_windowManager == null || _uiManager == null || _mainColumns == null || _viewportDetails == null)
+        {
+            SetStatus("Floating panels are unavailable in this host.");
+            return;
+        }
+
+        try
+        {
+            _mainColumns.SetPanels(null, _viewportDetails);
+            var window = _windowManager.CreateWindow("World Outliner", 360, 720);
+            PositionFloatingWindow(window, pointerPosition);
+            var viewport = _windowManager.GetViewport(window)
+                ?? throw new InvalidOperationException("Floating outliner window has no viewport.");
+            var canvas = _uiManager.GetOrCreateCanvas(viewport.Id);
+            canvas.Root = _outlinerHost;
+            canvas.GlobalKeyDown = (key, keysDown, focused) => HandleGlobalKey(key, keysDown, focused);
+            _detachedOutlinerWindow = window;
+            SetStatus("World Outliner detached to a floating window.");
+        }
+        catch (Exception ex)
+        {
+            _mainColumns.SetPanels(_outlinerHost, _viewportDetails);
+            SetStatus($"Detach outliner failed: {ex.Message}");
+        }
+    }
+
+    private void DetachContentBrowserPanel(Vector2 pointerPosition)
+    {
+        if (_detachedContentBrowserWindow != null)
+            return;
+        if (_windowManager == null || _uiManager == null || _workspace == null || _mainColumns == null)
+        {
+            SetStatus("Floating panels are unavailable in this host.");
+            return;
+        }
+
+        try
+        {
+            _workspace.SetPanels(_mainColumns, null);
+            var window = _windowManager.CreateWindow("Content Browser", 900, 420);
+            PositionFloatingWindow(window, pointerPosition);
+            var viewport = _windowManager.GetViewport(window)
+                ?? throw new InvalidOperationException("Floating content browser window has no viewport.");
+            var canvas = _uiManager.GetOrCreateCanvas(viewport.Id);
+            canvas.Root = _contentBrowser;
+            canvas.GlobalKeyDown = (key, keysDown, focused) => HandleGlobalKey(key, keysDown, focused);
+            _detachedContentBrowserWindow = window;
+            SetStatus("Content Browser detached to a floating window.");
+        }
+        catch (Exception ex)
+        {
+            _workspace.SetPanels(_mainColumns, _contentBrowser);
+            SetStatus($"Detach content browser failed: {ex.Message}");
+        }
+    }
+
+    private void PositionFloatingWindow(IWindow window, Vector2 pointerPosition)
+    {
+        if (window is not IPositionedWindow floating)
+            return;
+        var screenPosition = pointerPosition;
+        if (_windowManager?.MainWindow is IPositionedWindow main)
+            screenPosition += main.Position;
+        floating.Position = screenPosition - new Vector2(32f, 14f);
+    }
+
+    private void RestoreDetachedOutlinerIfClosed()
+    {
+        var window = _detachedOutlinerWindow;
+        if (window == null || !window.IsClosing)
+            return;
+        if (_uiManager != null && _windowManager?.GetViewport(window) is { } viewport)
+            _uiManager.GetOrCreateCanvas(viewport.Id).Root = null;
+        _mainColumns?.SetPanels(_outlinerHost, _viewportDetails);
+        _detachedOutlinerWindow = null;
+        SetStatus("World Outliner docked back into the editor.");
+    }
+
+    private void RestoreDetachedContentBrowserIfClosed()
+    {
+        var window = _detachedContentBrowserWindow;
+        if (window == null || !window.IsClosing)
+            return;
+        if (_uiManager != null && _windowManager?.GetViewport(window) is { } viewport)
+            _uiManager.GetOrCreateCanvas(viewport.Id).Root = null;
+        _workspace?.SetPanels(_mainColumns, _contentBrowser);
+        _detachedContentBrowserWindow = null;
+        SetStatus("Content Browser docked back into the editor.");
+    }
+
     /// <summary>每帧调用：Outliner 按结构版本按需刷新；状态栏 Actor/组件计数与检查器实时更新。</summary>
     public void Refresh()
     {
         RestoreDetachedInspectorIfClosed();
+        RestoreDetachedOutlinerIfClosed();
+        RestoreDetachedContentBrowserIfClosed();
         _hierarchy.Refresh();
         _contentBrowser.Refresh();
         RemoveInvalidSelection();

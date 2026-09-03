@@ -15,10 +15,12 @@
 - 复用现有输入、渲染目标和 UI 生命周期，不修改 World/Selection 数据模型。
 - 新增拖拽阈值回归测试；Outliner 与 Content Browser 的抽离入口预留给后续 Dock/Layout 阶段统一接入。
 - `UISplitPanel.SetPanels` 支持第二面板为空，单面板时隐藏分割条并填满可用空间。
+- Outliner 和 Content Browser 标题栏也接入相同拖拽句柄，可分别抽离为独立窗口；关闭后恢复到原停靠区域。
+- 浮动窗口位置由主窗口屏幕坐标与拖拽鼠标坐标计算，鼠标保持在新窗口标题附近。
 
 ## 已知边界
 
-- 当前只接入 Details 面板；完整的任意面板停靠、跨窗口拖动预览、布局持久化和 Outliner/Content Browser 浮动将在 E6 工作区阶段继续实现。
+- 当前已接入 Details、World Outliner 和 Content Browser；任意面板停靠、跨窗口拖动预览和布局持久化仍将在 E6 工作区阶段继续实现。
 
 ## 验证
 
