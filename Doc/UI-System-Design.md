@@ -94,7 +94,7 @@ UI **不进** `SceneProxy`/`SceneCategory` 通道，而是作为**并行子系�
 | `UIComboBox` | UIComboBox.cs | 下拉选择框（点击展开/收起 + 键盘导航 + 选中回调；下拉绘制在统一 Overlay 阶段） |
 | `UISplitPanel` | UISplitPanel.cs | 可拖拽分割面板（水平/垂直 + 比例 + 最小尺寸约束 + 单面板铺满） |
 | `UIToolbar` / `UIToolbarButton` | UIToolbar.cs | 工具栏（水平按钮组 + 分隔符） |
-| `UIPropertyGrid` | UIPropertyGrid.cs | 属性网格（反射对象属性 + 标签/值编辑器行 + `PropertyChanged` 回调） |
+| `UIPropertyGrid` | UIPropertyGrid.cs | 属性网格（反射对象属性 + 标签/值编辑器行 + `PropertyChanged` 回调；Vector3 三维向量与欧拉角输入） |
 
 ### 渲染侧（`Spark.Engine/Render/`）
 

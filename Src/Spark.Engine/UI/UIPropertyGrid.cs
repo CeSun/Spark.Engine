@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Globalization;
 using System.Reflection;
 
 namespace Spark.Engine.UI;
@@ -338,15 +339,15 @@ internal sealed class PropertyRow : UIElement
         {
             object? newValue = _currentValue switch
             {
-                int => int.TryParse(editText, out int i) ? i : _currentValue,
-                float => float.TryParse(editText, out float f) ? f : _currentValue,
-                double => double.TryParse(editText, out double d) ? d : _currentValue,
+                int => int.TryParse(editText, NumberStyles.Integer, CultureInfo.CurrentCulture, out int i) ? i : _currentValue,
+                float => TryParseFloat(editText, out float f) ? f : _currentValue,
+                double => double.TryParse(editText, NumberStyles.Float, CultureInfo.CurrentCulture, out double d) ? d : _currentValue,
                 bool => bool.TryParse(editText, out bool b) ? b : _currentValue,
                 string => editText,
                 Vector2 => ParseParts(editText, 2) is { } p2 ? new Vector2(p2[0], p2[1]) : _currentValue,
                 Vector3 => ParseParts(editText, 3) is { } p3 ? new Vector3(p3[0], p3[1], p3[2]) : _currentValue,
                 Vector4 => ParseParts(editText, 4) is { } p4 ? new Vector4(p4[0], p4[1], p4[2], p4[3]) : _currentValue,
-                Quaternion => ParseParts(editText, 4) is { } q4 ? new Quaternion(q4[0], q4[1], q4[2], q4[3]) : _currentValue,
+                Quaternion => ParseQuaternion(editText) is { } rotation ? rotation : _currentValue,
                 _ => _currentValue,
             };
 
@@ -374,10 +375,47 @@ internal sealed class PropertyRow : UIElement
         var values = new float[expectedCount];
         for (int i = 0; i < expectedCount; i++)
         {
-            if (!float.TryParse(parts[i], out values[i]))
+            if (!TryParseFloat(parts[i], out values[i]))
                 return null;
         }
         return values;
+    }
+
+    /// <summary>
+    /// 解析旋转输入。Inspector 以 UE 习惯显示三维欧拉角（Pitch, Yaw, Roll，单位为度），
+    /// 同时兼容旧的四分量四元数输入，避免已有场景/脚本输入失效。
+    /// </summary>
+    private static Quaternion? ParseQuaternion(string text)
+    {
+        var parts = ParseParts(text, 3);
+        if (parts is { Length: 3 })
+        {
+            var degreesToRadians = MathF.PI / 180f;
+            return Quaternion.CreateFromYawPitchRoll(
+                parts[1] * degreesToRadians,
+                parts[0] * degreesToRadians,
+                parts[2] * degreesToRadians);
+        }
+
+        var quaternionParts = ParseParts(text, 4);
+        return quaternionParts is { Length: 4 }
+            ? new Quaternion(quaternionParts[0], quaternionParts[1], quaternionParts[2], quaternionParts[3])
+            : null;
+    }
+
+    private static bool TryParseFloat(string text, out float value)
+    {
+        // 角度输入允许使用 UE/建模工具常见的 "45°" 或 "45 deg" 写法；
+        // 普通浮点输入仍遵循当前区域设置，并回退到不变文化的小数点格式。
+        var normalized = text.Trim();
+        if (normalized.EndsWith("°", StringComparison.Ordinal))
+            normalized = normalized[..^1].TrimEnd();
+        else if (normalized.EndsWith("deg", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized[..^3].TrimEnd();
+
+        if (float.TryParse(normalized, NumberStyles.Float, CultureInfo.CurrentCulture, out value))
+            return true;
+        return float.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
     private void CancelEdit()
@@ -397,7 +435,45 @@ internal sealed class PropertyRow : UIElement
             canvas.ClearFocus();
     }
 
-    private static string GetDisplayText(object? value) => value?.ToString() ?? "null";
+    private static string GetDisplayText(object? value) => value switch
+    {
+        Quaternion rotation => FormatEuler(rotation),
+        Vector2 vector => FormatVector(vector.X, vector.Y),
+        Vector3 vector => FormatVector(vector.X, vector.Y, vector.Z),
+        Vector4 vector => FormatVector(vector.X, vector.Y, vector.Z, vector.W),
+        _ => value?.ToString() ?? "null",
+    };
 
-    private static string GetEditText(object? value) => value?.ToString() ?? string.Empty;
+    private static string GetEditText(object? value) => value switch
+    {
+        Quaternion rotation => FormatEuler(rotation),
+        Vector2 vector => FormatVector(vector.X, vector.Y),
+        Vector3 vector => FormatVector(vector.X, vector.Y, vector.Z),
+        Vector4 vector => FormatVector(vector.X, vector.Y, vector.Z, vector.W),
+        _ => value?.ToString() ?? string.Empty,
+    };
+
+    private static string FormatEuler(Quaternion rotation)
+    {
+        if (rotation.LengthSquared() < 0.000001f)
+            rotation = Quaternion.Identity;
+        else
+            rotation = Quaternion.Normalize(rotation);
+
+        var sinPitch = 2f * (rotation.W * rotation.Y - rotation.Z * rotation.X);
+        var pitch = MathF.Abs(sinPitch) >= 1f
+            ? MathF.CopySign(MathF.PI / 2f, sinPitch)
+            : MathF.Asin(sinPitch);
+        var yaw = MathF.Atan2(
+            2f * (rotation.W * rotation.Z + rotation.X * rotation.Y),
+            1f - 2f * (rotation.Y * rotation.Y + rotation.Z * rotation.Z));
+        var roll = MathF.Atan2(
+            2f * (rotation.W * rotation.X + rotation.Y * rotation.Z),
+            1f - 2f * (rotation.X * rotation.X + rotation.Y * rotation.Y));
+        const float radiansToDegrees = 180f / MathF.PI;
+        return FormatVector(pitch * radiansToDegrees, yaw * radiansToDegrees, roll * radiansToDegrees);
+    }
+
+    private static string FormatVector(params float[] values)
+        => $"<{string.Join(", ", values.Select(value => value.ToString("0.###", CultureInfo.InvariantCulture)))}>";
 }

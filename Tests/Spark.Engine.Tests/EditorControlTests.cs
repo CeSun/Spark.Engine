@@ -961,6 +961,13 @@ public class EditorControlTests
         public bool Active { get; set; } = true;
     }
 
+    private sealed class TransformInputObject
+    {
+        public Vector3 Position { get; set; }
+        public Quaternion Rotation { get; set; } = Quaternion.Identity;
+        public float Yaw { get; set; }
+    }
+
     [Fact]
     public void PropertyGrid_SetsTarget_RendersRows()
     {
@@ -975,6 +982,65 @@ public class EditorControlTests
     {
         var grid = new UIPropertyGrid { Target = new TestObject() };
         grid.Refresh();
+    }
+
+    [Fact]
+    public void PropertyGrid_ParsesVector3AndYawAngleInputs()
+    {
+        var target = new TransformInputObject();
+        var grid = new UIPropertyGrid
+        {
+            FixedSize = new UISize(320f, 72f),
+            Target = target,
+        };
+        var canvas = new UICanvas(0) { Size = new Vector2(320f, 72f), Root = grid };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        EditRow(new Vector2(180f, 12f), "<1, 2, 3>"); // Position
+        EditRow(new Vector2(180f, 36f), "10, 45, 20"); // Rotation: Pitch, Yaw, Roll (degrees)
+        EditRow(new Vector2(180f, 60f), "45°"); // Yaw angle accepts a degree suffix
+
+        Assert.Equal(new Vector3(1f, 2f, 3f), target.Position);
+        var expectedRotation = Quaternion.CreateFromYawPitchRoll(
+            45f * MathF.PI / 180f,
+            10f * MathF.PI / 180f,
+            20f * MathF.PI / 180f);
+        Assert.InRange(MathF.Abs(Quaternion.Dot(target.Rotation, expectedRotation)), 0.9999f, 1f);
+        Assert.Equal(45f, target.Yaw);
+
+        void EditRow(Vector2 point, string text)
+        {
+            Click(point);
+            var editor = Assert.IsType<UITextBox>(canvas.FocusedElement);
+            editor.SelectAll();
+            canvas.Update(new InputState(
+                Vector2.Zero, Vector2.Zero, 0f,
+                default, default, default,
+                default, default, default,
+                text), renderer);
+            SendKey(Key.Enter);
+        }
+
+        void Click(Vector2 point)
+        {
+            var left = default(MouseButtonMask);
+            left.Set(MouseButton.Left, true);
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                left, left, default, default, default, default, string.Empty), renderer);
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                default, default, left, default, default, default, string.Empty), renderer);
+        }
+
+        void SendKey(Key key)
+        {
+            var keys = default(KeyMask);
+            keys.Set(key, true);
+            canvas.Update(new InputState(
+                Vector2.Zero, Vector2.Zero, 0f,
+                default, default, default,
+                keys, keys, default, string.Empty), renderer);
+        }
     }
 
     [Fact]
