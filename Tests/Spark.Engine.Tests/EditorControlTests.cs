@@ -968,6 +968,18 @@ public class EditorControlTests
         public float Yaw { get; set; }
     }
 
+    private enum TestMode
+    {
+        First,
+        Second,
+    }
+
+    private sealed class ChoiceInputObject
+    {
+        public bool Enabled { get; set; } = true;
+        public TestMode Mode { get; set; } = TestMode.First;
+    }
+
     [Fact]
     public void PropertyGrid_SetsTarget_RendersRows()
     {
@@ -1049,6 +1061,55 @@ public class EditorControlTests
                 Vector2.Zero, Vector2.Zero, 0f,
                 default, default, default,
                 keys, keys, default, string.Empty), renderer);
+        }
+    }
+
+    [Fact]
+    public void PropertyGrid_UsesComboBoxesForBoolAndEnum()
+    {
+        var target = new ChoiceInputObject();
+        var grid = new UIPropertyGrid
+        {
+            FixedSize = new UISize(320f, 48f),
+            Target = target,
+        };
+        var canvas = new UICanvas(0) { Size = new Vector2(320f, 48f), Root = grid };
+        var renderer = CreateTextRenderer();
+        var ui = new UIManager();
+        canvas.Update(default, renderer);
+
+        var combos = new List<UIComboBox>();
+        Collect(grid);
+        Assert.Equal(2, combos.Count);
+        Assert.Equal(new[] { "True", "False" }, combos[0].Items);
+        Assert.Equal(new[] { "First", "Second" }, combos[1].Items);
+
+        Click(new Vector2(180f, 12f));
+        canvas.Paint(ui); // 生成下拉项命中矩形
+        Click(new Vector2(180f, 60f)); // False in the bool dropdown
+        Assert.False(target.Enabled);
+
+        Click(new Vector2(180f, 36f));
+        canvas.Paint(ui);
+        Click(new Vector2(180f, 84f)); // Second in the enum dropdown
+        Assert.Equal(TestMode.Second, target.Mode);
+
+        void Collect(UIElement element)
+        {
+            if (element is UIComboBox combo)
+                combos.Add(combo);
+            foreach (var child in element.Children)
+                Collect(child);
+        }
+
+        void Click(Vector2 point)
+        {
+            var left = default(MouseButtonMask);
+            left.Set(MouseButton.Left, true);
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                left, left, default, default, default, default, string.Empty), renderer);
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                default, default, left, default, default, default, string.Empty), renderer);
         }
     }
 

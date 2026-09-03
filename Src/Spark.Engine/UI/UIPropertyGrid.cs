@@ -225,6 +225,9 @@ internal sealed class PropertyRow : UIElement
     private object? _currentValue;
     private bool _editing;
     private readonly List<UITextBox> _editors = new();
+    private UIComboBox? _choiceEditor;
+    private Type? _choicePropertyType;
+    private bool _syncingChoice;
     private int _componentCount;
 
     public PropertyRow()
@@ -238,6 +241,12 @@ internal sealed class PropertyRow : UIElement
             return; // 编辑中不覆盖用户输入（外部每帧 Refresh 不打断输入）
 
         _currentValue = value;
+        if (IsChoiceType(PropertyType))
+        {
+            ConfigureChoiceEditor();
+            SetChoiceValue(value);
+            return;
+        }
         ConfigureEditors(GetComponentCount(value));
         if (_componentCount == 1 && !_editing)
             _editors[0].Visible = false;
@@ -249,6 +258,11 @@ internal sealed class PropertyRow : UIElement
         float w = FixedSize is { } fsv && fsv.Width > 0f ? fsv.Width : 0f;
         float h = FixedSize is { } fsv2 && fsv2.Height > 0f ? fsv2.Height : RowHeight;
         var valueWidth = System.Math.Max(0f, availableSize.Width - LabelWidth - 8f);
+        if (_choiceEditor != null)
+        {
+            _choiceEditor.Measure(new UISize(valueWidth, h));
+            return new UISize(w, h);
+        }
         var spacing = _componentCount > 1 ? (_componentCount - 1) * 3f : 0f;
         var editorWidth = System.Math.Max(0f, (valueWidth - spacing) / _componentCount);
         foreach (var editor in _editors)
@@ -260,6 +274,11 @@ internal sealed class PropertyRow : UIElement
     {
         float valueX = Bounds.X + LabelWidth + 4f;
         float valueW = System.Math.Max(0f, Bounds.Width - LabelWidth - 8f);
+        if (_choiceEditor != null)
+        {
+            _choiceEditor.Arrange(new UIRect(valueX, Bounds.Y, valueW, Bounds.Height));
+            return;
+        }
         var spacing = _componentCount > 1 ? (_componentCount - 1) * 3f : 0f;
         var editorWidth = System.Math.Max(0f, (valueW - spacing) / _componentCount);
         for (var index = 0; index < _editors.Count; index++)
@@ -288,7 +307,7 @@ internal sealed class PropertyRow : UIElement
         }
 
         // 标量保持原有的静态文本显示；向量/旋转始终显示多个真实输入框，符合 UE Details 的分量编辑习惯。
-        if (_componentCount == 1 && !_editing && textRenderer != null)
+        if (_choiceEditor == null && _componentCount == 1 && !_editing && textRenderer != null)
         {
             float valueX = Bounds.X + LabelWidth + 4f;
             float valueW = System.Math.Max(0f, Bounds.Width - LabelWidth - 8f);
@@ -306,6 +325,12 @@ internal sealed class PropertyRow : UIElement
         if (_editing)
             return;
 
+        if (_choiceEditor != null)
+        {
+            FindCanvas()?.Focus(_choiceEditor);
+            return;
+        }
+
         // 点击标签列时聚焦第一个输入框；点击分量框则由 UITextBox 自己处理焦点。
         _editing = true;
         if (_editors.Count > 0)
@@ -318,6 +343,9 @@ internal sealed class PropertyRow : UIElement
     private void CommitEdit()
     {
         if (!_editing)
+            return;
+
+        if (_choiceEditor != null)
             return;
 
         _editing = false;
@@ -369,6 +397,12 @@ internal sealed class PropertyRow : UIElement
         if (_componentCount == componentCount && _editors.Count == componentCount)
             return;
 
+        if (_choiceEditor != null)
+        {
+            RemoveChild(_choiceEditor);
+            _choiceEditor = null;
+            _choicePropertyType = null;
+        }
         foreach (var editor in _editors)
             RemoveChild(editor);
         _editors.Clear();
@@ -407,6 +441,71 @@ internal sealed class PropertyRow : UIElement
             AddChild(editor);
         }
     }
+
+    private void ConfigureChoiceEditor()
+    {
+        if (_choiceEditor != null && _choicePropertyType == PropertyType)
+            return;
+
+        foreach (var editor in _editors)
+            RemoveChild(editor);
+        _editors.Clear();
+        _componentCount = 0;
+        if (_choiceEditor != null)
+            RemoveChild(_choiceEditor);
+
+        var combo = new UIComboBox
+        {
+            BackgroundColor = new Vector4(0.10f, 0.12f, 0.16f, 1f),
+            HoverColor = new Vector4(0.16f, 0.20f, 0.26f, 1f),
+            TextColor = ValueColor,
+            DefaultHeight = RowHeight,
+        };
+        foreach (var item in GetChoiceItems(PropertyType))
+            combo.AddItem(item);
+        combo.SelectedItemChanged = selected =>
+        {
+            if (_syncingChoice || selected == null || _currentValue == null)
+                return;
+            object? newValue = PropertyType == typeof(bool)
+                ? bool.Parse(selected)
+                : Enum.Parse(PropertyType, selected, ignoreCase: false);
+            if (!Equals(newValue, _currentValue))
+            {
+                _currentValue = newValue;
+                ValueChanged?.Invoke(newValue);
+            }
+        };
+        _choiceEditor = combo;
+        _choicePropertyType = PropertyType;
+        AddChild(combo);
+    }
+
+    private void SetChoiceValue(object? value)
+    {
+        if (_choiceEditor == null || value == null)
+            return;
+        var text = value is bool boolean ? boolean.ToString() : value.ToString()!;
+        var index = -1;
+        for (var itemIndex = 0; itemIndex < _choiceEditor.Items.Count; itemIndex++)
+        {
+            if (string.Equals(_choiceEditor.Items[itemIndex], text, StringComparison.Ordinal))
+            {
+                index = itemIndex;
+                break;
+            }
+        }
+        if (index < 0)
+            return;
+        _syncingChoice = true;
+        _choiceEditor.SelectedIndex = index;
+        _syncingChoice = false;
+    }
+
+    private static bool IsChoiceType(Type type) => type == typeof(bool) || type.IsEnum;
+
+    private static IReadOnlyList<string> GetChoiceItems(Type type)
+        => type == typeof(bool) ? new[] { bool.TrueString, bool.FalseString } : Enum.GetNames(type);
 
     private static int GetComponentCount(object? value) => value switch
     {
@@ -510,6 +609,8 @@ internal sealed class PropertyRow : UIElement
             return;
 
         _editing = false;
+        if (_choiceEditor != null)
+            return;
         if (_componentCount == 1)
             _editors[0].Visible = false;
         SetEditorTexts(_currentValue);
