@@ -1,9 +1,12 @@
 using Spark.Engine.Worlds;
 using Spark.Engine.Platforms;
+using Spark.Engine.Render;
 
 namespace Spark.Engine.Editor;
 
-internal sealed class EditorApplicationInitializer(EditorRegistration registration) : IEngineApplicationInitializer
+internal sealed class EditorApplicationInitializer(
+    EditorRegistration registration,
+    CameraSnapshotSourceRegistry cameraSnapshotSources) : IEngineApplicationInitializer
 {
     public void Initialize(EngineApplication application)
     {
@@ -27,7 +30,8 @@ internal sealed class EditorApplicationInitializer(EditorRegistration registrati
             world,
             sceneService: registration.SceneService,
             worldContext: application.WorldContext,
-            project: project);
+            project: project,
+            cameraSnapshotSources: cameraSnapshotSources);
         if (project != null && Directory.Exists(project.ContentDirectory))
             editorUi.ScanAssetDirectory(project.ContentDirectory);
         if (application.WindowManager.MainWindow is IFileDropWindow fileDropWindow)

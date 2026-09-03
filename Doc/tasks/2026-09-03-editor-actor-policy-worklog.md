@@ -26,7 +26,7 @@
 
 - ✅ World Outliner 已增加 Actor/类型/组件搜索、`Show Internal Actors`、`Show Components` 和 `Only Selected`。
 - E6 工作区阶段将 Outliner 过滤状态纳入布局持久化。
-- 多视口阶段引入 `EditorViewportSession`，最终让编辑器视口相机脱离 `World.Actors`。
+- ✅ 已引入 `EditorViewportSession`，编辑器视口相机已脱离 `World.Actors`。
 
 ## 验证
 

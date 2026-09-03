@@ -2,6 +2,7 @@ using Spark.Engine.Builder;
 using Spark.Engine.Editor;
 using Spark.Engine.Render.Pipeline;
 using Spark.Engine.Render.UI;
+using Spark.Engine.Render;
 using Xunit;
 
 namespace Spark.Engine.Tests;
@@ -22,6 +23,8 @@ public sealed class EditorBuilderTests
         Assert.Single(builder.Services, descriptor =>
             descriptor.ServiceType == typeof(IGraphOverlay) &&
             descriptor.ImplementationType == typeof(UIRenderer));
+        Assert.Single(builder.Services, descriptor =>
+            descriptor.ServiceType == typeof(CameraSnapshotSourceRegistry));
 
         var options = builder.Services
             .Select(descriptor => descriptor.ImplementationInstance)

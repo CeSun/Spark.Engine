@@ -184,9 +184,6 @@ public static class DemoApp
     {
         editorUi.SetControlTestWindowLauncher(() => ControlTestWindow.Open(app));
 
-        var world = app.WorldContext.CurrentWorld
-            ?? throw new InvalidOperationException("The demo world must be initialized before the editor.");
-
         editorUi.RegisterRuntimeBehavior((runtime, _) =>
         {
             var left = FindComponent<StaticMeshComponent>(runtime, _leftWall?.ComponentGuid);
@@ -206,25 +203,20 @@ public static class DemoApp
             ResolutionScale = 1.5f,
             MaintainAspectRatio = true,
         };
-        Guid? offscreenCameraGuid = null;
+        var viewportSession = editorUi.CreateViewportSession(renderView);
+        ConfigureCamera(viewportSession.Camera,
+            eye: new Vector3(-3f, 3f, 3f),
+            lookAt: new Vector3(0f, 0f, -2f));
         renderViewControl.RenderViewResizeRequested = (oldId, width, height) =>
         {
             var next = app.CreateRenderView(width, height);
-            var editorWorld = app.WorldContext.CurrentWorld;
-            var currentCamera = editorWorld == null
-                ? null
-                : FindComponent<CameraComponent>(editorWorld, offscreenCameraGuid);
-            if (currentCamera != null)
-                currentCamera.RenderTarget = next;
+            viewportSession.RenderTarget = next;
             if (app.RenderTargets.TryGet(oldId, out var oldTarget) && oldTarget is TextureRenderTarget oldTex)
                 app.DestroyRenderView(oldTex);
             return next.Id;
         };
-        var offscreenCamera = AddCamera(world, renderView, eye: new Vector3(-3f, 3f, 3f),
-            lookAt: new Vector3(0f, 0f, -2f), editorOnly: true);
-        offscreenCameraGuid = offscreenCamera.ComponentGuid;
 
-        editorUi.SetPictureInPicture(renderViewControl);
+        editorUi.SetPictureInPicture(renderViewControl, viewportSession);
     }
 
     private static void AddMeshActor(World world, StaticMesh mesh, Material material)
@@ -268,19 +260,23 @@ public static class DemoApp
         World world,
         RenderTarget target,
         Vector3 eye,
-        Vector3 lookAt,
-        bool editorOnly = false)
+        Vector3 lookAt)
     {
         var camera = new CameraComponent { RenderTarget = target };
 
+        ConfigureCamera(camera, eye, lookAt);
+
+        var actor = new Actor();
+        actor.AddOwnedComponent(camera);
+        world.AddActor(actor);
+        return camera;
+    }
+
+    private static void ConfigureCamera(CameraComponent camera, Vector3 eye, Vector3 lookAt)
+    {
         var view = Matrix4x4.CreateLookAt(eye, lookAt, Vector3.UnitY);
         Matrix4x4.Invert(view, out var cameraWorld);
         camera.RelativeLocation = eye;
         camera.RelativeRotation = System.Numerics.Quaternion.CreateFromRotationMatrix(cameraWorld);
-
-        var actor = editorOnly ? new EditorViewportCameraActor() : new Actor();
-        actor.AddOwnedComponent(camera);
-        world.AddActor(actor);
-        return camera;
     }
 }

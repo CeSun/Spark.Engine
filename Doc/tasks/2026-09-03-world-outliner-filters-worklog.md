@@ -16,7 +16,7 @@
 
 - 本轮不实现 Actor Folder、可见性列和锁定列。
 - 本轮不持久化过滤状态；该能力随 E6 工作区布局统一落地。
-- 编辑器视口相机仍由 `EditorViewportCameraActor` 承载；脱离 World 留给多视口阶段。
+- 本轮交付时编辑器视口相机仍由 `EditorViewportCameraActor` 承载；后续已由 `EditorViewportSession` 解耦，见同日视口会话工作日志。
 
 ## 验证
 

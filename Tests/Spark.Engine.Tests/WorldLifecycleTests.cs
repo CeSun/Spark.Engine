@@ -282,64 +282,80 @@ public sealed class WorldLifecycleTests
     }
 
     [Fact]
-    public void TransientEditorViewportCamera_IsNotSavedButIsClonedForPlay()
+    public void EditorViewportSession_IsIndependentFromPlayWorld()
     {
         using var world = new World(new ResourceManager());
+        using var sources = new CameraSnapshotSourceRegistry();
         var target = new TestRenderTarget(17);
-        var source = new CameraComponent
-        {
-            ComponentGuid = Guid.NewGuid(),
-            RenderTarget = target,
-            FieldOfView = 75f,
-            RelativeLocation = new Vector3(3f, 4f, 5f),
-        };
-        var actor = new EditorViewportCameraActor { Name = "Editor View" };
-        actor.AddOwnedComponent(source);
-        world.AddActor(actor);
-        world.Update(0f, tickActors: false);
+        using var session = new EditorViewportSession(sources, target);
+        session.Camera.FieldOfView = 75f;
+        session.Camera.RelativeLocation = new Vector3(3f, 4f, 5f);
 
         Assert.Empty(SceneDocument.Capture(world).Actors);
         using var editor = new EditorContext(world);
         Assert.True(editor.Play());
         var cameras = new List<CameraComponent>();
         editor.RuntimeWorld!.CollectCameraComponents(cameras, includePendingActors: true);
-        var runtimeCamera = Assert.Single(cameras);
+        Assert.Empty(cameras);
 
-        Assert.NotSame(source, runtimeCamera);
-        Assert.Equal(source.ComponentGuid, runtimeCamera.ComponentGuid);
-        Assert.Equal(source.RelativeLocation, runtimeCamera.RelativeLocation);
-        Assert.Equal(75f, runtimeCamera.FieldOfView);
-        Assert.Same(target, runtimeCamera.RenderTarget);
+        var snapshots = new FrameBuffer<CameraSnapshot>();
+        sources.CollectCameraSnapshots(editor.ActiveWorld, snapshots);
+        var snapshot = Assert.Single(snapshots);
+        Assert.Equal(target.Id, snapshot.TargetId);
+        Assert.Equal(session.Camera.GetViewMatrix(), snapshot.ViewMatrix);
+        Assert.Equal(session.Camera.GetProjectionMatrix(target.AspectRatio), snapshot.ProjectionMatrix);
+        Assert.Null(session.Camera.Owner);
+        Assert.Empty(editor.World.Actors);
+        Assert.Empty(editor.RuntimeWorld.Actors);
     }
 
     [Fact]
-    public void Reload_PreservesTransientEditorViewportCameraAndRenderTarget()
+    public void Reload_PreservesDetachedEditorViewportSession()
     {
         var original = new World(new ResourceManager());
         var worldContext = new WorldContext { CurrentWorld = original };
+        using var sources = new CameraSnapshotSourceRegistry();
         var target = new TestRenderTarget(18);
-        var source = new CameraComponent
-        {
-            ComponentGuid = Guid.NewGuid(),
-            RenderTarget = target,
-            RelativeLocation = new Vector3(4f, 5f, 6f),
-        };
-        var actor = new EditorViewportCameraActor();
-        actor.AddOwnedComponent(source);
-        original.AddActor(actor);
-        original.Update(0f, tickActors: false);
+        using var session = new EditorViewportSession(sources, target);
+        session.Camera.RelativeLocation = new Vector3(4f, 5f, 6f);
+        var camera = session.Camera;
         using var editor = new EditorContext(original, worldContext);
 
         editor.Reload(new SceneDocument());
         var cameras = new List<CameraComponent>();
         editor.World.CollectCameraComponents(cameras, includePendingActors: true);
-        var reloaded = Assert.Single(cameras);
+        Assert.Empty(cameras);
 
-        Assert.NotSame(source, reloaded);
-        Assert.Equal(source.ComponentGuid, reloaded.ComponentGuid);
-        Assert.Equal(source.RelativeLocation, reloaded.RelativeLocation);
-        Assert.Same(target, reloaded.RenderTarget);
+        Assert.Same(camera, session.Camera);
+        Assert.Equal(new Vector3(4f, 5f, 6f), session.Camera.RelativeLocation);
+        Assert.Same(target, session.RenderTarget);
         Assert.Same(editor.World, worldContext.CurrentWorld);
+    }
+
+    [Fact]
+    public void CameraSnapshotSources_SupportMultipleViewportSessionsAndDisposal()
+    {
+        using var world = new World(new ResourceManager());
+        using var sources = new CameraSnapshotSourceRegistry();
+        using var first = new EditorViewportSession(sources, new TestRenderTarget(19));
+        var second = new EditorViewportSession(sources, new TestRenderTarget(20));
+        Assert.NotEqual(first.SessionId, second.SessionId);
+
+        var snapshots = new FrameBuffer<CameraSnapshot>();
+        sources.CollectCameraSnapshots(world, snapshots);
+        Assert.Equal(new[] { 19, 20 }, snapshots.Select(snapshot => snapshot.TargetId));
+
+        snapshots.Clear();
+        first.RenderTarget = new TestRenderTarget(21);
+        sources.CollectCameraSnapshots(world, snapshots);
+        Assert.Equal(new[] { 21, 20 }, snapshots.Select(snapshot => snapshot.TargetId));
+
+        snapshots.Clear();
+        first.IsEnabled = false;
+        second.Dispose();
+        Assert.True(second.IsDisposed);
+        sources.CollectCameraSnapshots(world, snapshots);
+        Assert.Empty(snapshots);
     }
 
     [Fact]

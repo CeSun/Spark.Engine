@@ -14,9 +14,9 @@
 - UI 基础控件：树、列表、分栏、菜单、工具栏、滚动、属性网格
 - 初版 `EditorCommandHistory`：可执行、撤销、重做
 
-当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览只执行组件注册和渲染代理刷新，不进入 BeginPlay/Update/EndPlay gameplay 生命周期，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换；选择模型已支持主选对象加选择集合，层级树 Ctrl/Shift 多选、Viewport 修饰键多选、批量删除和主选枢轴组变换已贯通。`EditorActorPolicy` 已将 Actor 的编辑器呈现/操作能力与 `[SceneTransient]` 持久化语义分离，内部视口相机和宿主行为 Actor 默认不进入 World Outliner、选择、编辑命令及关卡统计。World Outliner 已支持按 Actor 名称/类型/组件类型搜索，以及 `Show Internal Actors`、`Show Components`、`Only Selected` 视图过滤；显式显示的内部对象仍保持只读和不可拖拽。
+当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览只执行组件注册和渲染代理刷新，不进入 BeginPlay/Update/EndPlay gameplay 生命周期，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换；选择模型已支持主选对象加选择集合，层级树 Ctrl/Shift 多选、Viewport 修饰键多选、批量删除和主选枢轴组变换已贯通。`EditorActorPolicy` 已将 Actor 的编辑器呈现/操作能力与 `[SceneTransient]` 持久化语义分离，宿主行为 Actor 默认不进入 World Outliner、选择、编辑命令及关卡统计。编辑器视口相机已迁入 `EditorViewportSession`，不再属于任何 World。World Outliner 已支持按 Actor 名称/类型/组件类型搜索，以及 `Show Internal Actors`、`Show Components`、`Only Selected` 视图过滤；显式显示的内部对象仍保持只读和不可拖拽。
 `EditorContext` 已接入 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；主循环已支持
-EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产、光照状态和 Camera 视图参数可恢复，RenderTarget 按 ComponentGuid 精确绑定；Mesh/Texture 共享，Material 使用 RuntimeWorld 独立副本。`AssetRegistry` 已统一 AssetGuid 解析，
+EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产、光照状态和场景 Camera 参数可恢复，场景 Camera 的 RenderTarget 按 ComponentGuid 精确绑定；编辑器视口 Session 在世界切换时保持身份、姿态和目标。Mesh/Texture 共享，Material 使用 RuntimeWorld 独立副本。`AssetRegistry` 已统一 AssetGuid 解析，
 `RuntimeActorFactory` 已提供自定义组件和 Runtime 行为注册入口；旧的 `RuntimeWorldInitializer` 仅作为兼容接口保留。
 场景层级、Socket 和挂载规则按 [SceneHierarchy-Design.md](./SceneHierarchy-Design.md) 实施，资产格式和 Cook 按
 [AssetPipeline-Design.md](./AssetPipeline-Design.md) 实施。编辑器侧已落地无 GPU 依赖的 glTF 2.0 StaticMesh 导入器，
@@ -32,6 +32,7 @@ EditorApplication
 ├── EditorSceneService   新建、加载、保存、恢复（`.scene`）
 ├── EditorAssetService   资源索引、搜索、引用
 ├── EditorInput          快捷键和鼠标命令路由
+├── EditorViewportSession 脱离 World 的视口相机、目标和会话状态
 └── EditorUi              只负责布局、呈现和事件转发
 ```
 

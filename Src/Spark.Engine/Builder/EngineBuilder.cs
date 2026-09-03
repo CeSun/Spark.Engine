@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Spark.Engine.Input;
+using Spark.Engine.Render;
 using Spark.Engine.Render.Common;
 using Spark.Engine.Render.Pipeline;
 using Spark.Engine.Resources;
@@ -40,6 +41,7 @@ public class EngineBuilder
 
         builder.Services.AddSingleton(new ResourceManager());
         builder.Services.AddSingleton(new RenderTargetRegistry());
+        builder.Services.AddSingleton<CameraSnapshotSourceRegistry>();
         builder.Services.AddSingleton(new InputManager());
         builder.Services.AddSingleton(new UIManager());
         builder.Services.AddSingleton<EngineTickRegistry>();
@@ -64,6 +66,7 @@ public class EngineBuilder
                 provider.GetRequiredService<UIManager>(),
                 provider.GetServices<IEngineApplicationInitializer>(),
                 provider.GetRequiredService<RenderTargetRegistry>(),
+                provider.GetRequiredService<CameraSnapshotSourceRegistry>(),
                 provider.GetRequiredService<WindowManager>(),
                 provider.GetRequiredService<EngineTickRegistry>(),
                 provider.GetRequiredService<IRenderPipeline>(),

@@ -1,4 +1,5 @@
 using Spark.Engine.Editor;
+using Spark.Engine.Actors;
 using Spark.Engine.Input;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -61,7 +62,7 @@ public sealed class EditorContentBrowserTests
         using var world = new World(new ResourceManager());
         var actor = new Spark.Engine.Actors.Actor { Name = "Visible" };
         actor.AddOwnedComponent(new Spark.Engine.Components.SceneComponent());
-        var editorCamera = new EditorViewportCameraActor { Name = "Editor Camera" };
+        var editorCamera = new InternalEditorActor { Name = "Editor Camera" };
         editorCamera.AddOwnedComponent(new Spark.Engine.Components.CameraComponent());
         world.AddActor(actor);
         world.AddActor(editorCamera);
@@ -79,7 +80,7 @@ public sealed class EditorContentBrowserTests
     public void WorldOutlinerViewMenuExposesFiltersAndCanRevealInternalActors()
     {
         using var world = new World(new ResourceManager());
-        var editorCamera = new EditorViewportCameraActor { Name = "Editor Camera" };
+        var editorCamera = new InternalEditorActor { Name = "Editor Camera" };
         editorCamera.AddOwnedComponent(new Spark.Engine.Components.CameraComponent());
         world.AddActor(editorCamera);
         world.Update(0f, tickActors: false);
@@ -751,5 +752,10 @@ public sealed class EditorContentBrowserTests
             left, left, default, default, default, default, string.Empty));
         canvas.Update(new InputState(point, default, 0f,
             default, default, left, default, default, default, string.Empty));
+    }
+
+    [EditorActor(EditorActorFlags.Internal)]
+    private sealed class InternalEditorActor : Actor
+    {
     }
 }

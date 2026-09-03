@@ -4,6 +4,8 @@ using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.Input;
 using Spark.Engine.Resources;
+using Spark.Engine.Render;
+using Spark.Engine.Render.Common;
 using Spark.Engine.UI;
 using Spark.Engine.Worlds;
 
@@ -40,18 +42,24 @@ public sealed class EditorUi
     private bool _transformToolActive = true;
     private bool _suppressViewportClick;
     private UIRenderView? _renderViewControl;
+    private readonly CameraSnapshotSourceRegistry _cameraSnapshotSources;
+    private readonly List<EditorViewportSession> _viewportSessions = [];
 
     private object? _selectedTarget;
 
     /// <summary>编辑器根元素（挂到主窗口画布 Root）。</summary>
     public UIElement Root { get; }
 
+    public IReadOnlyList<EditorViewportSession> ViewportSessions => _viewportSessions;
+
     public EditorUi(World world, Action? backToHub = null, IEditorSceneService? sceneService = null,
-        WorldContext? worldContext = null, EditorProject? project = null)
+        WorldContext? worldContext = null, EditorProject? project = null,
+        CameraSnapshotSourceRegistry? cameraSnapshotSources = null)
     {
         ArgumentNullException.ThrowIfNull(world);
         _sceneService = sceneService;
         Project = project;
+        _cameraSnapshotSources = cameraSnapshotSources ?? new CameraSnapshotSourceRegistry();
         _context = new EditorContext(world, worldContext);
         _assetOperations = project != null && _context.AssetRegistry is AssetRegistry mutableRegistry
             ? new EditorAssetOperationService(project, mutableRegistry)
@@ -1106,10 +1114,23 @@ public sealed class EditorUi
         SetStatus(actors.Length == 1 ? "Actor queued for deletion." : $"{actors.Length} Actors queued for deletion.");
     }
 
-    /// <summary>把渲染视图控件嵌入中间视口区（画中画显示引擎画面）。</summary>
-    public void SetPictureInPicture(UIRenderView control)
+    /// <summary>创建不进入 World.Actors 的编辑器视口会话。</summary>
+    public EditorViewportSession CreateViewportSession(RenderTarget renderTarget)
+    {
+        var session = new EditorViewportSession(_cameraSnapshotSources, renderTarget);
+        _viewportSessions.Add(session);
+        return session;
+    }
+
+    /// <summary>把渲染视图控件及其会话嵌入中间视口区。</summary>
+    public void SetPictureInPicture(UIRenderView control, EditorViewportSession session)
     {
         ArgumentNullException.ThrowIfNull(control);
+        ArgumentNullException.ThrowIfNull(session);
+        if (!_viewportSessions.Contains(session))
+            throw new ArgumentException("The viewport session is not owned by this editor UI.", nameof(session));
+        if (session.RenderTarget?.Id != control.RenderViewId)
+            throw new ArgumentException("The viewport session and render view must use the same render target.", nameof(session));
         _renderViewControl = control;
         control.ClickedWithModifiers += (point, keysDown) => HandleViewportClick(control, point, keysDown);
         control.PointerPressed += point => HandleViewportPointerPressed(control, point);
@@ -1117,17 +1138,6 @@ public sealed class EditorUi
         control.PointerReleased += point => HandleViewportPointerReleased(control, point);
         control.InputUpdated += (input, deltaTime) => HandleViewportInput(control, input, deltaTime);
         control.OverlayPainter = PaintGizmoOverlay;
-        var resizeRequested = control.RenderViewResizeRequested;
-        if (resizeRequested != null)
-        {
-            control.RenderViewResizeRequested = (oldId, width, height) =>
-            {
-                var newId = resizeRequested(oldId, width, height);
-                if (newId > 0)
-                    _context.SyncRuntimeCameraTargets();
-                return newId;
-            };
-        }
         // The render view is the work area, so it must consume the remaining
         // viewport space instead of retaining the old demo thumbnail size.
         control.FixedSize = new UISize(0f, 0f);
@@ -1483,10 +1493,9 @@ public sealed class EditorUi
     }
 
     private CameraComponent? FindViewportCamera(int targetId)
-        => _context.ActiveWorld.EnumerateActors(includePendingActors: true)
-            .SelectMany(actor => actor.Components)
-            .OfType<CameraComponent>()
-            .FirstOrDefault(item => item.RenderTarget?.Id == targetId);
+        => _viewportSessions
+            .LastOrDefault(session => !session.IsDisposed && session.IsEnabled && session.RenderTarget?.Id == targetId)
+            ?.Camera;
 
     private void PaintGizmoOverlay(UIManager ui, int targetId, UIRect bounds, int renderViewId)
     {
@@ -1533,8 +1542,6 @@ public sealed class EditorUi
     /// <summary>每帧调用：层级树按签名重建；状态栏 Actor/组件计数与检查器实时更新。</summary>
     public void Refresh()
     {
-        // 覆盖没有经过 SetPictureInPicture 的宿主 resize 回调，确保下一帧仍指向最新目标。
-        _context.SyncRuntimeCameraTargets();
         _hierarchy.Refresh();
         _contentBrowser.Refresh();
         RemoveInvalidSelection();

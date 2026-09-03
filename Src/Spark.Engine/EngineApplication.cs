@@ -53,6 +53,9 @@ public class EngineApplication
     /// <summary>渲染目标注册表（逻辑线程注册，渲染线程查询）。</summary>
     public RenderTargetRegistry RenderTargets { get; }
 
+    /// <summary>宿主工具持有、但不属于 World Actor 的相机快照源。</summary>
+    public CameraSnapshotSourceRegistry CameraSnapshotSources { get; }
+
     /// <summary>世界上下文（驱动场景更新与相机收集）。</summary>
     public WorldContext WorldContext { get; } = new();
 
@@ -113,6 +116,7 @@ public class EngineApplication
         UIManager ui,
         IEnumerable<IEngineApplicationInitializer> initializers,
         RenderTargetRegistry renderTargets,
+        CameraSnapshotSourceRegistry cameraSnapshotSources,
         WindowManager windowManager,
         EngineTickRegistry ticks,
         IRenderPipeline pipeline,
@@ -128,6 +132,7 @@ public class EngineApplication
         _ui = ui ?? throw new ArgumentNullException(nameof(ui));
         _initializers = (initializers ?? throw new ArgumentNullException(nameof(initializers))).ToArray();
         RenderTargets = renderTargets ?? throw new ArgumentNullException(nameof(renderTargets));
+        CameraSnapshotSources = cameraSnapshotSources ?? throw new ArgumentNullException(nameof(cameraSnapshotSources));
         WindowManager = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
         _ticks = ticks ?? throw new ArgumentNullException(nameof(ticks));
         _renderThread = new RenderThread(this, pipeline, renderThreadLogger);
@@ -305,6 +310,8 @@ public class EngineApplication
                 camera.GetProjectionMatrix(target.AspectRatio),
                 camera.ClearColor));
         }
+
+        CameraSnapshotSources.CollectCameraSnapshots(world, snapshot.Cameras);
 
         world.Scene.Capture(snapshot);
     }

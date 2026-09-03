@@ -387,9 +387,10 @@ P1 可选增强：`FramebufferResize` 事件版（主线程收事件 → `Engine
 **FrameData 只放值类型快照与资源 ID，绝不携带 GPU/native 指针或跨线程对象引用。**
 
 **帧由相机驱动（ADR-1）**：逻辑线程遍历"活跃相机"（场景里所有绑定了渲染目标的
-`CameraComponent`），每个相机携带其目标 ID，渲染线程按目标分组渲染。相比按视口（目标）
-组织帧（UE 的 `UGameViewportClient` 模式，见 §13），相机驱动更扁平、语义更自然（相机是
-场景对象），且天然支持多个相机叠加渲染到同一目标（分组内顺序渲染、只 clear 一次）。
+`CameraComponent`，以及 `CameraSnapshotSourceRegistry` 中由宿主工具持有的快照源），每个相机携带其目标 ID，渲染线程按目标分组渲染。相比按视口（目标）
+组织帧（UE 的 `UGameViewportClient` 模式，见 §13），相机驱动更扁平；场景相机保持 Actor/Component
+语义，编辑器视口则通过不属于 World 的 `EditorViewportSession` 追加快照。两者都支持多个相机叠加
+渲染到同一目标（分组内顺序渲染、只 clear 一次）。
 
 - 逻辑线程写 buffer A 时渲染线程可能还在读（双缓冲最多超前 1 帧），值快照保证渲染线程读到
   完整一致的一帧，不会读到逻辑线程正在修改的相机中间态；
@@ -519,7 +520,7 @@ public readonly struct RenderTargetSession : IDisposable
 
 - Viewport 退化为**纯渲染目标描述**：窗口 + 表面 + 尺寸。**不持有相机**——相机归属由
   `CameraComponent.RenderTarget`（可写）决定，帧由相机驱动（§7）；
-- "某目标当前有哪些相机" = 所有 `Camera.RenderTarget == this` 的相机（P2 提供查询方法）；
+- "某目标当前有哪些相机" = World 内所有 `Camera.RenderTarget == this` 的相机，加上宿主快照源输出到该 TargetId 的相机；
 - 一个目标可被多个相机渲染（叠加：先填的先画）；无相机绑定的窗口视口不会出现在 FrameData 中，
   渲染线程不 acquire/present（P2 起可显示棋盘格背景等占位内容）；
 - 离屏目标同样注册在渲染线程注册表（`Dictionary<int, RenderTarget>`），逻辑线程经 ID 请求
