@@ -322,7 +322,7 @@ RenderThread（线程外壳 → IRenderPipeline，DI 注入）
   绘制在 Root 之后、命中测试优先；每帧注入 TextRenderer/Canvas
 - 单元测试：`EditorControlTests`（覆盖滚动钳位/列表选择/树层级/标签页/分割/下拉/属性网格/
   布局稳定性/文本高度/滚动裁剪等）
-- 验收入口：`Demo/Demo/EditorControlsVerifyOverlay.cs`（VerifyHub 第 5 个按钮，9 个子场景），**已通过用户逐场景验收（2026-08-31）**
+- 控件逻辑由 `Tests/Spark.Engine.Tests/EditorControlTests.cs` 覆盖；Demo 不再保留独立 UI 测试入口。
 
 ### 21. UI 布局审计修复轮（P8-audit，2026-08-31）
 

@@ -12,7 +12,7 @@
 >
 > **P8 编辑器控件轮（2026-08-26）已落地**：新增 10 个编辑器刚需控件（见下方「编辑器控件」小节）+
 > **Overlay 弹出层机制**（`UICanvas.Overlays`）。冒烟测试通过（Demo 启动 8s 无崩溃），用户已逐场景验收通过。
-> 验收入口：`Demo/Demo/EditorControlsVerifyOverlay.cs`（VerifyHub 第 5 个按钮进入，含 9 个子场景）。
+> 控件行为通过 `Tests/Spark.Engine.Tests/EditorControlTests.cs` 覆盖；Demo 不再提供独立 UI 测试窗口。
 >
 > **P8 审计修复轮（2026-08-31）已落地**：审计全部 UI 控件 + 12 处缺陷修复——
 > 滚动裁剪失效（scissor 空交集语义，见踩坑 18）、文本高度波动（踩坑 12）、容器 Measure/Arrange 基准不一致

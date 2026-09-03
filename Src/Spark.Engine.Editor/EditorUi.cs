@@ -98,7 +98,6 @@ public sealed class EditorUi
             rename: RenameSelection,
             delete: DeleteSelection,
             play: TogglePlay,
-            openControlTests: () => _openControlTests?.Invoke(),
             toggleSnap: ToggleGridSnap);
         root.AddChild(_toolbar);
 
@@ -777,14 +776,6 @@ public sealed class EditorUi
             _skipOutlinerSelectionCapture = false;
             SetStatus($"Play failed: {ex.Message}");
         }
-    }
-
-    private Action? _openControlTests;
-
-    /// <summary>绑定宿主提供的控件测试窗口入口。</summary>
-    public void SetControlTestWindowLauncher(Action launcher)
-    {
-        _openControlTests = launcher ?? throw new ArgumentNullException(nameof(launcher));
     }
 
     /// <summary>处理 Canvas 级编辑器快捷键。</summary>
