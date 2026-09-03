@@ -96,7 +96,8 @@ public sealed class EditorUi
         root.AddChild(_toolbar);
 
         // UE 风格主工作区：层级 | 视口 | Details，所有区域均可拖动调整。
-        _hierarchy = new EditorHierarchyPanel(_context.World, _context.Outliner);
+        _hierarchy = new EditorHierarchyPanel(_context.World, _context.Outliner,
+            viewStateStore: project == null ? null : EditorOutlinerViewStateStore.ForProject(project.RootDirectory));
         _hierarchy.ItemDropped += HandleHierarchyDrop;
         _hierarchy.CreateFolderRequested = CreateOutlinerFolder;
         _hierarchy.DeleteRequested = DeleteOutlinerTarget;

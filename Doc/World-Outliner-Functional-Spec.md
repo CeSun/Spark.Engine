@@ -1,6 +1,6 @@
 # Spark.Editor World Outliner 功能规格
 
-> 状态：O0、O1 已完成，O2 待实施
+> 状态：O0、O1、O2 已完成，O3 待实施
 >
 > 日期：2026-09-03
 >
@@ -56,9 +56,9 @@ Spark 在 E6 工作区阶段应提供 UE 风格默认布局；在停靠系统完
 | 可见性 | Eye 会话级临时隐藏，Folder 级联/混合，影响预览和拾取 | 会话级临时隐藏，Folder 支持级联和混合状态 | O1 已完成 |
 | 选择 | 单选、Ctrl/Shift 多选；Component 选择映射高亮 Owner Actor | 保留；增加可配置的自动定位 | O0 已完成基础 |
 | 展开状态 | 按 ActorGuid 保留；搜索/Only Selected 临时展开必要祖先 | 按稳定节点 ID 保留，过滤只临时展开祖先 | O0 已完成 |
-| 搜索 | 单个字符串对名称、Actor 类型、Component 类型做包含匹配 | 多词 AND、排除、精确匹配、字段查询 | P2 不完整 |
-| 过滤 | Internal、Components、Only Selected | Filter 菜单、类型过滤、自定义过滤器 | P2 不完整 |
-| 列 | 无表头、无排序 | Label 主列和可选信息列，可调宽、排序 | P2 缺失 |
+| 搜索 | 多词 AND、排除、精确词/短语和字段查询；默认不隐式匹配 Component | 多词 AND、排除、精确匹配、字段查询 | O2 已完成 |
+| 过滤 | Filter 菜单、类型过滤、Only Selected、临时隐藏过滤和 Custom Filter | Filter 菜单、类型过滤、自定义过滤器 | O2 已完成 |
+| 列 | Label/Type/Socket/ID 表头、显示切换、拖动列宽和同级排序 | Label 主列和可选信息列，可调宽、排序 | O2 已完成 |
 | 上下文菜单 | Actor、Folder、空白基础菜单；复用现有选择/复制/删除/聚焦命令 | 与视口共用 Actor 命令；Folder 有独立命令 | O1 已完成基础 |
 | 重命名 | `F2`/菜单进入真实 `UITextBox` 行内编辑 | 行内编辑，提交/取消和冲突校验 | O1 已完成 |
 | 拖放 | Actor→Actor/Folder/空白、Folder→Folder/空白、Asset→Folder | 挂载、组织和创建三类语义明确区分 | O1 已完成 |
@@ -323,17 +323,20 @@ UITreeView / UITableTree     虚拟化行、列、行内编辑、上下文菜单
 
 实现说明：Folder 是绑定 EditorWorld 的独立编辑器元数据，不是特殊 Actor；RuntimeWorld 忽略这些字段。
 删除非空 Folder 会把直接内容安全提升到父 Folder，不会删除 Actor。当前 Folder 和 Eye 在 Reload 后按稳定 Guid
-恢复，但不写入场景脏状态；跨启动 ViewState 仍归入 O2。
+恢复，但不写入场景脏状态；O2 已将列、过滤、展开、滚动与 Current Folder 接入项目级用户 ViewState。
 
-### O2：查找与信息架构（P2）
+### ✅ O2：查找与信息架构（P2，已完成）
 
-1. 多词、排除、精确词、短语和字段搜索。
-2. Filter Bar、类型过滤和 Custom Filter。
-3. Label/Type/Socket/ID 列，列宽与排序。
-4. Settings 与 `Always Frame Selection`。
-5. ViewState 和 E6 布局持久化接轨。
+1. ✅ 多词、排除、精确词、短语和 `label/type/folder/id/socket/component` 字段搜索。
+2. ✅ Filter 菜单、Actor 类型过滤、Only Selected、临时隐藏过滤和 Custom Filter。
+3. ✅ Label/Type/Socket/ID 列，表头点击排序、显示切换与拖动列宽。
+4. ✅ View 设置与 `Always Frame Selection`。
+5. ✅ 独立 ViewState 按项目持久化搜索、列、排序、过滤器、展开、滚动和 Current Folder。
 
 验收：数百 Actor 中可仅用键盘快速定位目标；清空过滤后不丢失原视图状态。
+
+实现说明：过滤树只临时展开命中节点的必要祖先；清除搜索或过滤后恢复过滤前的展开和滚动。
+排序仅作用于同一父节点的显示顺序，Folder 始终位于 Actor 之前，不修改 Folder 归属、Attachment 或场景脏状态。
 
 ### O3：Play 与规模性能（P3）
 

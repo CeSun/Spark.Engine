@@ -1,4 +1,6 @@
 using Spark.Engine.UI;
+using Spark.Engine.Input;
+using System.Numerics;
 
 namespace Spark.Engine.Editor;
 
@@ -7,19 +9,27 @@ internal sealed class EditorHierarchyPanel : UIElement
 {
     private readonly HierarchyPanel _hierarchy;
     private EditorWorldOutlinerData _outliner;
+    private readonly EditorOutlinerViewState _viewState;
+    private readonly EditorOutlinerViewStateStore? _viewStateStore;
     private readonly UIStackPanel _panel;
     private readonly UILabel _title;
     private readonly UITextBox _search;
     private readonly UIButton _viewOptionsButton;
+    private readonly UIButton _filterButton;
     private readonly UIButton _addFolderButton;
+    private readonly EditorOutlinerColumnHeader _columnHeader;
     private readonly UIMenuPanel _viewOptions = new() { MinWidth = 190f, MaxWidth = 240f };
+    private readonly UIMenuPanel _filterMenu = new() { MinWidth = 210f, MaxWidth = 300f };
     private readonly UIMenuPanel _contextMenu = new() { MinWidth = 180f, MaxWidth = 260f };
     private object? _contextTarget;
 
-    public EditorHierarchyPanel(Spark.Engine.Worlds.World world, EditorWorldOutlinerData? outliner = null)
+    public EditorHierarchyPanel(Spark.Engine.Worlds.World world, EditorWorldOutlinerData? outliner = null,
+        EditorOutlinerViewState? viewState = null, EditorOutlinerViewStateStore? viewStateStore = null)
     {
         _outliner = outliner ?? EditorWorldOutlinerData.For(world);
-        _hierarchy = new HierarchyPanel(world, _outliner);
+        _viewStateStore = viewStateStore;
+        _viewState = viewState ?? viewStateStore?.Load() ?? new EditorOutlinerViewState();
+        _hierarchy = new HierarchyPanel(world, _outliner, _viewState);
         _panel = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
@@ -36,6 +46,7 @@ internal sealed class EditorHierarchyPanel : UIElement
         header.ColumnDefinitions.Add(UIGridDefinition.Star());
         header.ColumnDefinitions.Add(UIGridDefinition.Auto());
         header.ColumnDefinitions.Add(UIGridDefinition.Auto());
+        header.ColumnDefinitions.Add(UIGridDefinition.Auto());
         _title = new UILabel
         {
             Text = "OUTLINER",
@@ -47,6 +58,12 @@ internal sealed class EditorHierarchyPanel : UIElement
             FixedSize = new UISize(54f, 22f),
             Clicked = ShowViewOptions,
         };
+        _filterButton = new UIButton
+        {
+            Text = "Filter",
+            FixedSize = new UISize(58f, 22f),
+            Clicked = ShowFilterMenu,
+        };
         _addFolderButton = new UIButton
         {
             Text = "+ Folder",
@@ -55,10 +72,12 @@ internal sealed class EditorHierarchyPanel : UIElement
         };
         header.AddChild(_title);
         header.AddChild(_addFolderButton);
+        header.AddChild(_filterButton);
         header.AddChild(_viewOptionsButton);
         header.SetColumn(_title, 0);
         header.SetColumn(_addFolderButton, 1);
-        header.SetColumn(_viewOptionsButton, 2);
+        header.SetColumn(_filterButton, 2);
+        header.SetColumn(_viewOptionsButton, 3);
         _panel.AddChild(header);
 
         _search = new UITextBox
@@ -66,13 +85,30 @@ internal sealed class EditorHierarchyPanel : UIElement
             FixedSize = new UISize(0f, 26f),
             Padding = UIEdgeInsets.HorizontalVertical(8f, 3f),
             PlaceholderText = "Search actors...",
+            Text = _viewState.SearchText,
             TextChanged = value =>
             {
                 _hierarchy.SearchText = value;
                 _hierarchy.Refresh();
+                SaveViewState();
             },
         };
         _panel.AddChild(_search);
+        _columnHeader = new EditorOutlinerColumnHeader(_viewState,
+            column =>
+            {
+                _hierarchy.SortBy(column);
+                _hierarchy.Refresh();
+                SaveViewState();
+            },
+            () =>
+            {
+                _hierarchy.InvalidateView();
+                _hierarchy.Refresh();
+                SaveViewState();
+            },
+            ShowViewOptionsAt);
+        _panel.AddChild(_columnHeader);
         _panel.AddChild(_hierarchy.Element);
         AddChild(_panel);
         _hierarchy.ItemContextRequested = ShowContextMenu;
@@ -81,6 +117,8 @@ internal sealed class EditorHierarchyPanel : UIElement
         _hierarchy.DeleteRequested = target => DeleteRequested?.Invoke(target);
         _hierarchy.BackgroundContextRequested = ShowBackgroundContextMenu;
         _hierarchy.ItemDroppedOnBackground = (target, position) => ItemDroppedOnBackground?.Invoke(target, position);
+        _hierarchy.ViewStateChanged = SaveViewState;
+        UpdateFilterButton();
     }
 
     public string SearchText
@@ -91,6 +129,7 @@ internal sealed class EditorHierarchyPanel : UIElement
             _search.Text = value ?? string.Empty;
             _hierarchy.SearchText = _search.Text;
             _hierarchy.Refresh();
+            SaveViewState();
         }
     }
 
@@ -101,6 +140,8 @@ internal sealed class EditorHierarchyPanel : UIElement
         {
             _hierarchy.ShowInternalActors = value;
             _hierarchy.Refresh();
+            SaveViewState();
+            UpdateFilterButton();
         }
     }
 
@@ -111,7 +152,20 @@ internal sealed class EditorHierarchyPanel : UIElement
         {
             _hierarchy.ShowComponents = value;
             _hierarchy.Refresh();
+            SaveViewState();
         }
+    }
+
+    public bool HideTemporarilyHidden
+    {
+        get => _hierarchy.HideTemporarilyHidden;
+        set { _hierarchy.HideTemporarilyHidden = value; _hierarchy.Refresh(); SaveViewState(); UpdateFilterButton(); }
+    }
+
+    public bool AlwaysFrameSelection
+    {
+        get => _hierarchy.AlwaysFrameSelection;
+        set { _hierarchy.AlwaysFrameSelection = value; SaveViewState(); }
     }
 
     public bool OnlySelected
@@ -121,6 +175,8 @@ internal sealed class EditorHierarchyPanel : UIElement
         {
             _hierarchy.OnlySelected = value;
             _hierarchy.Refresh();
+            SaveViewState();
+            UpdateFilterButton();
         }
     }
 
@@ -164,6 +220,7 @@ internal sealed class EditorHierarchyPanel : UIElement
             ? $"OUTLINER · {folder.Name}"
             : "OUTLINER";
         _hierarchy.Refresh();
+        UpdateFilterButton();
     }
 
     public void SetWorld(Spark.Engine.Worlds.World world)
@@ -190,22 +247,138 @@ internal sealed class EditorHierarchyPanel : UIElement
     protected override void OnArrange() => _panel.Arrange(ContentRect);
 
     private void ShowViewOptions()
+        => ShowViewOptionsAt(new System.Numerics.Vector2(
+            System.Math.Max(Bounds.X, _viewOptionsButton.Bounds.Right - _viewOptions.MinWidth),
+            _viewOptionsButton.Bounds.Bottom));
+
+    private void ShowViewOptionsAt(System.Numerics.Vector2 position)
     {
         _viewOptions.Clear();
-        AddToggleOption("Show Internal Actors", ShowInternalActors,
-            value => ShowInternalActors = value);
         AddToggleOption("Show Components (Developer)", ShowComponents,
             value => ShowComponents = value);
-        AddToggleOption("Only Selected", OnlySelected,
-            value => OnlySelected = value);
+        _viewOptions.AddSeparator();
+        AddToggleOption("Type Column", _viewState.ShowTypeColumn,
+            value => { _viewState.ShowTypeColumn = value; _hierarchy.InvalidateView(); _hierarchy.Refresh(); SaveViewState(); });
+        AddToggleOption("Socket Column", _viewState.ShowSocketColumn,
+            value => { _viewState.ShowSocketColumn = value; _hierarchy.InvalidateView(); _hierarchy.Refresh(); SaveViewState(); });
+        AddToggleOption("ID Column", _viewState.ShowIdColumn,
+            value => { _viewState.ShowIdColumn = value; _hierarchy.InvalidateView(); _hierarchy.Refresh(); SaveViewState(); });
+        _viewOptions.AddSeparator();
+        AddToggleOption("Always Frame Selection", AlwaysFrameSelection,
+            value => AlwaysFrameSelection = value);
         _viewOptions.Canvas = FindCanvas();
-        var menuX = System.Math.Max(Bounds.X, _viewOptionsButton.Bounds.Right - _viewOptions.MinWidth);
-        _viewOptions.Show(new System.Numerics.Vector2(menuX, _viewOptionsButton.Bounds.Bottom));
+        _viewOptions.Show(position);
     }
 
     private void AddToggleOption(string label, bool value, Action<bool> setValue)
         => _viewOptions.AddItem(new UIMenuItem($"{(value ? "[x]" : "[ ]")} {label}",
             () => setValue(!value)));
+
+    private void ShowFilterMenu()
+    {
+        _filterMenu.Clear();
+        AddFilterToggle("Only Selected", OnlySelected, value => OnlySelected = value);
+        AddFilterToggle("Hide Temporarily Hidden", HideTemporarilyHidden, value => HideTemporarilyHidden = value);
+        AddFilterToggle("Show Internal Actors", ShowInternalActors, value => ShowInternalActors = value);
+        _filterMenu.AddSeparator();
+        _filterMenu.AddItem(new UIMenuItem("Clear Filters", ClearFilters)
+        {
+            IsEnabled = GetActiveFilterCount() != 0,
+        });
+        _filterMenu.AddItem(new UIMenuItem("All Actor Types", () =>
+        {
+            _hierarchy.ClearActorTypeFilters();
+            _hierarchy.Refresh();
+            SaveViewState();
+            UpdateFilterButton();
+        }) { IsEnabled = _hierarchy.ActorTypeFilters.Count != 0 });
+        foreach (var actorType in _hierarchy.AvailableActorTypes)
+        {
+            var captured = actorType;
+            var selected = _hierarchy.ActorTypeFilters.Contains(captured);
+            _filterMenu.AddItem(new UIMenuItem($"{(selected ? "[x]" : "[ ]")} {captured}", () =>
+            {
+                _hierarchy.ToggleActorTypeFilter(captured);
+                _hierarchy.Refresh();
+                SaveViewState();
+                UpdateFilterButton();
+            }));
+        }
+        _filterMenu.AddSeparator();
+        _filterMenu.AddItem(new UIMenuItem("Save Current Filter", SaveCurrentFilter)
+        {
+            IsEnabled = SearchText.Length != 0 || _hierarchy.ActorTypeFilters.Count != 0,
+        });
+        foreach (var filter in _viewState.CustomFilters)
+        {
+            var captured = filter;
+            _filterMenu.AddItem(new UIMenuItem($"Apply: {captured.Name}", () => ApplyCustomFilter(captured)));
+        }
+        if (_viewState.CustomFilters.Count != 0)
+            _filterMenu.AddItem(new UIMenuItem("Delete Saved Filters", DeleteSavedFilters));
+        _filterMenu.Canvas = FindCanvas();
+        var menuX = System.Math.Max(Bounds.X, _filterButton.Bounds.Right - _filterMenu.MinWidth);
+        _filterMenu.Show(new System.Numerics.Vector2(menuX, _filterButton.Bounds.Bottom));
+    }
+
+    private void AddFilterToggle(string label, bool value, Action<bool> setValue)
+        => _filterMenu.AddItem(new UIMenuItem($"{(value ? "[x]" : "[ ]")} {label}", () => setValue(!value)));
+
+    private void SaveCurrentFilter()
+    {
+        var index = _viewState.CustomFilters.Count + 1;
+        var name = SearchText.Length == 0 ? $"Actor Types {index}" : SearchText;
+        _viewState.CustomFilters.Add(new EditorOutlinerCustomFilter(
+            name, SearchText, _hierarchy.ActorTypeFilters.OrderBy(value => value).ToList()));
+        SaveViewState();
+    }
+
+    private void ApplyCustomFilter(EditorOutlinerCustomFilter filter)
+    {
+        _viewState.ActorTypes.Clear();
+        foreach (var actorType in filter.ActorTypes)
+            _viewState.ActorTypes.Add(actorType);
+        SearchText = filter.Query;
+        _hierarchy.InvalidateView();
+        _hierarchy.Refresh();
+        SaveViewState();
+        UpdateFilterButton();
+    }
+
+    private void ClearFilters()
+    {
+        OnlySelected = false;
+        HideTemporarilyHidden = false;
+        ShowInternalActors = false;
+        _hierarchy.ClearActorTypeFilters();
+        _hierarchy.Refresh();
+        SaveViewState();
+        UpdateFilterButton();
+    }
+
+    private void DeleteSavedFilters()
+    {
+        _viewState.CustomFilters.Clear();
+        SaveViewState();
+    }
+
+    private int GetActiveFilterCount()
+        => (OnlySelected ? 1 : 0) + (HideTemporarilyHidden ? 1 : 0) +
+           (ShowInternalActors ? 1 : 0) + _hierarchy.ActorTypeFilters.Count;
+
+    private void UpdateFilterButton()
+    {
+        var count = GetActiveFilterCount();
+        _filterButton.Text = count == 0 ? "Filter" : $"Filter ({count})";
+        _filterButton.FixedSize = new UISize(count == 0 ? 58f : 72f, 22f);
+    }
+
+    private void SaveViewState()
+    {
+        try { _viewStateStore?.Save(_viewState); }
+        catch (IOException) { /* UI state persistence must not interrupt editing. */ }
+        catch (UnauthorizedAccessException) { /* Read-only profile: keep in-memory state. */ }
+    }
 
     private void ShowContextMenu(object target, System.Numerics.Vector2 position)
     {
@@ -253,5 +426,176 @@ internal sealed class EditorHierarchyPanel : UIElement
         _contextMenu.AddItem(new UIMenuItem("Clear Current Folder", () => ClearCurrentFolderRequested?.Invoke()));
         _contextMenu.Canvas = FindCanvas();
         _contextMenu.Show(position);
+    }
+}
+
+/// <summary>Outliner 表头：点击排序、拖动信息列左边界调整宽度、右键打开列菜单。</summary>
+internal sealed class EditorOutlinerColumnHeader : UIElement
+{
+    private readonly EditorOutlinerViewState _state;
+    private readonly Action<EditorOutlinerColumn> _sort;
+    private readonly Action _columnsChanged;
+    private readonly Action<Vector2> _contextRequested;
+    private Vector2 _pointer;
+    private EditorOutlinerColumn? _dragColumn;
+    private float _dragStartX;
+    private float _dragStartWidth;
+    private bool _dragged;
+
+    public EditorOutlinerColumnHeader(EditorOutlinerViewState state,
+        Action<EditorOutlinerColumn> sort, Action columnsChanged, Action<Vector2> contextRequested)
+    {
+        _state = state;
+        _sort = sort;
+        _columnsChanged = columnsChanged;
+        _contextRequested = contextRequested;
+        FixedSize = new UISize(0f, 23f);
+        ClipToBounds = true;
+    }
+
+    protected override UISize OnMeasure(UISize availableSize)
+        => new(FixedSize?.Width > 0f ? FixedSize.Value.Width : availableSize.Width, 23f);
+
+    protected override void OnPaint(UIManager ui, int targetId)
+    {
+        ui.DrawRect(targetId, new Vector2(Bounds.X, Bounds.Y), new Vector2(Bounds.Width, Bounds.Height),
+            new Vector4(0.105f, 0.115f, 0.13f, 1f));
+        ui.DrawRect(targetId, new Vector2(Bounds.X, Bounds.Bottom - 1f), new Vector2(Bounds.Width, 1f),
+            new Vector4(0.28f, 0.3f, 0.33f, 1f));
+
+        var columns = GetVisibleColumns();
+        var secondaryWidth = columns.Sum(column => column.Width);
+        var labelRight = Bounds.Right - secondaryWidth;
+        DrawHeaderText(ui, targetId, EditorOutlinerColumn.Label, "Label", Bounds.X + 28f,
+            System.Math.Max(0f, labelRight - Bounds.X - 32f));
+        ui.DrawRect(targetId, new Vector2(Bounds.X + 24f, Bounds.Y), new Vector2(1f, Bounds.Height),
+            new Vector4(0.28f, 0.3f, 0.33f, 0.8f));
+
+        var x = labelRight;
+        foreach (var column in columns)
+        {
+            ui.DrawRect(targetId, new Vector2(x, Bounds.Y), new Vector2(1f, Bounds.Height),
+                new Vector4(0.28f, 0.3f, 0.33f, 0.8f));
+            DrawHeaderText(ui, targetId, column.Column, column.Title, x + 5f, column.Width - 9f);
+            x += column.Width;
+        }
+    }
+
+    private void DrawHeaderText(UIManager ui, int targetId, EditorOutlinerColumn column,
+        string title, float x, float width)
+    {
+        if (width <= 0f)
+            return;
+        var suffix = _state.SortColumn == column ? (_state.SortAscending ? " ^" : " v") : string.Empty;
+        var text = ui.Text.Truncate(title + suffix, width);
+        var y = Bounds.Y + (Bounds.Height - ui.Text.LineHeight) * 0.5f;
+        ui.Text.DrawText(ui, targetId, text, new Vector2(x, y), UITheme.Default.TextDimColor);
+    }
+
+    protected override void OnMouseMove(Vector2 position) => _pointer = position;
+
+    protected override void OnMouseDown(MouseButton button)
+    {
+        if (button != MouseButton.Left)
+            return;
+        _dragged = false;
+        _dragColumn = FindDivider(_pointer);
+        if (_dragColumn is { } column)
+        {
+            _dragStartX = _pointer.X;
+            _dragStartWidth = GetWidth(column);
+        }
+    }
+
+    protected override void OnMouseDrag(Vector2 position)
+    {
+        _pointer = position;
+        if (_dragColumn is not { } column)
+            return;
+        if (System.Math.Abs(position.X - _dragStartX) >= 1f)
+            _dragged = true;
+        SetWidth(column, System.Math.Clamp(_dragStartWidth - (position.X - _dragStartX), 48f, 320f));
+        _columnsChanged();
+    }
+
+    protected override void OnMouseUp(MouseButton button, Vector2 position, KeyMask keysDown)
+    {
+        _pointer = position;
+        if (button == MouseButton.Right)
+            _contextRequested(position);
+        if (button == MouseButton.Left)
+            _dragColumn = null;
+    }
+
+    protected override void OnMouseClick()
+    {
+        if (_dragged)
+        {
+            _dragged = false;
+            return;
+        }
+        if (GetColumnAt(_pointer) is { } column)
+            _sort(column);
+    }
+
+    private EditorOutlinerColumn? GetColumnAt(Vector2 point)
+    {
+        if (point.X < Bounds.X + 24f)
+            return null;
+        var columns = GetVisibleColumns();
+        var x = Bounds.Right - columns.Sum(column => column.Width);
+        if (point.X < x)
+            return EditorOutlinerColumn.Label;
+        foreach (var column in columns)
+        {
+            if (point.X < x + column.Width)
+                return column.Column;
+            x += column.Width;
+        }
+        return null;
+    }
+
+    private EditorOutlinerColumn? FindDivider(Vector2 point)
+    {
+        var columns = GetVisibleColumns();
+        var x = Bounds.Right - columns.Sum(column => column.Width);
+        foreach (var column in columns)
+        {
+            if (System.Math.Abs(point.X - x) <= 4f)
+                return column.Column;
+            x += column.Width;
+        }
+        return null;
+    }
+
+    private IReadOnlyList<(EditorOutlinerColumn Column, string Title, float Width)> GetVisibleColumns()
+    {
+        var result = new List<(EditorOutlinerColumn, string, float)>(3);
+        if (_state.ShowTypeColumn)
+            result.Add((EditorOutlinerColumn.Type, "Type", _state.TypeColumnWidth));
+        if (_state.ShowSocketColumn)
+            result.Add((EditorOutlinerColumn.Socket, "Socket", _state.SocketColumnWidth));
+        if (_state.ShowIdColumn)
+            result.Add((EditorOutlinerColumn.Id, "ID", _state.IdColumnWidth));
+        return result;
+    }
+
+    private float GetWidth(EditorOutlinerColumn column)
+        => column switch
+        {
+            EditorOutlinerColumn.Type => _state.TypeColumnWidth,
+            EditorOutlinerColumn.Socket => _state.SocketColumnWidth,
+            EditorOutlinerColumn.Id => _state.IdColumnWidth,
+            _ => 0f,
+        };
+
+    private void SetWidth(EditorOutlinerColumn column, float width)
+    {
+        switch (column)
+        {
+            case EditorOutlinerColumn.Type: _state.TypeColumnWidth = width; break;
+            case EditorOutlinerColumn.Socket: _state.SocketColumnWidth = width; break;
+            case EditorOutlinerColumn.Id: _state.IdColumnWidth = width; break;
+        }
     }
 }

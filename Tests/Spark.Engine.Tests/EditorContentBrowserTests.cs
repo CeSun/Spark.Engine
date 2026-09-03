@@ -94,17 +94,16 @@ public sealed class EditorContentBrowserTests
         editor.Refresh();
         canvas.Update(default, ui.Text);
 
-        var view = Assert.Single(Descendants(editor.Root).OfType<UIButton>(),
-            button => button.Text == "View");
-        Click(canvas, Center(view.Bounds));
+        var filter = Assert.Single(Descendants(editor.Root).OfType<UIButton>(),
+            button => button.Text == "Filter");
+        Click(canvas, Center(filter.Bounds));
 
         var menu = Assert.Single(canvas.Overlays.OfType<UIMenuPanel>());
-        Assert.Collection(menu.Items,
-            item => Assert.Equal("[ ] Show Internal Actors", item.Text),
-            item => Assert.Equal("[ ] Show Components (Developer)", item.Text),
-            item => Assert.Equal("[ ] Only Selected", item.Text));
+        Assert.Contains(menu.Items, item => item.Text == "[ ] Only Selected");
+        Assert.Contains(menu.Items, item => item.Text == "[ ] Hide Temporarily Hidden");
+        var internalActors = Assert.Single(menu.Items, item => item.Text == "[ ] Show Internal Actors");
 
-        Click(canvas, Center(menu.Items[0].Bounds));
+        Click(canvas, Center(internalActors.Bounds));
         Assert.True(editor.OutlinerShowInternalActors);
         Assert.DoesNotContain(menu, canvas.Overlays);
         editor.Refresh();

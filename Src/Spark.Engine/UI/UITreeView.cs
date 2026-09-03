@@ -10,6 +10,9 @@ public enum UITreeItemVisibilityState
     Mixed,
 }
 
+/// <summary>树行右侧的轻量信息单元格；由业务层提供文本和宽度。</summary>
+public readonly record struct UITreeViewCell(string Text, float Width);
+
 /// <summary>
 /// 树视图项：支持展开/折叠、缩进、选中状态。
 /// 每项包含：展开箭头 + 图标区域 + 文本标签。
@@ -57,7 +60,11 @@ public class UITreeViewItem : UIElement
 
     /// <summary>是否绘制并响应 UE 风格的临时可见性 Eye 列。</summary>
     public bool ShowVisibilityToggle { get; set; }
+    public bool ReserveVisibilityColumn { get; set; }
     public UITreeItemVisibilityState VisibilityState { get; set; }
+
+    /// <summary>从 Label 右侧开始、按给定顺序绘制的信息列。</summary>
+    public IReadOnlyList<UITreeViewCell> SecondaryCells { get; set; } = Array.Empty<UITreeViewCell>();
 
     private bool _hovered;
     private Vector2 _lastPointerPosition;
@@ -120,9 +127,11 @@ public class UITreeViewItem : UIElement
     protected override void OnPaint(UIManager ui, int targetId)
     {
         float indent = IndentLevel * IndentWidth;
+        float eyeWidth = ShowVisibilityToggle || ReserveVisibilityColumn ? 24f : 0f;
         // 深缩进时内容宽可为负 → 钳到 0，避免箭头/文本画出右缘
         float contentW = System.Math.Max(0f, Bounds.Width - indent);
-        var contentRect = new UIRect(Bounds.X + indent, Bounds.Y, contentW, Bounds.Height);
+        var contentRect = new UIRect(Bounds.X + eyeWidth + indent, Bounds.Y,
+            System.Math.Max(0f, contentW - eyeWidth), Bounds.Height);
 
         // 背景
         Vector4 bg = IsSelected ? SelectedColor : _hovered ? HoverColor : NormalColor;
@@ -131,12 +140,11 @@ public class UITreeViewItem : UIElement
 
         // 展开箭头
         float arrowSize = 10f;
-        float eyeWidth = ShowVisibilityToggle ? 20f : 0f;
-        float arrowX = contentRect.X + 4f + eyeWidth;
+        float arrowX = contentRect.X + 4f;
         float arrowY = contentRect.Y + (contentRect.Height - arrowSize) * 0.5f;
 
         if (ShowVisibilityToggle)
-            DrawVisibility(ui, targetId, contentRect.X + 4f, contentRect.Y, contentRect.Height, VisibilityState);
+            DrawVisibility(ui, targetId, Bounds.X + 4f, contentRect.Y, contentRect.Height, VisibilityState);
 
         if (!IsLeaf)
         {
@@ -158,10 +166,37 @@ public class UITreeViewItem : UIElement
             if (textRenderer != null)
             {
                 float textY = contentRect.Y + (contentRect.Height - textRenderer.LineHeight) * 0.5f;
-                float maxTextW = System.Math.Max(0f, contentRect.Right - textX);
+                float columnsWidth = SecondaryCells.Sum(cell => System.Math.Max(0f, cell.Width));
+                float maxTextW = System.Math.Max(0f, Bounds.Right - columnsWidth - textX - 4f);
                 var display = textRenderer.Truncate(Text, maxTextW);
                 textRenderer.DrawText(ui, targetId, display, new Vector2(textX, textY), TextColor);
             }
+        }
+
+        DrawSecondaryCells(ui, targetId);
+    }
+
+    private void DrawSecondaryCells(UIManager ui, int targetId)
+    {
+        if (SecondaryCells.Count == 0)
+            return;
+        var textRenderer = GetTextRenderer();
+        if (textRenderer == null)
+            return;
+        var x = Bounds.Right - SecondaryCells.Sum(cell => System.Math.Max(0f, cell.Width));
+        var textY = Bounds.Y + (Bounds.Height - textRenderer.LineHeight) * 0.5f;
+        foreach (var cell in SecondaryCells)
+        {
+            var width = System.Math.Max(0f, cell.Width);
+            ui.DrawRect(targetId, new Vector2(x, Bounds.Y), new Vector2(1f, Bounds.Height),
+                new Vector4(0.24f, 0.26f, 0.29f, 0.65f));
+            if (!string.IsNullOrEmpty(cell.Text) && width > 8f)
+            {
+                var display = textRenderer.Truncate(cell.Text, width - 8f);
+                textRenderer.DrawText(ui, targetId, display, new Vector2(x + 4f, textY),
+                    UITheme.Default.TextDimColor);
+            }
+            x += width;
         }
     }
 
@@ -207,8 +242,9 @@ public class UITreeViewItem : UIElement
         if (_inlineEditor == null)
             return;
         var textX = GetTextStartX();
+        var columnsWidth = SecondaryCells.Sum(cell => System.Math.Max(0f, cell.Width));
         _inlineEditor.Arrange(new UIRect(textX, Bounds.Y + 1f,
-            System.Math.Max(20f, Bounds.Right - textX - 4f), System.Math.Max(20f, Bounds.Height - 2f)));
+            System.Math.Max(20f, Bounds.Right - columnsWidth - textX - 4f), System.Math.Max(20f, Bounds.Height - 2f)));
     }
 
     /// <summary>在当前行内用真实 UITextBox 编辑标签；Enter/失焦提交，Escape 取消。</summary>
@@ -262,7 +298,8 @@ public class UITreeViewItem : UIElement
 
     private float GetTextStartX()
     {
-        var x = Bounds.X + IndentLevel * IndentWidth + 4f + (ShowVisibilityToggle ? 20f : 0f);
+        var x = Bounds.X + IndentLevel * IndentWidth + 4f +
+            (ShowVisibilityToggle || ReserveVisibilityColumn ? 24f : 0f);
         if (!IsLeaf)
             x += 14f;
         if (IconColor.HasValue)
@@ -346,7 +383,8 @@ public class UITreeViewItem : UIElement
     private bool IsArrowHit(Vector2 point)
     {
         float indent = IndentLevel * IndentWidth;
-        float arrowX = Bounds.X + indent + 4f + (ShowVisibilityToggle ? 20f : 0f);
+        float arrowX = Bounds.X + indent + 4f +
+            (ShowVisibilityToggle || ReserveVisibilityColumn ? 24f : 0f);
         float arrowSize = 10f;
         // 适当扩大命中范围，避免用户必须精确点在 10px 绘制三角形上。
         var hitRect = new UIRect(arrowX - 4f, Bounds.Y, arrowSize + 8f, Bounds.Height);
@@ -355,8 +393,7 @@ public class UITreeViewItem : UIElement
 
     private bool IsVisibilityHit(Vector2 point)
     {
-        float x = Bounds.X + IndentLevel * IndentWidth;
-        return new UIRect(x, Bounds.Y, 20f, Bounds.Height).Contains(point);
+        return new UIRect(Bounds.X, Bounds.Y, 24f, Bounds.Height).Contains(point);
     }
 
     protected internal override void OnKeyDown(Key key, KeyMask keysDown)
@@ -398,6 +435,8 @@ public sealed class UITreeView : UIElement
     public Action<IReadOnlyList<UITreeViewItem>>? SelectionSetChanged { get; set; }
 
     public bool AllowMultipleSelection { get; set; }
+    public bool AutoScrollSelection { get; set; } = true;
+    public Action? ViewStateChanged { get; set; }
 
     /// <summary>项点击/激活回调。</summary>
     public Action<UITreeViewItem>? ItemActivated { get; set; }
@@ -459,6 +498,7 @@ public sealed class UITreeView : UIElement
             Content = _itemsPanel,
             ContextRequested = position => BackgroundContextRequested?.Invoke(position),
         };
+        _scrollBox.ScrollChanged = () => ViewStateChanged?.Invoke();
 
         AddChild(_scrollBox);
     }
@@ -530,7 +570,7 @@ public sealed class UITreeView : UIElement
             selected.IsSelected = true;
 
         SelectedItem = nextPrimary;
-        if (SelectedItem != null)
+        if (SelectedItem != null && AutoScrollSelection)
             _scrollBox.ScrollIntoView(SelectedItem);
 
         SelectionChanged?.Invoke(SelectedItem);
@@ -571,6 +611,7 @@ public sealed class UITreeView : UIElement
     private void OnItemToggled(UITreeViewItem item)
     {
         RebuildFlatList();
+        ViewStateChanged?.Invoke();
     }
 
     private void OnItemClicked(UITreeViewItem item, KeyMask keysDown)

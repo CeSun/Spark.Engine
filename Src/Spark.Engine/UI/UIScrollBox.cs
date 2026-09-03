@@ -33,7 +33,21 @@ public sealed class UIScrollBox : UIElement
     public UIScrollDirection ScrollDirection { get; set; } = UIScrollDirection.Vertical;
 
     /// <summary>当前滚动偏移（逻辑像素，正值表示内容向右/下滚动）。</summary>
-    public Vector2 ScrollOffset { get; set; }
+    private Vector2 _scrollOffset;
+    public Vector2 ScrollOffset
+    {
+        get => _scrollOffset;
+        set
+        {
+            if (_scrollOffset == value)
+                return;
+            _scrollOffset = value;
+            ScrollChanged?.Invoke();
+        }
+    }
+
+    /// <summary>滚轮、滚动条拖拽或程序化定位改变偏移时通知。</summary>
+    public Action? ScrollChanged { get; set; }
 
     /// <summary>滚动速度（滚轮每格滚动的像素数）。</summary>
     public float ScrollSpeed { get; set; } = 40f;
