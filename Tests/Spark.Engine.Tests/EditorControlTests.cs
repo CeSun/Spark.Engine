@@ -682,6 +682,24 @@ public class EditorControlTests
     }
 
     [Fact]
+    public void SplitPanel_SinglePanel_FillsAvailableSpace()
+    {
+        var split = new UISplitPanel
+        {
+            Direction = UISplitDirection.Horizontal,
+            SplitRatio = 0.68f,
+            SplitterWidth = 4f,
+        };
+        var viewport = new UIPanel();
+        split.SetPanels(viewport, null);
+
+        split.Measure(new UISize(320f, 180f));
+        split.Arrange(new UIRect(10f, 20f, 320f, 180f));
+
+        Assert.Equal(new UIRect(10f, 20f, 320f, 180f), viewport.Bounds);
+    }
+
+    [Fact]
     public void SplitPanel_MeasuresSubPanels_DesiredSizeFromContent()
     {
         // 回归：UISplitPanel 曾无 OnMeasure，整棵子树从不测量 → DesiredSize 恒 0，内容全被当 fill。

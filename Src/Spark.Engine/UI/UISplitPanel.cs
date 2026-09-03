@@ -60,11 +60,12 @@ public sealed class UISplitPanel : UIElement
     public UIElement? SecondPanel => Children.Count > 1 ? Children[1] : null;
 
     /// <summary>设置两个面板。</summary>
-    public void SetPanels(UIElement first, UIElement second)
+    public void SetPanels(UIElement first, UIElement? second)
     {
         ClearChildren();
         AddChild(first);
-        AddChild(second);
+        if (second != null)
+            AddChild(second);
     }
 
     protected override UISize OnMeasure(UISize availableSize)
@@ -126,6 +127,19 @@ public sealed class UISplitPanel : UIElement
         var content = ContentRect;
         bool horizontal = Direction == UISplitDirection.Horizontal;
 
+        // 单面板状态用于面板浮动/关闭后的占位恢复：剩余空间全部交给唯一面板，
+        // 不保留无意义的分割条或空白区域。
+        if (FirstPanel is { } onlyFirst && SecondPanel == null)
+        {
+            onlyFirst.Arrange(content);
+            return;
+        }
+        if (FirstPanel == null && SecondPanel is { } onlySecond)
+        {
+            onlySecond.Arrange(content);
+            return;
+        }
+
         float totalSize = horizontal ? content.Width : content.Height;
         float splitterSize = SplitterWidth;
 
@@ -151,6 +165,9 @@ public sealed class UISplitPanel : UIElement
 
     protected override void OnPaint(UIManager ui, int targetId)
     {
+        if (FirstPanel == null || SecondPanel == null)
+            return;
+
         var content = ContentRect;
         bool horizontal = Direction == UISplitDirection.Horizontal;
 
@@ -171,6 +188,9 @@ public sealed class UISplitPanel : UIElement
     /// <summary>获取分割条矩形。</summary>
     private UIRect GetSplitterRect()
     {
+        if (FirstPanel == null || SecondPanel == null)
+            return default;
+
         var content = ContentRect;
         bool horizontal = Direction == UISplitDirection.Horizontal;
         float totalSize = horizontal ? content.Width : content.Height;

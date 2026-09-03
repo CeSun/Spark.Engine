@@ -1890,8 +1890,7 @@ public sealed class EditorUi
 
         try
         {
-            _viewportDetails.SetPanels(_assetEditorHost,
-                new UIPanel { Color = UITheme.Default.PanelBackground });
+            _viewportDetails.SetPanels(_assetEditorHost, null);
             var title = $"{_selectedTarget?.GetType().Name ?? "Details"} - Details";
             var window = _windowManager.CreateWindow(title, 420, 720);
             var viewport = _windowManager.GetViewport(window)
