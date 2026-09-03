@@ -997,8 +997,8 @@ public class EditorControlTests
         var renderer = CreateTextRenderer();
         canvas.Update(default, renderer);
 
-        EditRow(new Vector2(180f, 12f), "<1, 2, 3>"); // Position
-        EditRow(new Vector2(180f, 36f), "10, 45, 20"); // Rotation: Pitch, Yaw, Roll (degrees)
+        EditComponents(12f, "1", "2", "3"); // Position (X, Y, Z)
+        EditComponents(36f, "10", "45", "20"); // Rotation: Pitch, Yaw, Roll (degrees)
         EditRow(new Vector2(180f, 60f), "45°"); // Yaw angle accepts a degree suffix
 
         Assert.Equal(new Vector3(1f, 2f, 3f), target.Position);
@@ -1006,8 +1006,17 @@ public class EditorControlTests
             45f * MathF.PI / 180f,
             10f * MathF.PI / 180f,
             20f * MathF.PI / 180f);
-        Assert.InRange(MathF.Abs(Quaternion.Dot(target.Rotation, expectedRotation)), 0.9999f, 1f);
+        Assert.True(MathF.Abs(Quaternion.Dot(target.Rotation, expectedRotation)) >= 0.9999f,
+            $"actual={target.Rotation}, expected={expectedRotation}");
         Assert.Equal(45f, target.Yaw);
+
+        void EditComponents(float y, params string[] values)
+        {
+            var startX = 145f;
+            var width = (320f - 120f - 8f - (values.Length - 1) * 3f) / values.Length;
+            for (var index = 0; index < values.Length; index++)
+                EditRow(new Vector2(startX + index * (width + 3f) + width * 0.5f, y), values[index]);
+        }
 
         void EditRow(Vector2 point, string text)
         {

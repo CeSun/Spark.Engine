@@ -203,7 +203,7 @@ public sealed class UIPropertyGrid : UIElement
 }
 
 /// <summary>
-/// 属性网格中的一行：标签 + 值编辑器。
+/// 属性网格中的一行：标签 + 值编辑器；向量和旋转按分量拆成多个 UITextBox。
 /// </summary>
 internal sealed class PropertyRow : UIElement
 {
@@ -224,33 +224,12 @@ internal sealed class PropertyRow : UIElement
 
     private object? _currentValue;
     private bool _editing;
-    private readonly UITextBox _editor;
+    private readonly List<UITextBox> _editors = new();
+    private int _componentCount;
 
     public PropertyRow()
     {
-        _editor = new UITextBox
-        {
-            Visible = false,
-            BackgroundColor = Vector4.Zero,
-            TextColor = ValueColor,
-            Padding = UIEdgeInsets.HorizontalVertical(0f, 2f),
-        };
-        _editor.Submitted = _ =>
-        {
-            CommitEdit();
-            ReleaseEditorFocus();
-        };
-        _editor.Cancelled = () =>
-        {
-            CancelEdit();
-            ReleaseEditorFocus();
-        };
-        _editor.FocusChanged = focused =>
-        {
-            if (!focused)
-                CommitEdit();
-        };
-        AddChild(_editor);
+        ConfigureEditors(1);
     }
 
     public void SetValue(object? value)
@@ -259,16 +238,21 @@ internal sealed class PropertyRow : UIElement
             return; // 编辑中不覆盖用户输入（外部每帧 Refresh 不打断输入）
 
         _currentValue = value;
-        _editor.Text = GetEditText(value);
+        ConfigureEditors(GetComponentCount(value));
+        if (_componentCount == 1 && !_editing)
+            _editors[0].Visible = false;
+        SetEditorTexts(value);
     }
 
     protected override UISize OnMeasure(UISize availableSize)
     {
         float w = FixedSize is { } fsv && fsv.Width > 0f ? fsv.Width : 0f;
         float h = FixedSize is { } fsv2 && fsv2.Height > 0f ? fsv2.Height : RowHeight;
-        _editor.Measure(new UISize(
-            System.Math.Max(0f, availableSize.Width - LabelWidth - 8f),
-            h));
+        var valueWidth = System.Math.Max(0f, availableSize.Width - LabelWidth - 8f);
+        var spacing = _componentCount > 1 ? (_componentCount - 1) * 3f : 0f;
+        var editorWidth = System.Math.Max(0f, (valueWidth - spacing) / _componentCount);
+        foreach (var editor in _editors)
+            editor.Measure(new UISize(editorWidth, h));
         return new UISize(w, h);
     }
 
@@ -276,8 +260,14 @@ internal sealed class PropertyRow : UIElement
     {
         float valueX = Bounds.X + LabelWidth + 4f;
         float valueW = System.Math.Max(0f, Bounds.Width - LabelWidth - 8f);
-        _editor.TextColor = ValueColor;
-        _editor.Arrange(new UIRect(valueX, Bounds.Y, valueW, Bounds.Height));
+        var spacing = _componentCount > 1 ? (_componentCount - 1) * 3f : 0f;
+        var editorWidth = System.Math.Max(0f, (valueW - spacing) / _componentCount);
+        for (var index = 0; index < _editors.Count; index++)
+        {
+            var editor = _editors[index];
+            editor.TextColor = ValueColor;
+            editor.Arrange(new UIRect(valueX + index * (editorWidth + 3f), Bounds.Y, editorWidth, Bounds.Height));
+        }
     }
 
     protected override void OnPaint(UIManager ui, int targetId)
@@ -297,8 +287,8 @@ internal sealed class PropertyRow : UIElement
             textRenderer.DrawText(ui, targetId, label, new Vector2(Bounds.X + 4f, labelY), LabelColor);
         }
 
-        // 非编辑态绘制静态值；编辑态由子 UITextBox 负责完整文本交互和光标。
-        if (!_editing && textRenderer != null)
+        // 标量保持原有的静态文本显示；向量/旋转始终显示多个真实输入框，符合 UE Details 的分量编辑习惯。
+        if (_componentCount == 1 && !_editing && textRenderer != null)
         {
             float valueX = Bounds.X + LabelWidth + 4f;
             float valueW = System.Math.Max(0f, Bounds.Width - LabelWidth - 8f);
@@ -316,11 +306,13 @@ internal sealed class PropertyRow : UIElement
         if (_editing)
             return;
 
-        // 开始编辑
+        // 点击标签列时聚焦第一个输入框；点击分量框则由 UITextBox 自己处理焦点。
         _editing = true;
-        _editor.Text = GetEditText(_currentValue);
-        _editor.Visible = true;
-        FindCanvas()?.Focus(_editor);
+        if (_editors.Count > 0)
+        {
+            _editors[0].Visible = true;
+            FindCanvas()?.Focus(_editors[0]);
+        }
     }
 
     private void CommitEdit()
@@ -328,28 +320,14 @@ internal sealed class PropertyRow : UIElement
         if (!_editing)
             return;
 
-        string editText = _editor.Text;
         _editing = false;
-        _editor.Visible = false;
 
         if (_currentValue == null)
             return;
 
         try
         {
-            object? newValue = _currentValue switch
-            {
-                int => int.TryParse(editText, NumberStyles.Integer, CultureInfo.CurrentCulture, out int i) ? i : _currentValue,
-                float => TryParseFloat(editText, out float f) ? f : _currentValue,
-                double => double.TryParse(editText, NumberStyles.Float, CultureInfo.CurrentCulture, out double d) ? d : _currentValue,
-                bool => bool.TryParse(editText, out bool b) ? b : _currentValue,
-                string => editText,
-                Vector2 => ParseParts(editText, 2) is { } p2 ? new Vector2(p2[0], p2[1]) : _currentValue,
-                Vector3 => ParseParts(editText, 3) is { } p3 ? new Vector3(p3[0], p3[1], p3[2]) : _currentValue,
-                Vector4 => ParseParts(editText, 4) is { } p4 ? new Vector4(p4[0], p4[1], p4[2], p4[3]) : _currentValue,
-                Quaternion => ParseQuaternion(editText) is { } rotation ? rotation : _currentValue,
-                _ => _currentValue,
-            };
+            object? newValue = ParseEditorValue();
 
             if (!Equals(newValue, _currentValue))
             {
@@ -362,7 +340,137 @@ internal sealed class PropertyRow : UIElement
             // 保留原值；下次进入编辑时会重新同步。
         }
 
-        _editor.Text = GetEditText(_currentValue);
+        if (_componentCount == 1)
+            _editors[0].Visible = false;
+        SetEditorTexts(_currentValue);
+    }
+
+    private object? ParseEditorValue()
+    {
+        var componentTexts = _editors.Select(editor => editor.Text).ToArray();
+        return _currentValue switch
+        {
+            int => int.TryParse(componentTexts[0], NumberStyles.Integer, CultureInfo.CurrentCulture, out int i) ? i : _currentValue,
+            float => TryParseFloat(componentTexts[0], out float f) ? f : _currentValue,
+            double => double.TryParse(componentTexts[0], NumberStyles.Float, CultureInfo.CurrentCulture, out double d) ? d : _currentValue,
+            bool => bool.TryParse(componentTexts[0], out bool b) ? b : _currentValue,
+            string => componentTexts[0],
+            Vector2 => ParseComponents(componentTexts, 2) is { } p2 ? new Vector2(p2[0], p2[1]) : _currentValue,
+            Vector3 => ParseComponents(componentTexts, 3) is { } p3 ? new Vector3(p3[0], p3[1], p3[2]) : _currentValue,
+            Vector4 => ParseComponents(componentTexts, 4) is { } p4 ? new Vector4(p4[0], p4[1], p4[2], p4[3]) : _currentValue,
+            Quaternion => ParseEulerComponents(componentTexts) is { } rotation ? rotation : _currentValue,
+            _ => _currentValue,
+        };
+    }
+
+    private void ConfigureEditors(int componentCount)
+    {
+        componentCount = System.Math.Clamp(componentCount, 1, 4);
+        if (_componentCount == componentCount && _editors.Count == componentCount)
+            return;
+
+        foreach (var editor in _editors)
+            RemoveChild(editor);
+        _editors.Clear();
+        _componentCount = componentCount;
+        for (var index = 0; index < componentCount; index++)
+        {
+            var editor = new UITextBox
+            {
+                Visible = componentCount > 1,
+                BackgroundColor = new Vector4(0.10f, 0.12f, 0.16f, 1f),
+                TextColor = ValueColor,
+                Padding = UIEdgeInsets.HorizontalVertical(4f, 2f),
+                PlaceholderText = componentCount > 1 ? GetComponentLabel(index, componentCount) : string.Empty,
+            };
+            editor.Submitted = _ =>
+            {
+                CommitEdit();
+                ReleaseEditorFocus();
+            };
+            editor.Cancelled = () =>
+            {
+                CancelEdit();
+                ReleaseEditorFocus();
+            };
+            editor.FocusChanged = focused =>
+            {
+                if (focused)
+                {
+                    editor.Visible = true;
+                    _editing = true;
+                }
+                else
+                    CommitEdit();
+            };
+            _editors.Add(editor);
+            AddChild(editor);
+        }
+    }
+
+    private static int GetComponentCount(object? value) => value switch
+    {
+        Vector2 => 2,
+        Vector3 => 3,
+        Vector4 => 4,
+        Quaternion => 3,
+        _ => 1,
+    };
+
+    private void SetEditorTexts(object? value)
+    {
+        var texts = value switch
+        {
+            Quaternion rotation => GetEulerComponents(rotation),
+            Vector2 vector => new[] { FormatComponent(vector.X), FormatComponent(vector.Y) },
+            Vector3 vector => new[] { FormatComponent(vector.X), FormatComponent(vector.Y), FormatComponent(vector.Z) },
+            Vector4 vector => new[] { FormatComponent(vector.X), FormatComponent(vector.Y), FormatComponent(vector.Z), FormatComponent(vector.W) },
+            _ => new[] { value?.ToString() ?? string.Empty },
+        };
+        for (var index = 0; index < _editors.Count; index++)
+            _editors[index].Text = index < texts.Length ? texts[index] : string.Empty;
+    }
+
+    private static string[] GetEulerComponents(Quaternion rotation)
+    {
+        var formatted = FormatEuler(rotation);
+        return ParseParts(formatted, 3)?.Select(FormatComponent).ToArray()
+            ?? new[] { "0", "0", "0" };
+    }
+
+    private static string FormatComponent(float value)
+        => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static string GetComponentLabel(int index, int count) => count switch
+    {
+        2 => index == 0 ? "X" : "Y",
+        3 => index switch { 0 => "X", 1 => "Y", _ => "Z" },
+        _ => index switch { 0 => "X", 1 => "Y", 2 => "Z", _ => "W" },
+    };
+
+    private static float[]? ParseComponents(IReadOnlyList<string> texts, int expectedCount)
+    {
+        if (texts.Count != expectedCount)
+            return null;
+        var values = new float[expectedCount];
+        for (var index = 0; index < expectedCount; index++)
+        {
+            if (!TryParseFloat(texts[index], out values[index]))
+                return null;
+        }
+        return values;
+    }
+
+    private static Quaternion? ParseEulerComponents(IReadOnlyList<string> texts)
+    {
+        var values = ParseComponents(texts, 3);
+        if (values is not { Length: 3 })
+            return null;
+        const float degreesToRadians = MathF.PI / 180f;
+        return Quaternion.CreateFromYawPitchRoll(
+            values[1] * degreesToRadians,
+            values[0] * degreesToRadians,
+            values[2] * degreesToRadians);
     }
 
     /// <summary>解析向量文本（兼容 "&lt;1; 2; 3&gt;" / "1,2,3" / "1 2 3"）；分量数不符或解析失败返回 null。</summary>
@@ -379,28 +487,6 @@ internal sealed class PropertyRow : UIElement
                 return null;
         }
         return values;
-    }
-
-    /// <summary>
-    /// 解析旋转输入。Inspector 以 UE 习惯显示三维欧拉角（Pitch, Yaw, Roll，单位为度），
-    /// 同时兼容旧的四分量四元数输入，避免已有场景/脚本输入失效。
-    /// </summary>
-    private static Quaternion? ParseQuaternion(string text)
-    {
-        var parts = ParseParts(text, 3);
-        if (parts is { Length: 3 })
-        {
-            var degreesToRadians = MathF.PI / 180f;
-            return Quaternion.CreateFromYawPitchRoll(
-                parts[1] * degreesToRadians,
-                parts[0] * degreesToRadians,
-                parts[2] * degreesToRadians);
-        }
-
-        var quaternionParts = ParseParts(text, 4);
-        return quaternionParts is { Length: 4 }
-            ? new Quaternion(quaternionParts[0], quaternionParts[1], quaternionParts[2], quaternionParts[3])
-            : null;
     }
 
     private static bool TryParseFloat(string text, out float value)
@@ -424,14 +510,15 @@ internal sealed class PropertyRow : UIElement
             return;
 
         _editing = false;
-        _editor.Visible = false;
-        _editor.Text = GetEditText(_currentValue);
+        if (_componentCount == 1)
+            _editors[0].Visible = false;
+        SetEditorTexts(_currentValue);
     }
 
     private void ReleaseEditorFocus()
     {
         var canvas = FindCanvas();
-        if (canvas?.FocusedElement == _editor)
+        if (canvas?.FocusedElement is UITextBox focused && _editors.Contains(focused))
             canvas.ClearFocus();
     }
 
@@ -444,15 +531,6 @@ internal sealed class PropertyRow : UIElement
         _ => value?.ToString() ?? "null",
     };
 
-    private static string GetEditText(object? value) => value switch
-    {
-        Quaternion rotation => FormatEuler(rotation),
-        Vector2 vector => FormatVector(vector.X, vector.Y),
-        Vector3 vector => FormatVector(vector.X, vector.Y, vector.Z),
-        Vector4 vector => FormatVector(vector.X, vector.Y, vector.Z, vector.W),
-        _ => value?.ToString() ?? string.Empty,
-    };
-
     private static string FormatEuler(Quaternion rotation)
     {
         if (rotation.LengthSquared() < 0.000001f)
@@ -460,16 +538,18 @@ internal sealed class PropertyRow : UIElement
         else
             rotation = Quaternion.Normalize(rotation);
 
-        var sinPitch = 2f * (rotation.W * rotation.Y - rotation.Z * rotation.X);
+        // System.Numerics/MonoGame 的 CreateFromYawPitchRoll 组合顺序为 Yaw(Y) →
+        // Pitch(X) → Roll(Z)，对应的逆变换如下（不要套用另一种常见的 XYZ 顺序公式）。
+        var sinPitch = 2f * (rotation.W * rotation.X - rotation.Y * rotation.Z);
         var pitch = MathF.Abs(sinPitch) >= 1f
             ? MathF.CopySign(MathF.PI / 2f, sinPitch)
             : MathF.Asin(sinPitch);
         var yaw = MathF.Atan2(
-            2f * (rotation.W * rotation.Z + rotation.X * rotation.Y),
+            2f * (rotation.W * rotation.Y + rotation.X * rotation.Z),
             1f - 2f * (rotation.Y * rotation.Y + rotation.Z * rotation.Z));
         var roll = MathF.Atan2(
-            2f * (rotation.W * rotation.X + rotation.Y * rotation.Z),
-            1f - 2f * (rotation.X * rotation.X + rotation.Y * rotation.Y));
+            2f * (rotation.W * rotation.Z + rotation.X * rotation.Y),
+            1f - 2f * (rotation.X * rotation.X + rotation.Z * rotation.Z));
         const float radiansToDegrees = 180f / MathF.PI;
         return FormatVector(pitch * radiansToDegrees, yaw * radiansToDegrees, roll * radiansToDegrees);
     }
