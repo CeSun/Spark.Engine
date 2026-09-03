@@ -246,6 +246,8 @@ public sealed class EditorUi
     public IReadOnlyList<object> SelectedTargets => _context.Selection.Items;
     public IReadOnlyList<EditorInspectorResourceProperty> InspectorResourceProperties
         => _inspector.ResourceProperties;
+    public IReadOnlyList<string> InspectorPropertyNames
+        => _inspector.PropertyNames;
     /// <summary>当前场景服务提供的最近场景路径；非 Binary 服务返回空列表。</summary>
     public IReadOnlyList<string> RecentScenePaths
         => (_sceneService as BinaryEditorSceneService)?.RecentFiles.Paths ?? Array.Empty<string>();
@@ -409,12 +411,16 @@ public sealed class EditorUi
                 resource = AssetRegistry.Resolve(guid);
             var slots = _context.Selection.Items.Select(target =>
                 {
-                    var property = target.GetType().GetProperty(
+                    // Actor Details 显示的是根组件字段；资源编辑仍必须落到真实组件对象。
+                    var resourceTarget = target is Actor actor ? actor.RootComponent : target;
+                    if (resourceTarget == null)
+                        return null;
+                    var property = resourceTarget.GetType().GetProperty(
                         propertyName, BindingFlags.Public | BindingFlags.Instance);
                     return property != null && property.CanRead && property.CanWrite &&
                            typeof(SceneResource).IsAssignableFrom(property.PropertyType) &&
                            property.GetCustomAttribute<ScenePropertyAttribute>() != null
-                        ? new EditorResourcePropertySlot(target, property)
+                        ? new EditorResourcePropertySlot(resourceTarget, property)
                         : null;
                 })
                 .Where(slot => slot != null)

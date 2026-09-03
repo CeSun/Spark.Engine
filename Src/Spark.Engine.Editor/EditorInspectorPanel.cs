@@ -18,6 +18,10 @@ internal sealed class EditorInspectorPanel : UIElement
     private readonly UIStackPanel _panel;
     private readonly UILabel _title;
     private readonly UIPropertyGrid _propertyGrid;
+    private readonly UILabel _actorSection;
+    private readonly UILabel _componentSection;
+    private readonly UILabel _resourceSection;
+    private readonly UIPropertyGrid _rootComponentGrid;
     private readonly UIStackPanel _resourceRowsPanel;
     private readonly IAssetRegistry _registry;
     private readonly Action<IReadOnlyList<EditorResourcePropertySlot>, SceneResource?> _resourceEditRequested;
@@ -51,12 +55,15 @@ internal sealed class EditorInspectorPanel : UIElement
         _title = new UILabel { Text = "Nothing selected", TextColor = theme.TextColor };
         _panel.AddChild(_title);
 
+        // UE Details 风格：Actor 自身信息与空间/根组件信息分开显示。
+        _actorSection = CreateSectionLabel("Actor", theme);
+        _panel.AddChild(_actorSection);
+
         _resourceRowsPanel = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
             Spacing = 2f,
         };
-        _panel.AddChild(_resourceRowsPanel);
 
         _propertyGrid = new UIPropertyGrid
         {
@@ -66,6 +73,27 @@ internal sealed class EditorInspectorPanel : UIElement
             PropertyEditRequested = propertyEditRequested,
         };
         _panel.AddChild(_propertyGrid);
+
+        _componentSection = CreateSectionLabel("Transform / Root Component", theme);
+        _panel.AddChild(_componentSection);
+        _rootComponentGrid = new UIPropertyGrid
+        {
+            FixedSize = new UISize(0f, 0f),
+            LabelWidth = 108f,
+            BackgroundColor = new(0f, 0f, 0f, 0f),
+            PropertyEditRequested = propertyEditRequested,
+        };
+        _panel.AddChild(_rootComponentGrid);
+
+        _resourceSection = CreateSectionLabel("Asset References", theme);
+        _panel.AddChild(_resourceSection);
+        _panel.AddChild(_resourceRowsPanel);
+
+        _actorSection.Visible = false;
+        _propertyGrid.Visible = false;
+        _componentSection.Visible = false;
+        _rootComponentGrid.Visible = false;
+        _resourceSection.Visible = false;
         AddChild(_panel);
     }
 
@@ -76,6 +104,8 @@ internal sealed class EditorInspectorPanel : UIElement
     }
 
     public IReadOnlyList<object> Targets => _targets;
+    public IReadOnlyList<string> PropertyNames
+        => _propertyGrid.PropertyNames.Concat(_rootComponentGrid.PropertyNames).ToArray();
     public IReadOnlyList<EditorInspectorResourceProperty> ResourceProperties
         => _resourceFields.Select(resourceField => new EditorInspectorResourceProperty(
             resourceField.PropertyName, resourceField.ResourceType, resourceField.ValueText,
@@ -88,7 +118,17 @@ internal sealed class EditorInspectorPanel : UIElement
             field.ClosePicker();
         _targets = targets.Where(target => target != null).Distinct().ToArray();
         _propertyGrid.Target = primary;
+        var root = primary is Actors.Actor actor ? actor.RootComponent : null;
+        _actorSection.Visible = primary is Actors.Actor;
+        _propertyGrid.Visible = primary != null;
+        _componentSection.Visible = root != null;
+        _rootComponentGrid.Visible = root != null;
+        _componentSection.Text = root == null
+            ? "Transform / Root Component"
+            : $"Transform / {root.GetType().Name}";
+        _rootComponentGrid.Target = root;
         RebuildResourceFields(primary);
+        _resourceSection.Visible = _resourceFields.Count > 0;
     }
 
     public bool TryAcceptAssetDrop(AssetRecord record, System.Numerics.Vector2 position)
@@ -102,6 +142,7 @@ internal sealed class EditorInspectorPanel : UIElement
     public void Refresh()
     {
         _propertyGrid.Refresh();
+        _rootComponentGrid.Refresh();
         foreach (var field in _resourceFields)
             field.Refresh();
     }
@@ -123,11 +164,16 @@ internal sealed class EditorInspectorPanel : UIElement
         if (primary == null || _targets.Count == 0)
             return;
 
-        var primaryProperties = GetResourceProperties(primary.GetType());
+        var resourceTargets = GetResourceTargets(primary);
+        if (resourceTargets.Count == 0)
+            return;
+
+        var resourcePrimary = resourceTargets[0];
+        var primaryProperties = GetResourceProperties(resourcePrimary.GetType());
         foreach (var primaryProperty in primaryProperties)
         {
-            var slots = new List<EditorResourcePropertySlot>(_targets.Count);
-            foreach (var target in _targets)
+            var slots = new List<EditorResourcePropertySlot>(resourceTargets.Count);
+            foreach (var target in resourceTargets)
             {
                 var property = target.GetType().GetProperty(
                     primaryProperty.Name, BindingFlags.Instance | BindingFlags.Public);
@@ -140,7 +186,7 @@ internal sealed class EditorInspectorPanel : UIElement
                 }
                 slots.Add(new EditorResourcePropertySlot(target, property));
             }
-            if (slots.Count != _targets.Count)
+            if (slots.Count != resourceTargets.Count)
                 continue;
 
             var field = new EditorResourcePropertyField(
@@ -164,4 +210,30 @@ internal sealed class EditorInspectorPanel : UIElement
                 property.GetCustomAttribute<ScenePropertyAttribute>() != null)
             .OrderBy(property => property.Name, StringComparer.Ordinal)
             .ToArray();
+
+    private IReadOnlyList<object> GetResourceTargets(object primary)
+    {
+        if (primary is Actors.Actor)
+        {
+            var actors = _targets.OfType<Actors.Actor>().ToArray();
+            if (actors.Length != _targets.Count)
+                return Array.Empty<object>();
+            var roots = actors
+                .Select(actor => actor.RootComponent)
+                .ToArray();
+            return roots.Any(component => component == null)
+                ? Array.Empty<object>()
+                : roots.Cast<object>().ToArray();
+        }
+
+        return _targets;
+    }
+
+    private static UILabel CreateSectionLabel(string text, UITheme theme)
+        => new()
+        {
+            Text = text,
+            TextColor = theme.TextDimColor,
+            Padding = UIEdgeInsets.HorizontalVertical(0f, 4f),
+        };
 }

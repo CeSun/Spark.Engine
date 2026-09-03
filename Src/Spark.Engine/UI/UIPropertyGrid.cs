@@ -54,6 +54,9 @@ public sealed class UIPropertyGrid : UIElement
     /// <summary>属性行列表。</summary>
     private readonly List<PropertyRow> _rows = new();
 
+    /// <summary>当前网格实际显示的属性名（供 Inspector/自动化测试读取）。</summary>
+    public IReadOnlyList<string> PropertyNames => _rows.Select(row => row.PropertyName).ToArray();
+
     public UIPropertyGrid()
     {
         ClipToBounds = true;

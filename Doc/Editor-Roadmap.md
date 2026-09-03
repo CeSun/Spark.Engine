@@ -126,6 +126,10 @@ Content Browser 资源可直接拖入字段；`L`/`O`/`X` 分别定位、打开�
 记录和加载失败显示在字段附近。多对象修改通过 `PropertyBatchChangeCommand` 原子执行并作为一次 Undo/Redo；
 世界资源重新登记会保留磁盘路径和传递依赖。保存/重载、Play/Stop 与 Cook 闭包端到端测试均已通过。
 
+Details 增量：选择 Actor 时同时显示 Actor 基础属性、根 SceneComponent 的局部 Transform 和组件业务属性；
+根组件上的资源引用继续显示在独立的 Asset References 分组，并将编辑命令发送到真实组件对象。直接选择
+Component 的既有行为保持不变。完整的分类元数据、非根组件折叠树、数组/嵌套对象编辑仍属于后续 Inspector 扩展。
+
 ### E3：缩略图与资源编辑器深化（L2，进行中）
 
 交付范围：

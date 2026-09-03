@@ -13,6 +13,52 @@ namespace Spark.Engine.Tests;
 public sealed class EditorInspectorResourceTests
 {
     [Fact]
+    public void InspectorShowsActorDetailsAndRootComponentProperties()
+    {
+        using var world = new World(new ResourceManager());
+        var actor = new Actor { Name = "Camera Actor" };
+        var camera = new CameraComponent
+        {
+            RelativeLocation = new Vector3(10f, 20f, 30f),
+            FieldOfView = 75f,
+        };
+        actor.AddOwnedComponent(camera);
+        world.AddActor(actor);
+        var editor = new EditorUi(world);
+
+        editor.SelectTargets([actor], actor);
+
+        Assert.Contains(nameof(Actor.Name), editor.InspectorPropertyNames);
+        Assert.Contains(nameof(SceneComponent.RelativeLocation), editor.InspectorPropertyNames);
+        Assert.Contains(nameof(SceneComponent.RelativeRotation), editor.InspectorPropertyNames);
+        Assert.Contains(nameof(SceneComponent.RelativeScale), editor.InspectorPropertyNames);
+        Assert.Contains(nameof(CameraComponent.FieldOfView), editor.InspectorPropertyNames);
+        Assert.Contains(nameof(CameraComponent.NearPlane), editor.InspectorPropertyNames);
+        Assert.Contains(nameof(CameraComponent.FarPlane), editor.InspectorPropertyNames);
+        Assert.Contains(nameof(CameraComponent.ClearColor), editor.InspectorPropertyNames);
+        Assert.True(editor.InspectorPropertyNames.Count >= 8);
+    }
+
+    [Fact]
+    public void ActorDetailsResourceAssignmentTargetsRootComponent()
+    {
+        using var world = new World(new ResourceManager());
+        using var mesh = CreateMesh();
+        var actor = new Actor { Name = "Mesh Actor" };
+        var component = new StaticMeshComponent();
+        actor.AddOwnedComponent(component);
+        world.AddActor(actor);
+        var editor = new EditorUi(world);
+        editor.AssetRegistry.Register(mesh, sourcePath: "Meshes/Crate.asset", contentPath: "Meshes/Crate.asset");
+
+        editor.SelectTargets([actor], actor);
+
+        Assert.Contains(editor.InspectorResourceProperties, property => property.Name == "Mesh");
+        Assert.True(editor.AssignAssetToSelection("Mesh", mesh.AssetGuid));
+        Assert.Same(mesh, component.Mesh);
+    }
+
+    [Fact]
     public void InspectorShowsResourceFieldsAndBatchAssignmentIsOneUndoTransaction()
     {
         using var world = new World(new ResourceManager());
