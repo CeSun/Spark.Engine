@@ -6,6 +6,10 @@ namespace Spark.Engine.Editor;
 internal sealed class EditorToolbarPanel : UIElement
 {
     private readonly UIToolbar _toolbar;
+    private readonly UIToolbarButton _selectButton;
+    private readonly UIToolbarButton _moveButton;
+    private readonly UIToolbarButton _rotateButton;
+    private readonly UIToolbarButton _scaleButton;
     private readonly UIToolbarButton _snapButton;
 
     public EditorToolbarPanel(
@@ -27,10 +31,10 @@ internal sealed class EditorToolbarPanel : UIElement
             BackgroundColor = UITheme.Default.PanelBackground,
         };
 
-        _toolbar.AddButton("Select", select);
-        _toolbar.AddButton("Move", move);
-        _toolbar.AddButton("Rotate", rotate);
-        _toolbar.AddButton("Scale", scale);
+        _selectButton = _toolbar.AddButton("Select [Q]", select);
+        _moveButton = _toolbar.AddButton("Move [W]", move);
+        _rotateButton = _toolbar.AddButton("Rotate [E]", rotate);
+        _scaleButton = _toolbar.AddButton("Scale [R]", scale);
         _snapButton = _toolbar.AddButton("Snap: On", toggleSnap);
         _snapButton.Tooltip = "Toggle transform grid snapping";
         _toolbar.AddSeparator();
@@ -43,9 +47,23 @@ internal sealed class EditorToolbarPanel : UIElement
         _toolbar.AddButton("UI Tests", openControlTests);
 
         AddChild(_toolbar);
+        SetActiveTool(GizmoOperation.Move);
+        SetSnapEnabled(true);
     }
 
-    public void SetSnapEnabled(bool enabled) => _snapButton.Text = enabled ? "Snap: On" : "Snap: Off";
+    public void SetActiveTool(GizmoOperation? operation)
+    {
+        _selectButton.IsChecked = operation == null;
+        _moveButton.IsChecked = operation == GizmoOperation.Move;
+        _rotateButton.IsChecked = operation == GizmoOperation.Rotate;
+        _scaleButton.IsChecked = operation == GizmoOperation.Scale;
+    }
+
+    public void SetSnapEnabled(bool enabled)
+    {
+        _snapButton.Text = enabled ? "Snap: On" : "Snap: Off";
+        _snapButton.IsChecked = enabled;
+    }
 
     protected override UISize OnMeasure(UISize availableSize)
     {

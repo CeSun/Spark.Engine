@@ -52,6 +52,7 @@ public class DesktopWindow : IWindow, ICloseRequestWindow, IFileDropWindow
         _webGPUContext = webGPUContext;
         _window.Closing += HandleClosing;
         _window.FileDrop += HandleFileDrop;
+        _window.FocusChanged += HandleFocusChanged;
     }
 
     public void PollEvents()
@@ -101,6 +102,7 @@ public class DesktopWindow : IWindow, ICloseRequestWindow, IFileDropWindow
     public void DisposeNative()
     {
         _window.FileDrop -= HandleFileDrop;
+        _window.FocusChanged -= HandleFocusChanged;
         _window.Dispose();
     }
 
@@ -183,4 +185,7 @@ public class DesktopWindow : IWindow, ICloseRequestWindow, IFileDropWindow
 
     private void HandleFileDrop(string[] paths)
         => FilesDropped?.Invoke(paths);
+
+    private void HandleFocusChanged(bool focused)
+        => _input.SetFocused(focused);
 }

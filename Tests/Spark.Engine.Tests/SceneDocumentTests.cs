@@ -860,6 +860,34 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void ViewportPickerIgnoresInternalEditorActors()
+    {
+        using var world = new World(new ResourceManager());
+        var cameraActor = new Actor();
+        var camera = new CameraComponent();
+        cameraActor.AddOwnedComponent(camera);
+        world.AddActor(cameraActor);
+
+        using var hiddenMesh = CreateTestMesh(new Vector3(0f, 0f, -3f), 0.5f);
+        var hiddenActor = new HiddenPickerActor();
+        hiddenActor.AddOwnedComponent(new StaticMeshComponent { Mesh = hiddenMesh });
+        world.AddActor(hiddenActor);
+
+        using var visibleMesh = CreateTestMesh(new Vector3(0f, 0f, -6f), 0.5f);
+        var visibleActor = new Actor();
+        var visibleComponent = new StaticMeshComponent { Mesh = visibleMesh };
+        visibleActor.AddOwnedComponent(visibleComponent);
+        world.AddActor(visibleActor);
+        world.Update(0f, tickActors: false);
+
+        var hit = ViewportPicker.Pick(
+            world, camera, new Vector2(50f, 50f), new Vector2(100f, 100f));
+
+        Assert.NotNull(hit);
+        Assert.Same(visibleComponent, hit.Value.Component);
+    }
+
+    [Fact]
     public void TransformChangeCommandSupportsUndoAndRedo()
     {
         using var world = new World(new ResourceManager());
@@ -1109,6 +1137,11 @@ public sealed class SceneDocumentTests
             new StaticMeshVertex(center + new Vector3(0f, size, 0f), Vector3.One, Vector2.UnitY, Vector3.UnitZ),
         };
         return new StaticMesh(vertices, [0, 1, 2]);
+    }
+
+    [EditorActor(EditorActorFlags.Internal)]
+    private sealed class HiddenPickerActor : Actor
+    {
     }
 
     [Fact]

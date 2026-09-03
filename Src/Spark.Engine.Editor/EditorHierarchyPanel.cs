@@ -14,12 +14,12 @@ internal sealed class EditorHierarchyPanel : UIElement
         _panel = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
-            FixedSize = new UISize(220f, 0f),
+            FixedSize = new UISize(0f, 0f),
             BackgroundColor = UITheme.Default.PanelBackground,
         };
         _panel.AddChild(new UILabel
         {
-            Text = "SCENE HIERARCHY",
+            Text = "WORLD OUTLINER",
             TextColor = UITheme.Default.TextDimColor,
             Padding = UIEdgeInsets.HorizontalVertical(8f, 6f),
         });

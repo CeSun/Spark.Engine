@@ -29,6 +29,8 @@ public static class EditorActorCloner
         {
             if (!worldActors.Any(actor => ReferenceEquals(actor, source)))
                 throw new InvalidOperationException("Only Actors in the current editor World can be duplicated.");
+            if (!EditorActorPolicy.CanDuplicate(source))
+                throw new InvalidOperationException($"Actor type '{source.GetType().Name}' cannot be duplicated by the editor.");
             if (Attribute.IsDefined(source.GetType(), typeof(SceneTransientAttribute), inherit: true))
                 throw new InvalidOperationException($"Transient Actor type '{source.GetType().Name}' cannot be duplicated.");
         }

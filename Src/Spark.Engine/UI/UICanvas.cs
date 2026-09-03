@@ -196,6 +196,15 @@ public sealed class UICanvas
 
     private void RouteInput(InputState input, float deltaTime)
     {
+        if (input.WindowFocusLost)
+        {
+            _hovered?.OnMouseLeave();
+            _hovered = null;
+            Array.Clear(_pressedButtons);
+            ClearFocus();
+            return;
+        }
+
         var point = input.MousePosition;
 
         // hover（enter/leave）
@@ -232,9 +241,10 @@ public sealed class UICanvas
             {
                 _pressedButtons[index] = hovered;
                 hovered?.OnMouseDown(button);
-                if (hovered is { Focusable: true })
-                    Focus(hovered, focusVisible: false);
-                else if (button == MouseButton.Left && hovered == null)
+                var focusTarget = FindFocusableAncestor(hovered);
+                if (focusTarget != null)
+                    Focus(focusTarget, focusVisible: false);
+                else if (button == MouseButton.Left)
                     ClearFocus();
                 _focusVisible = false;
             }
@@ -314,22 +324,27 @@ public sealed class UICanvas
         }
 
         // 键盘 + 文本 → 焦点元素
-        if (_focused != null)
+        if (_focused is { } inputTarget)
         {
-            _focused.OnTextComposition(input.CompositionText, input.IsComposing);
+            inputTarget.OnTextComposition(input.CompositionText, input.IsComposing);
             foreach (var key in input.KeysPressed.Enumerate())
             {
+                if (!ReferenceEquals(_focused, inputTarget))
+                    break;
                 // Tab 已处理，不转发给控件
                 if (key == Key.Tab)
                     continue;
-                _focused.OnKeyDown(key, input.KeysDown);
+                inputTarget.OnKeyDown(key, input.KeysDown);
             }
 
-            foreach (var key in input.KeysReleased.Enumerate())
-                _focused.OnKeyUp(key);
+            if (ReferenceEquals(_focused, inputTarget))
+            {
+                foreach (var key in input.KeysReleased.Enumerate())
+                    inputTarget.OnKeyUp(key);
+            }
 
-            if (!string.IsNullOrEmpty(input.Text))
-                _focused.OnTextInput(input.Text);
+            if (ReferenceEquals(_focused, inputTarget) && !string.IsNullOrEmpty(input.Text))
+                inputTarget.OnTextInput(input.Text);
         }
 
         // 全局快捷键在控件处理之后触发，避免吞掉控件自身的按键事件。
@@ -338,6 +353,16 @@ public sealed class UICanvas
             if (key != Key.Tab)
                 GlobalKeyDown?.Invoke(key, input.KeysDown, _focused);
         }
+    }
+
+    private static UIElement? FindFocusableAncestor(UIElement? element)
+    {
+        for (var current = element; current != null; current = current.Parent)
+        {
+            if (current.Focusable)
+                return current;
+        }
+        return null;
     }
 
     /// <summary>深度优先收集所有可见且可获焦的元素。</summary>

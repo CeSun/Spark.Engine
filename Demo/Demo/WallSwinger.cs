@@ -6,6 +6,7 @@ namespace Demo;
 
 /// <summary>每帧让多堵墙一起绕自身中心（Y 轴）左右摆动，使墙面法线方向持续变化，观察不同方向受光。</summary>
 [SceneTransient]
+[EditorActor(EditorActorFlags.Internal)]
 public sealed class WallSwinger : Actor
 {
     private readonly StaticMeshComponent[] _walls;

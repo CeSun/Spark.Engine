@@ -37,6 +37,7 @@ public sealed class EditorUi
     private readonly EditorCameraController _cameraController = new();
     private GizmoOperation _gizmoOperation = GizmoOperation.Move;
     private GizmoSpace _gizmoSpace = GizmoSpace.World;
+    private bool _transformToolActive = true;
     private bool _suppressViewportClick;
     private UIRenderView? _renderViewControl;
 
@@ -74,7 +75,7 @@ public sealed class EditorUi
             backToHub));
 
         _toolbar = new EditorToolbarPanel(
-            select: () => SetStatus("Select tool active."),
+            select: SetSelectTool,
             move: () => SetGizmoOperation(GizmoOperation.Move),
             rotate: () => SetGizmoOperation(GizmoOperation.Rotate),
             scale: () => SetGizmoOperation(GizmoOperation.Scale),
@@ -87,16 +88,12 @@ public sealed class EditorUi
             toggleSnap: ToggleGridSnap);
         root.AddChild(_toolbar);
 
-        // 中部：层级 + 视口（透明）+ 检查器
-        var content = new UIStackPanel { Orientation = UIOrientation.Horizontal, FixedSize = new UISize(0f, 0f) };
-
+        // UE 风格主工作区：层级 | 视口 | Details，所有区域均可拖动调整。
         _hierarchy = new EditorHierarchyPanel(_context.World);
         _hierarchy.ItemDropped += HandleHierarchyDrop;
-        content.AddChild(_hierarchy);
 
         _viewport = new EditorViewportPanel();
         _assetEditorHost = new EditorAssetEditorHost(_viewport);
-        content.AddChild(_assetEditorHost);
 
         _inspector = new EditorInspectorPanel(
             RequestPropertyEdit,
@@ -104,9 +101,6 @@ public sealed class EditorUi
             (slots, resource) => RequestResourcePropertyEdit(slots, resource),
             assetGuid => RevealAsset(assetGuid),
             assetGuid => OpenAssetEditor(assetGuid));
-        content.AddChild(_inspector);
-
-        root.AddChild(content);
 
         _contentBrowser = new EditorContentBrowserPanel(_context.AssetRegistry, project?.ContentDirectory);
         _contentBrowser.AssetActivated += HandleAssetActivated;
@@ -127,7 +121,40 @@ public sealed class EditorUi
             TryContentAction(() => MoveContentAsset(assetGuid, destination));
         _contentBrowser.AssetCopyRequested += (assetGuid, destination) =>
             TryContentAction(() => CopyContentAsset(assetGuid, destination));
-        root.AddChild(_contentBrowser);
+
+        var viewportDetails = new UISplitPanel
+        {
+            Direction = UISplitDirection.Horizontal,
+            SplitRatio = 0.68f,
+            SplitterWidth = 4f,
+            MinFirstSize = 360f,
+            MinSecondSize = 280f,
+            FixedSize = new UISize(0f, 0f),
+        };
+        viewportDetails.SetPanels(_assetEditorHost, _inspector);
+
+        var mainColumns = new UISplitPanel
+        {
+            Direction = UISplitDirection.Horizontal,
+            SplitRatio = 0.22f,
+            SplitterWidth = 4f,
+            MinFirstSize = 180f,
+            MinSecondSize = 640f,
+            FixedSize = new UISize(0f, 0f),
+        };
+        mainColumns.SetPanels(_hierarchy, viewportDetails);
+
+        var workspace = new UISplitPanel
+        {
+            Direction = UISplitDirection.Vertical,
+            SplitRatio = 0.68f,
+            SplitterWidth = 4f,
+            MinFirstSize = 280f,
+            MinSecondSize = 170f,
+            FixedSize = new UISize(0f, 0f),
+        };
+        workspace.SetPanels(mainColumns, _contentBrowser);
+        root.AddChild(workspace);
 
         _deleteConfirmation = new EditorDeleteConfirmationPanel(ConfirmDeleteSelection);
         root.AddChild(_deleteConfirmation);
@@ -156,7 +183,7 @@ public sealed class EditorUi
         root.AddChild(_statusBar);
 
         Root = root;
-        _hierarchy.SelectionSetChanged += (targets, primary) => _context.Selection.Set(targets, primary);
+        _hierarchy.SelectionSetChanged += (targets, primary) => SelectTargets(targets, primary);
         _context.Selection.Changed += _ => UpdateInspector();
         _context.DirtyChanged += _ => UpdateInspectorTitle();
         _context.WorldChanged += (_, next) => _hierarchy.SetWorld(next);
@@ -278,7 +305,9 @@ public sealed class EditorUi
     public void SelectTargets(IEnumerable<object> targets, object? primary = null)
     {
         ArgumentNullException.ThrowIfNull(targets);
-        _context.Selection.Set(targets, primary);
+        var selectable = targets.Where(EditorActorPolicy.CanSelect).ToArray();
+        _context.Selection.Set(selectable,
+            primary != null && EditorActorPolicy.CanSelect(primary) ? primary : null);
     }
 
     public bool AssignAssetToSelection(string propertyName, Guid? assetGuid)
@@ -695,6 +724,18 @@ public sealed class EditorUi
             case Key.R when ctrl:
                 ReloadScene();
                 break;
+            case Key.Q when !ctrl && !shift && !alt:
+                SetSelectTool();
+                break;
+            case Key.W when !ctrl && !shift && !alt:
+                SetGizmoOperation(GizmoOperation.Move);
+                break;
+            case Key.E when !ctrl && !shift && !alt:
+                SetGizmoOperation(GizmoOperation.Rotate);
+                break;
+            case Key.R when !ctrl && !shift && !alt:
+                SetGizmoOperation(GizmoOperation.Scale);
+                break;
             case Key.Delete:
                 DeleteSelection();
                 break;
@@ -865,6 +906,11 @@ public sealed class EditorUi
 
     private void RequestPropertyEdit(object target, string propertyName, object? oldValue, object? newValue)
     {
+        if (!EditorActorPolicy.CanEdit(target))
+        {
+            SetStatus("The selected editor object is read-only.");
+            return;
+        }
         var property = target.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
         if (property == null || !property.CanWrite)
         {
@@ -896,6 +942,11 @@ public sealed class EditorUi
         if (sources.Length == 0)
         {
             SetStatus("Select one or more Actors to duplicate.");
+            return;
+        }
+        if (sources.Any(actor => !EditorActorPolicy.CanDuplicate(actor)))
+        {
+            SetStatus("The selection contains an Actor that cannot be duplicated.");
             return;
         }
         try
@@ -932,6 +983,11 @@ public sealed class EditorUi
             SetStatus("Select an Actor to rename.");
             return;
         }
+        if (!EditorActorPolicy.CanEdit(actor))
+        {
+            SetStatus("The selected Actor is read-only.");
+            return;
+        }
         var oldName = actor.Name;
         var newName = NextActorName(string.IsNullOrWhiteSpace(oldName) ? actor.GetType().Name : oldName);
         _context.Execute(new DelegateEditorCommand("Rename Actor", () => actor.Name = newName, () => actor.Name = oldName));
@@ -956,6 +1012,11 @@ public sealed class EditorUi
         }
         if (slots.Count == 0)
             return false;
+        if (slots.Any(slot => !EditorActorPolicy.CanEdit(slot.Target)))
+        {
+            SetStatus("The selection contains a read-only editor object.");
+            return false;
+        }
         var propertyName = slots[0].Property.Name;
         try
         {
@@ -999,13 +1060,22 @@ public sealed class EditorUi
             SetStatus("Select one or more Actors to delete.");
             return;
         }
+        if (actors.Any(actor => !EditorActorPolicy.CanDelete(actor)))
+        {
+            SetStatus("The selection contains a protected Actor that cannot be deleted.");
+            return;
+        }
         _deleteConfirmation.Request(actors);
         SetStatus(actors.Length == 1 ? "Confirm Actor deletion." : $"Confirm deletion of {actors.Length} Actors.");
     }
 
     private void ConfirmDeleteSelection(IReadOnlyList<Actor> requestedActors)
     {
-        var actors = requestedActors.Where(_context.World.Actors.Contains).Distinct().ToArray();
+        var actors = requestedActors
+            .Where(_context.World.Actors.Contains)
+            .Where(EditorActorPolicy.CanDelete)
+            .Distinct()
+            .ToArray();
         if (actors.Length == 0)
         {
             SetStatus("Selected Actors are no longer in the scene.");
@@ -1134,7 +1204,9 @@ public sealed class EditorUi
     public bool ApplyRelativeTransform(SceneComponent component, Vector3 location, Quaternion rotation, Vector3 scale)
     {
         ArgumentNullException.ThrowIfNull(component);
-        if (_context.PlayState != EditorPlayState.Edit || !ReferenceEquals(component.Owner?.World, _context.World))
+        if (_context.PlayState != EditorPlayState.Edit ||
+            !ReferenceEquals(component.Owner?.World, _context.World) ||
+            !EditorActorPolicy.CanEdit(component))
             return false;
         _context.Execute(new TransformChangeCommand(component, location, rotation, scale));
         SetStatus("Transform changed.");
@@ -1153,7 +1225,7 @@ public sealed class EditorUi
         if (_context.PlayState != EditorPlayState.Edit)
             return false;
         var parent = GetSpatialComponent(dropTarget);
-        if (parent == null || !IsInEditorWorld(parent))
+        if (parent == null || !IsInEditorWorld(parent) || !EditorActorPolicy.CanEdit(dropTarget))
         {
             SetStatus("Drop target has no SceneComponent.");
             return false;
@@ -1162,6 +1234,11 @@ public sealed class EditorUi
         var sourceTargets = _context.Selection.Contains(draggedTarget)
             ? _context.Selection.Items
             : new[] { draggedTarget };
+        if (sourceTargets.Any(target => !EditorActorPolicy.CanEdit(target)))
+        {
+            SetStatus("Internal or read-only editor objects cannot be attached.");
+            return false;
+        }
         var candidates = sourceTargets
             .Select(GetSpatialComponent)
             .Where(component => component != null && IsInEditorWorld(component))
@@ -1200,7 +1277,7 @@ public sealed class EditorUi
         var primary = _context.Selection.Selected == null
             ? null
             : GetSpatialComponent(_context.Selection.Selected);
-        if (_context.PlayState != EditorPlayState.Edit || primary == null)
+        if (!_transformToolActive || _context.PlayState != EditorPlayState.Edit || primary == null)
             return false;
         var targets = GetTopLevelSelectedSpatialComponents();
         return targets.Count != 0 &&
@@ -1315,7 +1392,9 @@ public sealed class EditorUi
     }
 
     private IReadOnlyList<SceneComponent> GetSelectedSpatialComponents()
-        => _context.Selection.Items.Select(GetSpatialComponent)
+        => _context.Selection.Items
+            .Where(EditorActorPolicy.CanEdit)
+            .Select(GetSpatialComponent)
             .Where(component => component != null)
             .Cast<SceneComponent>()
             .Distinct()
@@ -1394,7 +1473,7 @@ public sealed class EditorUi
         var component = _context.Selection.Selected == null
             ? null
             : GetSpatialComponent(_context.Selection.Selected);
-        if (_context.PlayState != EditorPlayState.Edit || component == null)
+        if (!_transformToolActive || _context.PlayState != EditorPlayState.Edit || component == null)
             return;
         var camera = FindViewportCamera(renderViewId);
         if (camera == null || bounds.Width <= 0f || bounds.Height <= 0f)
@@ -1416,8 +1495,19 @@ public sealed class EditorUi
 
     private void SetGizmoOperation(GizmoOperation operation)
     {
+        _gizmo.CancelDrag();
+        _transformToolActive = true;
         _gizmoOperation = operation;
+        _toolbar.SetActiveTool(operation);
         SetStatus($"{operation} tool active.");
+    }
+
+    private void SetSelectTool()
+    {
+        _gizmo.CancelDrag();
+        _transformToolActive = false;
+        _toolbar.SetActiveTool(null);
+        SetStatus("Select tool active.");
     }
 
     /// <summary>每帧调用：层级树按签名重建；状态栏 Actor/组件计数与检查器实时更新。</summary>
@@ -1431,7 +1521,7 @@ public sealed class EditorUi
         _hierarchy.SelectTargets(_context.Selection.Items, _context.Selection.Selected);
 
         int actors = 0, components = 0;
-        foreach (var actor in _context.World.Actors)
+        foreach (var actor in _context.World.Actors.Where(EditorActorPolicy.IncludeInLevelStats))
         {
             actors++;
             components += actor.Components.Count();
@@ -1457,9 +1547,9 @@ public sealed class EditorUi
     {
         var title = _selectedTarget switch
         {
-            SceneComponent sceneComponent => $"{sceneComponent.GetType().Name}  (Loc {sceneComponent.RelativeLocation.X:F1}, {sceneComponent.RelativeLocation.Y:F1}, {sceneComponent.RelativeLocation.Z:F1})",
-            Actor actor => $"{actor.GetType().Name}  ({actor.Components.Count()} comps)",
-            null => "Inspector",
+            SceneComponent sceneComponent => sceneComponent.GetType().Name,
+            Actor actor => actor.GetType().Name,
+            null => "Nothing selected",
             _ => _selectedTarget.GetType().Name,
         };
         _inspector.SetTitle(_context.IsDirty ? $"{title} *" : title);
@@ -1478,7 +1568,10 @@ public sealed class EditorUi
 
     private void RemoveInvalidSelection()
     {
-        var valid = _context.Selection.Items.Where(IsInEditorWorld).ToArray();
+        var valid = _context.Selection.Items
+            .Where(IsInEditorWorld)
+            .Where(EditorActorPolicy.CanSelect)
+            .ToArray();
         var primary = _context.Selection.Selected;
         if (primary != null && !valid.Any(item => ReferenceEquals(item, primary)))
             primary = valid.LastOrDefault();

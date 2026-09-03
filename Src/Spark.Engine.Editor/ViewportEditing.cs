@@ -23,7 +23,9 @@ public static class ViewportPicker
 
         var ray = CreateRay(camera, point, viewportSize);
         ViewportHit? nearest = null;
-        foreach (var actor in world.Actors.OrderBy(item => item.ActorGuid))
+        foreach (var actor in world.Actors
+                     .Where(EditorActorPolicy.CanSelect)
+                     .OrderBy(item => item.ActorGuid))
         {
             foreach (var component in actor.Components.OfType<SceneComponent>().OrderBy(item => item.ComponentGuid))
             {

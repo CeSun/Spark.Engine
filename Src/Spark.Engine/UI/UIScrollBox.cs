@@ -23,7 +23,7 @@ public enum UIScrollDirection
 ///   各子元素在 Content 内部自行布局。
 /// - 渲染：Paint 阶段开启 <see cref="UIElement.ClipToBounds"/> 裁剪视口，
 ///   子元素绘制位置由 Arrange 的自然偏移决定（无需额外变换）。
-/// - 输入：<see cref="OnMouseWheel"/> 处理滚轮滚动；滚动条拖拽见 <see cref="HandleScrollBarDrag"/>。
+/// - 输入：<see cref="OnMouseWheel"/> 处理滚轮滚动；滚动条作为顶层装饰参与命中并支持拖拽。
 /// </para>
 /// </summary>
 public sealed class UIScrollBox : UIElement
@@ -189,11 +189,8 @@ public sealed class UIScrollBox : UIElement
     private void DrawScrollBars(UIManager ui, int targetId)
     {
         var viewport = ContentRect;
-        float contentW = _contentSize.Width;
-        float contentH = _contentSize.Height;
-
-        bool needVertical = contentH > viewport.Height && ScrollDirection is UIScrollDirection.Vertical or UIScrollDirection.Both;
-        bool needHorizontal = contentW > viewport.Width && ScrollDirection is UIScrollDirection.Horizontal or UIScrollDirection.Both;
+        bool needVertical = NeedsVerticalScrollBar;
+        bool needHorizontal = NeedsHorizontalScrollBar;
 
         if (!needVertical && !needHorizontal)
             return;
@@ -204,8 +201,8 @@ public sealed class UIScrollBox : UIElement
         if (needVertical)
         {
             float trackH = viewport.Height - (needHorizontal ? barW : 0f);
-            float thumbH = System.Math.Max(ScrollBarThumbMinSize, trackH * viewport.Height / contentH);
-            float thumbY = viewport.Y + (ScrollOffset.Y / (contentH - viewport.Height)) * (trackH - thumbH);
+            float thumbH = GetThumbSize(trackH, viewport.Height, _contentSize.Height);
+            float thumbY = viewport.Y + (ScrollOffset.Y / (_contentSize.Height - viewport.Height)) * (trackH - thumbH);
             float barX = viewport.Right - barW;
 
             // 轨道
@@ -218,8 +215,8 @@ public sealed class UIScrollBox : UIElement
         if (needHorizontal)
         {
             float trackW = viewport.Width - (needVertical ? barW : 0f);
-            float thumbW = System.Math.Max(ScrollBarThumbMinSize, trackW * viewport.Width / contentW);
-            float thumbX = viewport.X + (ScrollOffset.X / (contentW - viewport.Width)) * (trackW - thumbW);
+            float thumbW = GetThumbSize(trackW, viewport.Width, _contentSize.Width);
+            float thumbX = viewport.X + (ScrollOffset.X / (_contentSize.Width - viewport.Width)) * (trackW - thumbW);
             float barY = viewport.Bottom - barW;
 
             // 轨道
@@ -241,6 +238,34 @@ public sealed class UIScrollBox : UIElement
         _dragging = true;
     }
 
+    protected internal override bool HasOverlayHitArea => NeedsVerticalScrollBar || NeedsHorizontalScrollBar;
+
+    protected override bool ContainsOverlayPoint(Vector2 point)
+    {
+        var viewport = ContentRect;
+        float barW = ScrollBarWidth;
+        bool vertical = NeedsVerticalScrollBar;
+        bool horizontal = NeedsHorizontalScrollBar;
+
+        if (vertical)
+        {
+            float trackH = viewport.Height - (horizontal ? barW : 0f);
+            if (point.X >= viewport.Right - barW && point.X <= viewport.Right &&
+                point.Y >= viewport.Y && point.Y <= viewport.Y + trackH)
+                return true;
+        }
+
+        if (horizontal)
+        {
+            float trackW = viewport.Width - (vertical ? barW : 0f);
+            if (point.X >= viewport.X && point.X <= viewport.X + trackW &&
+                point.Y >= viewport.Bottom - barW && point.Y <= viewport.Bottom)
+                return true;
+        }
+
+        return false;
+    }
+
     protected internal override void OnMouseUp(MouseButton button)
     {
         if (button == MouseButton.Left)
@@ -257,12 +282,10 @@ public sealed class UIScrollBox : UIElement
             return;
 
         var viewport = ContentRect;
-        float contentW = _contentSize.Width;
-        float contentH = _contentSize.Height;
         float barW = ScrollBarWidth;
 
-        bool needVertical = contentH > viewport.Height && ScrollDirection is UIScrollDirection.Vertical or UIScrollDirection.Both;
-        bool needHorizontal = contentW > viewport.Width && ScrollDirection is UIScrollDirection.Horizontal or UIScrollDirection.Both;
+        bool needVertical = NeedsVerticalScrollBar;
+        bool needHorizontal = NeedsHorizontalScrollBar;
 
         // 如果还没开始拖拽滚动条，检测鼠标是否在滚动条区域
         if (!_draggingVertical && !_draggingHorizontal)
@@ -305,11 +328,11 @@ public sealed class UIScrollBox : UIElement
         if (_draggingVertical)
         {
             float trackH = viewport.Height - (needHorizontal ? barW : 0f);
-            float thumbH = System.Math.Max(ScrollBarThumbMinSize, trackH * viewport.Height / contentH);
+            float thumbH = GetThumbSize(trackH, viewport.Height, _contentSize.Height);
             float effectiveTrack = trackH - thumbH;
-            float ratio = effectiveTrack > 0f ? (contentH - viewport.Height) / effectiveTrack : 0f;
+            float ratio = effectiveTrack > 0f ? (_contentSize.Height - viewport.Height) / effectiveTrack : 0f;
             float newOffset = _dragStartOffset.Y + (position.Y - _dragStartMouse.Y) * ratio;
-            float maxScroll = System.Math.Max(0f, contentH - viewport.Height);
+            float maxScroll = System.Math.Max(0f, _contentSize.Height - viewport.Height);
             ScrollOffset = new Vector2(ScrollOffset.X, System.Math.Clamp(newOffset, 0f, maxScroll));
         }
 
@@ -317,18 +340,20 @@ public sealed class UIScrollBox : UIElement
         if (_draggingHorizontal)
         {
             float trackW = viewport.Width - (needVertical ? barW : 0f);
-            float thumbW = System.Math.Max(ScrollBarThumbMinSize, trackW * viewport.Width / contentW);
+            float thumbW = GetThumbSize(trackW, viewport.Width, _contentSize.Width);
             float effectiveTrack = trackW - thumbW;
-            float ratio = effectiveTrack > 0f ? (contentW - viewport.Width) / effectiveTrack : 0f;
+            float ratio = effectiveTrack > 0f ? (_contentSize.Width - viewport.Width) / effectiveTrack : 0f;
             float newOffset = _dragStartOffset.X + (position.X - _dragStartMouse.X) * ratio;
-            float maxScroll = System.Math.Max(0f, contentW - viewport.Width);
+            float maxScroll = System.Math.Max(0f, _contentSize.Width - viewport.Width);
             ScrollOffset = new Vector2(System.Math.Clamp(newOffset, 0f, maxScroll), ScrollOffset.Y);
         }
     }
 
     protected internal override void OnMouseWheel(float delta)
     {
-        float scrollDelta = delta / 120f * ScrollSpeed;
+        // Silk.NET 使用滚轮刻度（通常 ±1，触控板可为小数）；兼容旧平台层传入的 Win32 ±120。
+        float steps = System.Math.Abs(delta) >= 120f ? delta / 120f : delta;
+        float scrollDelta = steps * ScrollSpeed;
 
         if (ScrollDirection is UIScrollDirection.Vertical or UIScrollDirection.Both)
         {
@@ -342,6 +367,22 @@ public sealed class UIScrollBox : UIElement
             float maxScroll = System.Math.Max(0f, _contentSize.Width - viewport.Width);
             ScrollOffset = new Vector2(System.Math.Clamp(ScrollOffset.X - scrollDelta, 0f, maxScroll), ScrollOffset.Y);
         }
+    }
+
+    private bool NeedsVerticalScrollBar
+        => _contentSize.Height > ContentRect.Height &&
+           ScrollDirection is UIScrollDirection.Vertical or UIScrollDirection.Both;
+
+    private bool NeedsHorizontalScrollBar
+        => _contentSize.Width > ContentRect.Width &&
+           ScrollDirection is UIScrollDirection.Horizontal or UIScrollDirection.Both;
+
+    private float GetThumbSize(float trackSize, float viewportSize, float contentSize)
+    {
+        if (trackSize <= 0f || contentSize <= 0f)
+            return 0f;
+        float minimum = System.Math.Min(ScrollBarThumbMinSize, trackSize);
+        return System.Math.Clamp(trackSize * viewportSize / contentSize, minimum, trackSize);
     }
 
     /// <summary>

@@ -17,6 +17,9 @@ public sealed class UIToolbarButton : UIElement
     /// <summary>是否启用。</summary>
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>是否处于持续选中状态（用于工具模式、开关等互斥或可切换按钮）。</summary>
+    public bool IsChecked { get; set; }
+
     /// <summary>点击回调。</summary>
     public Action? Clicked { get; set; }
 
@@ -26,6 +29,7 @@ public sealed class UIToolbarButton : UIElement
     public Vector4 NormalColor { get; set; } = new(0f, 0f, 0f, 0f);
     public Vector4 HoverColor { get; set; } = new(0.20f, 0.25f, 0.30f, 1f);
     public Vector4 PressedColor { get; set; } = new(0.15f, 0.20f, 0.25f, 1f);
+    public Vector4 CheckedColor { get; set; } = new(0.10f, 0.32f, 0.52f, 1f);
     public Vector4 TextColor { get; set; } = new(0.90f, 0.92f, 0.95f, 1f);
     public Vector4 DisabledTextColor { get; set; } = new(0.40f, 0.40f, 0.40f, 1f);
 
@@ -72,7 +76,7 @@ public sealed class UIToolbarButton : UIElement
 
     protected override void OnPaint(UIManager ui, int targetId)
     {
-        Vector4 bg = _pressed ? PressedColor : _hovered ? HoverColor : NormalColor;
+        Vector4 bg = _pressed ? PressedColor : _hovered ? HoverColor : IsChecked ? CheckedColor : NormalColor;
         if (bg.W > 0f)
             ui.DrawRect(targetId, new Vector2(Bounds.X, Bounds.Y), new Vector2(Bounds.Width, Bounds.Height), bg);
 

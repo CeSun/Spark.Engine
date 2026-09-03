@@ -197,11 +197,14 @@ public abstract class UIElement
                 return hit;
         }
 
-        return HasOverlayHitArea && ContainsPoint(point) ? this : null;
+        return HasOverlayHitArea && ContainsOverlayPoint(point) ? this : null;
     }
 
     /// <summary>控件是否拥有需要脱离祖先裁剪参与命中的弹出区域。</summary>
     protected internal virtual bool HasOverlayHitArea => false;
+
+    /// <summary>Overlay 命中区域；默认与普通命中区域一致，装饰层控件可单独限定。</summary>
+    protected virtual bool ContainsOverlayPoint(Vector2 point) => ContainsPoint(point);
 
     /// <summary>Overlay 是否应脱离祖先 ClipToBounds（下拉菜单/弹出菜单等）。</summary>
     protected internal virtual bool OverlayIgnoresParentClip => false;

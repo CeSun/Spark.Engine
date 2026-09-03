@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Threading;
 using Spark.Engine.Input;
 using Spark.Engine.UI;
 using Xunit;
@@ -11,6 +12,32 @@ namespace Spark.Engine.Tests;
 /// </summary>
 public class EditorControlTests
 {
+    [Fact]
+    public void Button_DefaultTextAlignmentIsCenteredWithinContent()
+    {
+        var button = new UIButton
+        {
+            Text = "OK",
+            FixedSize = new UISize(200f, 60f),
+            Padding = new UIEdgeInsets(10f, 5f, 20f, 15f),
+        };
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 60f), Root = button };
+        var ui = new UIManager();
+        canvas.Update(default, ui.Text);
+        canvas.Paint(ui);
+
+        var text = Assert.Single(ui.Primitives.Span.ToArray(), primitive => primitive.TextureId > 0);
+        var contentCenter = new Vector2(
+            (10f + 180f) * 0.5f,
+            (5f + 45f) * 0.5f);
+        var textCenter = new Vector2(
+            text.Rect.X + text.Rect.Z * 0.5f,
+            text.Rect.Y + text.Rect.W * 0.5f);
+
+        Assert.InRange(textCenter.X, contentCenter.X - 3f, contentCenter.X + 3f);
+        Assert.InRange(textCenter.Y, contentCenter.Y - 3f, contentCenter.Y + 3f);
+    }
+
     // ———————————— UIProgressBar ————————————
 
     [Fact]
@@ -197,6 +224,68 @@ public class EditorControlTests
         Assert.Equal(0f, scroll.ScrollOffset.Y); // 内容不超出视口 → 无滚动
     }
 
+    [Fact]
+    public void ScrollBox_SilkWheelTickScrollsByConfiguredSpeed()
+    {
+        var scroll = CreateScrollableBox();
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 200f), Root = scroll };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        canvas.Update(new InputState(
+            new Vector2(50f, 50f), Vector2.Zero, -1f,
+            default, default, default,
+            default, default, default,
+            string.Empty), renderer);
+
+        Assert.Equal(scroll.ScrollSpeed, scroll.ScrollOffset.Y, precision: 3);
+
+        // 兼容仍按 Win32 WHEEL_DELTA（±120）上报的平台后端。
+        scroll.ScrollOffset = Vector2.Zero;
+        canvas.Update(new InputState(
+            new Vector2(50f, 50f), Vector2.Zero, -120f,
+            default, default, default,
+            default, default, default,
+            string.Empty), renderer);
+        Assert.Equal(scroll.ScrollSpeed, scroll.ScrollOffset.Y, precision: 3);
+    }
+
+    [Fact]
+    public void ScrollBox_VerticalThumbHasOverlayHitAndCanBeDragged()
+    {
+        var scroll = CreateScrollableBox();
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 200f), Root = scroll };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+
+        var left = default(MouseButtonMask);
+        left.Set(MouseButton.Left, true);
+        var thumbStart = new Vector2(195f, 10f);
+        var thumbEnd = new Vector2(195f, 100f);
+        canvas.Update(new InputState(
+            thumbStart, Vector2.Zero, 0f,
+            left, left, default,
+            default, default, default,
+            string.Empty), renderer);
+        canvas.Update(new InputState(
+            thumbEnd, thumbEnd - thumbStart, 0f,
+            left, default, default,
+            default, default, default,
+            string.Empty), renderer);
+
+        Assert.InRange(scroll.ScrollOffset.Y, 899f, 901f);
+    }
+
+    private static UIScrollBox CreateScrollableBox()
+    {
+        var scroll = new UIScrollBox { ScrollDirection = UIScrollDirection.Vertical };
+        var content = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        for (int i = 0; i < 100; i++)
+            content.AddChild(new UIPanel { FixedSize = new UISize(100f, 20f) });
+        scroll.Content = content;
+        return scroll;
+    }
+
     // ———————————— UIListView ————————————
 
     [Fact]
@@ -214,6 +303,41 @@ public class EditorControlTests
 
         list.SelectedIndex = -1;
         Assert.Null(list.SelectedItem);
+    }
+
+    [Fact]
+    public void ListView_RightScrollbarCanBeDraggedAboveItems()
+    {
+        var list = new UIListView { FixedSize = new UISize(200f, 200f) };
+        for (int i = 0; i < 100; i++)
+            list.AddItem($"Item {i}");
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 200f), Root = list };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+        float initialY = list.Items[0].Bounds.Y;
+
+        var left = default(MouseButtonMask);
+        left.Set(MouseButton.Left, true);
+        var thumbStart = new Vector2(195f, 8f);
+        var thumbEnd = new Vector2(195f, 100f);
+        canvas.Update(new InputState(
+            thumbStart, Vector2.Zero, 0f,
+            left, left, default,
+            default, default, default,
+            string.Empty), renderer);
+        canvas.Update(new InputState(
+            thumbEnd, thumbEnd - thumbStart, 0f,
+            left, default, default,
+            default, default, default,
+            string.Empty), renderer);
+        canvas.Update(new InputState(
+            thumbEnd, Vector2.Zero, 0f,
+            default, default, left,
+            default, default, default,
+            string.Empty), renderer);
+
+        Assert.True(list.Items[0].Bounds.Y < initialY - 500f,
+            "Dragging the right scrollbar should scroll the list instead of dragging an item.");
     }
 
     [Fact]
@@ -646,6 +770,7 @@ public class EditorControlTests
         Assert.Equal(h0, h2, 2);
     }
 
+
     [Fact]
     public void MenuBar_LayoutsInternalPanel_ItemsNotStacked()
     {
@@ -715,6 +840,137 @@ public class EditorControlTests
     {
         var grid = new UIPropertyGrid { Target = new TestObject() };
         grid.Refresh();
+    }
+
+    [Fact]
+    public void PropertyGrid_EditorCaretBlinksDuringIdleFrames()
+    {
+        var grid = new UIPropertyGrid
+        {
+            FixedSize = new UISize(300f, 72f),
+            Target = new TestObject(),
+        };
+        var canvas = new UICanvas(0) { Size = new Vector2(300f, 72f), Root = grid };
+        var renderer = CreateTextRenderer();
+        var ui = new UIManager();
+        _ = ui.Text;
+        canvas.Update(default, renderer);
+        Click(new Vector2(160f, 36f)); // Count 行
+
+        Assert.IsType<UITextBox>(canvas.FocusedElement);
+        canvas.Paint(ui);
+        Assert.Contains(ui.Primitives.Span.ToArray(), IsCaret);
+
+        bool enteredHiddenPhase = false;
+        var timeout = System.Diagnostics.Stopwatch.StartNew();
+        while (timeout.Elapsed < TimeSpan.FromSeconds(2))
+        {
+            Thread.Sleep(20);
+            canvas.Update(default, renderer);
+            ui.Clear();
+            canvas.Paint(ui);
+            if (!ui.Primitives.Span.ToArray().Any(IsCaret))
+            {
+                enteredHiddenPhase = true;
+                break;
+            }
+        }
+
+        Assert.True(enteredHiddenPhase, "Inspector editor caret did not enter its hidden blink phase.");
+
+        void Click(Vector2 point)
+        {
+            var left = default(MouseButtonMask);
+            left.Set(MouseButton.Left, true);
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                left, left, default, default, default, default, string.Empty), renderer);
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                default, default, left, default, default, default, string.Empty), renderer);
+        }
+
+        static bool IsCaret(UIPrimitive primitive)
+            => primitive.TextureId == 0 && System.Math.Abs(primitive.Rect.Z - 1.5f) < 0.001f;
+    }
+
+    [Fact]
+    public void PropertyGrid_ClickingOutsideCommitsEditAndHidesCaret()
+    {
+        var target = new TestObject();
+        var grid = new UIPropertyGrid
+        {
+            FixedSize = new UISize(300f, 72f),
+            Target = target,
+        };
+        var blank = new UIPanel { FixedSize = new UISize(300f, 30f) };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(grid);
+        root.AddChild(blank);
+        var canvas = new UICanvas(0) { Size = new Vector2(300f, 102f), Root = root };
+        var renderer = CreateTextRenderer();
+        var ui = new UIManager();
+        _ = ui.Text;
+        canvas.Update(default, renderer);
+
+        Click(new Vector2(160f, 36f)); // Count = 42
+        SendKey(Key.Backspace);
+        canvas.Update(new InputState(
+            Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default,
+            default, default, default,
+            "7"), renderer);
+        Click(new Vector2(160f, 87f));
+
+        Assert.Null(canvas.FocusedElement);
+        Assert.Equal(47, target.Count);
+        canvas.Paint(ui);
+        Assert.DoesNotContain(ui.Primitives.Span.ToArray(), static primitive
+            => primitive.TextureId == 0 && System.Math.Abs(primitive.Rect.Z - 1.5f) < 0.001f);
+
+        Click(new Vector2(160f, 36f));
+        var editor = Assert.IsType<UITextBox>(canvas.FocusedElement);
+        editor.SelectAll();
+        SendText("99");
+        SendKey(Key.Escape);
+        Assert.Null(canvas.FocusedElement);
+        Assert.Equal(47, target.Count);
+
+        Click(new Vector2(160f, 36f));
+        editor = Assert.IsType<UITextBox>(canvas.FocusedElement);
+        editor.SelectAll();
+        SendText("88");
+        SendKey(Key.Enter);
+        Assert.Null(canvas.FocusedElement);
+        Assert.Equal(88, target.Count);
+
+        void Click(Vector2 point)
+        {
+            var left = default(MouseButtonMask);
+            left.Set(MouseButton.Left, true);
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                left, left, default, default, default, default, string.Empty), renderer);
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                default, default, left, default, default, default, string.Empty), renderer);
+        }
+
+        void SendKey(Key key)
+        {
+            var keys = default(KeyMask);
+            keys.Set(key, true);
+            canvas.Update(new InputState(
+                Vector2.Zero, Vector2.Zero, 0f,
+                default, default, default,
+                keys, keys, default,
+                string.Empty), renderer);
+        }
+
+        void SendText(string text)
+        {
+            canvas.Update(new InputState(
+                Vector2.Zero, Vector2.Zero, 0f,
+                default, default, default,
+                default, default, default,
+                text), renderer);
+        }
     }
 
     // ———————————— UIGridPanel ————————————
@@ -882,6 +1138,107 @@ public class EditorControlTests
         canvas.Update(new InputState(Vector2.Zero, Vector2.Zero, 0f,
             default, default, default, ctrl, redo, default, string.Empty), renderer);
         Assert.Equal("world", textBox.Text);
+    }
+
+    [Fact]
+    public void TextBox_ClickingNonFocusablePanelClearsFocusAndStopsPaintingCaret()
+    {
+        var textBox = new UITextBox { FixedSize = new UISize(200f, 30f), Text = "value" };
+        var background = new UIPanel { FixedSize = new UISize(200f, 30f) };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(textBox);
+        root.AddChild(background);
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 60f), Root = root };
+        var renderer = CreateTextRenderer();
+        canvas.Update(default, renderer);
+        var left = default(MouseButtonMask);
+        left.Set(MouseButton.Left, true);
+        var ui = new UIManager();
+        _ = ui.Text; // 先完成默认字体初始化，避免初始化耗时跨过首个光标闪烁周期。
+
+        Click(new Vector2(20f, 15f));
+        Assert.Same(textBox, canvas.FocusedElement);
+        canvas.Paint(ui);
+        Assert.Contains(ui.Primitives.Span.ToArray(), IsCaret);
+
+        Click(new Vector2(20f, 45f));
+        Assert.Null(canvas.FocusedElement);
+        ui.Clear();
+        canvas.Paint(ui);
+        Assert.DoesNotContain(ui.Primitives.Span.ToArray(), IsCaret);
+
+        void Click(Vector2 point)
+        {
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                left, left, default, default, default, default, string.Empty), renderer);
+            canvas.Update(new InputState(point, Vector2.Zero, 0f,
+                default, default, left, default, default, default, string.Empty), renderer);
+        }
+
+        static bool IsCaret(UIPrimitive primitive)
+            => primitive.TextureId == 0 && System.Math.Abs(primitive.Rect.Z - 1.5f) < 0.001f;
+    }
+
+    [Fact]
+    public void TextBox_IdleInputFramesDoNotRestartCaretBlink()
+    {
+        var textBox = new UITextBox { FixedSize = new UISize(200f, 30f), Text = "value" };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(textBox);
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 30f), Root = root };
+        var renderer = CreateTextRenderer();
+        var ui = new UIManager();
+        _ = ui.Text;
+        canvas.Update(default, renderer);
+        canvas.Focus(textBox);
+
+        canvas.Paint(ui);
+        Assert.Contains(ui.Primitives.Span.ToArray(), IsCaret);
+
+        bool enteredHiddenPhase = false;
+        var timeout = System.Diagnostics.Stopwatch.StartNew();
+        while (timeout.Elapsed < TimeSpan.FromSeconds(2))
+        {
+            Thread.Sleep(20);
+            canvas.Update(default, renderer);
+            ui.Clear();
+            canvas.Paint(ui);
+            if (!ui.Primitives.Span.ToArray().Any(IsCaret))
+            {
+                enteredHiddenPhase = true;
+                break;
+            }
+        }
+
+        Assert.True(enteredHiddenPhase, "Idle input frames kept restarting the caret blink timer.");
+
+        static bool IsCaret(UIPrimitive primitive)
+            => primitive.TextureId == 0 && System.Math.Abs(primitive.Rect.Z - 1.5f) < 0.001f;
+    }
+
+    [Fact]
+    public void TextBox_WindowFocusLossClearsFocusAndStopsPaintingCaret()
+    {
+        var textBox = new UITextBox { FixedSize = new UISize(200f, 30f), Text = "value" };
+        var root = new UIStackPanel { Orientation = UIOrientation.Vertical };
+        root.AddChild(textBox);
+        var canvas = new UICanvas(0) { Size = new Vector2(200f, 30f), Root = root };
+        var renderer = CreateTextRenderer();
+        var ui = new UIManager();
+        _ = ui.Text;
+        canvas.Update(default, renderer);
+        canvas.Focus(textBox);
+
+        canvas.Update(new InputState(
+            Vector2.Zero, Vector2.Zero, 0f,
+            default, default, default,
+            default, default, default,
+            string.Empty, windowFocusLost: true), renderer);
+
+        Assert.Null(canvas.FocusedElement);
+        canvas.Paint(ui);
+        Assert.DoesNotContain(ui.Primitives.Span.ToArray(), static primitive
+            => primitive.TextureId == 0 && System.Math.Abs(primitive.Rect.Z - 1.5f) < 0.001f);
     }
 
     [Fact]

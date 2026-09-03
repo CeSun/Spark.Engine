@@ -44,7 +44,8 @@ public sealed class InputManager
                 keysReleased,
                 text,
                 input.CompositionText,
-                input.IsComposing);
+                input.IsComposing,
+                input.FocusLost);
 
             _states[window] = state;
             _previous[window] = (input.Buttons, input.KeysDown);

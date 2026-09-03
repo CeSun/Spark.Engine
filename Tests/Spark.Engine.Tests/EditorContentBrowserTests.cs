@@ -19,9 +19,60 @@ public sealed class EditorContentBrowserTests
         editor.Root.Measure(new UISize(1280f, 720f));
         editor.Root.Arrange(new UIRect(0f, 0f, 1280f, 720f));
 
-        var panel = Assert.Single(editor.Root.Children, child => child.GetType().Name == "EditorContentBrowserPanel");
-        Assert.Equal(220f, panel.Bounds.Height);
+        var panel = Assert.Single(Descendants(editor.Root),
+            child => child.GetType().Name == "EditorContentBrowserPanel");
+        Assert.InRange(panel.Bounds.Height, 170f, editor.Root.Bounds.Height - 1f);
         Assert.True(panel.Children[0].Bounds.Height > 0f);
+
+        var splitPanels = Descendants(editor.Root).OfType<UISplitPanel>().ToArray();
+        Assert.Equal(3, splitPanels.Length);
+        Assert.All(splitPanels, split => Assert.Equal(new UISize(0f, 0f), split.FixedSize));
+        Assert.True(panel.Bounds.Y > splitPanels.Single(split => split.Direction == UISplitDirection.Vertical)
+            .FirstPanel!.Bounds.Y);
+    }
+
+    [Fact]
+    public void EditorToolbarUsesUnrealStyleToolShortcutsAndPersistentSelection()
+    {
+        using var world = new World(new ResourceManager());
+        var editor = new EditorUi(world);
+        var toolbar = Assert.Single(Descendants(editor.Root).OfType<UIToolbar>());
+
+        Assert.True(Assert.Single(toolbar.Buttons, button => button.Text == "Move [W]").IsChecked);
+
+        editor.HandleGlobalKey(Key.Q, KeyMask.None, focusedElement: null);
+        Assert.True(Assert.Single(toolbar.Buttons, button => button.Text == "Select [Q]").IsChecked);
+        var transformButtons = toolbar.Buttons.Where(button =>
+            button.Text is "Select [Q]" or "Move [W]" or "Rotate [E]" or "Scale [R]").ToArray();
+        Assert.Single(transformButtons, button => button.IsChecked);
+
+        editor.HandleGlobalKey(Key.R, KeyMask.None, focusedElement: null);
+        Assert.True(Assert.Single(toolbar.Buttons, button => button.Text == "Scale [R]").IsChecked);
+
+        var control = KeyMask.None;
+        control.Set(Key.LeftControl, true);
+        editor.HandleGlobalKey(Key.R, control, focusedElement: null);
+        Assert.True(Assert.Single(toolbar.Buttons, button => button.Text == "Scale [R]").IsChecked);
+    }
+
+    [Fact]
+    public void EditorStatusExcludesInternalViewportCameraFromLevelCounts()
+    {
+        using var world = new World(new ResourceManager());
+        var actor = new Spark.Engine.Actors.Actor { Name = "Visible" };
+        actor.AddOwnedComponent(new Spark.Engine.Components.SceneComponent());
+        var editorCamera = new EditorViewportCameraActor { Name = "Editor Camera" };
+        editorCamera.AddOwnedComponent(new Spark.Engine.Components.CameraComponent());
+        world.AddActor(actor);
+        world.AddActor(editorCamera);
+        world.Update(0f, tickActors: false);
+        var editor = new EditorUi(world);
+
+        editor.Refresh();
+
+        var status = Assert.Single(Descendants(editor.Root).OfType<UILabel>(),
+            label => label.Text.StartsWith("Actors:", StringComparison.Ordinal));
+        Assert.Equal("Actors: 1  Components: 1", status.Text);
     }
 
     [Fact]

@@ -67,6 +67,12 @@ public sealed class UITextBox : UIElement
     /// <summary>单行输入框按下 Enter 时提交当前文本。</summary>
     public Action<string>? Submitted { get; set; }
 
+    /// <summary>单行输入框按下 Escape 时取消当前编辑。</summary>
+    public Action? Cancelled { get; set; }
+
+    /// <summary>输入框获得或失去画布焦点时触发。</summary>
+    public Action<bool>? FocusChanged { get; set; }
+
     public string Text
     {
         get => _buffer.ToString();
@@ -204,9 +210,11 @@ public sealed class UITextBox : UIElement
         }
         else
         {
+            _draggingSelection = false;
             _isComposing = false;
             _compositionText = string.Empty;
         }
+        FocusChanged?.Invoke(focused);
     }
 
     protected internal override void OnMouseMove(Vector2 position) => _lastPointerPosition = position;
@@ -256,8 +264,13 @@ public sealed class UITextBox : UIElement
 
     protected internal override void OnTextComposition(string text, bool isComposing)
     {
-        _isComposing = isComposing && !ReadOnly && MaskChar == null;
-        _compositionText = _isComposing ? text ?? string.Empty : string.Empty;
+        bool nextIsComposing = isComposing && !ReadOnly && MaskChar == null;
+        string nextCompositionText = nextIsComposing ? text ?? string.Empty : string.Empty;
+        if (_isComposing == nextIsComposing && _compositionText == nextCompositionText)
+            return;
+
+        _isComposing = nextIsComposing;
+        _compositionText = nextCompositionText;
         _blinkTimer.Restart();
         EnsureCursorVisible();
     }
@@ -299,6 +312,9 @@ public sealed class UITextBox : UIElement
         {
             case Key.Enter:
                 Submitted?.Invoke(Text);
+                break;
+            case Key.Escape:
+                Cancelled?.Invoke();
                 break;
             case Key.Backspace:
                 if (!ReadOnly)

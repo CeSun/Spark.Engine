@@ -33,6 +33,9 @@ public readonly struct InputState
 
     public readonly bool IsComposing;
 
+    /// <summary>原生窗口在本帧失去输入焦点。</summary>
+    public readonly bool WindowFocusLost;
+
     public InputState(
         Vector2 mousePosition,
         Vector2 mouseDelta,
@@ -45,7 +48,8 @@ public readonly struct InputState
         KeyMask keysReleased,
         string text,
         string compositionText = "",
-        bool isComposing = false)
+        bool isComposing = false,
+        bool windowFocusLost = false)
     {
         MousePosition = mousePosition;
         MouseDelta = mouseDelta;
@@ -59,6 +63,7 @@ public readonly struct InputState
         Text = text;
         CompositionText = compositionText ?? string.Empty;
         IsComposing = isComposing;
+        WindowFocusLost = windowFocusLost;
     }
 
     public bool IsButtonDown(MouseButton button) => ButtonsDown.IsDown(button);

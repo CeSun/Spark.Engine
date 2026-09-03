@@ -41,14 +41,14 @@ internal sealed class EditorInspectorPanel : UIElement
         _panel = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
-            FixedSize = new UISize(260f, 0f),
+            FixedSize = new UISize(0f, 0f),
             Padding = UIEdgeInsets.All(8f),
             Spacing = 4f,
             BackgroundColor = theme.PanelBackground,
         };
 
-        _panel.AddChild(new UILabel { Text = "INSPECTOR", TextColor = theme.TextDimColor });
-        _title = new UILabel { Text = "Inspector", TextColor = theme.TextColor };
+        _panel.AddChild(new UILabel { Text = "DETAILS", TextColor = theme.TextDimColor });
+        _title = new UILabel { Text = "Nothing selected", TextColor = theme.TextColor };
         _panel.AddChild(_title);
 
         _resourceRowsPanel = new UIStackPanel
@@ -61,6 +61,7 @@ internal sealed class EditorInspectorPanel : UIElement
         _propertyGrid = new UIPropertyGrid
         {
             FixedSize = new UISize(0f, 0f),
+            LabelWidth = 108f,
             BackgroundColor = new(0f, 0f, 0f, 0f),
             PropertyEditRequested = propertyEditRequested,
         };

@@ -80,7 +80,7 @@ public sealed class HierarchyPanel
         // 内容无关的结构指纹：Actor 引用序列 + 每个 Actor 的组件引用序列
         // （World.Update 后 Add/Remove 已生效；组件只增不减，引用序列足够判断结构变化）
         var sb = new System.Text.StringBuilder();
-        foreach (var actor in _world.Actors)
+        foreach (var actor in VisibleActors())
         {
             sb.Append(actor.ActorGuid).Append(':').Append(actor.Name).Append(';');
             foreach (var component in actor.Components)
@@ -106,7 +106,7 @@ public sealed class HierarchyPanel
         try
         {
             _tree.Clear();
-            foreach (var actor in _world.Actors)
+            foreach (var actor in VisibleActors())
             {
                 var displayName = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
                 var actorItem = new WorldTreeItem(actor, $"{displayName} [{actor.Components.Count()}]");
@@ -124,6 +124,9 @@ public sealed class HierarchyPanel
             _suppressSelectionChanged = false;
         }
     }
+
+    private IEnumerable<Actor> VisibleActors()
+        => _world.Actors.Where(EditorActorPolicy.IsVisibleInOutliner);
 
     private static WorldTreeItem? FindItem(IReadOnlyList<UITreeViewItem> items, object target)
     {

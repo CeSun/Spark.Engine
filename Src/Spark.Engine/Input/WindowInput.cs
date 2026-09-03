@@ -32,6 +32,11 @@ public sealed class WindowInput
 
     public bool IsComposing { get; private set; }
 
+    public bool IsFocused { get; private set; } = true;
+
+    /// <summary>原生窗口是否在当前输入帧失去了焦点。</summary>
+    public bool FocusLost { get; private set; }
+
     /// <summary>文本控件请求的 IME 候选窗位置（窗口逻辑像素）。</summary>
     public Vector2? ImeCandidatePosition { get; set; }
 
@@ -41,11 +46,28 @@ public sealed class WindowInput
         CompositionText = isComposing ? text ?? string.Empty : string.Empty;
     }
 
+    /// <summary>由平台窗口在焦点变化时调用；失焦同时释放可能滞留的按键状态。</summary>
+    public void SetFocused(bool focused)
+    {
+        if (IsFocused == focused)
+            return;
+
+        IsFocused = focused;
+        if (focused)
+            return;
+
+        FocusLost = true;
+        Buttons = default;
+        KeysDown = default;
+        SetTextComposition(string.Empty, isComposing: false);
+    }
+
     /// <summary>帧首清掉边沿量（位移/滚轮/文本）；按住状态（按钮/按键/位置）保留。</summary>
     internal void BeginFrame()
     {
         MouseDelta = Vector2.Zero;
         ScrollDelta = 0f;
         Text.Clear();
+        FocusLost = false;
     }
 }

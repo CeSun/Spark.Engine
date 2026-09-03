@@ -1,6 +1,5 @@
 using System.Numerics;
 using System.Reflection;
-using Spark.Engine.Input;
 
 namespace Spark.Engine.UI;
 
@@ -220,12 +219,34 @@ internal sealed class PropertyRow : UIElement
     public Action<object?>? ValueChanged { get; set; }
 
     private object? _currentValue;
-    private string _editText = string.Empty;
     private bool _editing;
+    private readonly UITextBox _editor;
 
     public PropertyRow()
     {
-        Focusable = true;
+        _editor = new UITextBox
+        {
+            Visible = false,
+            BackgroundColor = Vector4.Zero,
+            TextColor = ValueColor,
+            Padding = UIEdgeInsets.HorizontalVertical(0f, 2f),
+        };
+        _editor.Submitted = _ =>
+        {
+            CommitEdit();
+            ReleaseEditorFocus();
+        };
+        _editor.Cancelled = () =>
+        {
+            CancelEdit();
+            ReleaseEditorFocus();
+        };
+        _editor.FocusChanged = focused =>
+        {
+            if (!focused)
+                CommitEdit();
+        };
+        AddChild(_editor);
     }
 
     public void SetValue(object? value)
@@ -234,14 +255,25 @@ internal sealed class PropertyRow : UIElement
             return; // 编辑中不覆盖用户输入（外部每帧 Refresh 不打断输入）
 
         _currentValue = value;
-        _editText = value?.ToString() ?? "null";
+        _editor.Text = GetEditText(value);
     }
 
     protected override UISize OnMeasure(UISize availableSize)
     {
         float w = FixedSize is { } fsv && fsv.Width > 0f ? fsv.Width : 0f;
         float h = FixedSize is { } fsv2 && fsv2.Height > 0f ? fsv2.Height : RowHeight;
+        _editor.Measure(new UISize(
+            System.Math.Max(0f, availableSize.Width - LabelWidth - 8f),
+            h));
         return new UISize(w, h);
+    }
+
+    protected override void OnArrange()
+    {
+        float valueX = Bounds.X + LabelWidth + 4f;
+        float valueW = System.Math.Max(0f, Bounds.Width - LabelWidth - 8f);
+        _editor.TextColor = ValueColor;
+        _editor.Arrange(new UIRect(valueX, Bounds.Y, valueW, Bounds.Height));
     }
 
     protected override void OnPaint(UIManager ui, int targetId)
@@ -261,18 +293,13 @@ internal sealed class PropertyRow : UIElement
             textRenderer.DrawText(ui, targetId, label, new Vector2(Bounds.X + 4f, labelY), LabelColor);
         }
 
-        // 值
-        float valueX = Bounds.X + LabelWidth + 4f;
-        float valueW = Bounds.Width - LabelWidth - 8f;
-
-        if (textRenderer != null)
+        // 非编辑态绘制静态值；编辑态由子 UITextBox 负责完整文本交互和光标。
+        if (!_editing && textRenderer != null)
         {
-            string displayText = _editing ? _editText + "|" : (_currentValue?.ToString() ?? "null");
+            float valueX = Bounds.X + LabelWidth + 4f;
+            float valueW = System.Math.Max(0f, Bounds.Width - LabelWidth - 8f);
             float valueY = Bounds.Y + (Bounds.Height - textRenderer.LineHeight) * 0.5f;
-
-            // 精确截断（逐字符测量，非等宽字体下不会超宽）
-            displayText = textRenderer.Truncate(displayText, valueW);
-
+            string displayText = textRenderer.Truncate(GetDisplayText(_currentValue), valueW);
             textRenderer.DrawText(ui, targetId, displayText, new Vector2(valueX, valueY), ValueColor);
         }
 
@@ -287,39 +314,19 @@ internal sealed class PropertyRow : UIElement
 
         // 开始编辑
         _editing = true;
-        _editText = _currentValue?.ToString() ?? string.Empty;
-    }
-
-    protected internal override void OnKeyDown(Key key)
-    {
-        if (!_editing)
-            return;
-
-        switch (key)
-        {
-            case Key.Enter:
-                CommitEdit();
-                break;
-            case Key.Escape:
-                _editing = false;
-                _editText = _currentValue?.ToString() ?? string.Empty;
-                break;
-            case Key.Backspace:
-                if (_editText.Length > 0)
-                    _editText = _editText[..^1];
-                break;
-        }
-    }
-
-    protected internal override void OnTextInput(string text)
-    {
-        if (_editing)
-            _editText += text;
+        _editor.Text = GetEditText(_currentValue);
+        _editor.Visible = true;
+        FindCanvas()?.Focus(_editor);
     }
 
     private void CommitEdit()
     {
+        if (!_editing)
+            return;
+
+        string editText = _editor.Text;
         _editing = false;
+        _editor.Visible = false;
 
         if (_currentValue == null)
             return;
@@ -328,15 +335,15 @@ internal sealed class PropertyRow : UIElement
         {
             object? newValue = _currentValue switch
             {
-                int => int.TryParse(_editText, out int i) ? i : _currentValue,
-                float => float.TryParse(_editText, out float f) ? f : _currentValue,
-                double => double.TryParse(_editText, out double d) ? d : _currentValue,
-                bool => bool.TryParse(_editText, out bool b) ? b : _currentValue,
-                string => _editText,
-                Vector2 => ParseParts(2) is { } p2 ? new Vector2(p2[0], p2[1]) : _currentValue,
-                Vector3 => ParseParts(3) is { } p3 ? new Vector3(p3[0], p3[1], p3[2]) : _currentValue,
-                Vector4 => ParseParts(4) is { } p4 ? new Vector4(p4[0], p4[1], p4[2], p4[3]) : _currentValue,
-                Quaternion => ParseParts(4) is { } q4 ? new Quaternion(q4[0], q4[1], q4[2], q4[3]) : _currentValue,
+                int => int.TryParse(editText, out int i) ? i : _currentValue,
+                float => float.TryParse(editText, out float f) ? f : _currentValue,
+                double => double.TryParse(editText, out double d) ? d : _currentValue,
+                bool => bool.TryParse(editText, out bool b) ? b : _currentValue,
+                string => editText,
+                Vector2 => ParseParts(editText, 2) is { } p2 ? new Vector2(p2[0], p2[1]) : _currentValue,
+                Vector3 => ParseParts(editText, 3) is { } p3 ? new Vector3(p3[0], p3[1], p3[2]) : _currentValue,
+                Vector4 => ParseParts(editText, 4) is { } p4 ? new Vector4(p4[0], p4[1], p4[2], p4[3]) : _currentValue,
+                Quaternion => ParseParts(editText, 4) is { } q4 ? new Quaternion(q4[0], q4[1], q4[2], q4[3]) : _currentValue,
                 _ => _currentValue,
             };
 
@@ -348,14 +355,16 @@ internal sealed class PropertyRow : UIElement
         }
         catch
         {
-            _editText = _currentValue?.ToString() ?? string.Empty;
+            // 保留原值；下次进入编辑时会重新同步。
         }
+
+        _editor.Text = GetEditText(_currentValue);
     }
 
     /// <summary>解析向量文本（兼容 "&lt;1; 2; 3&gt;" / "1,2,3" / "1 2 3"）；分量数不符或解析失败返回 null。</summary>
-    private float[]? ParseParts(int expectedCount)
+    private static float[]? ParseParts(string text, int expectedCount)
     {
-        var parts = _editText.Split(new[] { '<', '>', ';', ',', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        var parts = text.Split(new[] { '<', '>', ';', ',', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != expectedCount)
             return null;
 
@@ -367,4 +376,25 @@ internal sealed class PropertyRow : UIElement
         }
         return values;
     }
+
+    private void CancelEdit()
+    {
+        if (!_editing)
+            return;
+
+        _editing = false;
+        _editor.Visible = false;
+        _editor.Text = GetEditText(_currentValue);
+    }
+
+    private void ReleaseEditorFocus()
+    {
+        var canvas = FindCanvas();
+        if (canvas?.FocusedElement == _editor)
+            canvas.ClearFocus();
+    }
+
+    private static string GetDisplayText(object? value) => value?.ToString() ?? "null";
+
+    private static string GetEditText(object? value) => value?.ToString() ?? string.Empty;
 }

@@ -14,7 +14,7 @@
 - UI 基础控件：树、列表、分栏、菜单、工具栏、滚动、属性网格
 - 初版 `EditorCommandHistory`：可执行、撤销、重做
 
-当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览只执行组件注册和渲染代理刷新，不进入 BeginPlay/Update/EndPlay gameplay 生命周期，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换；选择模型已支持主选对象加选择集合，层级树 Ctrl/Shift 多选、Viewport 修饰键多选、批量删除和主选枢轴组变换已贯通。
+当前状态：SceneDocument 和自定义二进制 `.scene` 保存/读取基础已落地；编辑器预览只执行组件注册和渲染代理刷新，不进入 BeginPlay/Update/EndPlay gameplay 生命周期，Viewport 已支持 CPU 包围球拾取、轴命中、Gizmo Overlay 和可撤销变换；选择模型已支持主选对象加选择集合，层级树 Ctrl/Shift 多选、Viewport 修饰键多选、批量删除和主选枢轴组变换已贯通。`EditorActorPolicy` 已将 Actor 的编辑器呈现/操作能力与 `[SceneTransient]` 持久化语义分离，内部视口相机和宿主行为 Actor 默认不进入 World Outliner、选择、编辑命令及关卡统计。
 `EditorContext` 已接入 Play/Stop 状态机，可从 `SceneDocument` 创建并释放独立 RuntimeWorld；主循环已支持
 EditorWorld 与 RuntimeWorld 并存，内置静态/骨骼资产、光照状态和 Camera 视图参数可恢复，RenderTarget 按 ComponentGuid 精确绑定；Mesh/Texture 共享，Material 使用 RuntimeWorld 独立副本。`AssetRegistry` 已统一 AssetGuid 解析，
 `RuntimeActorFactory` 已提供自定义组件和 Runtime 行为注册入口；旧的 `RuntimeWorldInitializer` 仅作为兼容接口保留。
@@ -79,7 +79,7 @@ EditorWorld 共享资产、RuntimeWorld 隔离可变材质；不支持的版本�
 1. ✅ 射线拾取和树/视口双向选择（首版 CPU 包围球，后续可替换 GPU ID buffer）。
 2. ✅ Transform Gizmo：平移、旋转、缩放、主选对象枢轴、顶层选择过滤和单事务撤销/重做。
 3. ✅ 网格吸附设置（平移/旋转/缩放增量、工具栏开关）和选择集合；世界/局部轴向组变换已接入。
-4. ✅ 编辑器相机：右键 + WASD/QE 飞行、Middle 平移、Alt+Left 轨道、滚轮推拉、F 聚焦和 0..9 会话视图书签。
+4. ✅ 编辑器相机：右键 + WASD/QE 飞行、Middle 平移、Alt+Left 轨道、滚轮推拉、F 聚焦和 0..9 会话视图书签；内部相机通过统一 Actor 策略从 Outliner、选择、用户编辑命令和关卡统计中排除。
 5. 所有 Gizmo 操作封装成可撤销命令。
 
 验收：Viewport 中拖动对象后 Inspector 同步；撤销/重做恢复精确变换；多选不会误改未选对象。
@@ -138,14 +138,15 @@ E2“Inspector 资源引用编辑”已经完成，当前进入 E3“缩略图�
 3. ✅ Actor 深复制：具体类型、组件、类型化属性、内部/外部挂载、Socket 和资产引用，支持多选批量复制并生成新 GUID
 4. ✅ 编辑器相机：飞行/轨道/平移/推拉、F 聚焦、Reload/Play 瞬态相机隔离和会话视图书签
 5. ✅ 多选组变换：以主选对象为枢轴，排除已选祖先下的重复后代，并以单事务撤销/重做
-6. ✅ E1 Content Browser 资源管理闭环：真实目录、资源 CRUD、GUID 语义、引用保护和失败回滚
-7. ✅ E2 Inspector 资源引用编辑：选择器、拖放、清空、定位、批量 Undo/Redo 和持久化/Cook 闭环
-8. ▶ E3 缩略图与资源编辑器深化
-9. E4 后台导入任务系统
-10. E5 glTF/GLB 材质纹理与导入设置
-11. E6 工作区与布局持久化
-12. E7 调试与运行工具
-13. E8 自动恢复、增量刷新、虚拟化和规模性能
-14. E9 编辑器扩展 API
+6. ✅ 编辑器内部 Actor 策略：持久化与呈现语义分离，Outliner/选择/编辑命令/关卡统计统一过滤
+7. ✅ E1 Content Browser 资源管理闭环：真实目录、资源 CRUD、GUID 语义、引用保护和失败回滚
+8. ✅ E2 Inspector 资源引用编辑：选择器、拖放、清空、定位、批量 Undo/Redo 和持久化/Cook 闭环
+9. ▶ E3 缩略图与资源编辑器深化
+10. E4 后台导入任务系统
+11. E5 glTF/GLB 材质纹理与导入设置
+12. E6 工作区与布局持久化（含 Outliner 的内部对象过滤器）
+13. E7 调试与运行工具
+14. E8 自动恢复、增量刷新、虚拟化和规模性能
+15. E9 编辑器扩展 API
 
 每完成一个任务，必须同时提交逻辑测试和至少一个端到端验收场景，避免继续积累“看起来有控件、实际不能工作”的功能。

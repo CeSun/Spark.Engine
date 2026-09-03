@@ -303,6 +303,50 @@ public sealed class EditorCommandTests
     }
 
     [Fact]
+    public void HierarchyAndSelectionExcludeInternalEditorActorsButKeepSceneCameras()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var internalActor = new InternalEditorActor { Name = "Internal" };
+        var internalComponent = new SceneComponent();
+        internalActor.AddOwnedComponent(internalComponent);
+        var sceneCamera = new Actor { Name = "Scene Camera" };
+        sceneCamera.AddOwnedComponent(new CameraComponent());
+        var lockedActor = new VisibleLockedActor { Name = "Locked" };
+        world.AddActor(internalActor);
+        world.AddActor(sceneCamera);
+        world.AddActor(lockedActor);
+        world.Update(0f, tickActors: false);
+
+        var hierarchy = new HierarchyPanel(world);
+        hierarchy.Refresh();
+        var tree = Assert.IsType<UITreeView>(hierarchy.Element);
+        Assert.Equal(2, tree.Roots.Count);
+        Assert.Contains(tree.Roots, root => root.Text.StartsWith("Scene Camera", StringComparison.Ordinal));
+        Assert.Contains(tree.Roots, root => root.Text.StartsWith("Locked", StringComparison.Ordinal));
+
+        var editor = new EditorUi(world);
+        editor.SelectTargets(new object[] { sceneCamera, internalActor, internalComponent }, internalActor);
+
+        Assert.Single(editor.SelectedTargets);
+        Assert.Same(sceneCamera, editor.SelectedTarget);
+        Assert.False(editor.ApplyRelativeTransform(
+            internalComponent, Vector3.One, Quaternion.Identity, Vector3.One));
+        Assert.False(editor.AttachSelection(
+            internalActor, sceneCamera, AttachmentTransformRules.KeepWorldTransform));
+        Assert.False(EditorActorPolicy.IsVisibleInOutliner(internalActor));
+        Assert.False(EditorActorPolicy.CanDelete(internalActor));
+        Assert.True(EditorActorPolicy.IsVisibleInOutliner(sceneCamera));
+        Assert.True(EditorActorPolicy.CanEdit(sceneCamera));
+
+        editor.Refresh();
+        var editorHierarchy = Assert.Single(Descendants(editor.Root).OfType<UITreeView>(), candidate =>
+            candidate.Roots.Any(root => root.Text.StartsWith("Scene Camera", StringComparison.Ordinal)));
+        editorHierarchy.SelectItem(Assert.Single(editorHierarchy.Roots,
+            root => root.Text.StartsWith("Locked", StringComparison.Ordinal)));
+        Assert.DoesNotContain(editor.SelectedTargets, target => ReferenceEquals(target, lockedActor));
+    }
+
+    [Fact]
     public void ActorCloner_CopiesTypesPropertiesAssetsSocketsAndAttachmentsWithNewGuids()
     {
         using var world = new Spark.Engine.Worlds.World(new ResourceManager());
@@ -432,5 +476,25 @@ public sealed class EditorCommandTests
 
         [SceneProperty]
         public Material? Material { get; set; }
+    }
+
+    [EditorActor(EditorActorFlags.Internal)]
+    private sealed class InternalEditorActor : Actor
+    {
+    }
+
+    [EditorActor(EditorActorFlags.NotSelectable)]
+    private sealed class VisibleLockedActor : Actor
+    {
+    }
+
+    private static IEnumerable<UIElement> Descendants(UIElement root)
+    {
+        foreach (var child in root.Children)
+        {
+            yield return child;
+            foreach (var descendant in Descendants(child))
+                yield return descendant;
+        }
     }
 }

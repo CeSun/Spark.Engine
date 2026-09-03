@@ -65,7 +65,15 @@ public sealed class UIButton : UIElement
         var color = _pressed ? PressedColor : _hovered ? HoverColor : BackgroundColor;
         ui.DrawRect(targetId, new Vector2(Bounds.X, Bounds.Y), new Vector2(Bounds.Width, Bounds.Height), color);
 
-        ui.Text.DrawText(ui, targetId, Text, new Vector2(Bounds.X + Padding.Left, Bounds.Y + Padding.Top), TextColor);
+        if (string.IsNullOrEmpty(Text))
+            return;
+
+        var content = ContentRect;
+        var textSize = ui.Text.MeasureBlock(Text);
+        var textPosition = new Vector2(
+            content.X + System.Math.Max(0f, (content.Width - textSize.X) * 0.5f),
+            content.Y + System.Math.Max(0f, (content.Height - textSize.Y) * 0.5f));
+        ui.Text.DrawText(ui, targetId, Text, textPosition, TextColor);
     }
 
     protected internal override void OnMouseEnter() => _hovered = true;

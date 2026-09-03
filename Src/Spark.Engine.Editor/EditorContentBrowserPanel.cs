@@ -34,27 +34,39 @@ internal sealed class EditorContentBrowserPanel : UIElement
         _root = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
-            FixedSize = new UISize(0f, 220f),
+            FixedSize = new UISize(0f, 0f),
             BackgroundColor = theme.PanelBackground,
         };
 
         var header = new UIStackPanel
         {
-            Orientation = UIOrientation.Horizontal,
-            FixedSize = new UISize(0f, 30f),
-            Padding = UIEdgeInsets.HorizontalVertical(8f, 3f),
-            Spacing = 6f,
+            Orientation = UIOrientation.Vertical,
+            FixedSize = new UISize(0f, 60f),
+            Padding = UIEdgeInsets.HorizontalVertical(8f, 4f),
+            Spacing = 4f,
             BackgroundColor = theme.StatusBarBackground,
         };
-        header.AddChild(new UILabel { Text = "CONTENT BROWSER", TextColor = theme.TextDimColor });
+        var filters = new UIStackPanel
+        {
+            Orientation = UIOrientation.Horizontal,
+            FixedSize = new UISize(0f, 24f),
+            Spacing = 6f,
+        };
+        filters.AddChild(new UILabel
+        {
+            Text = "CONTENT BROWSER",
+            TextColor = theme.TextDimColor,
+            FixedSize = new UISize(150f, 24f),
+            Padding = UIEdgeInsets.HorizontalVertical(0f, 2f),
+        });
         _search = new UITextBox
         {
-            FixedSize = new UISize(220f, 24f),
+            FixedSize = new UISize(0f, 24f),
             PlaceholderText = "Search assets...",
             TextChanged = _ => Rebuild(),
         };
-        header.AddChild(_search);
-        _typeFilter = new UIComboBox { FixedSize = new UISize(150f, 24f) };
+        filters.AddChild(_search);
+        _typeFilter = new UIComboBox { FixedSize = new UISize(130f, 24f) };
         _typeFilter.SelectedItemChanged = selected =>
         {
             if (_suppressFilterEvents)
@@ -62,35 +74,49 @@ internal sealed class EditorContentBrowserPanel : UIElement
             _model.SelectedType = selected ?? EditorContentBrowserModel.AllTypes;
             Rebuild();
         };
-        header.AddChild(_typeFilter);
-        var refresh = new UIButton { Text = "Refresh", FixedSize = new UISize(72f, 24f), Clicked = Refresh };
-        header.AddChild(refresh);
+        filters.AddChild(_typeFilter);
+        var refresh = new UIButton { Text = "Refresh", FixedSize = new UISize(68f, 24f), Clicked = Refresh };
+        filters.AddChild(refresh);
         _sceneReferencesButton = new UIButton
         {
             Text = "Scene refs: Off",
-            FixedSize = new UISize(106f, 24f),
+            FixedSize = new UISize(104f, 24f),
             Clicked = ToggleSceneReferences,
         };
-        header.AddChild(_sceneReferencesButton);
+        filters.AddChild(_sceneReferencesButton);
+        header.AddChild(filters);
+
+        var actions = new UIStackPanel
+        {
+            Orientation = UIOrientation.Horizontal,
+            FixedSize = new UISize(0f, 24f),
+            Spacing = 6f,
+        };
         _operationName = new UITextBox
         {
-            FixedSize = new UISize(140f, 24f),
+            FixedSize = new UISize(0f, 24f),
             PlaceholderText = "Create / rename name...",
         };
         _operationName.Submitted = _ => RequestRename();
-        header.AddChild(_operationName);
+        actions.AddChild(_operationName);
         _createButton = new UIButton
         {
             Text = "Create",
             FixedSize = new UISize(58f, 24f),
             Clicked = ShowCreateMenu,
         };
-        header.AddChild(_createButton);
-        header.AddChild(new UIButton { Text = "Rename", FixedSize = new UISize(62f, 24f), Clicked = RequestRename });
-        header.AddChild(new UIButton { Text = "Copy", FixedSize = new UISize(48f, 24f), Clicked = RequestCopy });
-        header.AddChild(new UIButton { Text = "Delete", FixedSize = new UISize(56f, 24f), Clicked = RequestDelete });
-        _count = new UILabel { TextColor = theme.TextDimColor };
-        header.AddChild(_count);
+        actions.AddChild(_createButton);
+        actions.AddChild(new UIButton { Text = "Rename", FixedSize = new UISize(62f, 24f), Clicked = RequestRename });
+        actions.AddChild(new UIButton { Text = "Copy", FixedSize = new UISize(48f, 24f), Clicked = RequestCopy });
+        actions.AddChild(new UIButton { Text = "Delete", FixedSize = new UISize(56f, 24f), Clicked = RequestDelete });
+        _count = new UILabel
+        {
+            TextColor = theme.TextDimColor,
+            FixedSize = new UISize(86f, 24f),
+            Padding = UIEdgeInsets.HorizontalVertical(4f, 2f),
+        };
+        actions.AddChild(_count);
+        header.AddChild(actions);
         _root.AddChild(header);
 
         var body = new UIStackPanel { Orientation = UIOrientation.Horizontal, FixedSize = new UISize(0f, 0f) };

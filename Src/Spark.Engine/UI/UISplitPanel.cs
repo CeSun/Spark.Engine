@@ -111,6 +111,13 @@ public sealed class UISplitPanel : UIElement
         if (!float.IsPositiveInfinity(availableSize.Height))
             h = System.Math.Min(h, availableSize.Height);
 
+        // 与其余布局容器保持一致：显式 0 表示交由父容器分配剩余空间。
+        if (FixedSize is { } fixedSize)
+        {
+            if (fixedSize.Width >= 0f) w = fixedSize.Width;
+            if (fixedSize.Height >= 0f) h = fixedSize.Height;
+        }
+
         return new UISize(w, h);
     }
 

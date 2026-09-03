@@ -16,12 +16,6 @@ internal sealed class EditorViewportPanel : UIElement
             FixedSize = new UISize(0f, 0f),
             BackgroundColor = new Vector4(0.05f, 0.05f, 0.08f, 1f),
         };
-        _panel.AddChild(new UILabel
-        {
-            Text = "VIEWPORT",
-            TextColor = UITheme.Default.TextDimColor,
-            Padding = UIEdgeInsets.HorizontalVertical(8f, 6f),
-        });
         AddChild(_panel);
     }
 
