@@ -9,20 +9,31 @@ namespace Spark.Engine.Editor;
 /// <summary>编辑器场景的稳定内存表示；它是保存和 RuntimeWorld 实例化的共同输入。</summary>
 public sealed class SceneDocument
 {
-    public const ushort CurrentFormatVersion = 5;
+    public const ushort CurrentFormatVersion = 6;
     public Guid SceneGuid { get; set; } = Guid.NewGuid();
     public ushort FormatVersion { get; init; } = CurrentFormatVersion;
     public List<SceneActorDocument> Actors { get; } = [];
+    public List<SceneEditorFolderDocument> EditorFolders { get; } = [];
 
     public static SceneDocument Capture(World world)
     {
         ArgumentNullException.ThrowIfNull(world);
         var document = new SceneDocument();
+        var outliner = EditorWorldOutlinerData.For(world);
+        foreach (var folder in outliner.Folders.OrderBy(folder => folder.FolderGuid))
+            document.EditorFolders.Add(new SceneEditorFolderDocument
+            {
+                FolderGuid = folder.FolderGuid,
+                ParentFolderGuid = folder.ParentFolderGuid,
+                Name = folder.Name,
+            });
         foreach (var actor in world.EnumerateActors(includePendingActors: true).OrderBy(a => a.ActorGuid))
         {
             if (Attribute.IsDefined(actor.GetType(), typeof(SceneTransientAttribute), inherit: true))
                 continue;
-            document.Actors.Add(CaptureActor(actor));
+            var actorDocument = CaptureActor(actor);
+            actorDocument.EditorFolderGuid = outliner.GetActorFolder(actor.ActorGuid);
+            document.Actors.Add(actorDocument);
         }
 
         return document;
@@ -135,6 +146,13 @@ public sealed class SceneDocument
                 }
             }
 
+            if (!isRuntimeWorld)
+            {
+                EditorWorldOutlinerData.For(world).RestorePersistentData(
+                    EditorFolders.Select(folder => new EditorActorFolder(
+                        folder.FolderGuid, folder.ParentFolderGuid, folder.Name)),
+                    Actors.Select(actor => (actor.ActorGuid, actor.EditorFolderGuid)));
+            }
             if (isRuntimeWorld)
                 runtimeActorFactory.InitializeWorld(world, this);
             return world;
@@ -182,7 +200,15 @@ public sealed class SceneActorDocument
     public string ActorType { get; init; } = typeof(Actor).AssemblyQualifiedName!;
     public string Name { get; init; } = string.Empty;
     public Guid? RootComponentGuid { get; init; }
+    public Guid? EditorFolderGuid { get; set; }
     public List<SceneComponentDocument> Components { get; } = [];
+}
+
+public sealed class SceneEditorFolderDocument
+{
+    public Guid FolderGuid { get; init; }
+    public Guid? ParentFolderGuid { get; init; }
+    public string Name { get; init; } = string.Empty;
 }
 
 public sealed class SceneComponentDocument
@@ -223,6 +249,13 @@ internal static class SceneDocumentBinary
                 writer.Write((byte)1); // AssetType.Scene
                 writer.Write((byte)0); // Flags
                 writer.Write(document.SceneGuid.ToByteArray());
+                writer.Write(document.EditorFolders.Count);
+                foreach (var folder in document.EditorFolders.OrderBy(folder => folder.FolderGuid))
+                {
+                    writer.Write(folder.FolderGuid.ToByteArray());
+                    WriteNullableGuid(writer, folder.ParentFolderGuid);
+                    WriteString(writer, folder.Name);
+                }
                 writer.Write(document.Actors.Count);
 
                 foreach (var actor in document.Actors.OrderBy(a => a.ActorGuid))
@@ -231,6 +264,7 @@ internal static class SceneDocumentBinary
                     WriteString(writer, actor.ActorType);
                     WriteString(writer, actor.Name);
                     WriteNullableGuid(writer, actor.RootComponentGuid);
+                    WriteNullableGuid(writer, actor.EditorFolderGuid);
                     writer.Write(actor.Components.Count);
                     foreach (var component in actor.Components.OrderBy(c => c.ComponentGuid))
                     {
@@ -289,8 +323,8 @@ internal static class SceneDocumentBinary
             throw new InvalidDataException("Invalid scene file magic.");
 
         var version = reader.ReadUInt16();
-        if (version != SceneDocument.CurrentFormatVersion)
-            throw new InvalidDataException($"Unsupported scene format version {version}; supported version is {SceneDocument.CurrentFormatVersion}.");
+        if (version is not 5 && version != SceneDocument.CurrentFormatVersion)
+            throw new InvalidDataException($"Unsupported scene format version {version}; supported versions are 5 and {SceneDocument.CurrentFormatVersion}.");
 
         if (reader.ReadByte() != 1)
             throw new InvalidDataException("The file is not a SceneDocument.");
@@ -298,9 +332,21 @@ internal static class SceneDocumentBinary
 
         var document = new SceneDocument
         {
-            FormatVersion = version,
+            FormatVersion = SceneDocument.CurrentFormatVersion,
             SceneGuid = ReadGuid(reader),
         };
+
+        if (version >= 6)
+        {
+            var folderCount = ReadCount(reader, "editor folder");
+            for (var folderIndex = 0; folderIndex < folderCount; folderIndex++)
+                document.EditorFolders.Add(new SceneEditorFolderDocument
+                {
+                    FolderGuid = ReadGuid(reader),
+                    ParentFolderGuid = ReadNullableGuid(reader),
+                    Name = ReadString(reader),
+                });
+        }
 
         var actorCount = ReadCount(reader, "actor");
         for (var actorIndex = 0; actorIndex < actorCount; actorIndex++)
@@ -311,6 +357,7 @@ internal static class SceneDocumentBinary
                 ActorType = ReadString(reader),
                 Name = ReadString(reader),
                 RootComponentGuid = ReadNullableGuid(reader),
+                EditorFolderGuid = version >= 6 ? ReadNullableGuid(reader) : null,
             };
             var componentCount = ReadCount(reader, "component");
             for (var componentIndex = 0; componentIndex < componentCount; componentIndex++)

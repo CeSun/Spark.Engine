@@ -28,6 +28,8 @@ public enum UIScrollDirection
 /// </summary>
 public sealed class UIScrollBox : UIElement
 {
+    /// <summary>可选的滚动视口空白区域右键请求。</summary>
+    public Action<Vector2>? ContextRequested { get; set; }
     public UIScrollDirection ScrollDirection { get; set; } = UIScrollDirection.Vertical;
 
     /// <summary>当前滚动偏移（逻辑像素，正值表示内容向右/下滚动）。</summary>
@@ -274,6 +276,13 @@ public sealed class UIScrollBox : UIElement
             _draggingVertical = false;
             _draggingHorizontal = false;
         }
+    }
+
+    protected internal override void OnMouseUp(MouseButton button, Vector2 position, KeyMask keysDown)
+    {
+        OnMouseUp(button);
+        if (button == MouseButton.Right)
+            ContextRequested?.Invoke(position);
     }
 
     protected internal override void OnMouseDrag(Vector2 position)

@@ -14,7 +14,8 @@ public readonly record struct ViewportHit(SceneComponent Component, float Distan
 /// <summary>基于场景包围球的 CPU 视口拾取；后续可替换为 GPU ID buffer 而不改变编辑器选择接口。</summary>
 public static class ViewportPicker
 {
-    public static ViewportHit? Pick(World world, CameraComponent camera, Vector2 point, Vector2 viewportSize)
+    public static ViewportHit? Pick(World world, CameraComponent camera, Vector2 point, Vector2 viewportSize,
+        Func<Actor, bool>? actorFilter = null)
     {
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(camera);
@@ -25,6 +26,7 @@ public static class ViewportPicker
         ViewportHit? nearest = null;
         foreach (var actor in world.Actors
                      .Where(EditorActorPolicy.CanSelect)
+                     .Where(actor => actorFilter?.Invoke(actor) ?? true)
                      .OrderBy(item => item.ActorGuid))
         {
             foreach (var component in actor.Components.OfType<SceneComponent>().OrderBy(item => item.ComponentGuid))

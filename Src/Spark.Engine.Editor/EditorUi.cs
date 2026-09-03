@@ -96,8 +96,22 @@ public sealed class EditorUi
         root.AddChild(_toolbar);
 
         // UE 风格主工作区：层级 | 视口 | Details，所有区域均可拖动调整。
-        _hierarchy = new EditorHierarchyPanel(_context.World);
+        _hierarchy = new EditorHierarchyPanel(_context.World, _context.Outliner);
         _hierarchy.ItemDropped += HandleHierarchyDrop;
+        _hierarchy.CreateFolderRequested = CreateOutlinerFolder;
+        _hierarchy.DeleteRequested = DeleteOutlinerTarget;
+        _hierarchy.VisibilityToggled = ToggleOutlinerVisibility;
+        _hierarchy.RenameSubmitted = CommitOutlinerRename;
+        _hierarchy.MakeCurrentFolderRequested = MakeCurrentOutlinerFolder;
+        _hierarchy.ClearCurrentFolderRequested = ClearCurrentOutlinerFolder;
+        _hierarchy.CreateSubfolderRequested = folder => CreateOutlinerFolder(folder.FolderGuid);
+        _hierarchy.SelectFolderActorsRequested = SelectOutlinerFolderActors;
+        _hierarchy.FocusActorRequested = actor => { _context.Selection.Selected = actor; FocusSelectionInViewport(); };
+        _hierarchy.DuplicateActorRequested = actor => { _context.Selection.Selected = actor; DuplicateSelection(); };
+        _hierarchy.DetachActorRequested = DetachOutlinerActor;
+        _hierarchy.MoveActorToCurrentFolderRequested = MoveActorToCurrentFolder;
+        _hierarchy.SelectActorChildrenRequested = SelectOutlinerActorChildren;
+        _hierarchy.ItemDroppedOnBackground = HandleHierarchyBackgroundDrop;
 
         _viewport = new EditorViewportPanel();
         _assetEditorHost = new EditorAssetEditorHost(_viewport);
@@ -332,6 +346,11 @@ public sealed class EditorUi
     public void SelectTargets(IEnumerable<object> targets, object? primary = null)
     {
         ArgumentNullException.ThrowIfNull(targets);
+        if (primary is EditorActorFolder)
+        {
+            _context.Selection.Selected = null;
+            return;
+        }
         var selectable = targets.Where(EditorActorPolicy.CanSelect).ToArray();
         _context.Selection.Set(selectable,
             primary != null && EditorActorPolicy.CanSelect(primary) ? primary : null);
@@ -725,6 +744,8 @@ public sealed class EditorUi
         // 文本输入控件保留编辑快捷键，避免 Delete/F2 或 Ctrl+Z 修改场景。
         if (focusedElement is UITextBox)
             return;
+        if (focusedElement is UITreeViewItem && key is Key.F2 or Key.Delete)
+            return;
 
         bool ctrl = keysDown.IsDown(Key.LeftControl) || keysDown.IsDown(Key.RightControl);
         bool shift = keysDown.IsDown(Key.LeftShift) || keysDown.IsDown(Key.RightShift);
@@ -958,7 +979,8 @@ public sealed class EditorUi
     private void AddActor()
     {
         var actor = new Actor { Name = NextActorName("Actor") };
-        _context.Execute(new DelegateEditorCommand("Add Actor", () => _context.World.AddActor(actor), () => _context.World.RemoveActor(actor)));
+        _context.Execute(new CreateActorsCommand(_context.World, new[] { actor },
+            _context.Outliner, _context.Outliner.CurrentFolderGuid));
         _context.Selection.Selected = actor;
         SetStatus("Actor queued for creation.");
     }
@@ -991,7 +1013,8 @@ public sealed class EditorUi
                 usedNames.Add(pair.Copy.Name);
             }
             var copies = clones.Select(pair => pair.Copy).ToArray();
-            _context.Execute(new CreateActorsCommand(_context.World, copies));
+            _context.Execute(new CreateActorsCommand(_context.World, copies,
+                _context.Outliner, _context.Outliner.CurrentFolderGuid));
             var primary = clones.FirstOrDefault(pair => ReferenceEquals(pair.Source, _selectedTarget)).Copy
                 ?? copies[^1];
             _context.Selection.Set(copies, primary);
@@ -1005,20 +1028,19 @@ public sealed class EditorUi
 
     private void RenameSelection()
     {
-        if (_selectedTarget is not Actor actor)
+        var target = _hierarchy.ActiveTarget is EditorActorFolder activeFolder ? activeFolder : _selectedTarget;
+        if (target is not Actor && target is not EditorActorFolder)
         {
-            SetStatus("Select an Actor to rename.");
+            SetStatus("Select an Actor or Folder to rename.");
             return;
         }
-        if (!EditorActorPolicy.CanEdit(actor))
+        if (target is Actor actor && !EditorActorPolicy.CanEdit(actor))
         {
             SetStatus("The selected Actor is read-only.");
             return;
         }
-        var oldName = actor.Name;
-        var newName = NextActorName(string.IsNullOrWhiteSpace(oldName) ? actor.GetType().Name : oldName);
-        _context.Execute(new DelegateEditorCommand("Rename Actor", () => actor.Name = newName, () => actor.Name = oldName));
-        SetStatus($"Renamed Actor to {newName}.");
+        if (!_hierarchy.BeginRename(target))
+            SetStatus("Rename could not be started.");
     }
 
     private string NextActorName(string prefix)
@@ -1026,6 +1048,216 @@ public sealed class EditorUi
         var used = _context.World.EnumerateActors(includePendingActors: true)
             .Select(actor => actor.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return NextActorName(prefix, used);
+    }
+
+    private void CreateOutlinerFolder() => CreateOutlinerFolder(_context.Outliner.CurrentFolderGuid);
+
+    private void CreateOutlinerFolder(Guid? parentGuid)
+    {
+        if (_context.PlayState != EditorPlayState.Edit)
+        {
+            SetStatus("Stop Play before creating a Folder.");
+            return;
+        }
+        try
+        {
+            var used = _context.Outliner.Folders
+                .Where(folder => folder.ParentFolderGuid == parentGuid)
+                .Select(folder => folder.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var name = "New Folder";
+            for (var suffix = 2; used.Contains(name); suffix++)
+                name = $"New Folder {suffix}";
+            var command = new CreateEditorFolderCommand(_context.Outliner, name, parentGuid);
+            _context.Execute(command);
+            _hierarchy.Refresh();
+            _hierarchy.SelectTarget(command.Folder);
+            _hierarchy.BeginRename(command.Folder);
+            SetStatus("Folder created. Enter a name.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Create Folder failed: {ex.Message}");
+        }
+    }
+
+    private bool CommitOutlinerRename(object target, string value)
+    {
+        var name = value.Trim();
+        if (name.Length == 0)
+        {
+            SetStatus("Name cannot be empty.");
+            return false;
+        }
+        try
+        {
+            switch (target)
+            {
+                case Actor actor when EditorActorPolicy.CanEdit(actor):
+                {
+                    if (string.Equals(actor.Name, name, StringComparison.Ordinal))
+                        return true;
+                    var oldName = actor.Name;
+                    _context.Execute(new DelegateEditorCommand("Rename Actor",
+                        () => actor.Name = name, () => actor.Name = oldName));
+                    break;
+                }
+                case EditorActorFolder folder:
+                    if (string.Equals(folder.Name, name, StringComparison.Ordinal))
+                        return true;
+                    _context.Execute(new RenameEditorFolderCommand(_context.Outliner, folder.FolderGuid, name));
+                    break;
+                default:
+                    return false;
+            }
+            SetStatus($"Renamed to {name}.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Rename failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    private void MakeCurrentOutlinerFolder(EditorActorFolder folder)
+    {
+        if (!ReferenceEquals(_context.Outliner.FindFolder(folder.FolderGuid), folder))
+            return;
+        _context.Outliner.SetCurrentFolder(folder.FolderGuid);
+        SetStatus($"Current Folder: {folder.Name}. New Actors will be created here.");
+    }
+
+    private void ClearCurrentOutlinerFolder()
+    {
+        _context.Outliner.SetCurrentFolder(null);
+        SetStatus("Current Folder cleared. New Actors will be created at the root.");
+    }
+
+    private void SelectOutlinerFolderActors(EditorActorFolder folder)
+    {
+        var actors = _context.Outliner.GetActorsInFolderSubtree(folder.FolderGuid,
+                _context.World.EnumerateActors(includePendingActors: true))
+            .Where(EditorActorPolicy.CanSelect).Cast<object>().ToArray();
+        _context.Selection.Set(actors, actors.LastOrDefault());
+        SetStatus(actors.Length == 0 ? "Folder contains no selectable Actors." : $"Selected {actors.Length} Actor(s).");
+    }
+
+    private void DetachOutlinerActor(Actor actor)
+    {
+        if (actor.RootComponent is not { AttachParent: not null } root)
+            return;
+        try
+        {
+            _context.Execute(new DetachComponentCommand(root));
+            SetStatus($"Detached '{actor.Name}' while keeping its world transform.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Detach failed: {ex.Message}");
+        }
+    }
+
+    private void MoveActorToCurrentFolder(Actor actor)
+    {
+        try
+        {
+            _context.Execute(new MoveActorsToEditorFolderCommand(
+                _context.Outliner, new[] { actor }, _context.Outliner.CurrentFolderGuid));
+            SetStatus(_context.Outliner.CurrentFolderGuid.HasValue
+                ? $"Moved '{actor.Name}' to the current Folder."
+                : $"Moved '{actor.Name}' to the root Folder.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Move Actor failed: {ex.Message}");
+        }
+    }
+
+    private void SelectOutlinerActorChildren(Actor actor)
+    {
+        var actors = _context.World.EnumerateActors(includePendingActors: true).ToArray();
+        var descendants = actors.Where(candidate =>
+        {
+            for (var parent = candidate.RootComponent?.AttachParent?.Owner; parent != null;
+                 parent = parent.RootComponent?.AttachParent?.Owner)
+            {
+                if (ReferenceEquals(parent, actor))
+                    return true;
+            }
+            return false;
+        }).Where(EditorActorPolicy.CanSelect).Cast<object>().ToArray();
+        _context.Selection.Set(descendants, descendants.LastOrDefault());
+        SetStatus(descendants.Length == 0 ? "Actor has no selectable child Actors." : $"Selected {descendants.Length} child Actor(s).");
+    }
+
+    private void DeleteOutlinerTarget(object target)
+    {
+        if (target is Actor actor)
+        {
+            _context.Selection.Selected = actor;
+            DeleteSelection();
+            return;
+        }
+        if (target is not EditorActorFolder folder)
+            return;
+        try
+        {
+            _context.Execute(new DeleteEditorFolderCommand(_context.Outliner, folder.FolderGuid,
+                _context.World.EnumerateActors(includePendingActors: true)));
+            _context.Selection.Selected = null;
+            _hierarchy.SelectTarget(null);
+            SetStatus("Folder deleted; its contents were moved to the parent Folder.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Delete Folder failed: {ex.Message}");
+        }
+    }
+
+    private void ToggleOutlinerVisibility(object target)
+    {
+        if (target is Actor actor)
+        {
+            var hidden = !_context.Outliner.IsActorTemporarilyHidden(actor.ActorGuid);
+            _context.Outliner.SetActorTemporarilyHidden(actor.ActorGuid, hidden);
+            SetStatus(hidden ? $"Temporarily hid '{actor.Name}'." : $"Showed '{actor.Name}'.");
+        }
+        else if (target is EditorActorFolder folder)
+        {
+            var state = _context.Outliner.GetFolderVisibility(folder.FolderGuid,
+                _context.World.EnumerateActors(includePendingActors: true));
+            var hide = state != EditorVisibilityState.Hidden;
+            _context.Outliner.SetFolderTemporarilyHidden(folder.FolderGuid,
+                _context.World.EnumerateActors(includePendingActors: true), hide);
+            SetStatus(hide ? $"Temporarily hid Folder '{folder.Name}'." : $"Showed Folder '{folder.Name}'.");
+        }
+        _hierarchy.Refresh();
+    }
+
+    private void CreateActorFromAssetInFolder(AssetRecord record, EditorActorFolder folder)
+    {
+        if (_context.PlayState != EditorPlayState.Edit)
+            return;
+        try
+        {
+            if (!_context.AssetRegistry.TryResolve(record.AssetGuid, out var resource) || resource is not StaticMesh mesh)
+            {
+                SetStatus("Only StaticMesh assets can create Actors in an Outliner Folder.");
+                return;
+            }
+            var baseName = Path.GetFileNameWithoutExtension(record.ContentPath ?? record.SourcePath ?? "StaticMesh");
+            var actor = new Actor { Name = NextActorName(baseName) };
+            actor.AddOwnedComponent(new StaticMeshComponent { Mesh = mesh });
+            _context.Execute(new CreateActorsCommand(_context.World, new[] { actor },
+                _context.Outliner, folder.FolderGuid));
+            _context.Selection.Selected = actor;
+            SetStatus($"Created Actor '{actor.Name}' in Folder '{folder.Name}'.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Create Actor from asset failed: {ex.Message}");
+        }
     }
 
     private bool RequestResourcePropertyEdit(
@@ -1081,6 +1313,11 @@ public sealed class EditorUi
 
     private void DeleteSelection()
     {
+        if (_hierarchy.ActiveTarget is EditorActorFolder folder)
+        {
+            DeleteOutlinerTarget(folder);
+            return;
+        }
         var actors = _context.Selection.Items.OfType<Actor>().Distinct().ToArray();
         if (actors.Length == 0)
         {
@@ -1152,7 +1389,8 @@ public sealed class EditorUi
     {
         if (_context.PlayState != EditorPlayState.Edit)
             return null;
-        var hit = ViewportPicker.Pick(_context.World, camera, point, viewportSize);
+        var hit = ViewportPicker.Pick(_context.World, camera, point, viewportSize,
+            actor => !_context.Outliner.IsActorTemporarilyHidden(actor.ActorGuid));
         bool ctrl = modifiers.IsDown(Key.LeftControl) || modifiers.IsDown(Key.RightControl);
         bool shift = modifiers.IsDown(Key.LeftShift) || modifiers.IsDown(Key.RightShift);
         if (hit?.Component is { } component)
@@ -1184,9 +1422,10 @@ public sealed class EditorUi
             SetStatus("Stop Play before placing assets in the scene.");
             return null;
         }
-        if (!ReferenceEquals(camera.Owner?.World, _context.World))
+        var isViewportSessionCamera = _viewportSessions.Any(session => ReferenceEquals(session.Camera, camera));
+        if (!isViewportSessionCamera && !ReferenceEquals(camera.Owner?.World, _context.World))
         {
-            SetStatus("Viewport camera does not belong to the editor world.");
+            SetStatus("Camera does not belong to this editor viewport or World.");
             return null;
         }
 
@@ -1217,7 +1456,8 @@ public sealed class EditorUi
                 RelativeLocation = location,
             };
             actor.AddOwnedComponent(component);
-            _context.Execute(new CreateActorsCommand(_context.World, new[] { actor }));
+            _context.Execute(new CreateActorsCommand(_context.World, new[] { actor },
+                _context.Outliner, _context.Outliner.CurrentFolderGuid));
             _context.Selection.Selected = actor;
             SetStatus($"Placed StaticMesh '{baseName}' in the scene.");
             return actor;
@@ -1347,6 +1587,11 @@ public sealed class EditorUi
     {
         if (_inspector.TryAcceptAssetDrop(record, position))
             return;
+        if (_hierarchy.GetTargetAt(position) is EditorActorFolder folder)
+        {
+            CreateActorFromAssetInFolder(record, folder);
+            return;
+        }
         var control = _renderViewControl;
         if (control == null || _assetEditorHost.ActiveDocument != null || !control.Bounds.Contains(position))
             return;
@@ -1440,12 +1685,69 @@ public sealed class EditorUi
 
     private void HandleHierarchyDrop(object draggedTarget, object dropTarget, Vector2 _)
     {
-        if (draggedTarget is not Actor || dropTarget is not Actor)
+        try
         {
-            SetStatus("World Outliner attachment requires an Actor source and target.");
-            return;
+            if (dropTarget is EditorActorFolder destination)
+            {
+                if (draggedTarget is EditorActorFolder sourceFolder)
+                    _context.Execute(new MoveEditorFolderCommand(
+                        _context.Outliner, sourceFolder.FolderGuid, destination.FolderGuid));
+                else if (draggedTarget is Actor draggedActor)
+                {
+                    var actors = _context.Selection.Contains(draggedActor)
+                        ? _context.Selection.Items.OfType<Actor>()
+                        : new[] { draggedActor };
+                    _context.Execute(new MoveActorsToEditorFolderCommand(
+                        _context.Outliner, actors, destination.FolderGuid));
+                }
+                else
+                    return;
+                SetStatus($"Moved selection to Folder '{destination.Name}'.");
+                return;
+            }
+            if (draggedTarget is Actor && dropTarget is Actor)
+            {
+                AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.KeepWorldTransform);
+                return;
+            }
+            SetStatus("Drop Actors onto Folders to organize them, or onto Actors to attach them.");
         }
-        AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.KeepWorldTransform);
+        catch (Exception ex)
+        {
+            SetStatus($"Outliner move failed: {ex.Message}");
+        }
+    }
+
+    private void HandleHierarchyBackgroundDrop(object draggedTarget, Vector2 _)
+    {
+        try
+        {
+            if (draggedTarget is EditorActorFolder folder)
+            {
+                _context.Execute(new MoveEditorFolderCommand(_context.Outliner, folder.FolderGuid, null));
+                SetStatus($"Moved Folder '{folder.Name}' to the root.");
+                return;
+            }
+            if (draggedTarget is not Actor draggedActor)
+                return;
+            var actors = (_context.Selection.Contains(draggedActor)
+                    ? _context.Selection.Items.OfType<Actor>()
+                    : new[] { draggedActor })
+                .Distinct().ToArray();
+            var commands = new List<IEditorCommand>();
+            foreach (var actor in actors)
+            {
+                if (actor.RootComponent?.AttachParent != null)
+                    commands.Add(new DetachComponentCommand(actor.RootComponent));
+            }
+            commands.Add(new MoveActorsToEditorFolderCommand(_context.Outliner, actors, null));
+            _context.Execute(new CompositeEditorCommand("Move Actors to Outliner Root", commands));
+            SetStatus(actors.Length == 1 ? "Moved Actor to the Outliner root." : $"Moved {actors.Length} Actors to the Outliner root.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Move to Outliner root failed: {ex.Message}");
+        }
     }
 
     private static SceneComponent? GetSpatialComponent(object target)
@@ -1519,7 +1821,8 @@ public sealed class EditorUi
         _hierarchy.Refresh();
         _contentBrowser.Refresh();
         RemoveInvalidSelection();
-        _hierarchy.SelectTargets(_context.Selection.Items, _context.Selection.Selected);
+        if (_hierarchy.ActiveTarget is not EditorActorFolder || _context.Selection.Count != 0)
+            _hierarchy.SelectTargets(_context.Selection.Items, _context.Selection.Selected);
 
         int actors = 0, components = 0;
         foreach (var actor in _context.World.Actors.Where(EditorActorPolicy.IncludeInLevelStats))

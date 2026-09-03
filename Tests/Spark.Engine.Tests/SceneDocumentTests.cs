@@ -88,6 +88,113 @@ public sealed class SceneDocumentTests
     }
 
     [Fact]
+    public void BinaryRoundTripPreservesEmptyEditorFoldersAndActorFolderAssignments()
+    {
+        using var world = new World(new ResourceManager());
+        var actor = new Actor { Name = "Chair" };
+        world.AddActor(actor);
+        var outliner = EditorWorldOutlinerData.For(world);
+        var parent = new CreateEditorFolderCommand(outliner, "Environment");
+        parent.Execute();
+        var empty = new CreateEditorFolderCommand(outliner, "Empty", parent.Folder.FolderGuid);
+        empty.Execute();
+        new MoveActorsToEditorFolderCommand(outliner, new[] { actor }, parent.Folder.FolderGuid).Execute();
+        var path = GetTempPath();
+        try
+        {
+            SceneDocument.Capture(world).Save(path);
+            var loaded = SceneDocument.Load(path);
+
+            Assert.Equal(2, loaded.EditorFolders.Count);
+            Assert.Equal(parent.Folder.FolderGuid, Assert.Single(loaded.Actors).EditorFolderGuid);
+            var loadedEmpty = Assert.Single(loaded.EditorFolders, folder => folder.FolderGuid == empty.Folder.FolderGuid);
+            Assert.Equal(parent.Folder.FolderGuid, loadedEmpty.ParentFolderGuid);
+        }
+        finally
+        {
+            DeleteIfExists(path);
+        }
+    }
+
+    [Fact]
+    public void BinaryReaderUpgradesVersionFiveScenesWithoutFolderMetadata()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            writer.Write("SCNE"u8.ToArray());
+            writer.Write((ushort)5);
+            writer.Write((byte)1);
+            writer.Write((byte)0);
+            writer.Write(Guid.NewGuid().ToByteArray());
+            writer.Write(0);
+        }
+
+        var document = SceneDocument.Deserialize(stream.ToArray());
+
+        Assert.Equal(SceneDocument.CurrentFormatVersion, document.FormatVersion);
+        Assert.Empty(document.EditorFolders);
+        Assert.Empty(document.Actors);
+    }
+
+    [Fact]
+    public void EditorInstantiationRestoresFoldersWhileRuntimeInstantiationIgnoresThem()
+    {
+        using var source = new World(new ResourceManager());
+        var actor = new Actor();
+        source.AddActor(actor);
+        var sourceOutliner = EditorWorldOutlinerData.For(source);
+        var folder = new CreateEditorFolderCommand(sourceOutliner, "Editor Only");
+        folder.Execute();
+        new MoveActorsToEditorFolderCommand(sourceOutliner, new[] { actor }, folder.Folder.FolderGuid).Execute();
+        sourceOutliner.SetActorTemporarilyHidden(actor.ActorGuid, true);
+        var document = SceneDocument.Capture(source);
+
+        using var editor = document.InstantiateEditorWorld(source.Scene.ResourceManager);
+        using var runtime = document.InstantiateWorld(source.Scene.ResourceManager);
+        var editorActor = Assert.Single(editor.EnumerateActors(includePendingActors: true));
+        var runtimeActor = Assert.Single(runtime.EnumerateActors(includePendingActors: true));
+
+        Assert.Single(EditorWorldOutlinerData.For(editor).Folders);
+        Assert.Equal(folder.Folder.FolderGuid,
+            EditorWorldOutlinerData.For(editor).GetActorFolder(editorActor.ActorGuid));
+        Assert.False(editorActor.IsTemporarilyHiddenInEditor);
+        Assert.Empty(EditorWorldOutlinerData.For(runtime).Folders);
+        Assert.Null(EditorWorldOutlinerData.For(runtime).GetActorFolder(runtimeActor.ActorGuid));
+        Assert.False(runtimeActor.IsTemporarilyHiddenInEditor);
+    }
+
+    [Fact]
+    public void EditorReloadRestoresCurrentFolderAndTemporaryVisibilityByStableGuid()
+    {
+        var world = new World(new ResourceManager());
+        var actor = new Actor { Name = "Persistent" };
+        world.AddActor(actor);
+        world.Update(0f, tickActors: false);
+        using var context = new EditorContext(world);
+        var folder = new CreateEditorFolderCommand(context.Outliner, "Current");
+        context.Execute(folder);
+        context.Execute(new MoveActorsToEditorFolderCommand(
+            context.Outliner, new[] { actor }, folder.Folder.FolderGuid));
+        context.Outliner.SetCurrentFolder(folder.Folder.FolderGuid);
+        context.Outliner.SetActorTemporarilyHidden(actor.ActorGuid, true);
+        var document = SceneDocument.Capture(world);
+
+        context.Reload(document);
+        try
+        {
+            var reloadedActor = Assert.Single(context.World.EnumerateActors(includePendingActors: true));
+            Assert.Equal(folder.Folder.FolderGuid, context.Outliner.CurrentFolderGuid);
+            Assert.True(context.Outliner.IsActorTemporarilyHidden(reloadedActor.ActorGuid));
+            Assert.True(reloadedActor.IsTemporarilyHiddenInEditor);
+        }
+        finally
+        {
+            context.World.Dispose();
+        }
+    }
+
+    [Fact]
     public void BinaryServiceSavesAndReloadsDocument()
     {
         using var world = new World(new ResourceManager());
@@ -857,6 +964,34 @@ public sealed class SceneDocumentTests
         Assert.True(hit.Value.Distance > 0f);
         farMesh.Dispose();
         nearMesh.Dispose();
+    }
+
+    [Fact]
+    public void ViewportPickerActorFilterSkipsTemporarilyHiddenActor()
+    {
+        using var world = new World(new ResourceManager());
+        var cameraActor = new Actor();
+        var camera = new CameraComponent();
+        cameraActor.AddOwnedComponent(camera);
+        world.AddActor(cameraActor);
+        var nearMesh = CreateTestMesh(new Vector3(0f, 0f, -4f), 0.5f);
+        var farMesh = CreateTestMesh(new Vector3(0f, 0f, -8f), 0.5f);
+        var nearActor = new Actor();
+        nearActor.AddOwnedComponent(new StaticMeshComponent { Mesh = nearMesh });
+        var farActor = new Actor();
+        var farComponent = new StaticMeshComponent { Mesh = farMesh };
+        farActor.AddOwnedComponent(farComponent);
+        world.AddActor(nearActor);
+        world.AddActor(farActor);
+        world.Update(0f, tickActors: false);
+
+        var hit = ViewportPicker.Pick(world, camera, new Vector2(50f), new Vector2(100f),
+            actor => !ReferenceEquals(actor, nearActor));
+
+        Assert.NotNull(hit);
+        Assert.Same(farComponent, hit.Value.Component);
+        nearMesh.Dispose();
+        farMesh.Dispose();
     }
 
     [Fact]

@@ -68,6 +68,43 @@ public sealed class DelegateEditorCommand(string description, Action execute, Ac
     public void Undo() => undo();
 }
 
+/// <summary>把若干命令组合为一个原子 Undo 事务。</summary>
+public sealed class CompositeEditorCommand : IEditorCommand
+{
+    private readonly IReadOnlyList<IEditorCommand> _commands;
+    public string Description { get; }
+
+    public CompositeEditorCommand(string description, IEnumerable<IEditorCommand> commands)
+    {
+        Description = string.IsNullOrWhiteSpace(description) ? "Composite Edit" : description;
+        _commands = commands?.ToArray() ?? throw new ArgumentNullException(nameof(commands));
+        if (_commands.Count == 0)
+            throw new ArgumentException("At least one command is required.", nameof(commands));
+    }
+
+    public void Execute()
+    {
+        var completed = 0;
+        try
+        {
+            for (; completed < _commands.Count; completed++)
+                _commands[completed].Execute();
+        }
+        catch
+        {
+            for (var index = completed - 1; index >= 0; index--)
+                _commands[index].Undo();
+            throw;
+        }
+    }
+
+    public void Undo()
+    {
+        for (var index = _commands.Count - 1; index >= 0; index--)
+            _commands[index].Undo();
+    }
+}
+
 /// <summary>把同一属性对多个对象的赋值合并为一个原子撤销事务。</summary>
 public sealed class PropertyBatchChangeCommand : IEditorCommand
 {
@@ -217,16 +254,51 @@ public sealed class AttachComponentsCommand : IEditorCommand
     }
 }
 
+/// <summary>可撤销地解除 SceneComponent 挂载，同时保持世界变换。</summary>
+public sealed class DetachComponentCommand : IEditorCommand
+{
+    private readonly SceneComponent _component;
+    private readonly SceneComponent _parent;
+    private readonly string? _socketName;
+    private readonly Vector3 _relativeLocation;
+    private readonly Quaternion _relativeRotation;
+    private readonly Vector3 _relativeScale;
+    public string Description => "Detach Actor";
+
+    public DetachComponentCommand(SceneComponent component)
+    {
+        _component = component ?? throw new ArgumentNullException(nameof(component));
+        _parent = component.AttachParent ?? throw new InvalidOperationException("The component is not attached.");
+        _socketName = component.AttachSocketName;
+        _relativeLocation = component.RelativeLocation;
+        _relativeRotation = component.RelativeRotation;
+        _relativeScale = component.RelativeScale;
+    }
+
+    public void Execute() => _component.DetachFromComponent(DetachmentTransformRules.KeepWorldTransform);
+
+    public void Undo()
+    {
+        _component.AttachToComponent(_parent, AttachmentTransformRules.KeepRelativeTransform, _socketName);
+        _component.RelativeLocation = _relativeLocation;
+        _component.RelativeRotation = _relativeRotation;
+        _component.RelativeScale = _relativeScale;
+    }
+}
+
 /// <summary>原子地把一组已构造 Actor 加入编辑 World，并支持整体撤销/重做。</summary>
 public sealed class CreateActorsCommand : IEditorCommand
 {
     private readonly World _world;
     private readonly IReadOnlyList<Actor> _actors;
     private readonly IReadOnlyList<ComponentAttachmentSnapshot> _attachments;
+    private readonly EditorWorldOutlinerData? _outliner;
+    private readonly Guid? _folderGuid;
 
     public string Description => _actors.Count == 1 ? "Create Actor" : $"Create {_actors.Count} Actors";
 
-    public CreateActorsCommand(World world, IEnumerable<Actor> actors)
+    public CreateActorsCommand(World world, IEnumerable<Actor> actors,
+        EditorWorldOutlinerData? outliner = null, Guid? folderGuid = null)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
         ArgumentNullException.ThrowIfNull(actors);
@@ -234,6 +306,10 @@ public sealed class CreateActorsCommand : IEditorCommand
         if (_actors.Count == 0)
             throw new ArgumentException("At least one Actor is required.", nameof(actors));
         _attachments = CaptureAttachments(_actors.SelectMany(actor => actor.Components).OfType<SceneComponent>());
+        _outliner = outliner;
+        _folderGuid = folderGuid;
+        if (_outliner != null && _folderGuid.HasValue && _outliner.FindFolder(_folderGuid.Value) == null)
+            throw new InvalidOperationException("Destination Folder no longer exists.");
     }
 
     public void Execute()
@@ -242,7 +318,11 @@ public sealed class CreateActorsCommand : IEditorCommand
         try
         {
             for (; completed < _actors.Count; completed++)
+            {
                 _world.AddActor(_actors[completed]);
+                if (_outliner != null)
+                    _outliner.SetActorFolder(_actors[completed].ActorGuid, _folderGuid);
+            }
             RestoreAttachments(_attachments);
         }
         catch
@@ -281,6 +361,121 @@ public sealed class CreateActorsCommand : IEditorCommand
             attachment.Child.RelativeScale = attachment.Scale;
         }
     }
+}
+
+/// <summary>创建一个稳定身份的编辑器 Folder。</summary>
+public sealed class CreateEditorFolderCommand : IEditorCommand
+{
+    private readonly EditorWorldOutlinerData _outliner;
+    public EditorActorFolder Folder { get; }
+    public string Description => "Create Folder";
+
+    public CreateEditorFolderCommand(EditorWorldOutlinerData outliner, string name,
+        Guid? parentFolderGuid = null, Guid? folderGuid = null)
+    {
+        _outliner = outliner ?? throw new ArgumentNullException(nameof(outliner));
+        Folder = new EditorActorFolder(folderGuid ?? Guid.NewGuid(), parentFolderGuid, name);
+    }
+
+    public void Execute() => _outliner.AddFolder(Folder);
+    public void Undo() => _outliner.RemoveFolder(Folder.FolderGuid);
+}
+
+public sealed class RenameEditorFolderCommand : IEditorCommand
+{
+    private readonly EditorWorldOutlinerData _outliner;
+    private readonly Guid _folderGuid;
+    private readonly string _oldName;
+    private readonly string _newName;
+    public string Description => "Rename Folder";
+
+    public RenameEditorFolderCommand(EditorWorldOutlinerData outliner, Guid folderGuid, string newName)
+    {
+        _outliner = outliner ?? throw new ArgumentNullException(nameof(outliner));
+        _folderGuid = folderGuid;
+        _oldName = outliner.FindFolder(folderGuid)?.Name ?? throw new InvalidOperationException("Folder no longer exists.");
+        _newName = newName;
+    }
+
+    public void Execute() => _outliner.RenameFolder(_folderGuid, _newName);
+    public void Undo() => _outliner.RenameFolder(_folderGuid, _oldName);
+}
+
+public sealed class MoveEditorFolderCommand : IEditorCommand
+{
+    private readonly EditorWorldOutlinerData _outliner;
+    private readonly Guid _folderGuid;
+    private readonly Guid? _oldParentGuid;
+    private readonly Guid? _newParentGuid;
+    public string Description => "Move Folder";
+
+    public MoveEditorFolderCommand(EditorWorldOutlinerData outliner, Guid folderGuid, Guid? parentFolderGuid)
+    {
+        _outliner = outliner ?? throw new ArgumentNullException(nameof(outliner));
+        _folderGuid = folderGuid;
+        var folder = outliner.FindFolder(folderGuid) ?? throw new InvalidOperationException("Folder no longer exists.");
+        _oldParentGuid = folder.ParentFolderGuid;
+        _newParentGuid = parentFolderGuid;
+    }
+
+    public void Execute() => _outliner.MoveFolder(_folderGuid, _newParentGuid);
+    public void Undo() => _outliner.MoveFolder(_folderGuid, _oldParentGuid);
+}
+
+/// <summary>删除 Folder 时保留内容，并把直接子 Folder 和 Actor 提升到父 Folder。</summary>
+public sealed class DeleteEditorFolderCommand : IEditorCommand
+{
+    private readonly EditorWorldOutlinerData _outliner;
+    private readonly EditorActorFolder _folder;
+    private readonly IReadOnlyList<Guid> _childFolders;
+    private readonly IReadOnlyList<Guid> _actors;
+    private readonly bool _wasCurrent;
+    public string Description => "Delete Folder";
+
+    public DeleteEditorFolderCommand(EditorWorldOutlinerData outliner, Guid folderGuid,
+        IEnumerable<Actor> worldActors)
+    {
+        _outliner = outliner ?? throw new ArgumentNullException(nameof(outliner));
+        ArgumentNullException.ThrowIfNull(worldActors);
+        _folder = outliner.FindFolder(folderGuid) ?? throw new InvalidOperationException("Folder no longer exists.");
+        _childFolders = outliner.Folders.Where(folder => folder.ParentFolderGuid == folderGuid)
+            .Select(folder => folder.FolderGuid).ToArray();
+        _actors = worldActors.Where(actor => outliner.GetActorFolder(actor.ActorGuid) == folderGuid)
+            .Select(actor => actor.ActorGuid).ToArray();
+        _wasCurrent = outliner.CurrentFolderGuid == folderGuid;
+    }
+
+    public void Execute() => _outliner.RemoveFolder(_folder.FolderGuid);
+    public void Undo() => _outliner.RestoreFolderRemoval(_folder, _childFolders, _actors, _wasCurrent);
+}
+
+public sealed class MoveActorsToEditorFolderCommand : IEditorCommand
+{
+    private readonly EditorWorldOutlinerData _outliner;
+    private readonly IReadOnlyList<Entry> _entries;
+    public string Description => _entries.Count == 1 ? "Move Actor to Folder" : $"Move {_entries.Count} Actors to Folder";
+
+    public MoveActorsToEditorFolderCommand(EditorWorldOutlinerData outliner,
+        IEnumerable<Actor> actors, Guid? folderGuid)
+    {
+        _outliner = outliner ?? throw new ArgumentNullException(nameof(outliner));
+        ArgumentNullException.ThrowIfNull(actors);
+        _entries = actors.Distinct().Select(actor =>
+            new Entry(actor.ActorGuid, outliner.GetActorFolder(actor.ActorGuid), folderGuid)).ToArray();
+        if (_entries.Count == 0)
+            throw new ArgumentException("At least one Actor is required.", nameof(actors));
+    }
+
+    public void Execute() => Apply(useNewFolder: true);
+    public void Undo() => Apply(useNewFolder: false);
+
+    private void Apply(bool useNewFolder)
+    {
+        foreach (var entry in _entries)
+            _outliner.SetActorFolder(entry.ActorGuid, useNewFolder ? entry.NewFolderGuid : entry.OldFolderGuid);
+    }
+
+    private sealed record Entry(Guid ActorGuid, Guid? OldFolderGuid, Guid? NewFolderGuid);
 }
 
 internal readonly record struct ComponentAttachmentSnapshot(

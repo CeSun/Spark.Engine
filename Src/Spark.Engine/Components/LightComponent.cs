@@ -35,5 +35,8 @@ public abstract partial class LightComponent : SceneComponent
     {
         float radius = Type == LightType.Directional ? float.MaxValue : MathF.Max(Range, 0f);
         proxy.Bounds = new BoundingSphere(WorldTransform.Translation, radius);
+        proxy.Visibility = Owner?.IsTemporarilyHiddenInEditor == true
+            ? VisibilityFlags.None
+            : VisibilityFlags.Visible | (CastShadow ? VisibilityFlags.CastShadow : VisibilityFlags.None);
     }
 }

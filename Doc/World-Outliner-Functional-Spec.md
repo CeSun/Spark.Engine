@@ -1,6 +1,6 @@
 # Spark.Editor World Outliner 功能规格
 
-> 状态：O0 已完成，O1 待实施
+> 状态：O0、O1 已完成，O2 待实施
 >
 > 日期：2026-09-03
 >
@@ -48,20 +48,20 @@ Spark 在 E6 工作区阶段应提供 UE 风格默认布局；在停靠系统完
 
 | 范围 | Spark 当前行为 | 目标行为 | 判断 |
 |---|---|---|---|
-| 树模型 | Actor 按跨 Actor RootComponent 挂载形成树，尚无 Folder | Folder + Actor；Actor 子行表达跨 Actor 挂载 | O0 已修正，O1 补 Folder |
+| 树模型 | Folder → Actor → 挂载 Actor；Component 默认隐藏 | Folder + Actor；Actor 子行表达跨 Actor 挂载 | O1 已完成 |
 | Actor 挂载 | 被挂载 Actor 直接嵌套在父 Actor 下 | 被挂载 Actor 直接嵌套在父 Actor 下 | O0 已完成 |
 | Component | 默认隐藏，仅可从 Developer 选项临时显示且不可拖放 | 默认不在 Outliner 显示，在 Details 中选择 | O0 已完成 |
 | 行标签 | Actor Label + 类型颜色标记 | 类型图标 + Actor Label；统计信息放可选列或 Tooltip | O0 占位完成 |
-| Folder | 无 | 支持空 Folder、子 Folder、移动和当前 Folder | P1 缺失 |
-| 可见性 | 无 Eye 列 | 会话级临时隐藏，Folder 支持级联和混合状态 | P1 缺失 |
+| Folder | 稳定 FolderGuid、空/子 Folder、当前 Folder、保存/重载 | 支持空 Folder、子 Folder、移动和当前 Folder | O1 已完成 |
+| 可见性 | Eye 会话级临时隐藏，Folder 级联/混合，影响预览和拾取 | 会话级临时隐藏，Folder 支持级联和混合状态 | O1 已完成 |
 | 选择 | 单选、Ctrl/Shift 多选；Component 选择映射高亮 Owner Actor | 保留；增加可配置的自动定位 | O0 已完成基础 |
 | 展开状态 | 按 ActorGuid 保留；搜索/Only Selected 临时展开必要祖先 | 按稳定节点 ID 保留，过滤只临时展开祖先 | O0 已完成 |
 | 搜索 | 单个字符串对名称、Actor 类型、Component 类型做包含匹配 | 多词 AND、排除、精确匹配、字段查询 | P2 不完整 |
 | 过滤 | Internal、Components、Only Selected | Filter 菜单、类型过滤、自定义过滤器 | P2 不完整 |
 | 列 | 无表头、无排序 | Label 主列和可选信息列，可调宽、排序 | P2 缺失 |
-| 上下文菜单 | 无 | 与视口共用 Actor 命令；Folder 有独立命令 | P1 缺失 |
-| 重命名 | `F2` 自动生成另一个名字 | 行内编辑，提交/取消和冲突校验 | P1 语义错误 |
-| 拖放 | 仅 Actor→Actor，使用 Keep World；循环挂载被拒绝 | Actor→Actor 为挂载；Actor→Folder 为组织；两者明确区分 | O0 已完成 Actor 部分 |
+| 上下文菜单 | Actor、Folder、空白基础菜单；复用现有选择/复制/删除/聚焦命令 | 与视口共用 Actor 命令；Folder 有独立命令 | O1 已完成基础 |
+| 重命名 | `F2`/菜单进入真实 `UITextBox` 行内编辑 | 行内编辑，提交/取消和冲突校验 | O1 已完成 |
+| 拖放 | Actor→Actor/Folder/空白、Folder→Folder/空白、Asset→Folder | 挂载、组织和创建三类语义明确区分 | O1 已完成 |
 | Play | 始终展示 EditorWorld | 默认浏览 ActiveWorld，并标识运行时生成对象 | P3 缺失 |
 | 性能 | 每帧 O(n) 拼接签名，变化后全量重建 | 增量模型、虚拟化、稳定滚动与选择 | P3 技术债 |
 | 内部对象 | 可过滤显示，显示后只读 | 保留为 Spark 调试扩展，默认关闭 | 合理扩展 |
@@ -311,15 +311,19 @@ UITreeView / UITableTree     虚拟化行、列、行内编辑、上下文菜单
 
 实现说明：重建期间已保持展开、选择和滚动位置；跨场景、跨启动的显式 ViewState 持久化随 O2 列和布局状态统一接入。
 
-### O1：日常组织闭环（P1）
+### ✅ O1：日常组织闭环（P1，已完成）
 
-1. Folder 数据模型、SceneDocument 持久化、空 Folder 和当前 Folder。
-2. `+ Folder`、行内重命名、Actor/Folder/空白上下文菜单。
-3. Actor→Folder、Folder→Folder 拖放及统一 Undo 事务。
-4. Eye 临时可见性列与 Folder 混合状态。
-5. Content asset→Folder 的 Spark 扩展接入统一 Actor 创建流程。
+1. ✅ Folder 数据模型、SceneDocument v6 持久化、v5 读取兼容、空 Folder 和当前 Folder。
+2. ✅ `+ Folder`、真实 `UITextBox` 行内重命名、Actor/Folder/空白上下文菜单。
+3. ✅ Actor→Folder/空白、Folder→Folder/空白拖放及统一 Undo 事务。
+4. ✅ Eye 临时可见性列、Folder 级联/混合状态、预览渲染与拾取过滤。
+5. ✅ Content asset→Folder 的 Spark 扩展接入统一 Actor 创建流程。
 
 验收：可完成“建 Folder → 放入/创建 Actor → 重命名 → 隐藏 → Undo/Redo → 保存/Reload”的完整工作流。
+
+实现说明：Folder 是绑定 EditorWorld 的独立编辑器元数据，不是特殊 Actor；RuntimeWorld 忽略这些字段。
+删除非空 Folder 会把直接内容安全提升到父 Folder，不会删除 Actor。当前 Folder 和 Eye 在 Reload 后按稳定 Guid
+恢复，但不写入场景脏状态；跨启动 ViewState 仍归入 O2。
 
 ### O2：查找与信息架构（P2）
 

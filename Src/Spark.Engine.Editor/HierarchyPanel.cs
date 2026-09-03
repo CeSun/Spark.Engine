@@ -13,11 +13,13 @@ namespace Spark.Engine.Editor;
 public sealed class HierarchyPanel
 {
     private World _world;
+    private EditorWorldOutlinerData _outliner;
     private readonly UITreeView _tree;
 
     private string _lastSignature = string.Empty;
     private bool _suppressSelectionChanged;
     private readonly Dictionary<Guid, bool> _actorExpansion = [];
+    private readonly Dictionary<Guid, bool> _folderExpansion = [];
     private bool _displayingFilteredTree;
     private IReadOnlyList<object> _selectedTargets = Array.Empty<object>();
     private object? _primaryTarget;
@@ -34,10 +36,17 @@ public sealed class HierarchyPanel
 
     /// <summary>层级项拖放完成；参数为源目标、放置目标和画布位置。</summary>
     public Action<object, object, System.Numerics.Vector2>? ItemDropped { get; set; }
+    public Action<object, System.Numerics.Vector2>? ItemContextRequested { get; set; }
+    public Action<object>? VisibilityToggled { get; set; }
+    public Func<object, string, bool>? RenameSubmitted { get; set; }
+    public Action<object>? DeleteRequested { get; set; }
+    public Action<System.Numerics.Vector2>? BackgroundContextRequested { get; set; }
+    public Action<object, System.Numerics.Vector2>? ItemDroppedOnBackground { get; set; }
 
-    public HierarchyPanel(World world)
+    public HierarchyPanel(World world, EditorWorldOutlinerData? outliner = null)
     {
         _world = world;
+        _outliner = outliner ?? EditorWorldOutlinerData.For(world);
         _tree = new UITreeView
         {
             BackgroundColor = new(0f, 0f, 0f, 0f),
@@ -57,9 +66,24 @@ public sealed class HierarchyPanel
         };
         _tree.ItemDropped += (source, target, position) =>
         {
-            if (((WorldTreeItem)source).Target is Actor sourceActor &&
-                ((WorldTreeItem)target).Target is Actor targetActor)
-                ItemDropped?.Invoke(sourceActor, targetActor, position);
+            var sourceTarget = ((WorldTreeItem)source).Target;
+            var targetTarget = ((WorldTreeItem)target).Target;
+            if (sourceTarget is not ActorComponent && targetTarget is not ActorComponent)
+                ItemDropped?.Invoke(sourceTarget, targetTarget, position);
+        };
+        _tree.ItemContextRequested += (item, position) =>
+            ItemContextRequested?.Invoke(((WorldTreeItem)item).Target, position);
+        _tree.ItemVisibilityClicked += item =>
+            VisibilityToggled?.Invoke(((WorldTreeItem)item).Target);
+        _tree.BackgroundContextRequested += position => BackgroundContextRequested?.Invoke(position);
+        _tree.ItemDroppedOnBackground += (item, position) =>
+            ItemDroppedOnBackground?.Invoke(((WorldTreeItem)item).Target, position);
+        _tree.ItemKeyPressed += (item, key, _) =>
+        {
+            if (key == Spark.Engine.Input.Key.F2 && item is WorldTreeItem worldItem)
+                BeginRename(worldItem.Target);
+            else if (key == Spark.Engine.Input.Key.Delete && item is WorldTreeItem deleteItem)
+                DeleteRequested?.Invoke(deleteItem.Target);
         };
     }
 
@@ -118,9 +142,11 @@ public sealed class HierarchyPanel
     public void SetWorld(World world)
     {
         _world = world ?? throw new ArgumentNullException(nameof(world));
+        _outliner = EditorWorldOutlinerData.For(world);
         _selectedTargets = Array.Empty<object>();
         _primaryTarget = null;
         _actorExpansion.Clear();
+        _folderExpansion.Clear();
         _displayingFilteredTree = false;
         _lastSignature = string.Empty;
         _tree.Clear();
@@ -151,6 +177,7 @@ public sealed class HierarchyPanel
             .Append(_showInternalActors).Append('|')
             .Append(_showComponents).Append('|')
             .Append(_onlySelected).Append('|');
+        sb.Append("outliner:").Append(_outliner.Revision).Append('|');
         if (_onlySelected)
         {
             foreach (var target in _selectedTargets)
@@ -196,6 +223,14 @@ public sealed class HierarchyPanel
             _tree.Clear();
             var actors = GetVisibleActors();
             var actorSet = actors.ToHashSet();
+            var folderItems = new Dictionary<Guid, WorldTreeItem>();
+            var folders = GetVisibleFolders(actors);
+            foreach (var folder in folders.OrderBy(folder => folder.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                var item = CreateTreeItem(folder, folder.Name);
+                item.IsExpanded = !_folderExpansion.TryGetValue(folder.FolderGuid, out var expanded) || expanded;
+                folderItems.Add(folder.FolderGuid, item);
+            }
             var actorItems = new Dictionary<Actor, WorldTreeItem>();
             foreach (var actor in actors)
             {
@@ -207,19 +242,31 @@ public sealed class HierarchyPanel
                 actorItems.Add(actor, actorItem);
             }
 
+            foreach (var folder in folders.OrderBy(folder => folder.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                var item = folderItems[folder.FolderGuid];
+                if (folder.ParentFolderGuid is { } parentGuid && folderItems.TryGetValue(parentGuid, out var parentItem))
+                    parentItem.AddSubItem(item);
+                else
+                    _tree.AddRoot(item);
+            }
+
             foreach (var actor in actors)
             {
                 var actorItem = actorItems[actor];
                 var parent = GetOutlinerParent(actor, actorSet);
                 if (parent != null)
                     actorItems[parent].AddSubItem(actorItem);
+                else if (_outliner.GetActorFolder(actor.ActorGuid) is { } folderGuid &&
+                    folderItems.TryGetValue(folderGuid, out var folderItem))
+                    folderItem.AddSubItem(actorItem);
                 else
                     _tree.AddRoot(actorItem);
             }
 
             if (isContextFilter)
             {
-                foreach (var item in actorItems.Values.Where(item => !item.IsLeaf))
+                foreach (var item in actorItems.Values.Concat(folderItems.Values).Where(item => !item.IsLeaf))
                     item.IsExpanded = true;
                 _tree.RebuildFlatList();
             }
@@ -240,9 +287,13 @@ public sealed class HierarchyPanel
             .Where(actor => _showInternalActors || EditorActorPolicy.IsVisibleInOutliner(actor))
             .ToArray();
         var candidateSet = candidates.ToHashSet();
+        var matchingFolderGuids = _searchText.Length == 0
+            ? new HashSet<Guid>()
+            : _outliner.Folders.Where(folder => MatchesText(folder.Name))
+                .Select(folder => folder.FolderGuid).ToHashSet();
         var directlyVisible = candidates
             .Where(actor => !_onlySelected || IsActorSelected(actor))
-            .Where(MatchesSearch)
+            .Where(actor => MatchesSearch(actor) || IsInFolderSubtree(actor, matchingFolderGuids))
             .ToHashSet();
 
         // 过滤命中的 Actor 仍需显示挂载祖先，才能保留空间层级上下文。
@@ -255,6 +306,47 @@ public sealed class HierarchyPanel
         }
 
         return candidates.Where(directlyVisible.Contains).ToArray();
+    }
+
+    private IReadOnlyList<EditorActorFolder> GetVisibleFolders(IReadOnlyList<Actor> visibleActors)
+    {
+        if (_searchText.Length == 0 && !_onlySelected)
+            return _outliner.Folders.ToArray();
+
+        var visibleFolderGuids = new HashSet<Guid>();
+        if (_searchText.Length != 0)
+        {
+            foreach (var folder in _outliner.Folders.Where(folder => MatchesText(folder.Name)))
+                AddFolderAndAncestors(folder.FolderGuid, visibleFolderGuids);
+        }
+        foreach (var actor in visibleActors)
+        {
+            if (_outliner.GetActorFolder(actor.ActorGuid) is { } folderGuid)
+                AddFolderAndAncestors(folderGuid, visibleFolderGuids);
+        }
+        foreach (var selectedFolder in _selectedTargets.OfType<EditorActorFolder>())
+            AddFolderAndAncestors(selectedFolder.FolderGuid, visibleFolderGuids);
+        return _outliner.Folders.Where(folder => visibleFolderGuids.Contains(folder.FolderGuid)).ToArray();
+    }
+
+    private bool IsInFolderSubtree(Actor actor, IReadOnlySet<Guid> folderGuids)
+    {
+        for (var folderGuid = _outliner.GetActorFolder(actor.ActorGuid); folderGuid.HasValue;)
+        {
+            if (folderGuids.Contains(folderGuid.Value))
+                return true;
+            folderGuid = _outliner.FindFolder(folderGuid.Value)?.ParentFolderGuid;
+        }
+        return false;
+    }
+
+    private void AddFolderAndAncestors(Guid folderGuid, ISet<Guid> result)
+    {
+        for (Guid? current = folderGuid; current.HasValue; current = _outliner.FindFolder(current.Value)?.ParentFolderGuid)
+        {
+            if (!result.Add(current.Value))
+                break;
+        }
     }
 
     private IEnumerable<ActorComponent> VisibleComponents(Actor actor)
@@ -291,23 +383,51 @@ public sealed class HierarchyPanel
         {
             Actor actor => actor.ActorGuid.ToString("N"),
             ActorComponent component => component.ComponentGuid.ToString("N"),
+            EditorActorFolder folder => folder.FolderGuid.ToString("N"),
             _ => target.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
 
-    private static WorldTreeItem CreateTreeItem(object target, string text)
+    private WorldTreeItem CreateTreeItem(object target, string text)
     {
-        var selectable = EditorActorPolicy.CanSelect(target);
-        var editable = EditorActorPolicy.CanEdit(target);
+        var isFolder = target is EditorActorFolder;
+        var selectable = isFolder || EditorActorPolicy.CanSelect(target);
+        var editable = isFolder || EditorActorPolicy.CanEdit(target);
         var isActor = target is Actor;
         var isSpatialActor = target is Actor { RootComponent: not null };
         return new WorldTreeItem(target, text)
         {
             IsSelectable = selectable,
-            IsDraggable = isSpatialActor && editable,
-            IsDropTarget = isSpatialActor && editable,
+            IsDraggable = (isActor || isFolder) && editable,
+            IsDropTarget = (isSpatialActor || isFolder) && editable,
             Focusable = selectable,
             TextColor = selectable ? UITheme.Default.TextColor : UITheme.Default.TextDimColor,
-            IconColor = isActor ? GetActorIconColor((Actor)target, selectable) : null,
+            IconColor = isActor ? GetActorIconColor((Actor)target, selectable)
+                : isFolder ? GetFolderIconColor((EditorActorFolder)target) : null,
+            ShowVisibilityToggle = isActor || isFolder,
+            VisibilityState = GetVisibilityState(target),
+        };
+    }
+
+    private Vector4 GetFolderIconColor(EditorActorFolder folder)
+        => _outliner.CurrentFolderGuid == folder.FolderGuid
+            ? new Vector4(1f, 0.78f, 0.24f, 1f)
+            : new Vector4(0.82f, 0.62f, 0.22f, 1f);
+
+    private UITreeItemVisibilityState GetVisibilityState(object target)
+    {
+        var state = target switch
+        {
+            Actor actor => _outliner.IsActorTemporarilyHidden(actor.ActorGuid)
+                ? EditorVisibilityState.Hidden : EditorVisibilityState.Visible,
+            EditorActorFolder folder => _outliner.GetFolderVisibility(
+                folder.FolderGuid, _world.EnumerateActors(includePendingActors: true)),
+            _ => EditorVisibilityState.Visible,
+        };
+        return state switch
+        {
+            EditorVisibilityState.Hidden => UITreeItemVisibilityState.Hidden,
+            EditorVisibilityState.Mixed => UITreeItemVisibilityState.Mixed,
+            _ => UITreeItemVisibilityState.Visible,
         };
     }
 
@@ -374,6 +494,8 @@ public sealed class HierarchyPanel
         {
             if (item is WorldTreeItem { Target: Actor actor })
                 _actorExpansion[actor.ActorGuid] = item.IsExpanded;
+            else if (item is WorldTreeItem { Target: EditorActorFolder folder })
+                _folderExpansion[folder.FolderGuid] = item.IsExpanded;
             CaptureExpansionState(item.SubItems);
         }
     }
@@ -437,6 +559,16 @@ public sealed class HierarchyPanel
     private object? GetDisplaySelectionTarget(object? target)
         => !_showComponents && target is ActorComponent component ? component.Owner : target;
 
+    public bool BeginRename(object target)
+    {
+        if (target is not Actor && target is not EditorActorFolder)
+            return false;
+        var item = FindItem(_tree.Roots, target);
+        return item != null && item.BeginInlineEdit(value => RenameSubmitted?.Invoke(target, value) ?? true);
+    }
+
+    public object? GetTargetAt(Vector2 position) => (_tree.GetItemAt(position) as WorldTreeItem)?.Target;
+
     private static bool ExpandAncestors(UITreeViewItem item)
     {
         var changed = false;
@@ -465,7 +597,7 @@ public sealed class HierarchyPanel
     /// <summary>持有引擎对象引用的树项（选中回调向上抛 Target）。</summary>
     public sealed class WorldTreeItem : UITreeViewItem
     {
-        /// <summary>绑定的 Actor 或 Component。</summary>
+        /// <summary>绑定的 Folder、Actor 或 Component。</summary>
         public object Target { get; }
 
         public WorldTreeItem(object target, string text) : base(text)

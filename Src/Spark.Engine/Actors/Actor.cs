@@ -23,6 +23,14 @@ public class Actor
     /// <summary>场景持久化使用的稳定身份。</summary>
     public Guid ActorGuid { get; set; } = Guid.NewGuid();
 
+    /// <summary>
+    /// 编辑器视口的会话级临时隐藏状态；不属于 SceneProperty，不会保存到场景或复制到 RuntimeWorld。
+    /// </summary>
+    public bool IsTemporarilyHiddenInEditor { get; internal set; }
+
+    /// <summary>由编辑器可见性服务调用；游戏逻辑不应把它当作运行时 HiddenInGame。</summary>
+    public void SetTemporarilyHiddenInEditor(bool hidden) => IsTemporarilyHiddenInEditor = hidden;
+
     /// <summary>Actor 的空间根组件。第一个加入 Actor 的 SceneComponent 默认成为根组件。</summary>
     public SceneComponent? RootComponent { get; private set; }
 

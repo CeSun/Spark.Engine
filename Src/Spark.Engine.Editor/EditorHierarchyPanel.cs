@@ -6,14 +6,20 @@ namespace Spark.Engine.Editor;
 internal sealed class EditorHierarchyPanel : UIElement
 {
     private readonly HierarchyPanel _hierarchy;
+    private EditorWorldOutlinerData _outliner;
     private readonly UIStackPanel _panel;
+    private readonly UILabel _title;
     private readonly UITextBox _search;
     private readonly UIButton _viewOptionsButton;
+    private readonly UIButton _addFolderButton;
     private readonly UIMenuPanel _viewOptions = new() { MinWidth = 190f, MaxWidth = 240f };
+    private readonly UIMenuPanel _contextMenu = new() { MinWidth = 180f, MaxWidth = 260f };
+    private object? _contextTarget;
 
-    public EditorHierarchyPanel(Spark.Engine.Worlds.World world)
+    public EditorHierarchyPanel(Spark.Engine.Worlds.World world, EditorWorldOutlinerData? outliner = null)
     {
-        _hierarchy = new HierarchyPanel(world);
+        _outliner = outliner ?? EditorWorldOutlinerData.For(world);
+        _hierarchy = new HierarchyPanel(world, _outliner);
         _panel = new UIStackPanel
         {
             Orientation = UIOrientation.Vertical,
@@ -29,7 +35,8 @@ internal sealed class EditorHierarchyPanel : UIElement
         header.RowDefinitions.Add(UIGridDefinition.Star());
         header.ColumnDefinitions.Add(UIGridDefinition.Star());
         header.ColumnDefinitions.Add(UIGridDefinition.Auto());
-        var title = new UILabel
+        header.ColumnDefinitions.Add(UIGridDefinition.Auto());
+        _title = new UILabel
         {
             Text = "OUTLINER",
             TextColor = UITheme.Default.TextDimColor,
@@ -40,10 +47,18 @@ internal sealed class EditorHierarchyPanel : UIElement
             FixedSize = new UISize(54f, 22f),
             Clicked = ShowViewOptions,
         };
-        header.AddChild(title);
+        _addFolderButton = new UIButton
+        {
+            Text = "+ Folder",
+            FixedSize = new UISize(72f, 22f),
+            Clicked = () => CreateFolderRequested?.Invoke(),
+        };
+        header.AddChild(_title);
+        header.AddChild(_addFolderButton);
         header.AddChild(_viewOptionsButton);
-        header.SetColumn(title, 0);
-        header.SetColumn(_viewOptionsButton, 1);
+        header.SetColumn(_title, 0);
+        header.SetColumn(_addFolderButton, 1);
+        header.SetColumn(_viewOptionsButton, 2);
         _panel.AddChild(header);
 
         _search = new UITextBox
@@ -60,6 +75,12 @@ internal sealed class EditorHierarchyPanel : UIElement
         _panel.AddChild(_search);
         _panel.AddChild(_hierarchy.Element);
         AddChild(_panel);
+        _hierarchy.ItemContextRequested = ShowContextMenu;
+        _hierarchy.VisibilityToggled = target => VisibilityToggled?.Invoke(target);
+        _hierarchy.RenameSubmitted = (target, value) => RenameSubmitted?.Invoke(target, value) ?? true;
+        _hierarchy.DeleteRequested = target => DeleteRequested?.Invoke(target);
+        _hierarchy.BackgroundContextRequested = ShowBackgroundContextMenu;
+        _hierarchy.ItemDroppedOnBackground = (target, position) => ItemDroppedOnBackground?.Invoke(target, position);
     }
 
     public string SearchText
@@ -121,14 +142,44 @@ internal sealed class EditorHierarchyPanel : UIElement
         set => _hierarchy.ItemDropped = value;
     }
 
-    public void Refresh() => _hierarchy.Refresh();
+    public Action? CreateFolderRequested { get; set; }
+    public Action<object>? DeleteRequested { get; set; }
+    public Action<object>? VisibilityToggled { get; set; }
+    public Func<object, string, bool>? RenameSubmitted { get; set; }
+    public Action<EditorActorFolder>? MakeCurrentFolderRequested { get; set; }
+    public Action? ClearCurrentFolderRequested { get; set; }
+    public Action<EditorActorFolder>? CreateSubfolderRequested { get; set; }
+    public Action<EditorActorFolder>? SelectFolderActorsRequested { get; set; }
+    public Action<Spark.Engine.Actors.Actor>? FocusActorRequested { get; set; }
+    public Action<Spark.Engine.Actors.Actor>? DuplicateActorRequested { get; set; }
+    public Action<Spark.Engine.Actors.Actor>? DetachActorRequested { get; set; }
+    public Action<Spark.Engine.Actors.Actor>? MoveActorToCurrentFolderRequested { get; set; }
+    public Action<Spark.Engine.Actors.Actor>? SelectActorChildrenRequested { get; set; }
+    public Action<object, System.Numerics.Vector2>? ItemDroppedOnBackground { get; set; }
+    public object? ActiveTarget => _hierarchy.SelectedTarget;
 
-    public void SetWorld(Spark.Engine.Worlds.World world) => _hierarchy.SetWorld(world);
+    public void Refresh()
+    {
+        _title.Text = _outliner.CurrentFolderGuid is { } current && _outliner.FindFolder(current) is { } folder
+            ? $"OUTLINER · {folder.Name}"
+            : "OUTLINER";
+        _hierarchy.Refresh();
+    }
+
+    public void SetWorld(Spark.Engine.Worlds.World world)
+    {
+        _outliner = EditorWorldOutlinerData.For(world);
+        _hierarchy.SetWorld(world);
+    }
 
     public void SelectTarget(object? target) => _hierarchy.SelectTarget(target);
 
     public void SelectTargets(IEnumerable<object> targets, object? primary = null)
         => _hierarchy.SelectTargets(targets, primary);
+
+    public bool BeginRename(object target) => _hierarchy.BeginRename(target);
+
+    public object? GetTargetAt(System.Numerics.Vector2 position) => _hierarchy.GetTargetAt(position);
 
     protected override UISize OnMeasure(UISize availableSize)
     {
@@ -155,4 +206,52 @@ internal sealed class EditorHierarchyPanel : UIElement
     private void AddToggleOption(string label, bool value, Action<bool> setValue)
         => _viewOptions.AddItem(new UIMenuItem($"{(value ? "[x]" : "[ ]")} {label}",
             () => setValue(!value)));
+
+    private void ShowContextMenu(object target, System.Numerics.Vector2 position)
+    {
+        _contextTarget = target;
+        _contextMenu.Clear();
+        _contextMenu.AddItem(new UIMenuItem("Create Folder", () => CreateFolderRequested?.Invoke()));
+        if (target is EditorActorFolder folder)
+        {
+            _contextMenu.AddItem(new UIMenuItem("New Subfolder", () => CreateSubfolderRequested?.Invoke(folder)));
+            _contextMenu.AddItem(new UIMenuItem("Make Current Folder", () => MakeCurrentFolderRequested?.Invoke(folder)));
+            _contextMenu.AddItem(new UIMenuItem("Select Descendant Actors", () => SelectFolderActorsRequested?.Invoke(folder)));
+        }
+        else if (target is Spark.Engine.Actors.Actor actor)
+        {
+            _contextMenu.AddItem(new UIMenuItem("Focus Selected", () => FocusActorRequested?.Invoke(actor)) { Shortcut = "F" });
+            _contextMenu.AddItem(new UIMenuItem("Duplicate", () => DuplicateActorRequested?.Invoke(actor)) { Shortcut = "Ctrl+D" });
+            _contextMenu.AddItem(new UIMenuItem("Detach", () => DetachActorRequested?.Invoke(actor))
+            {
+                IsEnabled = actor.RootComponent?.AttachParent != null,
+            });
+            _contextMenu.AddItem(new UIMenuItem("Move to Current Folder", () => MoveActorToCurrentFolderRequested?.Invoke(actor)));
+            _contextMenu.AddItem(new UIMenuItem("Select Children", () => SelectActorChildrenRequested?.Invoke(actor)));
+        }
+        _contextMenu.AddItem(new UIMenuItem("Clear Current Folder", () => ClearCurrentFolderRequested?.Invoke()));
+        _contextMenu.AddSeparator();
+        _contextMenu.AddItem(new UIMenuItem("Rename", () =>
+        {
+            if (_contextTarget != null)
+                BeginRename(_contextTarget);
+        }) { Shortcut = "F2", IsEnabled = target is Spark.Engine.Actors.Actor or EditorActorFolder });
+        _contextMenu.AddItem(new UIMenuItem("Delete", () =>
+        {
+            if (_contextTarget != null)
+                DeleteRequested?.Invoke(_contextTarget);
+        }) { Shortcut = "Delete", IsEnabled = target is Spark.Engine.Actors.Actor or EditorActorFolder });
+        _contextMenu.Canvas = FindCanvas();
+        _contextMenu.Show(position);
+    }
+
+    private void ShowBackgroundContextMenu(System.Numerics.Vector2 position)
+    {
+        _contextTarget = null;
+        _contextMenu.Clear();
+        _contextMenu.AddItem(new UIMenuItem("New Folder", () => CreateFolderRequested?.Invoke()));
+        _contextMenu.AddItem(new UIMenuItem("Clear Current Folder", () => ClearCurrentFolderRequested?.Invoke()));
+        _contextMenu.Canvas = FindCanvas();
+        _contextMenu.Show(position);
+    }
 }

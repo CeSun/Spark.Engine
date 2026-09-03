@@ -119,6 +119,7 @@ public sealed class EditorContext : IDisposable
     public Action<World>? RuntimeWorldInitializer { get; set; }
     public EditorCommandHistory History { get; } = new();
     public EditorSelection Selection { get; } = new();
+    public EditorWorldOutlinerData Outliner => EditorWorldOutlinerData.For(World);
     public bool IsDirty { get; private set; }
     public event Action<bool>? DirtyChanged;
     public event Action<EditorPlayState>? PlayStateChanged;
@@ -171,12 +172,15 @@ public sealed class EditorContext : IDisposable
 
         RegisterWorldAssets();
         var previous = World;
+        var previousOutliner = EditorWorldOutlinerData.For(previous);
         if (_worldContext != null && !ReferenceEquals(_worldContext.CurrentWorld, previous))
             throw new InvalidOperationException("EditorContext no longer owns WorldContext.CurrentWorld.");
         var next = document.InstantiateEditorWorld(
             previous.Scene.ResourceManager, AssetRegistry, RuntimeActorFactory);
         try
         {
+            EditorWorldOutlinerData.For(next).RestoreSessionStateFrom(
+                previousOutliner, next.EnumerateActors(includePendingActors: true));
             BindCameraTargets(previous, next);
             next.Update(0f, tickActors: false);
         }

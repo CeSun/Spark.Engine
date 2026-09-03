@@ -187,6 +187,117 @@ public sealed class EditorCommandTests
     }
 
     [Fact]
+    public void EditorFolderCommandsSupportMoveRenameDeleteAndUndoWithoutDeletingContents()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var actor = new Actor { Name = "Prop" };
+        world.AddActor(actor);
+        var context = new EditorContext(world);
+        var parent = new CreateEditorFolderCommand(context.Outliner, "Environment");
+        context.Execute(parent);
+        var child = new CreateEditorFolderCommand(context.Outliner, "Props", parent.Folder.FolderGuid);
+        context.Execute(child);
+        context.Execute(new MoveActorsToEditorFolderCommand(context.Outliner, new[] { actor }, child.Folder.FolderGuid));
+        context.Execute(new RenameEditorFolderCommand(context.Outliner, child.Folder.FolderGuid, "Set Dressing"));
+
+        Assert.Equal("Set Dressing", child.Folder.Name);
+        Assert.Equal(child.Folder.FolderGuid, context.Outliner.GetActorFolder(actor.ActorGuid));
+        Assert.Throws<InvalidOperationException>(() =>
+            new MoveEditorFolderCommand(context.Outliner, parent.Folder.FolderGuid, child.Folder.FolderGuid).Execute());
+
+        context.Execute(new DeleteEditorFolderCommand(context.Outliner, child.Folder.FolderGuid, new[] { actor }));
+        Assert.Null(context.Outliner.FindFolder(child.Folder.FolderGuid));
+        Assert.Equal(parent.Folder.FolderGuid, context.Outliner.GetActorFolder(actor.ActorGuid));
+
+        Assert.True(context.Undo());
+        Assert.Same(child.Folder, context.Outliner.FindFolder(child.Folder.FolderGuid));
+        Assert.Equal(child.Folder.FolderGuid, context.Outliner.GetActorFolder(actor.ActorGuid));
+        Assert.True(context.Redo());
+        Assert.Null(context.Outliner.FindFolder(child.Folder.FolderGuid));
+        Assert.Contains(actor, world.EnumerateActors(includePendingActors: true));
+    }
+
+    [Fact]
+    public void CreateActorsCommandAssignsTheCurrentEditorFolderAcrossUndoRedo()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var outliner = EditorWorldOutlinerData.For(world);
+        var folderCommand = new CreateEditorFolderCommand(outliner, "Gameplay");
+        folderCommand.Execute();
+        var actor = new Actor();
+        var history = new EditorCommandHistory();
+        history.Execute(new CreateActorsCommand(world, new[] { actor }, outliner, folderCommand.Folder.FolderGuid));
+
+        Assert.Equal(folderCommand.Folder.FolderGuid, outliner.GetActorFolder(actor.ActorGuid));
+        Assert.True(history.Undo());
+        Assert.DoesNotContain(actor, world.EnumerateActors(includePendingActors: true));
+        Assert.True(history.Redo());
+        Assert.Contains(actor, world.EnumerateActors(includePendingActors: true));
+        Assert.Equal(folderCommand.Folder.FolderGuid, outliner.GetActorFolder(actor.ActorGuid));
+    }
+
+    [Fact]
+    public void HierarchyBuildsFolderThenActorAttachmentTree()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var parent = new Actor { Name = "Building" };
+        var parentRoot = new SceneComponent();
+        parent.AddOwnedComponent(parentRoot);
+        var child = new Actor { Name = "Door" };
+        var childRoot = new SceneComponent();
+        child.AddOwnedComponent(childRoot);
+        childRoot.AttachToComponent(parentRoot, AttachmentTransformRules.KeepWorldTransform);
+        world.AddActor(parent);
+        world.AddActor(child);
+        world.Update(0f, tickActors: false);
+        var outliner = EditorWorldOutlinerData.For(world);
+        var folder = new CreateEditorFolderCommand(outliner, "Architecture");
+        folder.Execute();
+        new MoveActorsToEditorFolderCommand(outliner, new[] { parent, child }, folder.Folder.FolderGuid).Execute();
+
+        var hierarchy = new HierarchyPanel(world, outliner);
+        hierarchy.Refresh();
+        var tree = Assert.IsType<UITreeView>(hierarchy.Element);
+        var folderItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(tree.Roots));
+        var parentItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(folderItem.SubItems));
+        var childItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(parentItem.SubItems));
+
+        Assert.Same(folder.Folder, folderItem.Target);
+        Assert.Same(parent, parentItem.Target);
+        Assert.Same(child, childItem.Target);
+        Assert.True(folderItem.ShowVisibilityToggle);
+        Assert.Equal(new Vector3(0.82f, 0.62f, 0.22f), new Vector3(folderItem.IconColor!.Value.X,
+            folderItem.IconColor.Value.Y, folderItem.IconColor.Value.Z));
+    }
+
+    [Fact]
+    public void TemporaryFolderVisibilityIsMixedAndDoesNotDirtyTheScene()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var first = new Actor();
+        var second = new Actor();
+        world.AddActor(first);
+        world.AddActor(second);
+        var context = new EditorContext(world);
+        var folder = new CreateEditorFolderCommand(context.Outliner, "Actors");
+        context.Execute(folder);
+        context.Execute(new MoveActorsToEditorFolderCommand(context.Outliner, new[] { first, second }, folder.Folder.FolderGuid));
+        context.MarkSaved();
+
+        context.Outliner.SetActorTemporarilyHidden(first.ActorGuid, true);
+
+        Assert.True(first.IsTemporarilyHiddenInEditor);
+        Assert.False(second.IsTemporarilyHiddenInEditor);
+        Assert.Equal(EditorVisibilityState.Mixed,
+            context.Outliner.GetFolderVisibility(folder.Folder.FolderGuid, new[] { first, second }));
+        Assert.False(context.IsDirty);
+        context.Outliner.SetFolderTemporarilyHidden(folder.Folder.FolderGuid, new[] { first, second }, true);
+        Assert.True(second.IsTemporarilyHiddenInEditor);
+        Assert.Equal(EditorVisibilityState.Hidden,
+            context.Outliner.GetFolderVisibility(folder.Folder.FolderGuid, new[] { first, second }));
+    }
+
+    [Fact]
     public void EditorUi_RequestCloseClosesImmediatelyWhenSceneIsClean()
     {
         using var world = new Spark.Engine.Worlds.World(new ResourceManager());

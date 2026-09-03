@@ -3,6 +3,13 @@ using Spark.Engine.Input;
 
 namespace Spark.Engine.UI;
 
+public enum UITreeItemVisibilityState
+{
+    Visible,
+    Hidden,
+    Mixed,
+}
+
 /// <summary>
 /// 树视图项：支持展开/折叠、缩进、选中状态。
 /// 每项包含：展开箭头 + 图标区域 + 文本标签。
@@ -48,10 +55,16 @@ public class UITreeViewItem : UIElement
     /// <summary>可选的行首类型标记色；用于没有纹理图标时保持节点类型的视觉区分。</summary>
     public Vector4? IconColor { get; set; }
 
+    /// <summary>是否绘制并响应 UE 风格的临时可见性 Eye 列。</summary>
+    public bool ShowVisibilityToggle { get; set; }
+    public UITreeItemVisibilityState VisibilityState { get; set; }
+
     private bool _hovered;
     private Vector2 _lastPointerPosition;
     private Vector2 _pressPosition;
     private bool _isDragging;
+    private UITextBox? _inlineEditor;
+    private bool _endingInlineEdit;
 
     /// <summary>展开/折叠切换回调。</summary>
     public Action<UITreeViewItem>? Toggled { get; set; }
@@ -64,6 +77,9 @@ public class UITreeViewItem : UIElement
 
     /// <summary>拖拽结束回调；参数为源项、释放位置和修饰键。</summary>
     public Action<UITreeViewItem, Vector2, KeyMask>? DropCompleted { get; set; }
+    internal Action<UITreeViewItem, Key, KeyMask>? KeyPressed { get; set; }
+    internal Action<UITreeViewItem, Vector2>? ContextRequested { get; set; }
+    internal Action<UITreeViewItem>? VisibilityClicked { get; set; }
 
     public UITreeViewItem()
     {
@@ -115,8 +131,12 @@ public class UITreeViewItem : UIElement
 
         // 展开箭头
         float arrowSize = 10f;
-        float arrowX = contentRect.X + 4f;
+        float eyeWidth = ShowVisibilityToggle ? 20f : 0f;
+        float arrowX = contentRect.X + 4f + eyeWidth;
         float arrowY = contentRect.Y + (contentRect.Height - arrowSize) * 0.5f;
+
+        if (ShowVisibilityToggle)
+            DrawVisibility(ui, targetId, contentRect.X + 4f, contentRect.Y, contentRect.Height, VisibilityState);
 
         if (!IsLeaf)
         {
@@ -132,7 +152,7 @@ public class UITreeViewItem : UIElement
             ui.DrawRect(targetId, new Vector2(textX, iconY), new Vector2(iconSize, iconSize), iconColor);
             textX += iconSize + 5f;
         }
-        if (!string.IsNullOrEmpty(Text))
+        if (_inlineEditor == null && !string.IsNullOrEmpty(Text))
         {
             var textRenderer = GetTextRenderer();
             if (textRenderer != null)
@@ -182,6 +202,91 @@ public class UITreeViewItem : UIElement
         _hovered = false;
     }
 
+    protected override void OnArrange()
+    {
+        if (_inlineEditor == null)
+            return;
+        var textX = GetTextStartX();
+        _inlineEditor.Arrange(new UIRect(textX, Bounds.Y + 1f,
+            System.Math.Max(20f, Bounds.Right - textX - 4f), System.Math.Max(20f, Bounds.Height - 2f)));
+    }
+
+    /// <summary>在当前行内用真实 UITextBox 编辑标签；Enter/失焦提交，Escape 取消。</summary>
+    public bool BeginInlineEdit(Func<string, bool> commit)
+    {
+        ArgumentNullException.ThrowIfNull(commit);
+        if (_inlineEditor != null)
+            return false;
+        var original = Text;
+        var editor = new UITextBox
+        {
+            Text = original,
+            Padding = UIEdgeInsets.HorizontalVertical(4f, 2f),
+            BackgroundColor = new Vector4(0.08f, 0.1f, 0.13f, 1f),
+        };
+        _inlineEditor = editor;
+        AddChild(editor);
+        editor.Submitted = value => EndInlineEdit(true, value, commit, focusItem: true);
+        editor.Cancelled = () => EndInlineEdit(false, original, commit, focusItem: true);
+        editor.FocusChanged = focused =>
+        {
+            if (!focused && !_endingInlineEdit && ReferenceEquals(_inlineEditor, editor))
+                EndInlineEdit(true, editor.Text, commit, focusItem: false);
+        };
+        editor.Measure(new UISize(System.Math.Max(20f, Bounds.Width), Bounds.Height));
+        OnArrange();
+        var canvas = FindCanvas();
+        canvas?.Focus(editor);
+        editor.SelectAll();
+        return true;
+    }
+
+    private void EndInlineEdit(bool submit, string value, Func<string, bool> commit, bool focusItem)
+    {
+        if (_inlineEditor == null || _endingInlineEdit)
+            return;
+        _endingInlineEdit = true;
+        var editor = _inlineEditor;
+        if (submit && !commit(value))
+        {
+            _endingInlineEdit = false;
+            FindCanvas()?.Focus(editor);
+            return;
+        }
+        _inlineEditor = null;
+        RemoveChild(editor);
+        if (focusItem)
+            FindCanvas()?.Focus(this);
+        _endingInlineEdit = false;
+    }
+
+    private float GetTextStartX()
+    {
+        var x = Bounds.X + IndentLevel * IndentWidth + 4f + (ShowVisibilityToggle ? 20f : 0f);
+        if (!IsLeaf)
+            x += 14f;
+        if (IconColor.HasValue)
+            x += 14f;
+        return x;
+    }
+
+    private static void DrawVisibility(UIManager ui, int targetId, float x, float y, float height,
+        UITreeItemVisibilityState state)
+    {
+        var color = state == UITreeItemVisibilityState.Hidden
+            ? new Vector4(0.38f, 0.4f, 0.43f, 1f)
+            : state == UITreeItemVisibilityState.Mixed
+                ? new Vector4(0.7f, 0.7f, 0.72f, 1f)
+                : new Vector4(0.86f, 0.88f, 0.9f, 1f);
+        var centerY = y + height * 0.5f;
+        ui.DrawRect(targetId, new Vector2(x, centerY - 3f), new Vector2(14f, 6f), color);
+        ui.DrawRect(targetId, new Vector2(x + 5f, centerY - 5f), new Vector2(4f, 10f), color);
+        if (state == UITreeItemVisibilityState.Hidden)
+            ui.DrawRect(targetId, new Vector2(x + 1f, centerY), new Vector2(13f, 1.5f), new Vector4(0.12f, 0.13f, 0.15f, 1f));
+        else if (state == UITreeItemVisibilityState.Mixed)
+            ui.DrawRect(targetId, new Vector2(x + 2f, centerY - 1f), new Vector2(10f, 2f), new Vector4(0.12f, 0.13f, 0.15f, 1f));
+    }
+
     protected internal override void OnMouseMove(Vector2 position)
     {
         _lastPointerPosition = position;
@@ -208,6 +313,8 @@ public class UITreeViewItem : UIElement
         if (button == MouseButton.Left &&
             (_isDragging || Vector2.DistanceSquared(_pressPosition, position) >= 16f))
             DropCompleted?.Invoke(this, position, keysDown);
+        else if (button == MouseButton.Right)
+            ContextRequested?.Invoke(this, position);
         _isDragging = false;
     }
 
@@ -224,6 +331,11 @@ public class UITreeViewItem : UIElement
 
     protected internal override void OnMouseClick(KeyMask keysDown)
     {
+        if (ShowVisibilityToggle && IsVisibilityHit(_lastPointerPosition))
+        {
+            VisibilityClicked?.Invoke(this);
+            return;
+        }
         if (!IsLeaf && IsArrowHit(_lastPointerPosition))
             Toggle();
 
@@ -234,12 +346,21 @@ public class UITreeViewItem : UIElement
     private bool IsArrowHit(Vector2 point)
     {
         float indent = IndentLevel * IndentWidth;
-        float arrowX = Bounds.X + indent + 4f;
+        float arrowX = Bounds.X + indent + 4f + (ShowVisibilityToggle ? 20f : 0f);
         float arrowSize = 10f;
         // 适当扩大命中范围，避免用户必须精确点在 10px 绘制三角形上。
         var hitRect = new UIRect(arrowX - 4f, Bounds.Y, arrowSize + 8f, Bounds.Height);
         return hitRect.Contains(point);
     }
+
+    private bool IsVisibilityHit(Vector2 point)
+    {
+        float x = Bounds.X + IndentLevel * IndentWidth;
+        return new UIRect(x, Bounds.Y, 20f, Bounds.Height).Contains(point);
+    }
+
+    protected internal override void OnKeyDown(Key key, KeyMask keysDown)
+        => KeyPressed?.Invoke(this, key, keysDown);
 
     /// <summary>切换展开/折叠（仅非叶子节点）。</summary>
     public void Toggle()
@@ -284,6 +405,17 @@ public sealed class UITreeView : UIElement
     /// <summary>完成有效拖放时触发；目标为释放位置下的另一个可见树项。</summary>
     public Action<UITreeViewItem, UITreeViewItem, Vector2>? ItemDropped { get; set; }
 
+    /// <summary>树项收到键盘输入；用于 F2 等编辑器命令。</summary>
+    public Action<UITreeViewItem?, Key, KeyMask>? ItemKeyPressed { get; set; }
+
+    /// <summary>树项右键菜单请求。</summary>
+    public Action<UITreeViewItem, Vector2>? ItemContextRequested { get; set; }
+
+    /// <summary>树项 Eye 列被点击。</summary>
+    public Action<UITreeViewItem>? ItemVisibilityClicked { get; set; }
+    public Action<Vector2>? BackgroundContextRequested { get; set; }
+    public Action<UITreeViewItem, Vector2>? ItemDroppedOnBackground { get; set; }
+
     /// <summary>背景色。</summary>
     public Vector4 BackgroundColor
     {
@@ -298,6 +430,9 @@ public sealed class UITreeView : UIElement
     public UITreeViewItem? SelectedItem { get; private set; }
 
     public IReadOnlyList<UITreeViewItem> SelectedItems => _selectedItemsView;
+
+    public UITreeViewItem? GetItemAt(Vector2 position)
+        => _flatList.LastOrDefault(item => item.Bounds.Contains(position));
 
     /// <summary>当前树内容的滚动偏移；重建逻辑可用它保持用户视图位置。</summary>
     public Vector2 ScrollOffset
@@ -315,12 +450,14 @@ public sealed class UITreeView : UIElement
         {
             Orientation = UIOrientation.Vertical,
             Spacing = 0f,
+            ContextRequested = position => BackgroundContextRequested?.Invoke(position),
         };
 
         _scrollBox = new UIScrollBox
         {
             ScrollDirection = UIScrollDirection.Vertical,
             Content = _itemsPanel,
+            ContextRequested = position => BackgroundContextRequested?.Invoke(position),
         };
 
         AddChild(_scrollBox);
@@ -344,6 +481,9 @@ public sealed class UITreeView : UIElement
         item.Clicked = null;
         item.ClickedWithModifiers = null;
         item.DropCompleted = null;
+        item.KeyPressed = null;
+        item.ContextRequested = null;
+        item.VisibilityClicked = null;
         if (_selectedItems.Any(selected => ContainsItem(item, selected)))
             SelectItems(_selectedItems.Where(selected => !ContainsItem(item, selected)));
         RebuildFlatList();
@@ -461,6 +601,9 @@ public sealed class UITreeView : UIElement
         item.Clicked = null;
         item.ClickedWithModifiers = null;
         item.DropCompleted = null;
+        item.KeyPressed = null;
+        item.ContextRequested = null;
+        item.VisibilityClicked = null;
         foreach (var child in item.SubItems)
             ClearCallbacks(child);
     }
@@ -480,6 +623,9 @@ public sealed class UITreeView : UIElement
             item.Clicked = null;
             item.ClickedWithModifiers = OnItemClicked;
             item.DropCompleted = OnItemDropCompleted;
+            item.KeyPressed = OnItemKeyPressed;
+            item.ContextRequested = OnItemContextRequested;
+            item.VisibilityClicked = OnItemVisibilityClicked;
             _itemsPanel.AddChild(item);
         }
     }
@@ -490,6 +636,9 @@ public sealed class UITreeView : UIElement
         item.Clicked = null;
         item.ClickedWithModifiers = OnItemClicked;
         item.DropCompleted = OnItemDropCompleted;
+        item.KeyPressed = OnItemKeyPressed;
+        item.ContextRequested = OnItemContextRequested;
+        item.VisibilityClicked = OnItemVisibilityClicked;
         foreach (var child in item.SubItems)
             AssignCallbacksRecursive(child);
     }
@@ -673,5 +822,25 @@ public sealed class UITreeView : UIElement
         var target = _flatList.LastOrDefault(item => item.Bounds.Contains(position));
         if (target is { IsDropTarget: true } && !ReferenceEquals(source, target))
             ItemDropped?.Invoke(source, target, position);
+        else if (target == null)
+            ItemDroppedOnBackground?.Invoke(source, position);
     }
+
+    private void OnItemKeyPressed(UITreeViewItem item, Key key, KeyMask keysDown)
+    {
+        if (SelectedItem == null)
+            SelectItem(item);
+        OnKeyDown(key, keysDown);
+        ItemKeyPressed?.Invoke(SelectedItem, key, keysDown);
+    }
+
+    private void OnItemContextRequested(UITreeViewItem item, Vector2 position)
+    {
+        if (!item.IsSelected && item.IsSelectable)
+            SelectItem(item);
+        ItemContextRequested?.Invoke(item, position);
+    }
+
+    private void OnItemVisibilityClicked(UITreeViewItem item)
+        => ItemVisibilityClicked?.Invoke(item);
 }

@@ -1,4 +1,5 @@
 using System.Numerics;
+using Spark.Engine.Input;
 
 namespace Spark.Engine.UI;
 
@@ -23,6 +24,9 @@ public sealed class UIStackPanel : UIElement
 
     /// <summary>背景色（alpha = 0 表示透明）。</summary>
     public Vector4 BackgroundColor { get; set; }
+
+    /// <summary>可选的空白区域右键请求；子控件命中时不会重复触发。</summary>
+    public Action<Vector2>? ContextRequested { get; set; }
 
     protected override UISize OnMeasure(UISize availableSize)
     {
@@ -163,5 +167,11 @@ public sealed class UIStackPanel : UIElement
     {
         if (BackgroundColor.W > 0f)
             ui.DrawRect(targetId, new Vector2(Bounds.X, Bounds.Y), new Vector2(Bounds.Width, Bounds.Height), BackgroundColor);
+    }
+
+    protected internal override void OnMouseUp(MouseButton button, Vector2 position, KeyMask keysDown)
+    {
+        if (button == MouseButton.Right)
+            ContextRequested?.Invoke(position);
     }
 }

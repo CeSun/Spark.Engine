@@ -24,8 +24,10 @@ public partial class StaticMeshComponent : SceneComponent
     {
         proxy.Bounds = Mesh == null ? default : Mesh.Bounds.Transform(WorldTransform);
 
-        var flags = VisibilityFlags.Visible | VisibilityFlags.ReceiveShadow;
-        if (CastShadow)
+        var flags = Owner?.IsTemporarilyHiddenInEditor == true
+            ? VisibilityFlags.None
+            : VisibilityFlags.Visible | VisibilityFlags.ReceiveShadow;
+        if (CastShadow && Owner?.IsTemporarilyHiddenInEditor != true)
             flags |= VisibilityFlags.CastShadow;
         proxy.Visibility = flags;
     }
