@@ -1,6 +1,6 @@
 # Spark.Editor World Outliner 功能规格
 
-> 状态：规划基线
+> 状态：O0 已完成，O1 待实施
 >
 > 日期：2026-09-03
 >
@@ -48,20 +48,20 @@ Spark 在 E6 工作区阶段应提供 UE 风格默认布局；在停靠系统完
 
 | 范围 | Spark 当前行为 | 目标行为 | 判断 |
 |---|---|---|---|
-| 树模型 | Actor 是根，Component 默认作为子行 | Folder + Actor；Actor 子行表达跨 Actor 挂载 | P0 语义偏差 |
-| Actor 挂载 | 只在 Component 文本中显示 `-> Parent/Component` | 被挂载 Actor 直接嵌套在父 Actor 下 | P0 语义偏差 |
-| Component | 默认显示并参与选择、拖放 | 默认不在 Outliner 显示，在 Details 中选择 | P0 语义偏差 |
-| 行标签 | `ActorName [ComponentCount]` | 类型图标 + Actor Label；统计信息放可选列或 Tooltip | P0 视觉偏差 |
+| 树模型 | Actor 按跨 Actor RootComponent 挂载形成树，尚无 Folder | Folder + Actor；Actor 子行表达跨 Actor 挂载 | O0 已修正，O1 补 Folder |
+| Actor 挂载 | 被挂载 Actor 直接嵌套在父 Actor 下 | 被挂载 Actor 直接嵌套在父 Actor 下 | O0 已完成 |
+| Component | 默认隐藏，仅可从 Developer 选项临时显示且不可拖放 | 默认不在 Outliner 显示，在 Details 中选择 | O0 已完成 |
+| 行标签 | Actor Label + 类型颜色标记 | 类型图标 + Actor Label；统计信息放可选列或 Tooltip | O0 占位完成 |
 | Folder | 无 | 支持空 Folder、子 Folder、移动和当前 Folder | P1 缺失 |
 | 可见性 | 无 Eye 列 | 会话级临时隐藏，Folder 支持级联和混合状态 | P1 缺失 |
-| 选择 | 单选、Ctrl/Shift 多选，和视口共享选择 | 保留；增加可配置的自动定位 | 已有基础 |
-| 展开状态 | 每次结构重建都 `ExpandAll` | 按稳定节点 ID 保留，过滤只临时展开祖先 | P0 缺陷 |
+| 选择 | 单选、Ctrl/Shift 多选；Component 选择映射高亮 Owner Actor | 保留；增加可配置的自动定位 | O0 已完成基础 |
+| 展开状态 | 按 ActorGuid 保留；搜索/Only Selected 临时展开必要祖先 | 按稳定节点 ID 保留，过滤只临时展开祖先 | O0 已完成 |
 | 搜索 | 单个字符串对名称、Actor 类型、Component 类型做包含匹配 | 多词 AND、排除、精确匹配、字段查询 | P2 不完整 |
 | 过滤 | Internal、Components、Only Selected | Filter 菜单、类型过滤、自定义过滤器 | P2 不完整 |
 | 列 | 无表头、无排序 | Label 主列和可选信息列，可调宽、排序 | P2 缺失 |
 | 上下文菜单 | 无 | 与视口共用 Actor 命令；Folder 有独立命令 | P1 缺失 |
 | 重命名 | `F2` 自动生成另一个名字 | 行内编辑，提交/取消和冲突校验 | P1 语义错误 |
-| 拖放 | Actor/Component 都转成 SceneComponent，弹 Socket 规则菜单 | Actor→Actor 为挂载；Actor→Folder 为组织；两者明确区分 | P0 语义偏差 |
+| 拖放 | 仅 Actor→Actor，使用 Keep World；循环挂载被拒绝 | Actor→Actor 为挂载；Actor→Folder 为组织；两者明确区分 | O0 已完成 Actor 部分 |
 | Play | 始终展示 EditorWorld | 默认浏览 ActiveWorld，并标识运行时生成对象 | P3 缺失 |
 | 性能 | 每帧 O(n) 拼接签名，变化后全量重建 | 增量模型、虚拟化、稳定滚动与选择 | P3 技术债 |
 | 内部对象 | 可过滤显示，显示后只读 | 保留为 Spark 调试扩展，默认关闭 | 合理扩展 |
@@ -299,15 +299,17 @@ UITreeView / UITableTree     虚拟化行、列、行内编辑、上下文菜单
 
 ## 11. 实施顺序
 
-### O0：纠正 Outliner 语义（P0）
+### ✅ O0：纠正 Outliner 语义（P0，已完成）
 
-1. 默认只显示 Actor，移除 Label 中 Component 数量。
-2. 根据跨 Actor RootComponent Attachment 构建 Actor 父子树。
-3. 用 ActorGuid 保存展开状态，取消重建后的无条件 `ExpandAll`。
-4. 区分 Actor→Actor 挂载与其它 Drop 类型；组件/Socket 选择移到显式命令。
-5. 补类型图标占位、空状态、选择同步和焦点回归测试。
+1. ✅ 默认只显示 Actor，移除 Label 中 Component 数量。
+2. ✅ 根据跨 Actor RootComponent Attachment 构建 Actor 父子树。
+3. ✅ 用 ActorGuid 保存展开状态，取消重建后的无条件 `ExpandAll`；过滤上下文只临时展开祖先。
+4. ✅ Actor→Actor 使用 Keep World 挂载；Developer Component 行不可作为拖放源或目标。
+5. ✅ 补类型颜色图标占位，并让隐藏的 Component 选择映射高亮 Owner Actor。
 
 验收：普通用户不在 Outliner 看到 Component；Actor 挂载层级与场景空间关系一致；刷新不改变展开、选择和滚动位置。
+
+实现说明：重建期间已保持展开、选择和滚动位置；跨场景、跨启动的显式 ViewState 持久化随 O2 列和布局状态统一接入。
 
 ### O1：日常组织闭环（P1）
 

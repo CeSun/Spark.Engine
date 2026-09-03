@@ -45,6 +45,9 @@ public class UITreeViewItem : UIElement
     public Vector4 TextColor { get; set; } = new(0.90f, 0.92f, 0.95f, 1f);
     public Vector4 ArrowColor { get; set; } = new(0.60f, 0.60f, 0.60f, 1f);
 
+    /// <summary>可选的行首类型标记色；用于没有纹理图标时保持节点类型的视觉区分。</summary>
+    public Vector4? IconColor { get; set; }
+
     private bool _hovered;
     private Vector2 _lastPointerPosition;
     private Vector2 _pressPosition;
@@ -122,6 +125,13 @@ public class UITreeViewItem : UIElement
 
         // 文本（截断到内容宽，避免深缩进/窄列时溢出）
         float textX = arrowX + (IsLeaf ? 0f : arrowSize + 4f);
+        if (IconColor is { } iconColor)
+        {
+            const float iconSize = 9f;
+            float iconY = contentRect.Y + (contentRect.Height - iconSize) * 0.5f;
+            ui.DrawRect(targetId, new Vector2(textX, iconY), new Vector2(iconSize, iconSize), iconColor);
+            textX += iconSize + 5f;
+        }
         if (!string.IsNullOrEmpty(Text))
         {
             var textRenderer = GetTextRenderer();
@@ -288,6 +298,13 @@ public sealed class UITreeView : UIElement
     public UITreeViewItem? SelectedItem { get; private set; }
 
     public IReadOnlyList<UITreeViewItem> SelectedItems => _selectedItemsView;
+
+    /// <summary>当前树内容的滚动偏移；重建逻辑可用它保持用户视图位置。</summary>
+    public Vector2 ScrollOffset
+    {
+        get => _scrollBox.ScrollOffset;
+        set => _scrollBox.ScrollOffset = value;
+    }
 
     public UITreeView()
     {

@@ -29,7 +29,6 @@ public sealed class EditorUi
     private readonly EditorCloseConfirmationPanel _closeConfirmation;
     private readonly EditorAssetErrorsPanel _assetErrors;
     private readonly EditorContentBrowserPanel _contentBrowser;
-    private readonly UIMenuPanel _attachMenu = new() { MinWidth = 220f, MaxWidth = 420f };
     private readonly EditorContext _context;
     private readonly IEditorSceneService? _sceneService;
     private readonly EditorAssetImportService _assetImportService = new();
@@ -1439,39 +1438,14 @@ public sealed class EditorUi
             .ToArray();
     }
 
-    private void HandleHierarchyDrop(object draggedTarget, object dropTarget, Vector2 position)
+    private void HandleHierarchyDrop(object draggedTarget, object dropTarget, Vector2 _)
     {
-        var parent = GetSpatialComponent(dropTarget);
-        if (parent == null)
+        if (draggedTarget is not Actor || dropTarget is not Actor)
         {
-            SetStatus("Drop target has no SceneComponent.");
+            SetStatus("World Outliner attachment requires an Actor source and target.");
             return;
         }
-
-        if (parent.Sockets.Count == 0)
-        {
-            AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.KeepWorldTransform);
-            return;
-        }
-
-        _attachMenu.Clear();
-        AddAttachmentMenuOptions(draggedTarget, dropTarget, socketName: null, "Component");
-        _attachMenu.AddSeparator();
-        foreach (var socketName in parent.Sockets.Keys.Order(StringComparer.Ordinal))
-            AddAttachmentMenuOptions(draggedTarget, dropTarget, socketName, $"Socket {socketName}");
-        _attachMenu.Canvas = Root.FindCanvas();
-        _attachMenu.Show(position);
-        SetStatus("Choose attachment target and transform rule.");
-    }
-
-    private void AddAttachmentMenuOptions(object draggedTarget, object dropTarget, string? socketName, string label)
-    {
-        _attachMenu.AddItem(new UIMenuItem($"{label} - Keep World",
-            () => AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.KeepWorldTransform, socketName)));
-        _attachMenu.AddItem(new UIMenuItem($"{label} - Keep Relative",
-            () => AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.KeepRelativeTransform, socketName)));
-        _attachMenu.AddItem(new UIMenuItem($"{label} - Snap",
-            () => AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.SnapToTargetIncludingScale, socketName)));
+        AttachSelection(draggedTarget, dropTarget, AttachmentTransformRules.KeepWorldTransform);
     }
 
     private static SceneComponent? GetSpatialComponent(object target)

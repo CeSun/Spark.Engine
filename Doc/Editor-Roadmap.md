@@ -11,11 +11,11 @@
 - 状态栏显示 Actor/Component 数量和当前选择，菜单命令给出明确反馈。
 - `SetPictureInPicture` 接收 `UIRenderView + EditorViewportSession`；Session 持有脱离 World 的编辑器相机，并通过宿主级快照源驱动渲染。
 - 编辑器视口相机支持右键飞行、Middle 平移、Alt+Left 轨道、滚轮推拉、`F` 聚焦和 UE 风格 `Ctrl+0..9` 保存/`0..9` 恢复会话书签；相机不再创建 Actor，也不进入 EditorWorld/RuntimeWorld。Reload、Play/Stop 与 RenderTarget resize 均复用同一 Session。Actor 编辑器能力已与 `[SceneTransient]` 分离，运行时辅助 Actor 默认不出现在 Outliner，也不能被用户选择、编辑、删除或复制。
-- World Outliner 已支持名称/类型/组件搜索和 `Show Internal Actors`、`Show Components`、`Only Selected`；内部对象显式显示时使用只读弱化样式，并由通用树控件阻止选择和拖拽。
+- World Outliner 已完成 O0 语义纠正：默认只显示 Actor，跨 Actor RootComponent 挂载直接形成 Actor 父子树；Label 不再拼接 Component 数量，展开状态按 ActorGuid 保留，过滤只临时展开必要祖先。Component 仅在 Developer 视图中显示且不可拖放；视口选中的 Component 会映射高亮其 Owner Actor。现有名称/类型/组件搜索、`Show Internal Actors` 和 `Only Selected` 继续可用。
 
 World Outliner 后续以 [World-Outliner-Functional-Spec.md](./World-Outliner-Functional-Spec.md) 为功能基线：
-先纠正“Actor→Component”树为 UE 风格“Folder→Actor→挂载 Actor”语义，再实现 Folder、临时可见性、
-上下文菜单、行内重命名、搜索语法和列系统。`Show Components` 仅保留为默认关闭的开发者调试视图。
+O0 已将“Actor→Component”树纠正为 Actor 挂载树；下一步 O1 实现 Folder、临时可见性、上下文菜单和
+行内重命名，再由 O2 完成搜索语法和列系统。`Show Components` 仅保留为默认关闭的开发者调试视图。
 
 ## 阶段 1：编辑闭环
 

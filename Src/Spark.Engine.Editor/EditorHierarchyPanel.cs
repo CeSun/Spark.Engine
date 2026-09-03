@@ -31,7 +31,7 @@ internal sealed class EditorHierarchyPanel : UIElement
         header.ColumnDefinitions.Add(UIGridDefinition.Auto());
         var title = new UILabel
         {
-            Text = "WORLD OUTLINER",
+            Text = "OUTLINER",
             TextColor = UITheme.Default.TextDimColor,
         };
         _viewOptionsButton = new UIButton
@@ -50,7 +50,7 @@ internal sealed class EditorHierarchyPanel : UIElement
         {
             FixedSize = new UISize(0f, 26f),
             Padding = UIEdgeInsets.HorizontalVertical(8f, 3f),
-            PlaceholderText = "Search actors and components...",
+            PlaceholderText = "Search actors...",
             TextChanged = value =>
             {
                 _hierarchy.SearchText = value;
@@ -143,7 +143,7 @@ internal sealed class EditorHierarchyPanel : UIElement
         _viewOptions.Clear();
         AddToggleOption("Show Internal Actors", ShowInternalActors,
             value => ShowInternalActors = value);
-        AddToggleOption("Show Components", ShowComponents,
+        AddToggleOption("Show Components (Developer)", ShowComponents,
             value => ShowComponents = value);
         AddToggleOption("Only Selected", OnlySelected,
             value => OnlySelected = value);

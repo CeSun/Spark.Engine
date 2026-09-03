@@ -2,12 +2,13 @@ using Spark.Engine.Actors;
 using Spark.Engine.Components;
 using Spark.Engine.UI;
 using Spark.Engine.Worlds;
+using System.Numerics;
 
 namespace Spark.Engine.Editor;
 
 /// <summary>
-/// 场景层级面板（编辑器 MVP 第一步）：把 <see cref="World"/> 的 Actor → Component 树显示为
-/// <see cref="UITreeView"/>。结构变化（Actor/Component 增删）时签名比对后全量重建，保留展开/选中态。
+/// UE 风格场景大纲：默认显示 Actor 及跨 Actor 的空间挂载层级；Component 仅作为可选开发者视图。
+/// 结构变化（Actor/Component 增删）时签名比对后重建，并按稳定 Guid 保留展开和选择状态。
 /// </summary>
 public sealed class HierarchyPanel
 {
@@ -16,11 +17,13 @@ public sealed class HierarchyPanel
 
     private string _lastSignature = string.Empty;
     private bool _suppressSelectionChanged;
+    private readonly Dictionary<Guid, bool> _actorExpansion = [];
+    private bool _displayingFilteredTree;
     private IReadOnlyList<object> _selectedTargets = Array.Empty<object>();
     private object? _primaryTarget;
     private string _searchText = string.Empty;
     private bool _showInternalActors;
-    private bool _showComponents = true;
+    private bool _showComponents;
     private bool _onlySelected;
 
     /// <summary>选中项变化：参数为选中的 Actor/Component 或 null。</summary>
@@ -53,7 +56,11 @@ public sealed class HierarchyPanel
             SelectionSetChanged?.Invoke(targets, primary);
         };
         _tree.ItemDropped += (source, target, position) =>
-            ItemDropped?.Invoke(((WorldTreeItem)source).Target, ((WorldTreeItem)target).Target, position);
+        {
+            if (((WorldTreeItem)source).Target is Actor sourceActor &&
+                ((WorldTreeItem)target).Target is Actor targetActor)
+                ItemDropped?.Invoke(sourceActor, targetActor, position);
+        };
     }
 
     /// <summary>树控件本身（挂进编辑器布局）。</summary>
@@ -113,6 +120,8 @@ public sealed class HierarchyPanel
         _world = world ?? throw new ArgumentNullException(nameof(world));
         _selectedTargets = Array.Empty<object>();
         _primaryTarget = null;
+        _actorExpansion.Clear();
+        _displayingFilteredTree = false;
         _lastSignature = string.Empty;
         _tree.Clear();
     }
@@ -148,9 +157,16 @@ public sealed class HierarchyPanel
                 sb.Append(GetStableSelectionId(target)).Append(',');
             sb.Append('|');
         }
-        foreach (var actor in VisibleActors())
+        var visibleActors = GetVisibleActors();
+        var visibleSet = visibleActors.ToHashSet();
+        foreach (var actor in visibleActors)
         {
-            sb.Append(actor.ActorGuid).Append(':').Append(actor.Name).Append(';');
+            sb.Append(actor.ActorGuid).Append(':').Append(actor.Name)
+                .Append('#').Append(actor.GetType().FullName)
+                .Append('/').Append(actor.RootComponent?.ComponentGuid)
+                .Append('/').Append(actor.RootComponent?.GetType().FullName)
+                .Append('>').Append(GetOutlinerParent(actor, visibleSet)?.ActorGuid)
+                .Append(';');
             foreach (var component in VisibleComponents(actor))
             {
                 sb.Append(component.ComponentGuid).Append(':').Append(component.GetType().Name);
@@ -169,35 +185,77 @@ public sealed class HierarchyPanel
     {
         var selected = _selectedTargets;
         var primary = _primaryTarget;
+        var scrollOffset = _tree.ScrollOffset;
+        if (!_displayingFilteredTree)
+            CaptureExpansionState(_tree.Roots);
+        var isContextFilter = _searchText.Length != 0 || _onlySelected;
 
         _suppressSelectionChanged = true;
         try
         {
             _tree.Clear();
-            foreach (var actor in VisibleActors())
+            var actors = GetVisibleActors();
+            var actorSet = actors.ToHashSet();
+            var actorItems = new Dictionary<Actor, WorldTreeItem>();
+            foreach (var actor in actors)
             {
                 var displayName = string.IsNullOrWhiteSpace(actor.Name) ? actor.GetType().Name : actor.Name;
-                var actorItem = CreateTreeItem(actor, $"{displayName} [{actor.Components.Count()}]");
+                var actorItem = CreateTreeItem(actor, displayName);
+                actorItem.IsExpanded = !_actorExpansion.TryGetValue(actor.ActorGuid, out var expanded) || expanded;
                 foreach (var component in VisibleComponents(actor))
                     actorItem.AddSubItem(CreateTreeItem(component, GetComponentLabel(component)));
-                _tree.AddRoot(actorItem);
+                actorItems.Add(actor, actorItem);
             }
 
-            // 恢复展开状态 + 选中态
-            _tree.ExpandAll();
+            foreach (var actor in actors)
+            {
+                var actorItem = actorItems[actor];
+                var parent = GetOutlinerParent(actor, actorSet);
+                if (parent != null)
+                    actorItems[parent].AddSubItem(actorItem);
+                else
+                    _tree.AddRoot(actorItem);
+            }
+
+            if (isContextFilter)
+            {
+                foreach (var item in actorItems.Values.Where(item => !item.IsLeaf))
+                    item.IsExpanded = true;
+                _tree.RebuildFlatList();
+            }
+
             SelectTargets(selected, primary);
+            _tree.ScrollOffset = scrollOffset;
         }
         finally
         {
+            _displayingFilteredTree = isContextFilter;
             _suppressSelectionChanged = false;
         }
     }
 
-    private IEnumerable<Actor> VisibleActors()
-        => _world.Actors
+    private IReadOnlyList<Actor> GetVisibleActors()
+    {
+        var candidates = _world.Actors
             .Where(actor => _showInternalActors || EditorActorPolicy.IsVisibleInOutliner(actor))
+            .ToArray();
+        var candidateSet = candidates.ToHashSet();
+        var directlyVisible = candidates
             .Where(actor => !_onlySelected || IsActorSelected(actor))
-            .Where(MatchesSearch);
+            .Where(MatchesSearch)
+            .ToHashSet();
+
+        // 过滤命中的 Actor 仍需显示挂载祖先，才能保留空间层级上下文。
+        foreach (var actor in directlyVisible.ToArray())
+        {
+            for (var parent = GetOutlinerParent(actor, candidateSet);
+                 parent != null;
+                 parent = GetOutlinerParent(parent, candidateSet))
+                directlyVisible.Add(parent);
+        }
+
+        return candidates.Where(directlyVisible.Contains).ToArray();
+    }
 
     private IEnumerable<ActorComponent> VisibleComponents(Actor actor)
     {
@@ -214,7 +272,7 @@ public sealed class HierarchyPanel
            actor.Components.Any(component => MatchesText(component.GetType().Name));
 
     private bool MatchesActor(Actor actor)
-        => MatchesText(actor.Name) || MatchesText(actor.GetType().Name);
+        => MatchesText(actor.Name) || MatchesText(actor.GetType().Name) || MatchesText(GetActorTypeLabel(actor));
 
     private bool MatchesText(string? value)
         => !string.IsNullOrWhiteSpace(value) &&
@@ -240,13 +298,16 @@ public sealed class HierarchyPanel
     {
         var selectable = EditorActorPolicy.CanSelect(target);
         var editable = EditorActorPolicy.CanEdit(target);
+        var isActor = target is Actor;
+        var isSpatialActor = target is Actor { RootComponent: not null };
         return new WorldTreeItem(target, text)
         {
             IsSelectable = selectable,
-            IsDraggable = editable,
-            IsDropTarget = editable,
+            IsDraggable = isSpatialActor && editable,
+            IsDropTarget = isSpatialActor && editable,
             Focusable = selectable,
             TextColor = selectable ? UITheme.Default.TextColor : UITheme.Default.TextDimColor,
+            IconColor = isActor ? GetActorIconColor((Actor)target, selectable) : null,
         };
     }
 
@@ -274,6 +335,47 @@ public sealed class HierarchyPanel
             : string.IsNullOrWhiteSpace(parentOwner.Name) ? parentOwner.GetType().Name : parentOwner.Name;
         var socket = scene.AttachSocketName == null ? string.Empty : $":{scene.AttachSocketName}";
         return $"{component.GetType().Name} -> {parentName}/{parent.GetType().Name}{socket}";
+    }
+
+    private static Actor? GetOutlinerParent(Actor actor, IReadOnlySet<Actor> candidates)
+    {
+        var parent = actor.RootComponent?.AttachParent?.Owner;
+        return parent != null && !ReferenceEquals(parent, actor) && candidates.Contains(parent)
+            ? parent
+            : null;
+    }
+
+    private static string GetActorTypeLabel(Actor actor)
+    {
+        if (actor.GetType() != typeof(Actor))
+            return actor.GetType().Name;
+        var componentType = actor.RootComponent?.GetType().Name;
+        return componentType?.EndsWith("Component", StringComparison.Ordinal) == true
+            ? componentType[..^"Component".Length]
+            : componentType ?? nameof(Actor);
+    }
+
+    private static Vector4 GetActorIconColor(Actor actor, bool selectable)
+    {
+        if (!selectable)
+            return UITheme.Default.TextDimColor;
+        return actor.RootComponent switch
+        {
+            CameraComponent => new Vector4(0.35f, 0.65f, 1f, 1f),
+            LightComponent => new Vector4(1f, 0.78f, 0.2f, 1f),
+            StaticMeshComponent or SkeletalMeshComponent => new Vector4(0.3f, 0.75f, 0.58f, 1f),
+            _ => new Vector4(0.62f, 0.65f, 0.7f, 1f),
+        };
+    }
+
+    private void CaptureExpansionState(IEnumerable<UITreeViewItem> items)
+    {
+        foreach (var item in items)
+        {
+            if (item is WorldTreeItem { Target: Actor actor })
+                _actorExpansion[actor.ActorGuid] = item.IsExpanded;
+            CaptureExpansionState(item.SubItems);
+        }
     }
 
     public void SelectTarget(object? target)
@@ -304,13 +406,48 @@ public sealed class HierarchyPanel
             InvalidateFilter();
             Refresh();
         }
-        var items = _selectedTargets
+        var displayTargets = _selectedTargets
+            .Select(GetDisplaySelectionTarget)
+            .Where(target => target != null)
+            .Cast<object>()
+            .Distinct()
+            .ToArray();
+        var items = displayTargets
             .Select(target => FindItem(_tree.Roots, target))
             .Where(item => item != null)
             .Cast<WorldTreeItem>()
             .ToArray();
-        var primaryItem = _primaryTarget == null ? null : FindItem(_tree.Roots, _primaryTarget);
-        _tree.SelectItems(items, primaryItem);
+        var displayPrimary = GetDisplaySelectionTarget(_primaryTarget);
+        var primaryItem = displayPrimary == null ? null : FindItem(_tree.Roots, displayPrimary);
+        if (selectionChanged && primaryItem != null && ExpandAncestors(primaryItem))
+            _tree.RebuildFlatList();
+
+        var wasSuppressed = _suppressSelectionChanged;
+        _suppressSelectionChanged = true;
+        try
+        {
+            _tree.SelectItems(items, primaryItem);
+        }
+        finally
+        {
+            _suppressSelectionChanged = wasSuppressed;
+        }
+    }
+
+    private object? GetDisplaySelectionTarget(object? target)
+        => !_showComponents && target is ActorComponent component ? component.Owner : target;
+
+    private static bool ExpandAncestors(UITreeViewItem item)
+    {
+        var changed = false;
+        for (var parent = item.LogicalParent; parent != null; parent = parent.LogicalParent)
+        {
+            if (parent.IsExpanded)
+                continue;
+            parent.IsExpanded = true;
+            changed = true;
+        }
+        return changed;
     }
 
     private static bool SequenceEqualByReference(IReadOnlyList<object> left, IReadOnlyList<object> right)
@@ -334,7 +471,6 @@ public sealed class HierarchyPanel
         public WorldTreeItem(object target, string text) : base(text)
         {
             Target = target;
-            IsExpanded = true;
         }
     }
 }

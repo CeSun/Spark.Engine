@@ -101,7 +101,7 @@ public sealed class EditorContentBrowserTests
         var menu = Assert.Single(canvas.Overlays.OfType<UIMenuPanel>());
         Assert.Collection(menu.Items,
             item => Assert.Equal("[ ] Show Internal Actors", item.Text),
-            item => Assert.Equal("[x] Show Components", item.Text),
+            item => Assert.Equal("[ ] Show Components (Developer)", item.Text),
             item => Assert.Equal("[ ] Only Selected", item.Text));
 
         Click(canvas, Center(menu.Items[0].Bounds));

@@ -366,6 +366,10 @@ public sealed class EditorCommandTests
         hierarchy.Refresh();
         var tree = Assert.IsType<UITreeView>(hierarchy.Element);
         Assert.StartsWith("Key Light", Assert.Single(tree.Roots).Text);
+        Assert.Empty(tree.Roots[0].SubItems);
+
+        hierarchy.ShowComponents = true;
+        hierarchy.Refresh();
         Assert.IsType<SpotLightComponent>(
             Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(tree.Roots[0].SubItems)).Target);
 
@@ -380,6 +384,10 @@ public sealed class EditorCommandTests
         Assert.False(internalItem.IsDropTarget);
         Assert.Equal(UITheme.Default.TextDimColor, internalItem.TextColor);
 
+        var debugComponent = Assert.IsType<HierarchyPanel.WorldTreeItem>(internalItem.SubItems[0]);
+        Assert.False(debugComponent.IsDraggable);
+        Assert.False(debugComponent.IsDropTarget);
+
         hierarchy.ShowComponents = false;
         hierarchy.Refresh();
         Assert.All(tree.Roots, root => Assert.Empty(root.SubItems));
@@ -388,6 +396,109 @@ public sealed class EditorCommandTests
         hierarchy.OnlySelected = true;
         hierarchy.Refresh();
         Assert.StartsWith("Brick Wall", Assert.Single(tree.Roots).Text);
+    }
+
+    [Fact]
+    public void HierarchyBuildsActorAttachmentTreeAndPreservesExpansionAcrossRebuilds()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var parent = new Actor { Name = "Parent" };
+        var parentRoot = new SceneComponent();
+        parent.AddOwnedComponent(parentRoot);
+        var child = new Actor { Name = "Child" };
+        var childRoot = new SceneComponent();
+        child.AddOwnedComponent(childRoot);
+        Assert.True(childRoot.AttachToComponent(parentRoot, AttachmentTransformRules.KeepWorldTransform));
+        world.AddActor(parent);
+        world.AddActor(child);
+        world.Update(0f, tickActors: false);
+
+        var hierarchy = new HierarchyPanel(world);
+        hierarchy.Refresh();
+        var tree = Assert.IsType<UITreeView>(hierarchy.Element);
+        var parentItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(tree.Roots));
+        var childItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(parentItem.SubItems));
+        Assert.Same(parent, parentItem.Target);
+        Assert.Same(child, childItem.Target);
+        Assert.Equal("Parent", parentItem.Text);
+        Assert.Equal("Child", childItem.Text);
+        Assert.NotNull(parentItem.IconColor);
+
+        hierarchy.SelectTargets(new object[] { childRoot }, childRoot);
+        Assert.Same(childRoot, hierarchy.SelectedTarget);
+        Assert.Same(child, Assert.IsType<HierarchyPanel.WorldTreeItem>(tree.SelectedItem).Target);
+
+        tree.ScrollOffset = new Vector2(0f, 42f);
+        parentItem.Toggle();
+        Assert.False(parentItem.IsExpanded);
+        child.Name = "Child Renamed";
+        hierarchy.Refresh();
+
+        parentItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(tree.Roots));
+        Assert.False(parentItem.IsExpanded);
+        Assert.Equal(new Vector2(0f, 42f), tree.ScrollOffset);
+        childItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(parentItem.SubItems));
+        Assert.Equal("Child Renamed", childItem.Text);
+
+        hierarchy.SearchText = "Child Renamed";
+        hierarchy.Refresh();
+        parentItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(tree.Roots));
+        Assert.True(parentItem.IsExpanded);
+        Assert.Same(parent, parentItem.Target);
+        Assert.Same(child, Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(parentItem.SubItems)).Target);
+
+        hierarchy.SearchText = string.Empty;
+        hierarchy.Refresh();
+        Assert.False(Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(tree.Roots)).IsExpanded);
+    }
+
+    [Fact]
+    public void WorldOutlinerActorDropAttachesWithKeepWorldAndRejectsCycles()
+    {
+        using var world = new Spark.Engine.Worlds.World(new ResourceManager());
+        var parent = new Actor { Name = "Parent" };
+        var parentRoot = new SceneComponent { RelativeLocation = new Vector3(10f, 0f, 0f) };
+        parent.AddOwnedComponent(parentRoot);
+        var child = new Actor { Name = "Child" };
+        var childRoot = new SceneComponent { RelativeLocation = new Vector3(2f, 0f, 0f) };
+        child.AddOwnedComponent(childRoot);
+        world.AddActor(parent);
+        world.AddActor(child);
+        world.Update(0f, tickActors: false);
+
+        var editor = new EditorUi(world);
+        editor.SelectTargets(new object[] { child }, child);
+        editor.Refresh();
+        editor.Root.Measure(new UISize(1280f, 720f));
+        editor.Root.Arrange(new UIRect(0f, 0f, 1280f, 720f));
+        var tree = Assert.Single(Descendants(editor.Root).OfType<UITreeView>(), candidate =>
+            candidate.Roots.Count == 2 && candidate.Roots.All(item => item is HierarchyPanel.WorldTreeItem));
+        var parentItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(
+            Assert.Single(tree.Roots, item => ReferenceEquals(((HierarchyPanel.WorldTreeItem)item).Target, parent)));
+        var childItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(
+            Assert.Single(tree.Roots, item => ReferenceEquals(((HierarchyPanel.WorldTreeItem)item).Target, child)));
+        var childWorld = childRoot.WorldTransform;
+
+        childItem.DropCompleted?.Invoke(childItem,
+            new Vector2(parentItem.Bounds.X + 40f, parentItem.Bounds.Y + parentItem.Bounds.Height * 0.5f), default);
+
+        Assert.Same(parentRoot, childRoot.AttachParent);
+        Assert.Equal(childWorld, childRoot.WorldTransform);
+
+        editor.Refresh();
+        editor.Root.Measure(new UISize(1280f, 720f));
+        editor.Root.Arrange(new UIRect(0f, 0f, 1280f, 720f));
+        tree = Assert.Single(Descendants(editor.Root).OfType<UITreeView>(), candidate =>
+            candidate.Roots.Any(item => item is HierarchyPanel.WorldTreeItem worldItem && ReferenceEquals(worldItem.Target, parent)));
+        parentItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(tree.Roots));
+        childItem = Assert.IsType<HierarchyPanel.WorldTreeItem>(Assert.Single(parentItem.SubItems));
+        editor.SelectTargets(new object[] { parent }, parent);
+
+        parentItem.DropCompleted?.Invoke(parentItem,
+            new Vector2(childItem.Bounds.X + 40f, childItem.Bounds.Y + childItem.Bounds.Height * 0.5f), default);
+
+        Assert.Null(parentRoot.AttachParent);
+        Assert.Same(parentRoot, childRoot.AttachParent);
     }
 
     [Fact]
