@@ -20,4 +20,8 @@
 
 ## 后续
 
+- E3 已新增 `EditorAssetThumbnailCache`：按 `AssetGuid + ContentHash + PreviewVersion` 缓存 96×96 CPU 预览，
+  Texture 做等比像素缩放，Material 使用材质球近似，StaticMesh 使用顶点颜色占位预览；Texture/Material/StaticMesh
+  资源编辑器均已接入预览，缓存失效和 Dispose 生命周期有测试覆盖。
+
 - E3 继续补充 Texture/Material Instance 等资源类型的创建模板，并推进缩略图缓存和资源编辑器预览交互。

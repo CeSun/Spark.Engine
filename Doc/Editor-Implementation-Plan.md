@@ -106,7 +106,9 @@ EditorWorld 共享资产、RuntimeWorld 隔离可变材质；不支持的版本�
 1. ✅ 资源浏览器首版：基于 `AssetRegistry.Records` 的 `EditorContentBrowserModel` 与底部 `EditorContentBrowserPanel`，支持多级目录树、右侧文件夹项、搜索、类型过滤、刷新、导入状态/GUID/路径详情；双击/回车文件夹会进入目录，激活资源会在中间文档区打开对应的 StaticMesh、Material 或 Texture2D 编辑器标签。资源目录固定为项目 `Content`，启动时扫描其中的 `.asset` 元数据，快捷键为 `Ctrl+Shift+R`。无筛选时默认定位 `Textures`（存在时）并只显示当前目录直接资源，`All Assets` 显示 `Content` 根目录资源和直接子文件夹；启用搜索或类型筛选后递归匹配子目录。当前场景未保存资源通过 `Scene refs: On` 单独查看。新增 `EditorAssetImportService`/`EditorUi.ImportTexture`（PNG/JPG 等 ImageSharp 支持格式）和 `ImportModel`（glTF StaticMesh）入口，导入目标为当前 Content 目录且不会自动创建场景 Actor；Windows 桌面可将源文件直接拖入窗口导入。StaticMesh 可从内容浏览器拖入场景视口，按射线落点和网格吸附创建 Actor，并支持选择及 Undo/Redo。内容浏览器缩略图、引用关系和 Windows 文件选择器待补。
 2. ✅ E1 资源管理闭环：真实 `Content` 目录（含空文件夹）、集中式 `EditorAssetOperationService`、目录/资产新建/重命名/移动/复制/可恢复删除、复制 GUID 与内部依赖重写、场景及资产传递引用保护、Registry 重扫清理和失败回滚；面板提供操作栏、右键菜单、快捷键与文件夹拖放。
 3. ✅ E2 Inspector 资源引用编辑：统一资源字段、类型过滤 Asset Picker、Content Browser 拖放、清空/定位/打开、字段级错误、多选批量赋值和单事务 Undo/Redo；SceneDocument、Play/Stop 与 Cook 闭包已贯通。
-4. ▶ E3 缩略图与资源编辑器深化：已先统一 `Create → Folder / Material` 创建入口，并将 Material 新建接入事务式资产服务；其它资源类型、缩略图缓存和预览交互继续实施。
+4. ▶ E3 缩略图与资源编辑器深化：已统一 `Create → Folder / Material` 创建入口并将 Material 新建接入事务式资产服务；
+   新增按 AssetGuid/ContentHash/PreviewVersion 失效的 CPU 缩略图缓存，Texture/StaticMesh/Material 编辑器均已接入
+   96×96 预览；Content Browser 网格化缩略图、离屏网格预览和完整材质球交互继续实施。
 5. Inspector 自定义绘制器和面板注册 API。
 6. 菜单、工具栏、Gizmo 扩展点。
 7. 后台资源编译、进度、取消和失败重试。

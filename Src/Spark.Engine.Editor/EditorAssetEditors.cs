@@ -27,6 +27,7 @@ internal sealed class EditorAssetEditorHost : UIElement
     private readonly UITabView _tabs = new() { FixedSize = new UISize(0f, 0f) };
     private readonly Dictionary<Guid, Session> _sessions = new();
     private readonly Dictionary<UITabItem, Guid> _assetTabs = new();
+    private readonly EditorAssetThumbnailCache _thumbnailCache = new();
 
     public EditorAssetEditorHost(UIElement sceneEditor)
     {
@@ -65,7 +66,7 @@ internal sealed class EditorAssetEditorHost : UIElement
 
         var title = Path.GetFileNameWithoutExtension(
             record.ContentPath ?? record.SourcePath ?? record.AssetGuid.ToString("N"));
-        var (kind, editor) = CreateEditor(record, resource, save);
+        var (kind, editor) = CreateEditor(record, resource, save, _thumbnailCache);
         var document = new EditorAssetEditorDocument(record.AssetGuid, title, kind);
         var tab = new UITabItem(title, editor, canClose: true);
         var session = new Session(document, tab);
@@ -97,14 +98,14 @@ internal sealed class EditorAssetEditorHost : UIElement
     }
 
     private static (EditorAssetEditorKind Kind, UIElement Editor) CreateEditor(
-        AssetRecord record, SceneResource resource, Action? save) => resource switch
+        AssetRecord record, SceneResource resource, Action? save, EditorAssetThumbnailCache thumbnailCache) => resource switch
         {
             StaticMesh mesh => (EditorAssetEditorKind.StaticMesh,
-                new EditorStaticMeshAssetEditorPanel(record, mesh)),
+                new EditorStaticMeshAssetEditorPanel(record, mesh, thumbnailCache)),
             Material material => (EditorAssetEditorKind.Material,
-                new EditorMaterialAssetEditorPanel(record, material, save)),
+                new EditorMaterialAssetEditorPanel(record, material, save, thumbnailCache)),
             Texture2D texture => (EditorAssetEditorKind.Texture2D,
-                new EditorTextureAssetEditorPanel(record, texture)),
+                new EditorTextureAssetEditorPanel(record, texture, thumbnailCache)),
             _ => (EditorAssetEditorKind.Generic,
                 new EditorGenericAssetEditorPanel(record, resource)),
         };
@@ -159,9 +160,11 @@ internal abstract class EditorAssetEditorPanel : UIElement
     protected override void OnArrange() => Root.Arrange(ContentRect);
 }
 
-internal sealed class EditorStaticMeshAssetEditorPanel : EditorAssetEditorPanel
+internal sealed class EditorStaticMeshAssetEditorPanel : EditorAssetEditorPanel, IDisposable
 {
-    public EditorStaticMeshAssetEditorPanel(AssetRecord record, StaticMesh mesh)
+    private readonly UIImage _preview;
+
+    public EditorStaticMeshAssetEditorPanel(AssetRecord record, StaticMesh mesh, EditorAssetThumbnailCache thumbnailCache)
         : base(record, "Static Mesh Editor")
     {
         var bounds = mesh.Bounds;
@@ -172,14 +175,24 @@ internal sealed class EditorStaticMeshAssetEditorPanel : EditorAssetEditorPanel
                    $"Bounds center: {bounds.Center}\nBounds radius: {bounds.Radius:F3}",
             TextColor = UITheme.Default.TextColor,
         });
+        var thumbnail = thumbnailCache.GetOrCreate(record, mesh);
+        _preview = new UIImage((uint)thumbnail.Width, (uint)thumbnail.Height, thumbnail.Pixels)
+        {
+            FixedSize = new UISize(160f, 160f),
+        };
+        Root.AddChild(_preview);
     }
+
+    public void Dispose() => _preview.Dispose();
 }
 
-internal sealed class EditorMaterialAssetEditorPanel : EditorAssetEditorPanel
+internal sealed class EditorMaterialAssetEditorPanel : EditorAssetEditorPanel, IDisposable
 {
     private readonly UIPropertyGrid _properties;
+    private readonly UIImage _preview;
 
-    public EditorMaterialAssetEditorPanel(AssetRecord record, Material material, Action? save)
+    public EditorMaterialAssetEditorPanel(AssetRecord record, Material material, Action? save,
+        EditorAssetThumbnailCache thumbnailCache)
         : base(record, "Material Editor")
     {
         if (save != null)
@@ -191,6 +204,12 @@ internal sealed class EditorMaterialAssetEditorPanel : EditorAssetEditorPanel
                 Clicked = save,
             });
         }
+        var thumbnail = thumbnailCache.GetOrCreate(record, material);
+        _preview = new UIImage((uint)thumbnail.Width, (uint)thumbnail.Height, thumbnail.Pixels)
+        {
+            FixedSize = new UISize(160f, 160f),
+        };
+        Root.AddChild(_preview);
         _properties = new UIPropertyGrid
         {
             FixedSize = new UISize(0f, 0f),
@@ -198,13 +217,16 @@ internal sealed class EditorMaterialAssetEditorPanel : EditorAssetEditorPanel
         };
         Root.AddChild(_properties);
     }
+
+    public void Dispose() => _preview.Dispose();
 }
 
 internal sealed class EditorTextureAssetEditorPanel : EditorAssetEditorPanel, IDisposable
 {
     private readonly UIImage _preview;
 
-    public EditorTextureAssetEditorPanel(AssetRecord record, Texture2D texture)
+    public EditorTextureAssetEditorPanel(AssetRecord record, Texture2D texture,
+        EditorAssetThumbnailCache thumbnailCache)
         : base(record, "Texture Editor")
     {
         Root.AddChild(new UILabel
@@ -212,7 +234,8 @@ internal sealed class EditorTextureAssetEditorPanel : EditorAssetEditorPanel, ID
             Text = $"Dimensions: {texture.Width} x {texture.Height}\nFormat: RGBA8",
             TextColor = UITheme.Default.TextColor,
         });
-        _preview = new UIImage(texture.Width, texture.Height, texture.PixelData.Span)
+        var thumbnail = thumbnailCache.GetOrCreate(record, texture);
+        _preview = new UIImage((uint)thumbnail.Width, (uint)thumbnail.Height, thumbnail.Pixels)
         {
             FixedSize = new UISize(0f, 0f),
         };

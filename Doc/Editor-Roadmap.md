@@ -126,7 +126,7 @@ Content Browser 资源可直接拖入字段；`L`/`O`/`X` 分别定位、打开�
 记录和加载失败显示在字段附近。多对象修改通过 `PropertyBatchChangeCommand` 原子执行并作为一次 Undo/Redo；
 世界资源重新登记会保留磁盘路径和传递依赖。保存/重载、Play/Stop 与 Cook 闭包端到端测试均已通过。
 
-### E3：缩略图与资源编辑器深化（L2）
+### E3：缩略图与资源编辑器深化（L2，进行中）
 
 交付范围：
 
@@ -138,8 +138,10 @@ Content Browser 资源可直接拖入字段；`L`/`O`/`X` 分别定位、打开�
 首轮不做用户自定义预览场景、动画缩略图和实时多资源预览。验收要求数百资源滚动时不重复上传同一预览纹理。
 
 当前进展：Content Browser 已将创建入口统一为 `Create → Folder / Material`，右键菜单提供相同操作；
-Material 通过事务式资产服务写入、校验并登记，失败不保留临时文件或 Registry 脏记录。其它资源类型创建、
-缩略图缓存和资源编辑器预览交互仍按本阶段继续实施。
+Material 通过事务式资产服务写入、校验并登记，失败不保留临时文件或 Registry 脏记录。新增
+`EditorAssetThumbnailCache`：按 `AssetGuid + ContentHash + PreviewVersion` 缓存 96×96 CPU 预览，
+Texture 做像素缩放，Material 使用材质球近似，StaticMesh 使用顶点颜色预览；三类资源编辑器均已接入。
+Content Browser 网格化缩略图、离屏 StaticMesh 预览和更完整的 Material 预览交互仍按本阶段继续实施。
 
 ### E4：后台导入任务系统（L3）
 
