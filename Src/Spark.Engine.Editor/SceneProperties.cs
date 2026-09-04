@@ -58,6 +58,31 @@ internal static class ScenePropertySerializer
         }
     }
 
+    /// <summary>
+    /// Actor 编辑器预览使用的恢复入口。恢复可独立解析的标量/变换属性，
+    /// 暂时跳过需要 AssetRegistry 的引用字段，避免预览窗口因缺少运行时资源解析器而无法打开。
+    /// </summary>
+    internal static void RestorePreview(
+        ActorComponent component,
+        IReadOnlyDictionary<string, ScenePropertyValue> values)
+    {
+        foreach (var property in GetSceneProperties(component.GetType()))
+        {
+            if (!property.CanWrite || !values.TryGetValue(property.Name, out var encoded) ||
+                encoded.Kind == ScenePropertyKind.AssetReference)
+                continue;
+            try
+            {
+                property.SetValue(component, ToValue(property.PropertyType, encoded,
+                    static (_, _) => throw new InvalidOperationException("Asset references are not resolved in preview.")));
+            }
+            catch (InvalidOperationException) when (encoded.Kind == ScenePropertyKind.AssetReference)
+            {
+                // 仅跳过预览中无法解析的资源引用。
+            }
+        }
+    }
+
     private static IEnumerable<PropertyInfo> GetSceneProperties(Type type)
         => type.GetProperties(BindingFlags.Instance | BindingFlags.Public)
             .Where(property => property.GetCustomAttribute<ScenePropertyAttribute>() != null &&

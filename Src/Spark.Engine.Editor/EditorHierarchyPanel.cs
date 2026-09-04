@@ -230,6 +230,8 @@ internal sealed class EditorHierarchyPanel : UIElement
     public Action<Spark.Engine.Actors.Actor>? DetachActorRequested { get; set; }
     public Action<Spark.Engine.Actors.Actor>? MoveActorToCurrentFolderRequested { get; set; }
     public Action<Spark.Engine.Actors.Actor>? SelectActorChildrenRequested { get; set; }
+    /// <summary>请求在 Actor 编辑器中打开指定 Actor。</summary>
+    public Action<Spark.Engine.Actors.Actor>? OpenActorEditorRequested { get; set; }
     public Action<object, System.Numerics.Vector2>? ItemDroppedOnBackground { get; set; }
     public Action<EditorOutlinerWorldSource>? WorldSourceChanged { get; set; }
     public Action? CreateOutlinerRequested { get; set; }
@@ -465,6 +467,10 @@ internal sealed class EditorHierarchyPanel : UIElement
         else if (target is Spark.Engine.Actors.Actor actor)
         {
             _contextMenu.AddItem(new UIMenuItem("Focus Selected", () => FocusActorRequested?.Invoke(actor)) { Shortcut = "F" });
+            _contextMenu.AddItem(new UIMenuItem("Open Actor Editor", () => OpenActorEditorRequested?.Invoke(actor))
+            {
+                IsEnabled = OpenActorEditorRequested != null,
+            });
             if (!IsReadOnly)
             {
                 _contextMenu.AddItem(new UIMenuItem("Duplicate", () => DuplicateActorRequested?.Invoke(actor)) { Shortcut = "Ctrl+D" });

@@ -6,12 +6,19 @@
 
 ## 当前阶段：工作台基础（已落地）
 
-- 顶部菜单、工具栏、场景层级、3D 视口、Inspector、状态栏的固定工作区。
+- 顶部菜单、工具栏、场景层级、3D 视口、Actor Editor 属性面板、状态栏的工作区。
 - 层级树、Viewport 与 Inspector 共享同一个选择状态；Ctrl 切换、Shift 区间多选已贯通，Inspector 和 Gizmo 使用最后操作的主选对象。
 - 状态栏显示 Actor/Component 数量和当前选择，菜单命令给出明确反馈。
 - `SetPictureInPicture` 接收 `UIRenderView + EditorViewportSession`；Session 持有脱离 World 的编辑器相机，并通过宿主级快照源驱动渲染。
 - 编辑器视口相机支持右键飞行、Middle 平移、Alt+Left 轨道、滚轮推拉、`F` 聚焦和 UE 风格 `Ctrl+0..9` 保存/`0..9` 恢复会话书签；相机不再创建 Actor，也不进入 EditorWorld/RuntimeWorld。Reload、Play/Stop 与 RenderTarget resize 均复用同一 Session。Actor 编辑器能力已与 `[SceneTransient]` 分离，运行时辅助 Actor 默认不出现在 Outliner，也不能被用户选择、编辑、删除或复制。
 - World Outliner 已完成 O0 语义纠正：默认只显示 Actor，跨 Actor RootComponent 挂载直接形成 Actor 父子树；Label 不再拼接 Component 数量，展开状态按 ActorGuid 保留，过滤只临时展开必要祖先。Component 仅在 Developer 视图中显示且不可拖放；视口选中的 Component 会映射高亮其 Owner Actor。现有名称/类型/组件搜索、`Show Internal Actors` 和 `Only Selected` 继续可用。
+
+### 2026-09-04 工作区与 Actor Editor 增量
+
+- 工作区已调整为 Viewport/Asset Editor 在左、World Outliner 在右；Details 面板从主布局移除。
+- 新增 ActorAsset 资源类型和 Actor Editor 标签页：组件树、组件属性、添加/移除组件、设置根组件、XY 预览与保存回 Content Browser。
+- Outliner Actor 右键菜单提供 `Open Actor Editor`；Content Browser 可创建空白 Actor Asset 并双击编辑。
+- 当前预览已采用透视矩阵并支持组件层级拖拽重挂；完整 Preview World、真实 Mesh/Material 渲染和 Actor 实例化列入后续迭代。
 
 World Outliner 后续以 [World-Outliner-Functional-Spec.md](./World-Outliner-Functional-Spec.md) 为功能基线：
 O0 已将“Actor→Component”树纠正为 Actor 挂载树；下一步 O1 实现 Folder、临时可见性、上下文菜单和

@@ -81,6 +81,49 @@ public sealed class EditorUi
 
     public bool IsInspectorDetached => _detachedInspectorWindow != null;
 
+    /// <summary>打开当前 Actor 的独立 Actor 编辑器 Tab；编辑器内可添加组件、修改属性并预览。</summary>
+    public EditorAssetEditorDocument? OpenActorEditor(Actor actor)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        var asset = new ActorAsset(actor);
+        var savePath = GetActorEditorSavePath(actor);
+        var record = new AssetRecord
+        {
+            AssetGuid = asset.AssetGuid,
+            AssetType = typeof(ActorAsset).AssemblyQualifiedName ?? typeof(ActorAsset).FullName ?? nameof(ActorAsset),
+            ContentPath = savePath == null ? actor.Name + ".actor.asset" : Path.GetRelativePath(Project!.ContentDirectory, savePath).Replace('\\', '/'),
+            Resource = asset,
+            ImportStatus = AssetImportStatus.Imported,
+        };
+        Action? save = savePath == null ? null : () => SaveAsset(record, asset, savePath);
+        return _assetEditorHost.Open(record, asset, save);
+    }
+
+    private string? GetActorEditorSavePath(Actor actor)
+    {
+        if (Project == null)
+            return null;
+        var directory = Path.Combine(Project.ContentDirectory, "Actors");
+        Directory.CreateDirectory(directory);
+        var rawName = string.IsNullOrWhiteSpace(actor.Name) ? "Actor" : actor.Name.Trim();
+        var invalid = new HashSet<char>(Path.GetInvalidFileNameChars());
+        var safeName = new string(rawName.Select(character => invalid.Contains(character) ? '_' : character).ToArray());
+        var path = Path.Combine(directory, safeName + ".asset");
+        if (File.Exists(path))
+            path = Path.Combine(directory, safeName + "-" + actor.ActorGuid.ToString("N")[..8] + ".asset");
+        return path;
+    }
+
+    /// <summary>将 Actor 当前组件定义保存为 `.asset`，可由 Actor 编辑器再次打开。</summary>
+    public void SaveActorAsAsset(Actor actor, string path)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var asset = new ActorAsset(actor);
+        AssetFileCodec.Save(asset, path);
+        SetStatus($"Saved Actor asset '{Path.GetFileName(path)}'.");
+    }
+
     public EditorUi(World world, Action? backToHub = null, IEditorSceneService? sceneService = null,
         WorldContext? worldContext = null, EditorProject? project = null,
         CameraSnapshotSourceRegistry? cameraSnapshotSources = null)
@@ -124,7 +167,7 @@ public sealed class EditorUi
             toggleSnap: ToggleGridSnap);
         root.AddChild(_toolbar);
 
-        // UE 风格主工作区：层级 | 视口 | Details，所有区域均可拖动调整。
+        // UE 风格主工作区：视口 | Outliner。Details 已移除，属性编辑由 Actor 编辑器承载。
         _outlinerHost = new EditorOutlinerHost(_context.World, _context.Outliner,
             project?.RootDirectory, _outlinerExtensions, ConfigureOutlinerPanel,
             DetachOutlinerPanel);
@@ -136,7 +179,7 @@ public sealed class EditorUi
         };
 
         _viewport = new EditorViewportPanel();
-        _assetEditorHost = new EditorAssetEditorHost(_viewport, DetachViewportTab);
+        _assetEditorHost = new EditorAssetEditorHost(_viewport, DetachViewportTab, _context.AssetRegistry);
 
         _inspector = new EditorInspectorPanel(
             RequestPropertyEdit,
@@ -154,6 +197,8 @@ public sealed class EditorUi
             TryContentAction(() => CreateContentDirectory(parent, name));
         _contentBrowser.MaterialCreateRequested += (directory, name) =>
             TryContentAction(() => CreateContentMaterial(directory, name));
+        _contentBrowser.ActorCreateRequested += (directory, name) =>
+            TryContentAction(() => CreateContentActor(directory, name));
         _contentBrowser.FolderRenameRequested += (directory, name) =>
             TryContentAction(() => RenameContentDirectory(directory, name));
         _contentBrowser.FolderMoveRequested += (directory, destination) =>
@@ -176,18 +221,18 @@ public sealed class EditorUi
             MinSecondSize = 280f,
             FixedSize = new UISize(0f, 0f),
         };
-        _viewportDetails.SetPanels(_assetEditorHost, _inspector);
+        _viewportDetails.SetPanels(_assetEditorHost, null);
 
         _mainColumns = new UISplitPanel
         {
             Direction = UISplitDirection.Horizontal,
-            SplitRatio = 0.22f,
+            SplitRatio = 0.78f,
             SplitterWidth = 4f,
             MinFirstSize = 180f,
             MinSecondSize = 640f,
             FixedSize = new UISize(0f, 0f),
         };
-        _mainColumns.SetPanels(_outlinerHost, _viewportDetails);
+        _mainColumns.SetPanels(_viewportDetails, _outlinerHost);
 
         _workspace = new UISplitPanel
         {
@@ -247,6 +292,11 @@ public sealed class EditorUi
         panel.CreateSubfolderRequested = folder => CreateOutlinerFolder(folder.FolderGuid);
         panel.SelectFolderActorsRequested = SelectOutlinerFolderActors;
         panel.FocusActorRequested = actor => { _context.Selection.Selected = actor; FocusSelectionInViewport(); };
+        panel.OpenActorEditorRequested = actor =>
+        {
+            if (OpenActorEditor(actor) != null)
+                SetStatus($"Opened Actor Editor for '{actor.Name}'.");
+        };
         panel.DuplicateActorRequested = actor => { _context.Selection.Selected = actor; DuplicateSelection(); };
         panel.DetachActorRequested = DetachOutlinerActor;
         panel.MoveActorToCurrentFolderRequested = MoveActorToCurrentFolder;
@@ -512,6 +562,23 @@ public sealed class EditorUi
         catch (Exception ex)
         {
             SetStatus($"Create Material failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>在指定 Content 目录创建空白 Actor 资产，并在浏览器中定位。</summary>
+    public AssetRecord CreateContentActor(string? directory, string name)
+    {
+        try
+        {
+            var record = RequireAssetOperations().CreateActor(directory, name);
+            _contentBrowser.RevealAsset(record.AssetGuid);
+            SetStatus($"Created Actor '{EditorContentBrowserModel.GetDisplayName(record)}'.");
+            return record;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Create Actor failed: {ex.Message}");
             throw;
         }
     }
@@ -1661,6 +1728,11 @@ public sealed class EditorUi
     {
         if (_inspector.TryAcceptAssetDrop(record, position))
             return;
+        if (_assetEditorHost.TryAcceptAssetDrop(record, position))
+        {
+            SetStatus($"Assigned '{EditorContentBrowserModel.GetDisplayName(record)}' in Actor Editor.");
+            return;
+        }
         if (_hierarchy.GetTargetAt(position) is EditorActorFolder folder)
         {
             CreateActorFromAssetInFolder(record, folder);
@@ -1923,7 +1995,7 @@ public sealed class EditorUi
         catch (Exception ex)
         {
             // 创建失败时恢复主布局，避免 Inspector 丢失。
-            _viewportDetails.SetPanels(_assetEditorHost, _inspector);
+            _viewportDetails.SetPanels(_assetEditorHost, null);
             SetStatus($"Detach panel failed: {ex.Message}");
         }
     }
@@ -1936,7 +2008,8 @@ public sealed class EditorUi
 
         if (_uiManager != null && _windowManager?.GetViewport(window) is { } viewport)
             _uiManager.GetOrCreateCanvas(viewport.Id).Root = null;
-        _viewportDetails?.SetPanels(_assetEditorHost, _inspector);
+        // Details 已从主布局移除；关闭浮动窗口后只恢复视口区域。
+        _viewportDetails?.SetPanels(_assetEditorHost, null);
         _detachedInspectorWindow = null;
         SetStatus("Details panel docked back into the editor.");
     }
@@ -1957,7 +2030,7 @@ public sealed class EditorUi
             if (!_outlinerHostWasDetached && !_outlinerHost.DetachPanel(panel))
                 return;
             if (_outlinerHostWasDetached)
-                _mainColumns.SetPanels(null, _viewportDetails);
+                _mainColumns.SetPanels(_viewportDetails, null);
             var window = _windowManager.CreateWindow("World Outliner", 360, 720);
             PositionFloatingWindow(window, pointerPosition);
             var viewport = _windowManager.GetViewport(window)
@@ -1972,7 +2045,7 @@ public sealed class EditorUi
         catch (Exception ex)
         {
             if (_outlinerHostWasDetached)
-                _mainColumns.SetPanels(_outlinerHost, _viewportDetails);
+                _mainColumns.SetPanels(_viewportDetails, _outlinerHost);
             else
                 _outlinerHost.RestorePanel(panel);
             _outlinerHostWasDetached = false;
@@ -2024,7 +2097,7 @@ public sealed class EditorUi
         {
             _assetHostWasDetached = _assetEditorHost.TabCount <= 1;
             if (_assetHostWasDetached)
-                _viewportDetails.SetPanels(null, _inspector);
+                _viewportDetails.SetPanels(null, null);
             if (!_assetEditorHost.DetachTab(tab))
                 throw new InvalidOperationException("Viewport tab is no longer available.");
 
@@ -2043,7 +2116,7 @@ public sealed class EditorUi
         {
             _assetEditorHost.RestoreTab(tab);
             if (_assetHostWasDetached)
-                _viewportDetails.SetPanels(_assetEditorHost, _inspector);
+                _viewportDetails.SetPanels(_assetEditorHost, null);
             _assetHostWasDetached = false;
             SetStatus($"Detach viewport tab failed: {ex.Message}");
         }
@@ -2067,7 +2140,7 @@ public sealed class EditorUi
         if (_uiManager != null && _windowManager?.GetViewport(window) is { } viewport)
             _uiManager.GetOrCreateCanvas(viewport.Id).Root = null;
         if (_outlinerHostWasDetached)
-            _mainColumns?.SetPanels(_outlinerHost, _viewportDetails);
+            _mainColumns?.SetPanels(_viewportDetails, _outlinerHost);
         else if (_detachedOutlinerPanel != null)
             _outlinerHost.RestorePanel(_detachedOutlinerPanel);
         _detachedOutlinerWindow = null;
@@ -2098,7 +2171,7 @@ public sealed class EditorUi
             _uiManager.GetOrCreateCanvas(viewport.Id).Root = null;
         _assetEditorHost.RestoreTab(tab);
         if (_assetHostWasDetached)
-            _viewportDetails?.SetPanels(_assetEditorHost, _inspector);
+            _viewportDetails?.SetPanels(_assetEditorHost, null);
         _detachedViewportWindow = null;
         _detachedViewportTab = null;
         _assetHostWasDetached = false;

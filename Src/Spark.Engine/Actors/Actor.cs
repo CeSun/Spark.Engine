@@ -84,6 +84,45 @@ public class Actor
         _world?.NotifyStructureChanged();
     }
 
+    /// <summary>
+    /// 从 Actor 移除一个组件。编辑器使用该 API 实现 UE 组件面板中的 Remove 操作；
+    /// 已注册组件会先对称执行注销，空间组件会自动解除挂载并重新选择根组件。
+    /// </summary>
+    public bool RemoveOwnedComponent(ActorComponent component)
+    {
+        ArgumentNullException.ThrowIfNull(component);
+        if (!_ownedComponents.Contains(component) || !ReferenceEquals(component.Owner, this))
+            return false;
+
+        var removedRoot = ReferenceEquals(RootComponent, component);
+        var removedChildren = component is SceneComponent removedScene
+            ? removedScene.AttachChildren.ToArray()
+            : Array.Empty<SceneComponent>();
+        var removedParent = component is SceneComponent parentScene ? parentScene.AttachParent : null;
+        if (component is SceneComponent scene)
+            scene.DetachFromComponent(DetachmentTransformRules.KeepWorldTransform);
+        if (_isRegistered)
+            component.UnregisterComponent();
+
+        _ownedComponents.Remove(component);
+        component.Owner = null;
+        if (component is SceneComponent)
+        {
+            if (removedRoot)
+                RootComponent = _ownedComponents.OfType<SceneComponent>().FirstOrDefault();
+            foreach (var child in removedChildren)
+            {
+                var destination = removedRoot ? RootComponent : removedParent;
+                if (destination != null && !ReferenceEquals(destination, child))
+                    child.AttachToComponent(destination, AttachmentTransformRules.KeepWorldTransform);
+                else
+                    child.DetachFromComponent(DetachmentTransformRules.KeepWorldTransform);
+            }
+        }
+        _world?.NotifyStructureChanged();
+        return true;
+    }
+
     /// <summary>设置 Actor 的空间根组件。根组件必须属于当前 Actor。</summary>
     public void SetRootComponent(SceneComponent component)
     {

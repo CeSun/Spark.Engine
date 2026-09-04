@@ -1,5 +1,8 @@
 using Spark.Engine.Resources;
 
+using Spark.Engine.Actors;
+using Spark.Engine.Components;
+
 namespace Spark.Engine.Editor;
 
 public enum EditorAssetReferenceKind : byte
@@ -110,6 +113,24 @@ public sealed class EditorAssetOperationService
             if (File.Exists(staging))
                 File.Delete(staging);
         }
+    }
+
+    /// <summary>在 Content 目录创建带 SceneComponent 根节点的 Actor 资产。</summary>
+    public AssetRecord CreateActor(string? directory, string name)
+    {
+        var parent = ResolveDirectory(directory, mustExist: true);
+        var target = CombineChild(parent, ValidateAssetFileName(name));
+        EnsureDoesNotExist(target);
+
+        var assetGuid = Guid.NewGuid();
+        var actor = new Actor { Name = Path.GetFileNameWithoutExtension(target) };
+        actor.AddOwnedComponent(new SceneComponent());
+        using var asset = new ActorAsset(actor) { AssetGuid = assetGuid };
+        AssetFileCodec.Save(asset, target);
+        var validation = AssetFileCodec.ReadMetadata(target);
+        if (validation.AssetGuid != assetGuid || validation.AssetType != EngineAssetType.Actor.ToString())
+            throw new InvalidDataException("The created Actor asset could not be validated.");
+        return _registry.RegisterAssetFile(target, _contentRoot);
     }
 
     public string RenameDirectory(string directory, string newName)

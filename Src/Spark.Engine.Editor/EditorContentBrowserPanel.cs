@@ -224,6 +224,7 @@ internal sealed class EditorContentBrowserPanel : UIElement
     public event Action<AssetRecord, Vector2>? AssetDropped;
     public event Action<string, string>? FolderCreateRequested;
     public event Action<string, string>? MaterialCreateRequested;
+    public event Action<string, string>? ActorCreateRequested;
     public event Action<string, string>? FolderRenameRequested;
     public event Action<string, string>? FolderMoveRequested;
     public event Action<string, string>? FolderCopyRequested;
@@ -419,11 +420,19 @@ internal sealed class EditorContentBrowserPanel : UIElement
             MaterialCreateRequested?.Invoke(_model.SelectedDirectory, name);
     }
 
+    private void RequestNewActor()
+    {
+        var name = RequireOperationName("creating an Actor");
+        if (name != null)
+            ActorCreateRequested?.Invoke(_model.SelectedDirectory, name);
+    }
+
     private void ShowCreateMenu()
     {
         _createMenu.Clear();
         _createMenu.AddItem(new UIMenuItem("Folder", RequestNewFolder));
         _createMenu.AddItem(new UIMenuItem("Material", RequestNewMaterial));
+        _createMenu.AddItem(new UIMenuItem("Actor", RequestNewActor));
         _createMenu.Canvas = FindCanvas();
         _createMenu.Show(new Vector2(_createButton.Bounds.X, _createButton.Bounds.Bottom));
     }
@@ -498,6 +507,7 @@ internal sealed class EditorContentBrowserPanel : UIElement
         _contextMenu.Clear();
         _contextMenu.AddItem(new UIMenuItem("New Folder", RequestNewFolder));
         _contextMenu.AddItem(new UIMenuItem("New Material", RequestNewMaterial));
+        _contextMenu.AddItem(new UIMenuItem("New Actor", RequestNewActor));
         _contextMenu.AddSeparator();
         _contextMenu.AddItem(new UIMenuItem("Rename", BeginRename)
         {

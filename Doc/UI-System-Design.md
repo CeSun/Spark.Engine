@@ -23,6 +23,9 @@
 > Demo.Desktop 逐场景目视确认，未发现问题。剩余为 P7/P9/P10 打磨项。
 > 本文与当前代码同步，记录**实际落地形态**与已知偏差。
 
+> **Actor 编辑器增量（2026-09-04）**：主工作区改为 Viewport/Asset Editor 在左、World Outliner 在右，Details 不再挂载；
+> 新增 ActorAsset 与 Actor Editor，采用「左组件树 / 中透视预览 / 右属性面板」布局，支持组件树拖拽重挂、组件增删、根组件切换、组件属性编辑、透视矩阵预览和 `.asset` 保存。
+
 > **P7 单行文本增强（当前增量）**：`UITextBox` 已支持选择、鼠标拖选、Shift/Ctrl 导航、剪贴板抽象、
 > 删除/替换、Undo/Redo、Placeholder、ReadOnly、MaxLength、Password 掩码和超长文本水平滚动；
 > Windows IME 单行组合态已实现；多行排版与跨平台 IME 仍待后续实现。

@@ -9,6 +9,7 @@ public enum EngineAssetType : byte
     StaticMesh = 1,
     Material = 2,
     Texture2D = 3,
+    Actor = 4,
 }
 
 public sealed record AssetFileData(
@@ -86,6 +87,14 @@ public static class AssetFileCodec
             AddTexture(material.MetallicRoughnessTexture);
             AddTexture(material.MaskTexture);
         }
+        if (resource is ActorAsset actorAsset)
+        {
+            foreach (var property in actorAsset.Document.Components.SelectMany(component => component.Properties.Values))
+            {
+                if (property.Kind == ScenePropertyKind.AssetReference && property.Value is Guid assetGuid)
+                    dependencySet.Add(assetGuid);
+            }
+        }
         var orderedDependencies = dependencySet
             .Where(guid => guid != Guid.Empty)
             .OrderBy(guid => guid)
@@ -149,7 +158,9 @@ public static class AssetFileCodec
             .ToArray();
         var payload = data.AssetType == EngineAssetType.Material
             ? RemapMaterialPayload(data.Payload, guidMap)
-            : data.Payload.ToArray();
+            : data.AssetType == EngineAssetType.Actor
+                ? RemapActorPayload(data.Payload, guidMap)
+                : data.Payload.ToArray();
         return new AssetFileData(data.AssetType, assetGuid, dependencies, payload);
     }
 
@@ -172,6 +183,7 @@ public static class AssetFileCodec
             EngineAssetType.StaticMesh => DecodeStaticMesh(payloadReader, assetGuid),
             EngineAssetType.Material => DecodeMaterial(payloadReader, assetGuid, registry),
             EngineAssetType.Texture2D => DecodeTexture2D(payloadReader, assetGuid),
+            EngineAssetType.Actor => DecodeActor(payload, assetGuid),
             _ => throw new InvalidDataException($"Unsupported asset type {(byte)type}.")
         };
     }
@@ -187,6 +199,7 @@ public static class AssetFileCodec
             EngineAssetType.StaticMesh => DecodeStaticMesh(reader, data.AssetGuid),
             EngineAssetType.Material => DecodeMaterial(reader, data.AssetGuid, registry),
             EngineAssetType.Texture2D => DecodeTexture2D(reader, data.AssetGuid),
+            EngineAssetType.Actor => DecodeActor(data.Payload, data.AssetGuid),
             _ => throw new InvalidDataException($"Unsupported asset type {(byte)data.AssetType}.")
         };
     }
@@ -196,6 +209,7 @@ public static class AssetFileCodec
         StaticMesh => EngineAssetType.StaticMesh,
         Material => EngineAssetType.Material,
         Texture2D => EngineAssetType.Texture2D,
+        ActorAsset => EngineAssetType.Actor,
         _ => throw new NotSupportedException($"Asset type '{resource.GetType().FullName}' is not supported.")
     };
 
@@ -280,6 +294,24 @@ public static class AssetFileCodec
                     writer.Write(texture.PixelData.Span);
                     break;
                 }
+                case EngineAssetType.Actor:
+                {
+                    var actor = (ActorAsset)resource;
+                    var tempPath = Path.Combine(Path.GetTempPath(), $"spark-actor-{Guid.NewGuid():N}.scene");
+                    try
+                    {
+                        var document = new SceneDocument();
+                        document.Actors.Add(actor.Document);
+                        document.Save(tempPath);
+                        writer.Write(File.ReadAllBytes(tempPath));
+                    }
+                    finally
+                    {
+                        if (File.Exists(tempPath))
+                            File.Delete(tempPath);
+                    }
+                    break;
+                }
                 default:
                     throw new InvalidDataException($"Unsupported asset type {(byte)type}.");
             }
@@ -345,6 +377,74 @@ public static class AssetFileCodec
         if (reader.BaseStream.Position != reader.BaseStream.Length)
             throw new InvalidDataException("Unexpected trailing data in Texture2D payload.");
         return new Texture2D(width, height, pixels) { AssetGuid = assetGuid };
+    }
+
+    private static ActorAsset DecodeActor(byte[] payload, Guid assetGuid)
+    {
+        var tempPath = Path.Combine(Path.GetTempPath(), $"spark-actor-load-{Guid.NewGuid():N}.scene");
+        try
+        {
+            File.WriteAllBytes(tempPath, payload);
+            var document = SceneDocument.Load(tempPath);
+            var actor = document.Actors.SingleOrDefault()
+                ?? throw new InvalidDataException("Actor asset does not contain an Actor definition.");
+            return new ActorAsset(actor) { AssetGuid = assetGuid };
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
+        }
+    }
+
+    private static byte[] RemapActorPayload(byte[] payload, IReadOnlyDictionary<Guid, Guid> guidMap)
+    {
+        var asset = DecodeActor(payload, Guid.NewGuid());
+        var source = asset.Document;
+        var document = new SceneActorDocument
+        {
+            ActorGuid = source.ActorGuid,
+            ActorType = source.ActorType,
+            Name = source.Name,
+            RootComponentGuid = source.RootComponentGuid,
+            EditorFolderGuid = source.EditorFolderGuid,
+            EditorLevelGuid = source.EditorLevelGuid,
+        };
+        document.EditorDataLayerGuids.AddRange(source.EditorDataLayerGuids);
+        foreach (var component in source.Components)
+        {
+            var clone = new SceneComponentDocument
+            {
+                ComponentGuid = component.ComponentGuid,
+                ComponentType = component.ComponentType,
+                ParentComponentGuid = component.ParentComponentGuid,
+                AttachSocketName = component.AttachSocketName,
+                RelativeLocation = component.RelativeLocation,
+                RelativeRotation = component.RelativeRotation,
+                RelativeScale = component.RelativeScale,
+                Sockets = component.Sockets.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal),
+                Properties = component.Properties.ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value.Kind == ScenePropertyKind.AssetReference && pair.Value.Value is Guid guid && guidMap.TryGetValue(guid, out var mapped)
+                        ? new ScenePropertyValue(pair.Value.Kind, mapped)
+                        : pair.Value,
+                    StringComparer.Ordinal),
+            };
+            document.Components.Add(clone);
+        }
+        var tempPath = Path.Combine(Path.GetTempPath(), $"spark-actor-remap-{Guid.NewGuid():N}.scene");
+        try
+        {
+            var scene = new SceneDocument();
+            scene.Actors.Add(document);
+            scene.Save(tempPath);
+            return File.ReadAllBytes(tempPath);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
+        }
     }
 
     private static Texture2D? ResolveTexture(Guid? guid, IAssetRegistry? registry)
